@@ -1,0 +1,2 @@
+
+from .TIPconfig import TIPConfig

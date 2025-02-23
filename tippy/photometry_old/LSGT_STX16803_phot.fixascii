@@ -1,0 +1,2 @@
+| mag | e_mag |         ra |         dec | ID | filter | seeing |   obsdate |                                                                                    file |  UL5_4 | e_UL5_4 |  depth | observatory |
+| 0.0 |   0.0 | 65.0017429 | -54.9376201 |  1 |      i |  4.491 | 59658.461 | /data2/SN2021aefx_220627/LSGT/i/com_align_Calib-LSGT-NGC1566-20220320-110400-i-180.fits | 26.597 |   0.023 | 18.611 |        LSGT |
