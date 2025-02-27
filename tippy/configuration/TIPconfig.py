@@ -83,9 +83,11 @@ class TIPConfig:
         self.make_configfile(psfex_config, filename='psfex.config', savepath = savepath_tel)
         
         # GLOBAL CONFIGURATION        
-        calibdata_config = dict(CALIBDATA_DIR = f'{self.path_home}/data/calibdata')
+        calibdata_config = dict(CALIBDATA_DIR = f'{self.path_home}/data/calibdata',
+                                CALIBDATA_MASTERDIR = f'{self.path_home}/data/mastercalib')
         refdata_config = dict(REFDATA_DIR = f'{self.path_home}/data/refdata')
         scidata_config = dict(SCIDATA_DIR = f'{self.path_home}/data/scidata')
+        catalog_config = dict(CATALOG_DIR = f'{self.path_global}/../catalog/catalog_archive/')
         
         observatory_config = dict(OBSERVATORY_LOCATIONINFO = f'{self.path_global}/obs_location.txt',
                                   OBSERVATORY_TELESCOPEINFO = f'{self.path_global}/CCD.txt')
@@ -104,6 +106,7 @@ class TIPConfig:
         self.make_configfile(calibdata_config, filename='calibdata.config', savepath = savepath_global)
         self.make_configfile(refdata_config, filename='refdata.config', savepath = savepath_global)
         self.make_configfile(scidata_config, filename='scidata.config', savepath = savepath_global)
+        self.make_configfile(catalog_config, filename='catalog.config', savepath = savepath_global)
         self.make_configfile(observatory_config, filename='observatory.config', savepath = savepath_global)
         self.make_configfile(sdtdata_config, filename='sdtdata.config', savepath = savepath_global)
 

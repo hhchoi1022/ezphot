@@ -101,18 +101,7 @@ class BaseImage(TIPConfig):
         
         # Initialize or load status
         super().__init__(telkey = self.telkey)
-    
-    def write(self, path : str):
-        """ Write fits CalibrationImage into fits file """
-        data = self.data
-        header = self.header
-        status = self.status
-        os.makedirs(os.path.dirname(path), exist_ok = True)
-        fits.writeto(path, data, header, overwrite=True)
-        self.logger.info(f"Calibration image written to {path}")
-        updated_instance = BaseImage(path = path, telinfo = self.telinfo)
-        updated_instance.save_to_status()
-        return updated_instance
+
     
     @property
     def data(self):

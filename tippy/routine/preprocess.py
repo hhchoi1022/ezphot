@@ -58,10 +58,10 @@ class TIPPreprocess(Helper):
             If no calibration frames are found.
         """
         # Locate calibration frames
-        calibframe_key = os.path.join(tgt_image.config['CALIBDATA_PATH'],tgt_image.telkey, tgt_image.telname, imagetyp, '*.fits')
+        calibframe_key = os.path.join(tgt_image.config['CALIBDATA_MASTERDIR'], tgt_image.observatory, tgt_image.telkey, imagetyp, tgt_image.telname, '*.fits')
         calibframe_files = glob.glob(calibframe_key)
         if not calibframe_files:
-            raise FileNotFoundError(f"No calibration frames found in {os.path.join(tgt_image.config['CALIBDATA_PATH'],tgt_image.telkey, tgt_image.telname, imagetyp)}")
+            raise FileNotFoundError(f"No calibration frames found in {os.path.join(tgt_image.config['CALIBDATA_MASTERDIR'], tgt_image.observatory, tgt_image.telkey, imagetyp, tgt_image.telname)}")
 
         # Retrieve FITS metadata
         calibframe_info = self.get_imginfo(calibframe_files, normalize_key=True)
@@ -130,13 +130,13 @@ class TIPPreprocess(Helper):
     def correct_bdf(self, tgt_image: ScienceImage, bias_image: CalibrationImage, dark_image: CalibrationImage, flat_image: CalibrationImage,
                     output_dir : str = None
                     ):
-        if tgt_image.status.biascor['status']:
+        if tgt_image.status.status['biascor']['status']:
             tgt_image.logger.warning(f"BIAS correction already applied to {tgt_image.path}. BIAS correction is not applied.")
             raise RuntimeError(f"BIAS correction already applied to {tgt_image.path}")
-        if tgt_image.status.darkcor['status']:
+        if tgt_image.status.status['darkcor']['status']:
             tgt_image.logger.warning(f"DARK correction already applied to {tgt_image.path}. DARK correction is not applied.")
             raise RuntimeError(f"DARK correction already applied to {tgt_image.path}")
-        if tgt_image.status.flatcor['status']:
+        if tgt_image.status.status['flatcor']['status']:
             tgt_image.logger.warning(f"FLAT correction already applied to {tgt_image.path}. FLAT correction is not applied.")
             raise RuntimeError(f"FLAT correction already applied to {tgt_image.path}")
         
@@ -170,7 +170,7 @@ class TIPPreprocess(Helper):
         
         # Determine output filename
         if not output_dir:
-            output_dir = os.path.dirname(tgt_image.path)
+            output_dir = tgt_image.savedir
         os.makedirs(output_dir, exist_ok = True)
         
         filename = os.path.basename(tgt_image.path)
@@ -204,10 +204,10 @@ class TIPPreprocess(Helper):
     def correct_db(self, tgt_image: ScienceImage, bias_image: CalibrationImage, dark_image: CalibrationImage, 
                     output_dir : str = None
                     ):
-        if tgt_image.status.biascor['status']:
+        if tgt_image.status.status['biascor']['status']:
             tgt_image.logger.warning(f"BIAS correction already applied to {tgt_image.path}. BIAS correction is not applied.")
             raise RuntimeError(f"BIAS correction already applied to {tgt_image.path}")
-        if tgt_image.status.darkcor['status']:
+        if tgt_image.status.status['darkcor']['status']:
             tgt_image.logger.warning(f"DARK correction already applied to {tgt_image.path}. DARK correction is not applied.")
             raise RuntimeError(f"DARK correction already applied to {tgt_image.path}")
         
@@ -237,7 +237,7 @@ class TIPPreprocess(Helper):
         
         # Determine output filename
         if not output_dir:
-            output_dir = os.path.dirname(tgt_image.path)
+            output_dir = tgt_image.savedir
         os.makedirs(output_dir, exist_ok = True)
         
         filename = os.path.basename(tgt_image.path)
@@ -269,7 +269,7 @@ class TIPPreprocess(Helper):
                      output_dir : str = None
                      ):
         """ Corrects bias in the image """
-        if tgt_image.status.biascor['status']:
+        if tgt_image.status.status['biascor']['status']:
             tgt_image.logger.warning(f"BIAS correction already applied to {tgt_image.path}. BIAS correction is not applied.")
             raise RuntimeError(f"BIAS correction already applied to {tgt_image.path}")
         
@@ -293,7 +293,7 @@ class TIPPreprocess(Helper):
         
         # Determine output filename
         if not output_dir:
-            output_dir = os.path.dirname(tgt_image.path)
+            output_dir = tgt_image.savedir
         os.makedirs(output_dir, exist_ok = True)
         
         filename = os.path.basename(tgt_image.path)
@@ -323,7 +323,7 @@ class TIPPreprocess(Helper):
                      output_dir : str = None
                      ):
         """ Corrects dark in the image """
-        if tgt_image.status.darkcor['status']:
+        if tgt_image.status.status['darkcor']['status']:
             tgt_image.logger.warning(f"DARK correction already applied to {tgt_image.path}. DARK correction is not applied.")
             raise RuntimeError(f"DARK correction already applied to {tgt_image.path}")
         
@@ -347,7 +347,7 @@ class TIPPreprocess(Helper):
         
         # Determine output filename
         if not output_dir:
-            output_dir = os.path.dirname(tgt_image.path)
+            output_dir = tgt_image.savedir
         os.makedirs(output_dir, exist_ok = True)
         
         filename = os.path.basename(tgt_image.path)
@@ -375,7 +375,7 @@ class TIPPreprocess(Helper):
     def correct_flat(self, tgt_image: ScienceImage, flat_image: CalibrationImage,
                      output_dir : str = None
                      ):
-        if tgt_image.status.flatcor['status']:
+        if tgt_image.status.status['flatcor']['status']:
             tgt_image.logger.warning(f"FLAT correction already applied to {tgt_image.path}. FLAT correction is not applied.")
             raise RuntimeError(f"FLAT correction already applied to {tgt_image.path}")
         
@@ -399,7 +399,7 @@ class TIPPreprocess(Helper):
         
         # Determine output filename
         if not output_dir:
-            output_dir = os.path.dirname(tgt_image.path)
+            output_dir = tgt_image.savedir
         os.makedirs(output_dir, exist_ok = True)
         
         filename = os.path.basename(tgt_image.path)
@@ -461,19 +461,19 @@ class TIPPreprocess(Helper):
                 bias_fileinfo = group[bias_mask]
                 new_bias = None
                 if bias_fileinfo:
-                    date_str = Time(np.mean(Time(bias_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d')
+                    bias_rep = bias_fileinfo[0]
+                    date_str = Time(np.mean(Time(bias_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d_%H%M%S')
                     output_name = f'{date_str}-bias.fits'
-                    combined_name = self.combine_img(filelist = bias_fileinfo['file'], 
+                    combined_path = os.path.join(bias_rep['image'].config['CALIBDATA_MASTERDIR'], bias_rep['image'].observatory, bias_rep['image'].telkey, 'BIAS', bias_rep['image'].telname, output_name)
+                    combined_path = self.combine_img(filelist = bias_fileinfo['file'], 
+                                                     output_path = combined_path,
                                                      combine_method = 'median', 
                                                      scale = None, 
-                                                     output_name = output_name,
                                                      print_output = True,
                                                      clip = 'extrema',
                                                      clip_extrema_nlow=1,
                                                      clip_extrema_nhigh=1)
-                    new_bias = CalibrationImage(path = combined_name, telinfo = bias_fileinfo[0]['image'].telinfo)
-                    filepath = os.path.join(new_bias.config['CALIBDATA_PATH'], new_bias.telkey, new_bias.telname, 'BIAS', output_name)
-                    new_bias = new_bias.write(filepath)
+                    new_bias = CalibrationImage(path = combined_path, telinfo = bias_rep['image'].telinfo, status = bias_rep['image'].status)
                     master_files[key]['BIAS'] = new_bias
                 else:
                     new_bias = self.get_masterframe(tgt_image = group[0]['image'],
@@ -487,26 +487,26 @@ class TIPPreprocess(Helper):
                 if dark_fileinfo:
                     dark_fileinfo_by_exptime = dark_fileinfo.group_by('exptime').groups
                     for dark_group in dark_fileinfo_by_exptime:
-                        exptime_name = dark_group['exptime'][0]
-                        date_str = Time(np.mean(Time(dark_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d')
-                        output_name = f'{date_str}-dark.fits'
+                        dark_rep = dark_group[0]
+                        exptime_name = dark_rep['exptime']
+                        date_str = Time(np.mean(Time(dark_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d_%H%M%S')
+                        output_name = '%s-dark_%.1fs.fits' % (date_str, float(exptime_name))
+                        combined_path = os.path.join(dark_rep['image'].config['CALIBDATA_MASTERDIR'], dark_rep['image'].observatory, dark_rep['image'].telkey, 'DARK', dark_rep['image'].telname, output_name)
                         b_darkimagelist = []
                         for dark in tqdm(dark_group['image'], desc = 'BIAS correction on DARK frames...'):
                             b_dark_image = self.correct_bias(tgt_image = dark, bias_image = master_files[key]['BIAS'])
                             b_darkimagelist.append(b_dark_image)
                         b_darkfilelist = [image.path for image in b_darkimagelist]
                             
-                        combined_name = self.combine_img(filelist = b_darkfilelist, 
+                        combined_path = self.combine_img(filelist = b_darkfilelist, 
+                                                         output_path = combined_path,
                                                          combine_method = 'median', 
                                                          scale = None, 
-                                                         output_name = output_name,
                                                          print_output = True,
                                                          clip = 'extrema',
                                                          clip_extrema_nlow=1,
                                                          clip_extrema_nhigh=1)
-                        new_dark = CalibrationImage(path = combined_name, telinfo = dark_group[0]['image'].telinfo)
-                        filepath = os.path.join(new_dark.config['CALIBDATA_PATH'], new_dark.telkey, new_dark.telname, 'DARK', output_name)
-                        new_dark = new_dark.write(filepath)
+                        new_dark = CalibrationImage(path = combined_path, telinfo = dark_rep['image'].telinfo, status = dark_rep['image'].status)
                         master_files[key]['DARK'][exptime_name] = new_dark
 
                 if '100.0' not in master_files[key]['DARK'].keys():
@@ -525,39 +525,39 @@ class TIPPreprocess(Helper):
                 if flat_fileinfo:
                     flat_fileinfo_by_filter = flat_fileinfo.group_by('filter').groups
                     for flat_group in flat_fileinfo_by_filter:
-                        filter_name = flat_group['filter'][0]
-                        date_str = Time(np.mean(Time(flat_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d')
+                        flat_rep = flat_group[0]
+                        filter_name = flat_rep['filter']
+                        date_str = Time(np.mean(Time(flat_fileinfo['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d_%H%M%S')
                         output_name = f'{date_str}-flat-{filter_name}.fits'
+                        combined_path = os.path.join(flat_rep['image'].config['CALIBDATA_MASTERDIR'], flat_rep['image'].observatory, flat_rep['image'].telkey, 'FLAT', flat_rep['image'].telname, output_name)
                         db_flatimagelist = []
                         for flat in tqdm(flat_group['image'], desc = 'BIAS, DARK correction on FLAT frames...'):
                             db_flat_image = self.correct_db(tgt_image = flat, bias_image = master_files[key]['BIAS'], dark_image = master_files[key]['DARK']['100.0'])
                             db_flatimagelist.append(db_flat_image)
                         db_flatfilelist = [image.path for image in db_flatimagelist]
-                    
-                        combined_name = self.combine_img(filelist = db_flatfilelist, 
+                        
+                        combined_path = self.combine_img(filelist = db_flatfilelist, 
+                                                         output_path = combined_path,
                                                          combine_method = 'median', 
                                                          scale = None, 
-                                                         output_name = output_name,
                                                          print_output = True,
                                                          clip = 'extrema',
                                                          clip_extrema_nlow=1,
                                                          clip_extrema_nhigh=1)
-                        new_flat = CalibrationImage(path = combined_name, telinfo = flat_group[0]['image'].telinfo)
-                        filepath = os.path.join(new_flat.config['CALIBDATA_PATH'], new_flat.telkey, new_flat.telname, 'FLAT', output_name)
-                        new_flat = new_flat.write(filepath)
+                        new_flat = CalibrationImage(path = combined_path, telinfo = flat_rep['image'].telinfo, status = flat_rep['image'].status)
                         master_files[key]['FLAT'][filter_name] = new_flat
             
         return master_files
 #%%
-
+#%%
 if __name__ == '__main__':
-    from tippy.routine import SDTObsdata
-    obsfilelist_dict = SDTObsdata().show_destdata('2025-02-02_gain2750')
     import glob
-    #file_key = '/home/hhchoi1022/data/obsdata/7DT_C361K_gain2750_1x1/7DT02/2025-02-02_gain2750/*.fits'
-    #filelist = glob.glob(file_key)
-    filelist = obsfilelist_dict['7DT04']
-    self = Preprocess()
+    from tippy.routine import SDTData
+    S = SDTData()
+    obsdata = S.show_obssourcedata(foldername = '2025-02-02_gain2750')
+
+    filelist = obsdata['7DT02']
+    self = TIPPreprocess()
     fileinfo = self.get_imginfo(filelist)
     calib_info = fileinfo[fileinfo['imgtype'] != 'LIGHT']
     telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1)

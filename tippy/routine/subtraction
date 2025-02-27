@@ -1,0 +1,172 @@
+
+
+#%%
+from tippy.helper import Helper
+from tippy.image import ScienceImage, CalibrationImage, SDTReference
+#%%
+
+class TIPSubtraction(Helper):
+    
+    
+    def __init__(self):
+        super().__init__()
+        
+    
+    def get_referenceframe(self, 
+                           tgt_image : ScienceImage,
+                           type : str = 'PS1' # PS1 or SMSS or 7DS
+                           ):
+        # Locate reference frames. If multiple frames are available, select the best (seeing and depth) one. 
+        # Apply the observation date before the target_image (or before/after specified date)
+        
+        pass
+    
+    def generate_masterframe(self, sci_imagelist : List[ScienceImage]):
+        """ Generate reference frames for subtraction"""
+        all_filelist = [image.path for image in sci_imagelist]
+        all_fileinfo = self.get_imginfo(all_filelist, normalize_key = True)
+        all_fileinfo['image'] = sci_imagelist
+        all_fileinfo_by_group = all_fileinfo.groupby(['objname', 'filter']).groups
+        
+        # Run the calibration
+        for group in all_fileinfo_by_group:
+            # Separate the images by type
+            obj_rep = group[0]
+            object_name = obj_rep['objname']
+            filter_name = obj_rep['filter']
+            date_str = Time(np.mean(Time(group['obsdate']).jd), format = 'jd').datetime.strftime('%Y%m%d_%H%M%S')
+            output_name = '%s_%s_%s.fits' % (object_name, filter_name, date_str)
+            combined_path = os.path.join(obj_rep['image'].config['REFDATA_DIR'], obj_rep['image'].observatory, obj_rep['image'].telkey, 'BIAS', object_name, filter_name)
+            
+            if len(group) > 5:
+                clip = 'extrema'
+            else:
+                clip = None
+            
+            combined_path = self.combine_img(filelist = group['file'], 
+                                             output_path = combined_path,
+                                             combine_method = 'median', 
+                                             scale = None, 
+                                             print_output = True,
+                                             clip = clip,
+                                             clip_extrema_nlow=1,
+                                             clip_extrema_nhigh=1)
+            
+
+            
+    def subtract_7DS(self,
+                     tgt_image : ScienceImage,
+                     ref_image : SDTReference):
+        pass
+        
+    
+    
+# %%
+if __name__ == '__main__':
+    image = '/home/hhchoi1022/data/refdata/7DT/7DT_C361K_HIGH_1x1/T12400/ref_SkyMapper_T12400_00000000_000000_r_0.fits'
+    sci = ScienceImage(image, telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
+    tbl = Helper().run_sextractor(image, sex_configfile = sci.config['SEX_CONFIG'], image_mask = image.replace('.fits', '.mask.fits'))
+    #sci_mask = sci.data < -200
+    #fits.PrimaryHDU(data = sci_mask.astype(np.uint8), header = sci.header).writeto(image.replace('.fits', '.mask.fits'), overwrite=True)
+#%%
+idx = (tbl['FLAGS'] == 0) & (tbl['NIMAFLAGS_ISO'] == 0)
+tbl_sources = tbl[idx]
+from tippy.catalog import Catalog
+cat = Catalog(objname = 'T12400', catalog_type = 'GAIAXP')
+#%%
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+catalog_tbl, _ = cat.get_reference_sources(mag_lower = 14, mag_upper = 19)
+cat_skycoord = SkyCoord(ra = catalog_tbl['ra'], dec = catalog_tbl['dec'], unit = u.deg)
+sci_skycoord = SkyCoord(ra = tbl_sources['ALPHA_J2000'], dec = tbl_sources['DELTA_J2000'], unit = u.deg)
+matched_object_idx, matched_catalog_idx, no_matched_object_idx = Helper().cross_match(sci_skycoord, cat_skycoord, max_distance_second = 1.0)
+sci_matched = tbl_sources[matched_object_idx]
+cat_matched = catalog_tbl[matched_catalog_idx]
+zp = sci_matched['MAG_APER'] - cat_matched['r_mag']
+seeing = sci_matched['FWHM_WORLD']
+import matplotlib.pyplot as plt
+plt.title('SMSS SEEING (r-band, T12400)')
+plt.scatter(sci_matched['X_IMAGE'], sci_matched['Y_IMAGE'], c = seeing * 3600, cmap = 'coolwarm')
+
+#plt.scatter(sci_matched['X_IMAGE'], sci_matched['Y_IMAGE'], c = zp - np.median(zp), cmap = 'coolwarm')
+plt.colorbar()
+plt.axhline( 0*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+plt.axhline( 1*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+plt.axhline( 2*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+
+plt.axvline( 0*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 1*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 2*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 3*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+
+plt.xlabel('X_IMAGE')
+plt.ylabel('Y_IMAGE')
+
+#%%
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+catalog_tbl, _ = cat.get_reference_sources(mag_lower = 14, mag_upper = 19)
+cat_skycoord = SkyCoord(ra = catalog_tbl['ra'], dec = catalog_tbl['dec'], unit = u.deg)
+sci_skycoord = SkyCoord(ra = tbl_sources['ALPHA_J2000'], dec = tbl_sources['DELTA_J2000'], unit = u.deg)
+matched_object_idx, matched_catalog_idx, no_matched_object_idx = Helper().cross_match(sci_skycoord, cat_skycoord, max_distance_second = 1.0)
+sci_matched = tbl_sources[matched_object_idx]
+cat_matched = catalog_tbl[matched_catalog_idx]
+zp = sci_matched['MAG_APER'] - cat_matched['r_mag']
+
+import matplotlib.pyplot as plt
+plt.title('SMSS detections (r-band, T12400)')
+plt.scatter(sci_matched['X_IMAGE'], sci_matched['Y_IMAGE'], c = 'k', alpha = 0.1)
+plt.colorbar()
+plt.axhline( 0*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+plt.axhline( 1*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+plt.axhline( 2*sci.header['NAXIS2'] //2, color = 'black', linestyle = '--')
+
+plt.axvline( 0*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 1*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 2*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+plt.axvline( 3*sci.header['NAXIS1'] //3, color = 'black', linestyle = '--')
+
+plt.xlabel('X_IMAGE')
+plt.ylabel('Y_IMAGE')
+#%%
+    #Helper().run_psfex(image, sex_configfile = sci.config['PSFEX_SEXCONFIG'], psfex_configfile = sci.config['PSFEX_CONFIG'], psfex_params = dict(PSFVAR_NSNAP = 21))
+    import os
+    from astropy.io import fits
+    idx = 5
+    sci_image = '/data/hhchoi1022/refdata/7DT_C361K_HIGH_1x1/T11623/calib_7DT05_T11623_20240423_020143_r_360.com.fits'
+    ref_image = '/data/hhchoi1022/refdata/7DT_C361K_HIGH_1x1/T11623/calib_7DT09_T11623_20250110_032334_r_360.com.fits'
+    
+    from tippy.image import ScienceImage
+    sci = ScienceImage(sci_image, telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
+    ref = SDTReference(ref_image, telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
+    sci_mask = (sci.data == 0).astype(int)
+    ref_mask = (ref.data == 0).astype(int)
+    sci_mask_path = sci_image.replace('.fits', '.mask')
+    ref_mask_path = ref_image.replace('.fits', '.mask')
+    fits.writeto(sci_mask_path, sci_mask, overwrite=True)
+    fits.writeto(ref_mask_path, ref_mask, overwrite=True)
+    
+
+    Helper().run_hotpants(target_img = sci_image, 
+                          reference_img = ref_image, 
+                          output_img = sci_image.replace('calib', f'sub{idx}_calib'), 
+                          convolved_img = sci_image.replace('calib', f'conv{idx}_calib'), 
+                          target_mask = sci_mask_path,
+                          reference_mask = ref_mask_path,
+                          convdir = 'i')
+# %%
+if __name__ == '__main__':
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    axes[0].imshow(sci.data, origin='lower', cmap='gray', vmin=np.mean(sci.data), vmax=np.mean(sci.data) + np.std(sci.data))
+    axes[0].set_title("Science Image")
+
+    axes[1].imshow(ref.data, origin='lower', cmap='gray', vmin=np.mean(ref.data), vmax=np.mean(ref.data) + np.std(ref.data))
+    axes[1].set_title("Reference Image")
+
+    plt.show()
+
+# %%

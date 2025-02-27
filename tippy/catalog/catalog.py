@@ -1,69 +1,163 @@
 #%%
+import astropy.units as u
 import numpy as np
 import pandas as pd
 import os
 import inspect
 import glob
-from astropy.io import ascii
-from astropy.table import Table
-import astropy.units as u
+from shapely.geometry import Point, Polygon
 from astropy.coordinates import SkyCoord
+from astropy.io import ascii
+from astropy.time import Time
+from astropy.table import Table, vstack
 from astroquery.mast import Catalogs
 from astroquery.vizier import Vizier
+from tippy.configuration import TIPConfig
 #%%
+class CatalogHistory():
+    
+    HISTORY_FIELDS = ["objname", "ra", "dec", "fov_ra", "fov_dec", "filename", "cat_type", "save_date"]
+    
+    def __init__(self, **kwargs):
+        self.history = {step: None for step in self.HISTORY_FIELDS}
+        # Allow overriding default values
+        for key, value in kwargs.items():
+            if key in self.history:
+                self.history[key] = value
 
-class Catalog():
+    def to_dict(self):
+        return self.history
+    
+    def update(self, key, value):
+        """ Update an info field and set the update time. """
+        if key in self.history:
+            self.history[key] = value
+        else:
+            print(f'WARNING: Invalid key: {key}')
+            
+    def __repr__(self):
+        """ Represent process status as a readable string """
+        history_list = [f"{key}: {value}" for key, value in self.history.items()]
+        return "History =====================================\n  " + "\n  ".join(history_list) + "\n==================================================="
+
+
+
+class Catalog(TIPConfig):
     
     def __init__(self,
-                 target_name : str = None,
-                 ra = None,
-                 dec = None,
-                 radius_deg : float = 2,
-                 maxmag = 20,
-                 minmag = 10,
-                 maxsources = 1000000,
+                 objname : str = None,
+                 ra = None, # in deg
+                 dec = None, # in deg
+                 fov_ra : float = 1.3,
+                 fov_dec : float = 0.9,
+                 catalog_type : str = 'GAIAXP', #GAIAXP, GAIA, APASS, PS1, SDSS, SMSS
+                 overlapped_fraction : float = 0.9
                  ):
         
-        self.fieldinfo = dict()
-        if (ra == None) | (dec == None):
-            coord = self.get_target_coord(target_name)
-            ra = coord.ra.deg
-            dec = coord.dec.deg
-        if target_name == None:
-            target_name = f'[RA,Dec = {round(ra, 2)},{round(dec,2)}]'
-        self.fieldinfo['target'] = target_name
-        self.fieldinfo['ra'] = ra
-        self.fieldinfo['dec'] = dec
-        self.fieldinfo['radius'] = radius_deg
-        self.fieldinfo['maxmag'] = maxmag
-        self.fieldinfo['minmag'] = minmag
-        self.fieldinfo['maxsources'] = maxsources
-        self.APASS = self.get_APASS()
-        self.PS1 = self.get_PS1()
-        self.SDSS = self.get_SDSS()
-        self.SMSS = self.get_SMSS()
-        self.GAIA = self.get_GAIA()
-        self.dict = dict(APASS = self.APASS, PS1 = self.PS1, SDSS = self.SDSS, SMSS = self.SMSS, GAIA = self.GAIA)
-        	
-    @property
-    def catpath(self):
-        # Get the file where the class is defined
-        file_path = inspect.getfile(Catalog)
-        
-        # Convert the file path to an absolute path using os.path.abspath
-        absolute_path = os.path.abspath(file_path)
+        super().__init__()
+        if catalog_type not in ['GAIAXP', 'GAIA', 'APASS', 'PS1', 'SDSS', 'SMSS']:
+            raise ValueError('Invalid catalog type: %s' % catalog_type)
 
-        path_dir = os.path.dirname(absolute_path)
+        self.objname = objname
+        self.ra = ra
+        self.dec = dec
+        self.fov_ra = fov_ra
+        self.fov_dec = fov_dec
+        self.catalog_type = catalog_type
+        self.overlapped_fraction = overlapped_fraction
+        self.filename = None
+        self.save_date = None
+
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type)        
+
+        self.get_catalog(catalog_type = catalog_type)
         
-        path_cat = os.path.join(path_dir,'catalog_archive')
-        
-        return path_cat
 
     def __repr__(self):
-        txt = f"{self.fieldinfo['target']} Catalog[APASS = {self.APASS.is_exist}, PS1 = {self.PS1.is_exist}, SMSS = {self.SMSS.is_exist}, SDSS = {self.SDSS.is_exist}]"
+        txt = f"{self.objname} Catalog[type = {self.catalog_type}]"
         return txt
+
+    def get_reference_sources(self, mag_lower : float = 10, mag_upper : float = 20, **kwargs):
+        if not self.data:
+            raise RuntimeError(f'No catalog data found for {self.objname}')
+        
+        # For APASS Cut
+        cutline_apass = dict(e_ra = [0, 0.5], e_dec = [0, 0.5], e_V_mag = [0.01, 0.05], V_mag = [mag_lower, mag_upper])
+        # For GAIA cut 
+        cutline_gaia = dict(V_flag = [0,1], V_mag = [mag_lower, mag_upper])
+        # For GAIAXP cut pmra, pmdec for astrometric reference stars, bp-rp for color
+        cutline_gaiaxp = {"pmra" : [-20,20], "pmdec" : [-20,20], "bp-rp" : [0.0, 1.5], "g_mean" : [mag_lower, mag_upper]}
+        # For PS1 cut
+        cutline_ps1 = {"gFlags": [0,10], "g_mag": [mag_lower, mag_upper]}
+        # For SMSS cut
+        cutline_smss = {"ngood": [20,999], "class_star": [0.8, 1.0], "g_mag": [mag_lower, mag_upper]}
+        
+        if self.catalog_type == 'APASS':
+            cutline = cutline_apass
+        elif self.catalog_type == 'GAIA':
+            cutline = cutline_gaia
+        elif self.catalog_type == 'GAIAXP':
+            cutline = cutline_gaiaxp
+        elif self.catalog_type == 'PS1':
+            cutline = cutline_ps1
+        elif self.catalog_type == 'SMSS':
+            cutline = cutline_smss
+        else:
+            raise ValueError('Invalid catalog type: %s' % self.catalog_type)
+        cutline = {**cutline, **kwargs}
+        
+        ref_sources = self.data
+        applied_kwargs = []
+        for key, value in cutline.items():
+            if key in ref_sources.colnames:
+                applied_kwargs.append({key : [value]})
+                ref_sources = ref_sources[(ref_sources[key] > value[0]) & (ref_sources[key] < value[1])]
+        return ref_sources, applied_kwargs
+        
+
+    @property
+    def catalog_summary(self):
+        catalog_summary_file = os.path.join(self.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
+        return catalog_summary_file
     
-    def get_GAIA(self):
+    def get_catalog(self, catalog_type : str):
+
+        if catalog_type == 'GAIAXP':
+            self.get_GAIAXP(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        elif catalog_type == 'GAIA':
+            self.get_GAIA(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        elif catalog_type == 'APASS':
+            self.get_APASS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        elif catalog_type == 'PS1':
+            self.get_PS1(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        elif catalog_type == 'SDSS':
+            self.get_SDSS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        elif catalog_type == 'SMSS':
+            self.get_SMSS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
+        else:
+            raise ValueError('Invalid catalog type: %s' % catalog_type)
+    
+    def get_GAIAXP(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
+
+        def GAIAXP_format(GAIAXP_catalog) -> Table:
+            original = ('source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'phot_g_mean_mag', 'bp_rp', 'mag_u', 'mag_g', 'mag_r', 'mag_i', 'mag_z', 'mag_m375w', 'mag_m400', 'mag_m412', 'mag_m425', 'mag_m425w', 'mag_m437', 'mag_m450', 'mag_m462', 'mag_m475', 'mag_m487', 'mag_m500', 'mag_m512', 'mag_m525', 'mag_m537', 'mag_m550', 'mag_m562', 'mag_m575', 'mag_m587', 'mag_m600', 'mag_m612', 'mag_m625', 'mag_m637', 'mag_m650', 'mag_m662', 'mag_m675', 'mag_m687', 'mag_m700', 'mag_m712', 'mag_m725', 'mag_m737', 'mag_m750', 'mag_m762', 'mag_m775', 'mag_m787', 'mag_m800', 'mag_m812', 'mag_m825', 'mag_m837', 'mag_m850', 'mag_m862', 'mag_m875', 'mag_m887')
+            format_ = ('id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'g_mean', 'bp-rp', 'u_mag', 'g_mag', 'r_mag', 'i_mag', 'z_mag', 'm375w_mag', 'm400_mag', 'm412_mag', 'm425_mag', 'm425w_mag', 'm437_mag', 'm450_mag', 'm462_mag', 'm475_mag', 'm487_mag', 'm500_mag', 'm512_mag', 'm525_mag', 'm537_mag', 'm550_mag', 'm562_mag', 'm575_mag', 'm587_mag', 'm600_mag', 'm612_mag', 'm625_mag', 'm637_mag', 'm650_mag', 'm662_mag', 'm675_mag', 'm687_mag', 'm700_mag', 'm712_mag', 'm725_mag', 'm737_mag', 'm750_mag', 'm762_mag', 'm775_mag', 'm787_mag', 'm800_mag', 'm812_mag', 'm825_mag', 'm837_mag', 'm850_mag', 'm862_mag', 'm875_mag', 'm887_mag')
+            GAIAXP_catalog.rename_columns(original, format_)
+            formatted_catalog = self.match_digit_tbl(GAIAXP_catalog)
+            return formatted_catalog
+
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'GAIAXP')
+
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'GAIAXP', filename = self.filename)
+        else:
+            raise ValueError(f'{self.objname} does not exist in GAIAXP catalog')
+                    
+        self.data = None
+        if data:
+            self.data = GAIAXP_format(data)
+
+    def get_GAIA(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
         def GAIA_format(GAIA_catalog) -> Table:
             original = ('RA_ICRS', 'DE_ICRS', 'Bmag', 'e_Bmag', 'BFlag', 'Vmag', 'e_Vmag', 'VFlag', 'Rmag', 'e_Rmag', 'RFlag', 'gmag', 'e_gmag', 'gFlag', 'rmag', 'e_rmag', 'rFlag', 'imag', 'e_imag', 'iFlag')
             format_ = ('ra', 'dec', 'B_mag', 'e_B_mag', 'B_flag', 'V_mag', 'e_Vmag', 'V_flag', 'R_mag', 'e_Rmag', 'R_flag', 'g_mag', 'e_gmag', 'g_flag', 'r_mag', 'e_rmag', 'r_flag', 'i_mag', 'e_imag', 'i_flag')
@@ -75,591 +169,101 @@ class Catalog():
             formatted_catalog = self.match_digit_tbl(GAIA_catalog)
             return formatted_catalog
 
-        class GAIA:
-            def __repr__(self):
-                txt = '[Attributes]\n'+''.join(f"GAIA.{key}\n" for key in self.__dict__.keys())
-                return txt
-            
-        data = self.get_catalog(catalog_name='GAIA')
-        if not data:
-            is_exist = False
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'GAIA')
+        
+        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'GAIA', filename = self.filename)
+        # Else, query object in the catalog and save to catalog_archive
         else:
-            is_exist = True
-
-        cat = GAIA()
-        cat.is_exist = is_exist
-        if cat.is_exist:
-            cat.data = GAIA_format(data)
-            cat.conversion = dict()
-        return cat
+            try:
+                # Try query and save to catalog_archive
+                data = self.query_catalog(catalog_name = 'GAIA')
+                filename = f'{self.objname}_GAIA.csv'
+                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
+                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
+                data.write(catalog_file, format ='csv', overwrite = True)
+                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
+                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
+                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
+            except:
+                # Elase, return Error
+                raise ValueError(f'{self.objname} does not exist in GAIA catalog')
+        
+        # After getting the data, format the data
+        self.data = None
+        if data:
+            self.data = GAIA_format(data)
        
-    def get_APASS(self):
+    def get_APASS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
         def APASS_format(APASS_catalog) -> Table:
-            original = ('RAJ2000','DEJ2000','e_RAJ2000','e_DEJ2000','Bmag','e_Bmag','Vmag','e_Vmag','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag')
+            original = ('RAJ2000','DEJ2000','e_RAJ2000','e_DEJ2000','Bmag','e_Bmag','Vmag','e_Vmag',"g'mag","e_g'mag","r'mag","e_r'mag","i'mag","e_i'mag")
             format_ = ('ra','dec','e_ra','e_dec','B_mag','e_B_mag','V_mag','e_V_mag','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag')
             APASS_catalog.rename_columns(original, format_)
             formatted_catalog = self.match_digit_tbl(APASS_catalog)
             return formatted_catalog
 
-        def APASS_to_PANSTARRS1(APASS_catalog):
-            '''
-            parameters
-            ----------
-            {APASS catalog filepath}
-            
-            returns 
-            -------
-            Converted APASS catalog in PS1 magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            -----
-            '''
-                        
-            ra = APASS_catalog['ra']
-            dec = APASS_catalog['dec']
-            g = APASS_catalog['g_mag']
-            r = APASS_catalog['r_mag']
-            i = APASS_catalog['i_mag']
-            
-            e_g = APASS_catalog['e_g_mag']
-            e_r = APASS_catalog['e_r_mag']
-            e_i = APASS_catalog['e_i_mag']
-
-            gr = g-r
-            ri = r-i
-            
-            g_c = g - 0.009 - 0.061*gr
-            r_c = r + 0.065 - 0.026*gr
-            i_c = i - 0.015 - 0.068*ri
-            
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.026**2 + (0.061*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.027**2 + (0.026*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.045**2 + (0.068*e_gr)**2)
-
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c
-                    }
-            
-            atable = pd.DataFrame(source)
-            ctable = Table.from_pandas(atable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def APASS_to_JH(APASS_catalog):
-            '''
-            parameters
-            ----------
-            {APASS catalog filepath}
-            
-            returns 
-            -------
-            Converted APASS catalog in Johnson-Cousins magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://arxiv.org/pdf/astro-ph/0609121v1.pdf (Jordi(2006))
-            More information about SDSS conversion : https://www.sdss.org/dr12/algorithms/sdssubvritransform/
-            -----
-            '''
-            
-            ra = APASS_catalog['ra']
-            dec = APASS_catalog['dec']
-            B = APASS_catalog['B_mag']
-            V = APASS_catalog['V_mag']
-            g = APASS_catalog['g_mag']
-            r = APASS_catalog['r_mag']
-            i = APASS_catalog['i_mag']
-
-            e_B = APASS_catalog['e_B_mag']
-            e_V = APASS_catalog['e_V_mag']
-            e_g = APASS_catalog['e_g_mag']
-            e_r = APASS_catalog['e_r_mag']
-            e_i = APASS_catalog['e_i_mag']
-
-            ri = r-i
-
-            e_ri = np.sqrt(e_r**2+e_i**2)
-            
-            R = r - 0.153*ri - 0.117
-            I = R -0.930*ri - 0.259
-
-            e_R = np.sqrt(e_r**2+ 0.003**2 + (0.153*e_ri)**2)
-            e_I = np.sqrt(e_r**2+ 0.002**2 + (0.930*e_ri)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'B_mag':B,
-                    'e_B_mag':e_B,
-                    'V_mag':V,
-                    'e_V_mag':e_V,
-                    'R_mag':R,
-                    'e_R_mag':e_R,
-                    'I_mag':I,
-                    'e_I_mag':e_I
-                    }
-            
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'APASS')
         
-        def PANSTARRS1_to_SDSS(PANSTARR_catalog):
-            '''
-            parameters
-            ----------
-            {PanSTARRS DR1 catalog filepath}
-            
-            returns 
-            -------
-            Converted PanSTARRS catalog in SDSS magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://iopscience.iop.org/article/10.1088/0004-637X/750/2/99/pdf (Torny(2012))
-            -----
-            '''
-                        
-            ra = PANSTARR_catalog['ra']
-            dec = PANSTARR_catalog['dec']
-            g = PANSTARR_catalog['g_mag']
-            r = PANSTARR_catalog['r_mag']
-            i = PANSTARR_catalog['i_mag']
-            
-            e_g = PANSTARR_catalog['e_g_mag']
-            e_r = PANSTARR_catalog['e_r_mag']
-            e_i = PANSTARR_catalog['e_i_mag']
-            
-            gr = g-r
-            ri = r-i
-            
-            g_c = g + 0.014 + 0.162*gr
-            r_c = r - 0.001 + 0.011*gr
-            i_c = i - 0.004 + 0.020*gr
-        
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_ri = np.sqrt((e_r)**2+(e_i)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.009**2 + (0.162*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.004**2 + (0.011*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.005**2 + (0.020*e_gr)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    }
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        class APASS:
-            def __repr__(self):
-                txt = '[Attributes]\n'+''.join(f"APASS.{key}\n" for key in self.__dict__.keys())
-                return txt
-            
-        data = self.get_catalog(catalog_name='APASS')
-        if not data:
-            is_exist = False
+        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'APASS', filename = self.filename)
+        # Else, query object in the catalog and save to catalog_archive
         else:
-            is_exist = True
-
-        cat = APASS()
-        cat.is_exist = is_exist
-        if cat.is_exist:
-            cat.data = APASS_format(data)
-            cat.conversion = dict()
-            cat.conversion['PS1'] = APASS_to_PANSTARRS1(cat.data)
-            cat.conversion['JH'] = APASS_to_JH(cat.data)
-            cat.conversion['SDSS'] = PANSTARRS1_to_SDSS(cat.conversion['PS1'])
-        return cat
+            try:
+                # Try query and save to catalog_archive
+                data = self.query_catalog(catalog_name = 'APASS')
+                filename = f'{self.objname}_APASS.csv'
+                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
+                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
+                data.write(catalog_file, format ='csv', overwrite = True)
+                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
+                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
+                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
+            except:
+                # Elase, return Error
+                raise ValueError(f'{self.objname} does not exist in APASS catalog')
+        
+        # After getting the data, format the data
+        self.data = None
+        if data:
+            self.data = APASS_format(data)
     
-    def get_PS1(self):
+    def get_PS1(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
         def PS1_format(PS1_catalog) -> Table:
             original = ('objID','RAJ2000','DEJ2000','e_RAJ2000','e_DEJ2000','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag','ymag','e_ymag','gKmag','e_gKmag','rKmag','e_rKmag','iKmag','e_iKmag','zKmag','e_zKmag','yKmag','e_yKmag')
             format_ = ('ID','ra','dec','e_ra','e_dec','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag','z_mag','e_z_mag','y_mag','e_y_mag','g_Kmag','e_g_Kmag','r_Kmag','e_r_Kmag','i_Kmag','e_i_Kmag','z_Kmag','e_z_Kmag','y_Kmag','e_y_Kmag')
             PS1_catalog.rename_columns(original, format_)
             formatted_catalog = self.match_digit_tbl(PS1_catalog)
             return formatted_catalog
-        
-        def PANSTARRS1_to_SDSS(PANSTARR_catalog):
-            '''
-            parameters
-            ----------
-            {PanSTARRS DR1 catalog filepath}
             
-            returns 
-            -------
-            Converted PanSTARRS catalog in SDSS magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://iopscience.iop.org/article/10.1088/0004-637X/750/2/99/pdf (Torny(2012))
-            -----
-            '''
-                        
-            ra = PANSTARR_catalog['ra']
-            dec = PANSTARR_catalog['dec']
-            g = PANSTARR_catalog['g_mag']
-            r = PANSTARR_catalog['r_mag']
-            i = PANSTARR_catalog['i_mag']
-            z = PANSTARR_catalog['z_mag']
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'PS1')
 
-            gk = PANSTARR_catalog['g_Kmag']
-            rk = PANSTARR_catalog['r_Kmag']
-            ik = PANSTARR_catalog['i_Kmag']
-            zk = PANSTARR_catalog['z_Kmag']
-            
-            e_g = PANSTARR_catalog['e_g_mag']
-            e_r = PANSTARR_catalog['e_r_mag']
-            e_i = PANSTARR_catalog['e_i_mag']
-            e_z = PANSTARR_catalog['e_z_mag']
-            
-            e_gk = PANSTARR_catalog['e_g_Kmag']
-            e_rk = PANSTARR_catalog['e_r_Kmag']
-            e_ik = PANSTARR_catalog['e_i_Kmag']
-            e_zk = PANSTARR_catalog['e_z_Kmag']
-            
-            gr = g-r
-            grk = gk-rk
-            ri = r-i
-            rik = rk-ik
-            
-            g_c = g + 0.014 + 0.162*gr
-            r_c = r - 0.001 + 0.011*gr
-            i_c = i - 0.004 + 0.020*gr
-            z_c = z + 0.013 - 0.050*gr
-            
-            gk_c = gk + 0.014 + 0.162*grk
-            rk_c = rk - 0.001 + 0.011*grk
-            ik_c = ik - 0.004 + 0.020*grk
-            zk_c = zk + 0.013 - 0.050*grk
-
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_grk = np.sqrt((e_gk)**2+(e_rk)**2)
-            e_ri = np.sqrt((e_r)**2+(e_i)**2)
-            e_rik = np.sqrt((e_rk)**2+(e_ik)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.009**2 + (0.162*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.004**2 + (0.011*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.005**2 + (0.020*e_gr)**2)
-            e_z_c = np.sqrt((e_z)**2 + 0.010**2 + (0.050*e_gr)**2)
-            
-            e_gk_c = np.sqrt((e_gk)**2 + 0.009**2 + (0.162*e_grk)**2)
-            e_rk_c = np.sqrt((e_rk)**2 + 0.004**2 + (0.011*e_grk)**2)
-            e_ik_c = np.sqrt((e_ik)**2 + 0.005**2 + (0.020*e_grk)**2)
-            e_zk_c = np.sqrt((e_zk)**2 + 0.010**2 + (0.050*e_grk)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    'z_mag':z_c,
-                    'e_z_mag':e_z_c,
-                    'g_Kmag':gk_c,
-                    'e_g_Kmag':e_gk_c,
-                    'r_Kmag':rk_c,
-                    'e_r_Kmag':e_rk_c,
-                    'i_Kmag':ik_c,
-                    'e_i_Kmag':e_ik_c,
-                    'z_Kmag':zk_c,
-                    'e_z_Kmag':e_zk_c}
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def PANSTARRS1_to_APASS(PANSTARR_catalog):
-            '''
-            parameters
-            ----------
-            {PanSTARRS DR1 catalog filepath}
-            
-            returns 
-            -------
-            Converted PanSTARRS catalog in APASS magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            -----
-            '''
-                        
-            ra = PANSTARR_catalog['ra']
-            dec = PANSTARR_catalog['dec']
-            g = PANSTARR_catalog['g_mag']
-            r = PANSTARR_catalog['r_mag']
-            i = PANSTARR_catalog['i_mag']
-
-            gk = PANSTARR_catalog['g_Kmag']
-            rk = PANSTARR_catalog['r_Kmag']
-            ik = PANSTARR_catalog['i_Kmag']
-            
-            e_g = PANSTARR_catalog['e_g_mag']
-            e_r = PANSTARR_catalog['e_r_mag']
-            e_i = PANSTARR_catalog['e_i_mag']
-            
-            e_gk = PANSTARR_catalog['e_g_Kmag']
-            e_rk = PANSTARR_catalog['e_r_Kmag']
-            e_ik = PANSTARR_catalog['e_i_Kmag']
-            
-            gr = g-r
-            grk = gk-rk
-            
-            g_c = g + 0.023 + 0.054*gr
-            r_c = r - 0.058 + 0.023*gr
-            i_c = i + 0.003 + 0.057*gr
-
-            gk_c = gk + 0.023 + 0.054*grk
-            rk_c = rk - 0.058 + 0.023*grk
-            ik_c = ik + 0.003 + 0.057*grk
-            
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_grk = np.sqrt((e_gk)**2+(e_rk)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.032**2 + (0.054*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.039**2 + (0.023*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.050**2 + (0.057*e_gr)**2)
-            
-            e_gk_c = np.sqrt((e_gk)**2 + 0.032**2 + (0.054*e_grk)**2)
-            e_rk_c = np.sqrt((e_rk)**2 + 0.039**2 + (0.023*e_grk)**2)
-            e_ik_c = np.sqrt((e_ik)**2 + 0.050**2 + (0.057*e_grk)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    'g_Kmag':gk_c,
-                    'e_g_Kmag':e_gk_c,
-                    'r_Kmag':rk_c,
-                    'e_r_Kmag':e_rk_c,
-                    'i_Kmag':ik_c,
-                    'e_i_Kmag':e_ik_c}
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def PANSTARRS1_to_SMSS(PANSTARR_catalog):
-            '''
-            parameters
-            ----------
-            {PanSTARRS DR1 catalog filepath}
-            
-            returns 
-            -------
-            Converted PanSTARRS catalog in Skymapper DR1 magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            -----
-            '''
-                        
-            ra = PANSTARR_catalog['ra']
-            dec = PANSTARR_catalog['dec']
-            g = PANSTARR_catalog['g_mag']
-            r = PANSTARR_catalog['r_mag']
-            i = PANSTARR_catalog['i_mag']
-            z = PANSTARR_catalog['z_mag']
-
-            gk = PANSTARR_catalog['g_Kmag']
-            rk = PANSTARR_catalog['r_Kmag']
-            ik = PANSTARR_catalog['i_Kmag']
-            zk = PANSTARR_catalog['z_Kmag']
-            
-            e_g = PANSTARR_catalog['e_g_mag']
-            e_r = PANSTARR_catalog['e_r_mag']
-            e_i = PANSTARR_catalog['e_i_mag']
-            e_z = PANSTARR_catalog['e_z_mag']
-            
-            e_gk = PANSTARR_catalog['e_g_Kmag']
-            e_rk = PANSTARR_catalog['e_r_Kmag']
-            e_ik = PANSTARR_catalog['e_i_Kmag']
-            e_zk = PANSTARR_catalog['e_z_Kmag']
-            
-            gr = g-r
-            grk = gk-rk
-            ri = r-i
-            rik = rk-ik
-            
-            g_c = g + 0.010 - 0.228*gr
-            r_c = r + 0.004 + 0.039*gr
-            i_c = i + 0.008 - 0.110*ri
-            z_c = z - 0.004 - 0.097*ri
-
-            gk_c = gk + 0.010 - 0.228*grk
-            rk_c = rk + 0.004 + 0.039*grk
-            ik_c = ik + 0.008 - 0.110*rik
-            zk_c = zk - 0.004 - 0.097*rik
-            
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_grk = np.sqrt((e_gk)**2+(e_rk)**2)
-            e_ri = np.sqrt((e_r)**2+(e_i)**2)
-            e_rik = np.sqrt((e_rk)**2+(e_ik)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.032**2 + (0.228*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.016**2 + (0.039*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.022**2 + (0.110*e_gr)**2)
-            e_z_c = np.sqrt((e_z)**2 + 0.020**2 + (0.097*e_gr)**2)
-            
-            e_gk_c = np.sqrt((e_gk)**2 + 0.032**2 + (0.228*e_grk)**2)
-            e_rk_c = np.sqrt((e_rk)**2 + 0.016**2 + (0.039*e_grk)**2)
-            e_ik_c = np.sqrt((e_ik)**2 + 0.022**2 + (0.110*e_grk)**2)
-            e_zk_c = np.sqrt((e_zk)**2 + 0.020**2 + (0.097*e_grk)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    'z_mag':z_c,
-                    'e_z_mag':e_z_c,
-                    'g_Kmag':gk_c,
-                    'e_g_Kmag':e_gk_c,
-                    'r_Kmag':rk_c,
-                    'e_r_Kmag':e_rk_c,
-                    'i_Kmag':ik_c,
-                    'e_i_Kmag':e_ik_c,
-                    'z_Kmag':zk_c,
-                    'e_z_Kmag':e_zk_c}
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def PANSTARRS1_to_JH(PANSTARR_catalog):
-            '''
-            parameters
-            ----------
-            {PanSTARRS DR1 catalog filepath}
-            
-            returns 
-            -------
-            Converted PanSTARRS catalog in APASS magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://iopscience.iop.org/article/10.1088/0004-637X/750/2/99/pdf (Torny(2012))
-            -----
-            '''
-                        
-            ra = PANSTARR_catalog['ra']
-            dec = PANSTARR_catalog['dec']
-            g = PANSTARR_catalog['g_mag']
-            r = PANSTARR_catalog['r_mag']
-            i = PANSTARR_catalog['i_mag']
-
-            gk = PANSTARR_catalog['g_Kmag']
-            rk = PANSTARR_catalog['r_Kmag']
-            ik = PANSTARR_catalog['i_Kmag']
-            
-            e_g = PANSTARR_catalog['e_g_mag']
-            e_r = PANSTARR_catalog['e_r_mag']
-            e_i = PANSTARR_catalog['e_i_mag']
-            
-            e_gk = PANSTARR_catalog['e_g_Kmag']
-            e_rk = PANSTARR_catalog['e_r_Kmag']
-            e_ik = PANSTARR_catalog['e_i_Kmag']
-
-            gr = g-r
-            grk = gk-rk
-
-            B = g + 0.213 + 0.587*gr
-            V = r + 0.006 + 0.474*gr
-            R = r - 0.138 - 0.131*gr
-            I = i - 0.367 - 0.149*gr
-            
-            Bk = gk + 0.213 + 0.587*grk
-            Vk = rk + 0.006 + 0.474*grk
-            Rk = rk - 0.138 - 0.131*grk
-            Ik = ik - 0.367 - 0.149*grk   
-
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_grk = np.sqrt((e_g)**2)
-            
-            e_B_c = np.sqrt((e_g)**2 + 0.034**2 + (0.587*e_gr)**2)
-            e_V_c = np.sqrt((e_r)**2 + 0.012**2 + (0.006*e_gr)**2)
-            e_R_c = np.sqrt((e_r)**2 + 0.015**2 + (0.131*e_gr)**2)
-            e_I_c = np.sqrt((e_i)**2 + 0.016**2 + (0.149*e_gr)**2)
-            
-            e_Bk_c = np.sqrt((e_gk)**2 + 0.034**2 + (0.587*e_grk)**2)
-            e_Vk_c = np.sqrt((e_rk)**2 + 0.012**2 + (0.006*e_grk)**2)
-            e_Rk_c = np.sqrt((e_rk)**2 + 0.015**2 + (0.131*e_grk)**2)
-            e_Ik_c = np.sqrt((e_ik)**2 + 0.016**2 + (0.149*e_grk)**2)
-
-            source = {'ra':ra,
-                    'dec':dec,
-                    'B_mag':B,
-                    'e_B_mag':e_B_c,
-                    'V_mag':V,
-                    'e_V_mag':e_V_c,
-                    'R_mag':R,
-                    'e_R_mag':e_R_c,
-                    'I_mag':I,
-                    'e_I_mag':e_I_c,
-                    'B_Kmag':Bk,
-                    'e_B_Kmag':e_Bk_c,
-                    'V_Kmag':Vk,
-                    'e_V_Kmag':e_Vk_c,
-                    'R_Kmag':Rk,
-                    'e_R_Kmag':e_Rk_c,
-                    'I_Kmag':Ik,
-                    'e_I_Kmag':e_Ik_c}
-            
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-            
-        class PS1:
-            def __repr__(self):
-                txt = '[Attributes]\n'+''.join(f"PS1.{key}\n" for key in self.__dict__.keys())
-                return txt
-            
-        data = self.get_catalog(catalog_name='PS1')
-        if not data:
-            is_exist = False
+        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'PS1', filename = self.filename)
+        # Else, query object in the catalog and save to catalog_archive
         else:
-            is_exist = True
+            try:
+                # Try query and save to catalog_archive
+                data = self.query_catalog(catalog_name = 'PS1')
+                filename = f'{self.objname}_PS1.csv'
+                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
+                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
+                data.write(catalog_file, format ='csv', overwrite = True)
+                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
+                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
+                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
+            except:
+                # Elase, return Error
+                raise ValueError(f'{self.objname} does not exist in PS1 catalog')
+        
+        # After getting the data, format the data
+        self.data = None
+        if data:
+            self.data = PS1_format(data)
 
-        cat = PS1()
-        cat.is_exist = is_exist
-        if cat.is_exist:
-            cat.data = PS1_format(data)
-            cat.conversion = dict()
-            cat.conversion['SDSS'] = PANSTARRS1_to_SDSS(cat.data)
-            cat.conversion['APASS'] = PANSTARRS1_to_APASS(cat.data)
-            cat.conversion['SMSS'] = PANSTARRS1_to_SMSS(cat.data)
-            cat.conversion['JH'] = PANSTARRS1_to_JH(cat.data)
-        return cat
-
-    def get_SMSS(self):
+    def get_SMSS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
         def SMSS_format(SMSS_catalog) -> Table:
             original = ('ObjectId','RAICRS','DEICRS','Niflags','flags','Ngood','Ngoodu','Ngoodv','Ngoodg','Ngoodr','Ngoodi','Ngoodz','ClassStar','uPSF','e_uPSF','vPSF','e_vPSF','gPSF','e_gPSF','rPSF','e_rPSF','iPSF','e_iPSF','zPSF','e_zPSF')
             format_ = ('ID','ra','dec','nimflag','flag','ngood','ngoodu','ngoodv','ngoodg','ngoodr','ngoodi','ngoodz','class_star','u_mag','e_u_mag','v_mag','e_v_mag','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag','z_mag','e_z_mag')
@@ -667,236 +271,33 @@ class Catalog():
             formatted_catalog = self.match_digit_tbl(SMSS_catalog)
             return formatted_catalog
 
-        def SMSS_to_PanSTARRS1(SMSS_catalog):
-            '''
-            parameters
-            ----------
-            {SMSS catalog filepath}
-            
-            returns 
-            -------
-            Converted SMSS catalog in PS1 magnitude  
-            
-            notes 
-            -----
-            Conversion equation : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            -----
-            '''
-                        
-            ra = SMSS_catalog['ra']
-            dec = SMSS_catalog['dec']
-            g = SMSS_catalog['g_mag']
-            r = SMSS_catalog['r_mag']
-            i = SMSS_catalog['i_mag']
-            z = SMSS_catalog['z_mag']
-            flag = SMSS_catalog['flag']
-            ngood = SMSS_catalog['ngood']
-            class_star = SMSS_catalog['class_star']
-            
-            e_g = SMSS_catalog['e_g_mag']
-            e_r = SMSS_catalog['e_r_mag']
-            e_i = SMSS_catalog['e_i_mag']
-            e_z = SMSS_catalog['e_z_mag']
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'SMSS')
 
-            gr = g-r
-            ri = r-i
-            
-            g_c = g + 0.004 + 0.272*gr
-            r_c = r - 0.016 - 0.035*gr
-            i_c = i - 0.011 + 0.100*ri
-            z_c = z + 0.009 + 0.082*ri
-
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_ri = np.sqrt((e_r)**2+(e_i)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.029**2 + (0.272*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.021**2 + (0.035*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.016**2 + (0.100*e_ri)**2)
-            e_z_c = np.sqrt((e_i)**2 + 0.020**2 + (0.082*e_ri)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    'z_mag':z_c,
-                    'e_z_mag':e_z_c,
-                    'flag':flag,
-                    'ngood':ngood,
-                    'class_star':class_star
-                    }
-            
-            atable = pd.DataFrame(source)
-            ctable = Table.from_pandas(atable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def SMSS_to_SDSS(SMSS_catalog):
-            '''
-            parameters
-            ----------
-            {SMSS catalog filepath}
-            
-            returns 
-            -------
-            Converted SMSS catalog in SDSS magnitude  
-            
-            notes 
-            -----
-            This conversion is performed by two conversion equation (SMSS > PS1 > SDSS)
-            Conversion equation(SMSS1>PS1) : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            Conversion equation(PS1>SDSS) : https://iopscience.iop.org/article/10.1088/0004-637X/750/2/99/pdf (Torny(2012))
-            -----
-            '''
-            
-            pcatalog = SMSS_to_PanSTARRS1(SMSS_catalog)
-            
-            flag = pcatalog['flag']
-            ngood = pcatalog['ngood']
-            class_star = pcatalog['class_star']
-            
-            ra = pcatalog['ra']
-            dec = pcatalog['dec']
-            g = pcatalog['g_mag']
-            r = pcatalog['r_mag']
-            i = pcatalog['i_mag']
-            z = pcatalog['z_mag']
-
-
-            e_g = pcatalog['e_g_mag']
-            e_r = pcatalog['e_r_mag']
-            e_i = pcatalog['e_i_mag']
-            e_z = pcatalog['e_z_mag']
-            
-            gr = g-r
-            ri = r-i
-            
-            g_c = g + 0.014 + 0.162*gr
-            r_c = r - 0.001 + 0.011*gr
-            i_c = i - 0.004 + 0.020*gr
-            z_c = z + 0.013 - 0.050*gr
-
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            e_ri = np.sqrt((e_r)**2+(e_i)**2)
-            
-            e_g_c = np.sqrt((e_g)**2 + 0.009**2 + (0.162*e_gr)**2)
-            e_r_c = np.sqrt((e_r)**2 + 0.004**2 + (0.011*e_gr)**2)
-            e_i_c = np.sqrt((e_i)**2 + 0.005**2 + (0.020*e_gr)**2)
-            e_z_c = np.sqrt((e_z)**2 + 0.010**2 + (0.050*e_gr)**2)
-            
-            source = {'ra':ra,
-                    'dec':dec,
-                    'g_mag':g_c,
-                    'e_g_mag':e_g_c,
-                    'r_mag':r_c,
-                    'e_r_mag':e_r_c,
-                    'i_mag':i_c,
-                    'e_i_mag':e_i_c,
-                    'z_mag':z_c,
-                    'e_z_mag':e_z_c,
-                    'flag':flag,
-                    'ngood':ngood,
-                    'class_star':class_star
-                    }
-            
-            atable = pd.DataFrame(source)
-            ctable = Table.from_pandas(atable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        def SMSS_to_JH(SMSS_catalog):
-            '''
-            parameters
-            ----------
-            {SMSS catalog filepath}
-            
-            returns 
-            -------
-            Converted SMSS catalog in Johnson-Cousins magnitude  
-            
-            notes 
-            -----
-            This conversion is performed by two conversion equation (SMSS > PS1 > JH)
-            Conversion equation(SMSS1>PS1) : https://arxiv.org/pdf/1809.09157.pdf (Torny(2018))
-            Conversion equation(PS1>JH) : https://iopscience.iop.org/article/10.1088/0004-637X/750/2/99/pdf (Torny(2012))
-            -----
-            '''
-            
-            pcatalog = SMSS_to_PanSTARRS1(SMSS_catalog)
-            
-            flag = pcatalog['flag']
-            ngood = pcatalog['ngood']
-            class_star = pcatalog['class_star']
-            
-            ra = pcatalog['ra']
-            dec = pcatalog['dec']
-            g = pcatalog['g_mag']
-            r = pcatalog['r_mag']
-            i = pcatalog['i_mag']
-            
-            e_g = pcatalog['e_g_mag']
-            e_r = pcatalog['e_r_mag']
-            e_i = pcatalog['e_i_mag']
-
-            gr = g-r
-
-            B = g + 0.213 + 0.587*gr
-            V = r + 0.006 + 0.474*gr
-            R = r - 0.138 - 0.131*gr
-            I = i - 0.367 - 0.149*gr
-
-            e_gr = np.sqrt((e_g)**2+(e_r)**2)
-            
-            e_B_c = np.sqrt((e_g)**2 + 0.034**2 + (0.587*e_gr)**2)
-            e_V_c = np.sqrt((e_r)**2 + 0.012**2 + (0.006*e_gr)**2)
-            e_R_c = np.sqrt((e_r)**2 + 0.015**2 + (0.131*e_gr)**2)
-            e_I_c = np.sqrt((e_i)**2 + 0.016**2 + (0.149*e_gr)**2)
-
-            source = {'ra':ra,
-                    'dec':dec,
-                    'B_mag':B,
-                    'e_B_mag':e_B_c,
-                    'V_mag':V,
-                    'e_V_mag':e_V_c,
-                    'R_mag':R,
-                    'e_R_mag':e_R_c,
-                    'I_mag':I,
-                    'e_I_mag':e_I_c,
-                    'flag':flag,
-                    'ngood':ngood,
-                    'class_star':class_star
-                    }
-            
-            ptable = pd.DataFrame(source)
-            ctable = Table.from_pandas(ptable)
-            result = self.match_digit_tbl(ctable)
-            return result
-
-        class SMSS:
-            def __repr__(self):
-                txt = '[Attributes]\n'+''.join(f"SMSS.{key}\n" for key in self.__dict__.keys())
-                return txt
-            
-        data = self.get_catalog(catalog_name='SMSS')
-        if not data:
-            is_exist = False
+        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'SMSS', filename = self.filename)
+        # Else, query object in the catalog and save to catalog_archive
         else:
-            is_exist = True
+            try:
+                # Try query and save to catalog_archive
+                data = self.query_catalog(catalog_name = 'SMSS')
+                filename = f'{self.objname}_SMSS.csv'
+                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
+                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
+                data.write(catalog_file, format ='csv', overwrite = True)
+                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
+                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
+                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
+            except:
+                # Elase, return Error
+                raise ValueError(f'{self.objname} does not exist in SMSS catalog')
+        
+        # After getting the data, format the data
+        self.data = None
+        if data:
+            self.data = SMSS_format(data)
 
-        cat = SMSS()
-        cat.is_exist = is_exist
-        if cat.is_exist:
-            cat.data = SMSS_format(data)
-            cat.conversion = dict()
-            cat.conversion['PS1'] = SMSS_to_PanSTARRS1(cat.data)
-            cat.conversion['SDSS'] = SMSS_to_SDSS(cat.data)
-            cat.conversion['JH'] = SMSS_to_JH(cat.data)
-        return cat
-
-    def get_SDSS(self):
+    def get_SDSS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
         def SDSS_format(SDSS_catalog) -> Table:
             original = ('RA_ICRS','DE_ICRS','umag','e_umag','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag')
             format_ = ('ra','dec','umag','e_umag','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag')
@@ -904,22 +305,32 @@ class Catalog():
             formatted_catalog = self.match_digit_tbl(SDSS_catalog)
             return formatted_catalog
 
-        class SDSS:
-            def __repr__(self):
-                txt = '[Attributes]\n'+''.join(f"SDSS.{key}\n" for key in self.__dict__.keys())
-                return txt
-            
-        data = self.get_catalog(catalog_name='SDSS')
-        if not data:
-            is_exist = False
-        else:
-            is_exist = True
+        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'SDSS')
 
-        cat = SDSS()
-        cat.is_exist = is_exist
-        if cat.is_exist:
-            cat.data = SDSS_format(data)
-        return cat
+        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
+        if self.filename:
+            data = self._get_catalog_from_archive(catalog_name = 'SDSS', filename = self.filename)
+        # Else, query object in the catalog and save to catalog_archive
+        else:
+            try:
+                # Try query and save to catalog_archive
+                data = self.query_catalog(catalog_name = 'SDSS')
+                filename = f'{self.objname}_SDSS.csv'
+                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
+                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
+                data.write(catalog_file, format ='csv', overwrite = True)
+                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
+                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
+                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
+            except:
+                # Elase, return Error
+                raise ValueError(f'{self.objname} does not exist in SDSS catalog')
+        
+        # After getting the data, format the data
+        self.data = None
+        if data:
+            self.data = SDSS_format(data)
+
     
     def match_digit_tbl(self, tbl):
         for column in tbl.columns:
@@ -927,17 +338,91 @@ class Catalog():
                 tbl[column].format = '{:.5f}'
         return tbl
 
-    def get_catalog(self, catalog_name: str = 'APASS'):
-        catalog_file = os.path.join(self.catpath, catalog_name, f"{self.fieldinfo['target']}.csv")
+    def _get_catalog_from_archive(self, catalog_name: str, filename : str):
+        catalog_file = os.path.join(self.config['CATALOG_DIR'], catalog_name, filename)
         is_exist = os.path.exists(catalog_file)
         
         if is_exist:
-            data = ascii.read(catalog_file)
+            data = ascii.read(catalog_file, format = 'csv')
+            return data
         else:
-            data = self.query_catalog(catalog_name=catalog_name, save=True)
-        return data
+            return None
 
-    def get_target_coord(self, target_name) -> SkyCoord:
+    def get_cataloginfo_by_coord(self, 
+                                 coord: SkyCoord, 
+                                 fov_ra: float = 1.5, 
+                                 fov_dec: float = 1.5, 
+                                 overlapped_fraction: float = 0.9) -> Table:
+        """
+        Retrieves catalog information based on coordinates.
+        Requires fov_ra and fov_dec to calculate overlap.
+        Returns catalogs with sufficient overlap based on the given fraction.
+        """
+
+        try:
+            catalog_summary_tbl = ascii.read(self.catalog_summary, format='fixed_width')
+            catalog_coords = SkyCoord(ra=catalog_summary_tbl['ra'], 
+                                      dec=catalog_summary_tbl['dec'], 
+                                      unit=(u.deg, u.deg))
+
+            # Cut tiles into 10deg x 10deg regions
+            ra_min, ra_max = coord.ra.deg - 5, coord.ra.deg + 5
+            dec_min, dec_max = coord.dec.deg - 5, coord.dec.deg + 5
+            cut_tiles_mask = (
+                (catalog_summary_tbl['ra'] >= ra_min) & (catalog_summary_tbl['ra'] <= ra_max) &
+                (catalog_summary_tbl['dec'] >= dec_min) & (catalog_summary_tbl['dec'] <= dec_max)
+            )
+            catalog_summary_tbl = catalog_summary_tbl[cut_tiles_mask]
+            catalog_coords = catalog_coords[cut_tiles_mask]
+
+            overlap_catalogs = []
+            overlap_fractions = []
+            for idx, (cat_ra, cat_dec, cat_fov_ra, cat_fov_dec) in enumerate(zip(
+                    catalog_summary_tbl['ra'], 
+                    catalog_summary_tbl['dec'], 
+                    catalog_summary_tbl['fov_ra'], 
+                    catalog_summary_tbl['fov_dec'])):
+                target_polygon = Polygon([  
+                    (coord.ra.deg - fov_ra / 2, coord.dec.deg - fov_dec / 2),
+                    (coord.ra.deg + fov_ra / 2, coord.dec.deg - fov_dec / 2),
+                    (coord.ra.deg + fov_ra / 2, coord.dec.deg + fov_dec / 2),
+                    (coord.ra.deg - fov_ra / 2, coord.dec.deg + fov_dec / 2)
+                ])
+                tile_polygon = Polygon([  
+                    (cat_ra - cat_fov_ra / 2, cat_dec - cat_fov_dec / 2),
+                    (cat_ra + cat_fov_ra / 2, cat_dec - cat_fov_dec / 2),
+                    (cat_ra + cat_fov_ra / 2, cat_dec + cat_fov_dec / 2),
+                    (cat_ra - cat_fov_ra / 2, cat_dec + cat_fov_dec / 2)
+                ])
+                if target_polygon.intersects(tile_polygon):
+                    intersection = target_polygon.intersection(tile_polygon)
+                    target_area = fov_ra * fov_dec
+                    fraction_overlap = intersection.area / target_area
+                    if fraction_overlap >= overlapped_fraction:
+                        overlap_catalogs.append(catalog_summary_tbl[idx])
+                        overlap_fractions.append(fraction_overlap)
+            if overlap_catalogs:
+                print(f'{coord} found in catalog_archive')
+
+                return vstack(overlap_catalogs)
+            else:
+                raise ValueError("No catalog found with sufficient overlap.")
+        except Exception as e:
+            raise RuntimeError(f'Failed to access catalog summary: {e}')
+
+    def get_cataloginfo_by_objname(self, objname, catalog_type, fov_ra, fov_dec):
+        catalog_summary_file = os.path.join(self.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
+        catalog_summary_tbl = ascii.read(catalog_summary_file, format = 'fixed_width')
+        
+        idx = (catalog_summary_tbl['objname'] == objname) & (catalog_summary_tbl['cat_type'] == catalog_type) & (catalog_summary_tbl['fov_ra'] * 1.1 > fov_ra) & (catalog_summary_tbl['fov_dec'] * 1.1 > fov_dec)
+        if np.sum(idx) > 0:
+            print(f'{objname} found in catalog_archive')
+            matched_info = catalog_summary_tbl[idx]
+            return matched_info
+        else:
+            raise ValueError(f"{objname} not found in catalog_summary")
+
+    def query_coord_SIMBAD(self, objname) -> SkyCoord:
         from astroquery.simbad import Simbad
 
         # Create a custom Simbad instance with the necessary fields
@@ -945,19 +430,18 @@ class Catalog():
         custom_simbad.add_votable_fields('ra', 'dec')
 
         # Query an object (e.g., "Vega")
-        result_table = custom_simbad.query_object(target_name)
+        result_table = custom_simbad.query_object(objname)
 
         # Extract coordinates
         if result_table is not None:
-            ra = result_table['RA'][0]  # Right Ascension
-            dec = result_table['DEC'][0]  # Declination
-            coord = SkyCoord(ra, dec, unit = (u.hourangle, u.deg))
+            ra = result_table['ra'][0]  # Right Ascension
+            dec = result_table['dec'][0]  # Declination
+            coord = SkyCoord(ra, dec, unit = (u.deg, u.deg))
             return coord
         else:
-            print(f"{target_name} not found in")
-            #raise ValueError("Object not found.")
+            raise ValueError("Object not found in SIMBAD.")
 
-    def query_catalog(self, catalog_name: str = 'APASS', save: bool = True):
+    def query_catalog(self, catalog_name: str = 'APASS'):
 
         # APASS DR9
         def apass_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=100000):
@@ -1046,7 +530,7 @@ class Catalog():
                 return None
 
         # PanSTARRS DR1
-        def ps1_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=1000000):
+        def ps1_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources= 500000):
             """
             Query PanSTARRS @ VizieR using astroquery.vizier
             :param ra_deg: RA in degrees
@@ -1156,30 +640,100 @@ class Catalog():
             else:
                 return None
         
-        ra_deg = self.fieldinfo['ra']
-        dec_deg = self.fieldinfo['dec']
         if catalog_name == 'APASS':
-            data = apass_query(ra_deg = ra_deg, dec_deg = dec_deg, rad_deg = self.fieldinfo['radius'], maxmag = self.fieldinfo['maxmag'], minmag = self.fieldinfo['minmag'], maxsources = self.fieldinfo['maxsources'])
+            print('Start APASS query...')
+            data = apass_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
         elif catalog_name == 'PS1':
-            data = ps1_query(ra_deg = ra_deg, dec_deg = dec_deg, rad_deg = self.fieldinfo['radius'], maxmag = self.fieldinfo['maxmag'], minmag = self.fieldinfo['minmag'], maxsources = self.fieldinfo['maxsources'])
+            print('Start PS1 query...')
+            data = ps1_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
         elif catalog_name == 'SDSS':
-            data = sdss_query(ra_deg = ra_deg, dec_deg = dec_deg, rad_deg = self.fieldinfo['radius'], maxmag = self.fieldinfo['maxmag'], minmag = self.fieldinfo['minmag'], maxsources = self.fieldinfo['maxsources'])
+            print('Start SDSS query...')
+            data = sdss_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
         elif catalog_name == 'SMSS':
-            data = smss_query(ra_deg = ra_deg, dec_deg = dec_deg, rad_deg = self.fieldinfo['radius'], maxmag = self.fieldinfo['maxmag'], minmag = self.fieldinfo['minmag'], maxsources = self.fieldinfo['maxsources'])
+            print('Start SMSS query...')
+            data = smss_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
         elif catalog_name == 'GAIA':
-            data = gaia_query(ra_deg = ra_deg, dec_deg = dec_deg, rad_deg = self.fieldinfo['radius'], maxmag = self.fieldinfo['maxmag'], minmag = self.fieldinfo['minmag'], maxsources = self.fieldinfo['maxsources'])
+            print('Start GAIA query...')
+            data = gaia_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
         else:
-            raise ValueError(f'{catalog_name} is not registered')                       
+            raise ValueError(f'{self.objname} does not exist in {catalog_name}')                       
         
         if not data:
-            pass
-            #print(f"{catalog_name} cannot query {self.fieldinfo['target']}.")
-        else:
-            if save:
-                os.makedirs(os.path.join(self.catpath, catalog_name), exist_ok=True)
-                path = os.path.join(self.catpath, catalog_name, self.fieldinfo['target'])+'.csv'
-                ascii.write(data, path, format = 'csv', overwrite = True)
-                print(f"{catalog_name}/{self.fieldinfo['target']} saved: {path}")
-            return data
+            raise ValueError(f'{catalog_name} is not registered')              
+        
+        return data
 
+    def _update_history(self):
+        self.history = CatalogHistory(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra,fov_dec = self.fov_dec, filename = self.filename, cat_type = self.catalog_type, save_date = self.save_date)
 
+    def _register_objinfo(self, objname, ra, dec, fov_ra, fov_dec, catalog_type):
+        self.objname = objname
+        self.ra = ra
+        self.dec = dec
+        self.fov_ra = fov_ra
+        self.fov_dec = fov_dec
+        self.catalog_type = catalog_type
+
+        # 1. Check if neither objname nor (ra, dec) are provided
+        if (objname is None) and (ra is None) and (dec is None):
+            raise ValueError('objname or (ra, dec) must be provided')
+
+        # 2. If objname is given but ra and dec are not, retrieve coordinates
+        if objname is not None and (ra is None or dec is None):
+            try:
+                catinfo = self.get_cataloginfo_by_objname(objname = objname, catalog_type = catalog_type, fov_ra = fov_ra, fov_dec = fov_dec)
+                self.ra = catinfo['ra'][0]
+                self.dec = catinfo['dec'][0]
+                self.fov_ra = catinfo['fov_ra'][0]
+                self.fov_dec = catinfo['fov_dec'][0]
+                self.filename = catinfo['filename'][0]
+                self.save_date = catinfo['save_date'][0]
+            except:
+                try:
+                    coord = self.query_coord_SIMBAD(objname = objname)
+                    self.ra = coord.ra.deg
+                    self.dec = coord.dec.deg
+                except:
+                    raise ValueError(f"Failed to query coordinates for {objname}")
+
+        # 3. If objname is not provided, generate it using the coordinate format
+        if objname is None and ra is not None and dec is not None:
+            
+            coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
+
+            try:
+                catinfo = self.get_cataloginfo_by_coord(coord = coord, fov_ra = fov_ra, fov_dec = fov_dec, overlapped_fraction = overlapped_fraction)
+                self.objname = catinfo['objname'][0]
+                self.ra = catinfo['ra'][0]
+                self.dec = catinfo['dec'][0]
+                self.fov_ra = catinfo['fov_ra'][0]
+                self.fov_dec = catinfo['fov_dec'][0]
+                self.filename = catinfo['filename'][0]
+                self.save_date = catinfo['save_date'][0]        
+            except:
+                ra_hms = coord.ra.hms
+                dec_dms = coord.dec.dms
+                self.objname = f'J{int(ra_hms.h):02}{int(ra_hms.m):02}{ra_hms.s:05.2f}' \
+                            f'{int(dec_dms.d):+03}{int(abs(dec_dms.m)):02}{abs(dec_dms.s):04.1f}' 
+        
+        if (self.objname is None) or (self.ra is None) or (self.dec is None):
+            raise ValueError('objname, ra, and dec must be provided')
+
+        self._update_history()
+    
+
+# %% Example
+if __name__ =='__main__':
+    # 7DT Tile id 
+    C = Catalog('T00000', catalog_type = 'GAIAXP')
+    print(C, "RA = %.2f Dec = %.2f, FOV_RA = %.2f, FOV_DEC = %.2f" % (C.ra, C.dec, C.fov_ra, C.fov_dec))
+    # Gaia catalog of NGC1566 with FOV_RA = 1.3, FOV_DEC = 0.9
+    C = Catalog('NGC1566', catalog_type = 'GAIA', fov_ra = 1.3, fov_dec = 0.9)
+    # APASS catalog of given ra dec with FOV_RA = 1.3, FOV_DEC = 0.9
+    C = Catalog(ra = 10.68458, dec = 41.26917, catalog_type = 'APASS', fov_ra = 1.3, fov_dec = 0.9)
+    print(C.data)
+    # Once queried, the data is saved in catalog_archive, so it can be called without querying again
+    # One can query reference sources with the mag_lower, mag_upper, and some keyword arguments. kwargs need to be list of [lower limit, upper limit]
+    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)
+    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15, ra = [10, 11], dec = [40, 41])
+# %%

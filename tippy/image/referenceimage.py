@@ -1,5 +1,6 @@
 #%%
 from astropy.time import Time
+from astropy.io import fits
 import json
 import os
 
@@ -22,24 +23,24 @@ class Status:
     
     def __init__(self, **kwargs):
         """ Initialize status dictionary with uniform dict structure. """
-        # Initialize all processes with dict(status=False, update_time=None)
-        self.processes = {step: dict(status=False, update_time=None) for step in self.PROCESS_STEPS}
+        # Initialize all status with dict(status=False, update_time=None)
+        self.status = {step: dict(status=False, update_time=None) for step in self.PROCESS_STEPS}
         
         # Allow overriding default values
         for key, value in kwargs.items():
-            if key in self.processes:
-                self.processes[key] = value
+            if key in self.status:
+                self.status[key] = value
 
     def update(self, process_name):
         """ Mark a process as completed and update timestamp. """
-        if process_name in self.processes:
-            if self.processes[process_name]['status'] == False:
-                self.processes[process_name] = dict(status=True, update_time=Time.now().iso)
+        if process_name in self.status:
+            if self.status[process_name]['status'] == False:
+                self.status[process_name] = dict(status=True, update_time=Time.now().iso)
         else:
             raise ValueError(f"Invalid process name: {process_name}")
 
     def to_dict(self):
-        return self.processes
+        return self.status
 
     @classmethod
     def from_dict(cls, data):
@@ -47,7 +48,7 @@ class Status:
 
     def __repr__(self):
         """ Represent process status as a readable string """
-        status_list = [f"{key}: {value}" for key, value in self.processes.items()]
+        status_list = [f"{key}: {value}" for key, value in self.status.items()]
         return "Status =====================================\n  " + "\n  ".join(status_list) + "\n==================================================="
 
 # === Info Class ===
@@ -121,13 +122,13 @@ class ReferenceImage(BaseImage):
         super().__init__(path = path, telinfo = telinfo)
 
         filename = os.path.basename(path)
-        savedir = os.path.join(self.config['REFDATA_DIR'], self.observatory, self.telkey, self.objname)
-        if not os.path.exists(savedir):
-            os.makedirs(savedir, exist_ok=True)
+        self.savedir = os.path.join(self.config['REFDATA_DIR'], self.observatory, self.telkey, self.objname, self.filter)
+        if not os.path.exists(self.savedir):
+            os.makedirs(self.savedir, exist_ok=True)
         
-        self.statuspath = os.path.join(savedir, filename.split('.fits')[0] + '.refim_status')
-        self.infopath = os.path.join(savedir, filename.split('.fits')[0] + '.refim_info')
-        self.loggerpath = os.path.join(savedir, filename.split('.fits')[0] + '.refim_log')
+        self.statuspath = os.path.join(self.savedir, filename.split('.fits')[0] + '.refim_status')
+        self.infopath = os.path.join(self.savedir, filename.split('.fits')[0] + '.refim_info')
+        self.loggerpath = os.path.join(self.savedir, filename.split('.fits')[0] + '.refim_log')
         self.logger = Logger(logger_name = self.loggerpath).log()
         
         # Initialize or load status
@@ -157,6 +158,18 @@ class ReferenceImage(BaseImage):
     def __repr__(self):
         return f"ReferenceImage(object = {self.objname}, filter = {self.filter}, binning = {self.binning}, gain = {self.gain}, path = {os.path.basename(self.path)})"
     
+    def write(self, path : str):
+        """ Write fits ReferenceImage into fits file """
+        data = self.data
+        header = self.header
+        status = self.status
+        os.makedirs(os.path.dirname(path), exist_ok = True)
+        fits.writeto(path, data, header, overwrite=True)
+        self.logger.info(f"ReferenceImage is written to {path}")
+        updated_instance = ReferenceImage(path = path, telinfo = self.telinfo, status = status)
+        updated_instance.save_status()
+        return updated_instance
+
     def load_status(self):
         """ Load processing status from a JSON file """
         with open(self.statuspath, 'r') as f:

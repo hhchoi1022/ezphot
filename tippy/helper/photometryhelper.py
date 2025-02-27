@@ -6,6 +6,8 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from astropy.table import Table
 from astropy.wcs import WCS
+from astropy.io.fits import Header
+import astroscrappy as cr
 
 from tqdm import tqdm
 import os
@@ -176,65 +178,6 @@ class PhotometryHelper(TIPConfig):
         # Check final count of combined FITS files
         print(f"Total FITS files combined: {len(all_coll)}")
         return all_coll
-
-
-    # def get_imginfo(self, 
-    #                 filelist, 
-    #                 keywords=['jd', 'group', 'filter', 'exptime', 'object', 'telescop', 'instrume', 'ra', 'dec', 'xbinning', 'ybinning', 'imagetyp'],
-    #                 normalize_key: bool = True):
-    #     '''
-    #     Parameters
-    #     ----------
-    #     1. filelist: (list) List of FITS image file paths.
-
-    #     2. keywords : (list) List of FITS header keywords to extract.
-
-    #     3. normalize_key: (bool) If True, normalize keywords based on required_key_variants.
-
-    #     Returns 
-    #     -------
-    #     1. result_tbl : astropy.table
-    #                     Table containing FITS header information.
-
-    #     Notes 
-    #     -----
-    #     - "comment" and "history" are removed due to excessive length.
-    #     - If `normalize_key=True`, returned keys will be standardized.
-    #     - If `normalize_key=False`, the original keywords are retained.
-    #     '''
-
-    #     filedirs = set(os.path.dirname(filename) for filename in filelist)
-    #     match_tbl = Table([filelist], names=['file'])
-    #     result_tbl = Table()
-
-    #     for filedir in filedirs:
-    #         files = [os.path.basename(file) for file in filelist if os.path.dirname(file) == filedir]
-    #         iminfo = ImageFileCollection(location=filedir, keywords=keywords, filenames=files).summary
-
-    #         # Convert file paths to absolute paths
-    #         iminfo['file'] = [os.path.join(filedir, f) for f in iminfo['file']]
-
-    #         if normalize_key:
-    #             # Normalize header keys
-    #             new_column_names = {}
-    #             for colname in iminfo.colnames:
-    #                 normalized_key = self.normalize_required_keys(colname)
-    #                 if normalized_key:
-    #                     new_column_names[colname] = normalized_key  # Map old key to new key
-
-    #             # Rename columns to normalized keys
-    #             iminfo.rename_columns(list(new_column_names.keys()), list(new_column_names.values()))
-
-    #             # Keep only normalized keys + 'file'
-    #             valid_keys = set(self.required_key_variants.keys()) | {'file'}
-    #             iminfo = iminfo[[col for col in iminfo.colnames if col in valid_keys]]
-
-    #         result_tbl = vstack([iminfo, result_tbl])
-
-    #     result_tbl = join(match_tbl, result_tbl, keys='file', join_type='inner')
-
-    #     return result_tbl
-    
     
     def normalize_required_keys(self, key: str):
 
@@ -306,6 +249,14 @@ class PhotometryHelper(TIPConfig):
             return file_path
         else:
             raise FileNotFoundError(f'default.scampconfig not found :{file_path}')
+    
+    def get_psfexconfigpath(self):
+        file_path = os.path.join(self.configpath, 'psfex', 'default.psfexconfig')
+        is_exist = os.path.exists(file_path)
+        if is_exist:
+            return file_path
+        else:
+            raise FileNotFoundError(f'default.psfexconfig not found :{file_path}')
 
     def get_swarpconfigpath(self,
                             telescope : str,
@@ -417,73 +368,19 @@ class PhotometryHelper(TIPConfig):
             return obs_info[0]
         
         raise AttributeError(f"No matching CCD info for {telescope}. Available CCDs: {list(set(all_obsinfo[key_ccd]))}")
-
-    def load_sexconfig(self, sexconfig: str) -> dict:
-        config_dict = {}
-
-        with open(sexconfig, 'r') as file:
-            for line in file:
-                line = line.strip()
-                # Skip comments and empty lines
-                if not line or line.startswith('#'):
-                    continue
-                # Split the line into key and value
-                key_value = line.split(maxsplit=1)
-                if len(key_value) == 2:
-                    key, value = key_value
-                    # Remove inline comments
-                    value = value.split('#', 1)[0].strip()
-                    # Attempt to convert value to appropriate type
-                    try:
-                        # Handle lists
-                        if ',' in value:
-                            value = [float(v) if '.' in v else int(v)
-                                     for v in value.split(',')]
-                        else:
-                            # Convert to float if possible
-                            value = float(
-                                value) if '.' in value else int(value)
-                    except ValueError:
-                        # Keep as string if conversion fails
-                        pass
-                    config_dict[key] = value
-        return config_dict
-
-    def load_scampconfig(self, scampconfig: str) -> dict:
-        config_dict = {}
-
-        with open(scampconfig, 'r') as file:
-            for line in file:
-                line = line.strip()
-                # Skip comments and empty lines
-                if not line or line.startswith('#'):
-                    continue
-                # Split the line into key and value
-                key_value = line.split(maxsplit=1)
-                if len(key_value) == 2:
-                    key, value = key_value
-                    # Remove inline comments
-                    value = value.split('#', 1)[0].strip()
-                    # Attempt to convert value to appropriate type
-                    try:
-                        # Handle lists
-                        if ',' in value:
-                            value = [float(v) if '.' in v else int(v)
-                                     for v in value.split(',')]
-                        else:
-                            # Convert to float if possible
-                            value = float(
-                                value) if '.' in value else int(value)
-                    except ValueError:
-                        # Keep as string if conversion fails
-                        pass
-                    config_dict[key] = value
-        return config_dict
     
-    def load_psfexconfig(self, psfexconfig: str) -> dict:
+    def load_config(self, config_path: str) -> dict:
+        """ Load sextractor, swarp, scamp, psfex configuration file
+
+        Args:
+            config_path (str): absolute path of the configuration file
+
+        Returns:
+            dict: dictionary of the configuration file
+        """
         config_dict = {}
 
-        with open(psfexconfig, 'r') as file:
+        with open(config_path, 'r') as file:
             for line in file:
                 line = line.strip()
                 # Skip comments and empty lines
@@ -500,47 +397,139 @@ class PhotometryHelper(TIPConfig):
                         # Handle lists
                         if ',' in value:
                             value = [float(v) if '.' in v else int(v)
-                                     for v in value.split(',')]
+                                    for v in value.split(',')]
                         else:
                             # Convert to float if possible
-                            value = float(
-                                value) if '.' in value else int(value)
+                            value = float(value) if '.' in value else int(value)
                     except ValueError:
                         # Keep as string if conversion fails
                         pass
                     config_dict[key] = value
         return config_dict
+
+    # def load_sexconfig(self, sexconfig: str) -> dict:
+    #     config_dict = {}
+
+    #     with open(sexconfig, 'r') as file:
+    #         for line in file:
+    #             line = line.strip()
+    #             # Skip comments and empty lines
+    #             if not line or line.startswith('#'):
+    #                 continue
+    #             # Split the line into key and value
+    #             key_value = line.split(maxsplit=1)
+    #             if len(key_value) == 2:
+    #                 key, value = key_value
+    #                 # Remove inline comments
+    #                 value = value.split('#', 1)[0].strip()
+    #                 # Attempt to convert value to appropriate type
+    #                 try:
+    #                     # Handle lists
+    #                     if ',' in value:
+    #                         value = [float(v) if '.' in v else int(v)
+    #                                  for v in value.split(',')]
+    #                     else:
+    #                         # Convert to float if possible
+    #                         value = float(
+    #                             value) if '.' in value else int(value)
+    #                 except ValueError:
+    #                     # Keep as string if conversion fails
+    #                     pass
+    #                 config_dict[key] = value
+    #     return config_dict
+
+    # def load_scampconfig(self, scampconfig: str) -> dict:
+    #     config_dict = {}
+
+    #     with open(scampconfig, 'r') as file:
+    #         for line in file:
+    #             line = line.strip()
+    #             # Skip comments and empty lines
+    #             if not line or line.startswith('#'):
+    #                 continue
+    #             # Split the line into key and value
+    #             key_value = line.split(maxsplit=1)
+    #             if len(key_value) == 2:
+    #                 key, value = key_value
+    #                 # Remove inline comments
+    #                 value = value.split('#', 1)[0].strip()
+    #                 # Attempt to convert value to appropriate type
+    #                 try:
+    #                     # Handle lists
+    #                     if ',' in value:
+    #                         value = [float(v) if '.' in v else int(v)
+    #                                  for v in value.split(',')]
+    #                     else:
+    #                         # Convert to float if possible
+    #                         value = float(
+    #                             value) if '.' in value else int(value)
+    #                 except ValueError:
+    #                     # Keep as string if conversion fails
+    #                     pass
+    #                 config_dict[key] = value
+    #     return config_dict
     
-    def load_swarpconfig(self, swarpconfig: str) -> dict:
-        config_dict = {}
+    # def load_psfexconfig(self, psfexconfig: str) -> dict:
+    #     config_dict = {}
 
-        with open(swarpconfig, 'r') as file:
-            for line in file:
-                line = line.strip()
-                # Skip comments and empty lines
-                if not line or line.startswith('#'):
-                    continue
-                # Split the line into key and value
-                key_value = line.split(maxsplit=1)
-                if len(key_value) == 2:
-                    key, value = key_value
-                    # Remove inline comments
-                    value = value.split('#', 1)[0].strip()
-                    # Attempt to convert value to appropriate type
-                    try:
-                        # Handle lists
-                        if ',' in value:
-                            value = [float(v) if '.' in v else int(v)
-                                     for v in value.split(',')]
-                        else:
-                            # Convert to float if possible
-                            value = float(
-                                value) if '.' in value else int(value)
-                    except ValueError:
-                        # Keep as string if conversion fails
-                        pass
-                    config_dict[key] = value
-        return config_dict
+    #     with open(psfexconfig, 'r') as file:
+    #         for line in file:
+    #             line = line.strip()
+    #             # Skip comments and empty lines
+    #             if not line or line.startswith('#'):
+    #                 continue
+    #             # Split the line into key and value
+    #             key_value = line.split(maxsplit=1)
+    #             if len(key_value) == 2:
+    #                 key, value = key_value
+    #                 # Remove inline comments
+    #                 value = value.split('#', 1)[0].strip()
+    #                 # Attempt to convert value to appropriate type
+    #                 try:
+    #                     # Handle lists
+    #                     if ',' in value:
+    #                         value = [float(v) if '.' in v else int(v)
+    #                                  for v in value.split(',')]
+    #                     else:
+    #                         # Convert to float if possible
+    #                         value = float(
+    #                             value) if '.' in value else int(value)
+    #                 except ValueError:
+    #                     # Keep as string if conversion fails
+    #                     pass
+    #                 config_dict[key] = value
+    #     return config_dict
+    
+    # def load_swarpconfig(self, swarpconfig: str) -> dict:
+    #     config_dict = {}
+
+    #     with open(swarpconfig, 'r') as file:
+    #         for line in file:
+    #             line = line.strip()
+    #             # Skip comments and empty lines
+    #             if not line or line.startswith('#'):
+    #                 continue
+    #             # Split the line into key and value
+    #             key_value = line.split(maxsplit=1)
+    #             if len(key_value) == 2:
+    #                 key, value = key_value
+    #                 # Remove inline comments
+    #                 value = value.split('#', 1)[0].strip()
+    #                 # Attempt to convert value to appropriate type
+    #                 try:
+    #                     # Handle lists
+    #                     if ',' in value:
+    #                         value = [float(v) if '.' in v else int(v)
+    #                                  for v in value.split(',')]
+    #                     else:
+    #                         # Convert to float if possible
+    #                         value = float(
+    #                             value) if '.' in value else int(value)
+    #                 except ValueError:
+    #                     # Keep as string if conversion fails
+    #                     pass
+    #                 config_dict[key] = value
+    #     return config_dict
 
     # Calculation
 
@@ -837,129 +826,944 @@ class PhotometryHelper(TIPConfig):
         hdul.close()
         self.print(f"Camera rotation angle (Position Angle) toward North: {pa_degrees:.2f} degrees", print_output)
         
-
-    def cutout_img(self, target_img, size=0.9, prefix='cut_', xcenter=None, ycenter=None, print_output: bool = True):
+    def img_cutout(self, 
+                   target_img: str or np.ndarray, 
+                   target_header: Header = None, # When target_img is np.ndarray
+                   output_path : str = None,
+                   x_size=0.9, 
+                   y_size=0.9,
+                   xcenter=None, 
+                   ycenter=None, 
+                   print_output: bool = True):
         '''
         parameters
         ----------
-        1. target_img : str
-                        {abspath} of the target image
-        2. size : float or int
-                        (float) ratio of the cut image (0.9)
-                        (int) size of the cut image in pixel 
-        3. prefix : str
-                        prefix of the output image
-        4. xcenter : optional, int or (float or str)
+        1. target_img : str or np.ndarray
+                        (str) absolute path of the target image
+                        (np.ndarray) image data
+        2. target_header : astropy.io.fits.Header (optional)
+                           Required if target_img is np.ndarray
+        3. x_size, y_size : float or int
+                        (float) ratio of the cut image (0.9 by default)
+                        (int) size of the cut image in pixels
+        4. xcenter, ycenter : optional, int or (float or str)
                         (int) pixel coordinate of the center
-                        (float or str) RA coordinate of the center
-        4. ycenter : optional, int or (float or str)
-                        (int) pixel coordinate of the center
-                        (float or str) Dec coordinate of the center
+                        (float or str) RA/Dec coordinate of the center
+        5. print_output : bool
+                        If True, prints progress messages
+                        
         returns 
         -------
-        1. outputname : str
-                        {abspath} of the cutout image
-
-        notes 
-        -----
-        if xcenter, ycenter == None, cutout image will be centered to the center of the original image
-        -----
+        1. If target_img is str:
+            output_path : str
+                {abspath} of the cutout image
+        2. If target_img is np.ndarray:
+            (cutouted.data, cutouted_header) : tuple
+                (np.ndarray, astropy.io.fits.Header)
         '''
         from astropy.wcs import WCS
         from astropy.nddata import Cutout2D
-            
+        from astropy.io import fits
+        import os
+        
         self.print('Start image cutout... \n', print_output)
-        hdul = fits.open(target_img)
-        hdu = hdul[0]
-        wcs = WCS(hdu.header)
-        if size < 1:
-            size = size*int(len(hdu.data))
-        if (xcenter == None) & (ycenter == None):
-            xcenter, ycenter = len(hdu.data)//2, len(hdu.data)//2
-        if (type(xcenter) != int) & (type(ycenter) != int):
-            center_coords = self.to_skycoord(xcenter, ycenter)
-            cutouted = Cutout2D(
-                data=hdu.data, position=center_coords, size=size, wcs=wcs)
+        
+        if isinstance(target_img, str):
+            # Input is a file path
+            hdul = fits.open(target_img)
+            hdu = hdul[0]
+            target_data = hdu.data
+            wcs = WCS(hdu.header)
+
+        elif isinstance(target_img, np.ndarray):
+            # Input is an image array
+            if target_header is None:
+                raise ValueError("Header must be provided when target_img is a numpy array.")
+            target_data = target_img
+            wcs = WCS(target_header)
         else:
-            cutouted = Cutout2D(data=hdu.data, position=(
-                xcenter, ycenter), size=size, wcs=wcs)
-        cutouted_hdu = hdu
-        cutouted_hdu.data = cutouted.data
-        cutouted_hdu.header.update(cutouted.wcs.to_header())
-        cutouted_hdu.header['NAXIS1'] = int(size)
-        cutouted_hdu.header['NAXIS2'] = int(size)
-        outputname = f'{os.path.dirname(target_img)}/{prefix}{os.path.basename(target_img)}'
-        cutouted_hdu.writeto(outputname, overwrite=True)
-        hdul.close()
-        self.print('Image cutout complete \n', print_output)
-        return outputname
+            raise TypeError("target_img must be either a str or an np.ndarray.")
+        
+        # Calculate cutout size
+        size = (int(x_size * target_data.shape[1]), int(y_size * target_data.shape[0])) if x_size < 1 and y_size < 1 else (x_size, y_size)
+        
+        # Determine the cutout center
+        if xcenter is None or ycenter is None:
+            xcenter, ycenter = target_data.shape[1] // 2, target_data.shape[0] // 2
+        
+        # Perform the cutout
+        if not isinstance(xcenter, int) or not isinstance(ycenter, int):
+            center_coords = self.to_skycoord(xcenter, ycenter)
+            cutouted = Cutout2D(data=target_data, position=center_coords, size=size, wcs=wcs)
+        else:
+            cutouted = Cutout2D(data=target_data, position=(xcenter, ycenter), size=size, wcs=wcs)
+        
+        if isinstance(target_img, str):
+            # Save the cutout image as a FITS file
+            cutouted_hdu = fits.PrimaryHDU(data=cutouted.data, header=cutouted.wcs.to_header())
+            cutouted_hdu.header['CUTOUT'] = (True, 'Image has been cut out.')
+            cutouted_hdu.header['CUTOTIME'] = (Time.now().isot, 'Time of cutout operation.')
+            cutouted_hdu.header['CUTOFILE'] = (target_img, 'Original file path before cutout')
+            
+            if not output_path:
+                output_path = os.path.join(os.path.dirname(target_img), f'cutout_{os.path.basename(target_img)}')
+            cutouted_hdu.writeto(output_path, overwrite=True)
+            
+            hdul.close()
+            self.print('Image cutout complete \n', print_output)
+            return output_path
+        else:
+            # Create header for the cutout image
+            cutouted_header = target_header.copy()
+            cutouted_header.update(cutouted.wcs.to_header())
+            cutouted_header['NAXIS1'] = cutouted.data.shape[1]
+            cutouted_header['NAXIS2'] = cutouted.data.shape[0]
+            cutouted_hdu.header['CUTOUT'] = (True, 'Image has been cut out.')
+            cutouted_hdu.header['CUTOTIME'] = (Time.now().isot, 'Time of cutout operation.')
+            cutouted_hdu.header['CUTOFILE'] = (target_img, 'Original file path before cutout')
+            
+            self.print('Image cutout complete \n', print_output)
+            return cutouted.data, cutouted_header
 
-    def align_img(self, target_img, reference_img, prefix='align_', detection_sigma = 5, print_output: bool = True):
+    def img_astroalign(self, 
+                       target_img: str or np.ndarray, 
+                       reference_img: str or np.ndarray, 
+                       target_header: Header = None, 
+                       reference_header: Header = None, 
+                       output_path : str = None,
+                       detection_sigma=5, 
+                       print_output: bool = True):
         """
-
+        WARNING: Astroalign fails when the image size is too large and distortion exists in the images.
         parameters
         ----------
-        1. target_img : str
-                        absolute path of a target image 
-        2. reference_img : str
-                        absolute path of a reference image
-                        The image as a reference frame. All images will be aligned on the basis of this image
-        3. prefix = str
-                        prefix of the aligned iamge
+        1. target_img : str or np.ndarray
+                        (str) Absolute path of the target image 
+                        (np.ndarray) Image data
+        2. reference_img : str or np.ndarray
+                        (str) Absolute path of the reference image
+                        (np.ndarray) Image data
+        3. target_header : astropy.io.fits.Header (optional)
+                        Required if target_img is np.ndarray
+        4. reference_header : astropy.io.fits.Header (optional)
+                        Required if reference_img is np.ndarray
+        5. detection_sigma : float
+                        Detection threshold for astroalign (default: 5)
+        6. print_output : bool
+                        If True, prints progress messages (default: True)
 
         returns
         ----------
-        1. outputname : str
-                        absolute path of the aligned image
-        notes
-        ----------
-        ----------
+        1. If target_img is str:
+            output_path : str
+                Absolute path of the aligned image
+        2. If target_img is np.ndarray:
+            (aligned_data, aligned_header) : tuple
+                (np.ndarray, astropy.io.fits.Header)
         """
 
         import astroalign as aa
         from ccdproc import CCDData
         from astropy.wcs import WCS
+        from astropy.io import fits
+        import os
 
         self.print('Start image alignment... \n', print_output)
-        tgt_hdul = fits.open(target_img)
-        ref_hdul = fits.open(reference_img)
-        tgt_hdu = tgt_hdul[0]
-        ref_hdu = ref_hdul[0]
-        tgt_data = tgt_hdu.data
-        ref_data = ref_hdu.data
-        tgt_hdr = tgt_hdu.header
-        ref_hdr = ref_hdu.header
+
+        # Load data and headers based on input types
+        if isinstance(target_img, str):
+            # Input is a file path
+            target_hdul = fits.open(target_img)
+            target_data = target_hdul[0].data
+            target_header = target_hdul[0].header
+            target_hdul.close()
+        elif isinstance(target_img, np.ndarray):
+            # Input is an image array
+            if target_header is None:
+                raise ValueError("target_header must be provided when target_img is a numpy array.")
+            target_data = target_img
+            target_header = target_header
+        else:
+            raise TypeError("target_img must be either a str or an np.ndarray.")
+
+        if isinstance(reference_img, str):
+            # Input is a file path
+            reference_hdul = fits.open(reference_img)
+            reference_data = reference_hdul[0].data
+            reference_header = reference_hdul[0].header
+            reference_hdul.close()
+        elif isinstance(reference_img, np.ndarray):
+            # Input is an image array
+            if reference_header is None:
+                raise ValueError("reference_header must be provided when reference_img is a numpy array.")
+            reference_data = reference_img
+            reference_header = reference_header
+        else:
+            raise TypeError("reference_img must be either a str or an np.ndarray.")
+
+        # Prepare WCS and header update
+        reference_wcs = WCS(reference_header)
+        wcs_hdr = reference_wcs.to_header(relax=True)
+        for key in ['DATE-OBS', 'MJD-OBS', 'RADESYS', 'EQUINOX']:
+            wcs_hdr.remove(key, ignore_missing=True)
         
-        ref_wcs = WCS(ref_hdr)
-        wcs_hdr = ref_wcs.to_header(relax = True)
-        wcs_hdr.remove('DATE-OBS', ignore_missing = True)
-        wcs_hdr.remove('MJD-OBS', ignore_missing = True)
-        wcs_hdr.remove('RADESYS', ignore_missing = True)
-        wcs_hdr.remove('EQUINOX', ignore_missing = True)
-        tgt_hdr.update(wcs_hdr)
-        tgt_data = tgt_data.byteswap().newbyteorder()
-        ref_data = ref_data.byteswap().newbyteorder()
+        target_header.update(wcs_hdr)
+        target_data = target_data.byteswap().newbyteorder()
+        reference_data = reference_data.byteswap().newbyteorder()
+
         try:
-            aligned_data, footprint = aa.register(tgt_data, ref_data, fill_value=0, detection_sigma= detection_sigma, max_control_points=30)
-            aligned_tgt = CCDData(aligned_data, header=tgt_hdr, unit='adu')
-            outputname = f'{os.path.dirname(target_img)}/{prefix}{os.path.basename(target_img)}'
-            fits.writeto(outputname, aligned_tgt.data, aligned_tgt.header, overwrite=True)
-            self.print('Image alignment complete \n', print_output)
-            return outputname
-        except:
+            # Perform image alignment using astroalign
+            aligned_data, footprint = aa.register(target_data, reference_data, 
+                                                  fill_value=0, 
+                                                  detection_sigma=detection_sigma, 
+                                                  max_control_points=30,
+                                                  min_area = 10)
+            
+            if isinstance(target_img, str):
+                # Save the aligned image as a FITS file
+                aligned_target = CCDData(aligned_data, header=target_header, unit='adu')
+                aligned_target.header['ALIGN'] = (True, 'Image has been aligned.')
+                aligned_target.header['ALIGTIME'] = (Time.now().isot, 'Time of alignment operation.')
+                aligned_target.header['ALIGFILE'] = (target_img, 'Original file path before alignment')
+                aligned_target.header['ALIGREF'] = (reference_img, 'Reference image path')
+                
+                if not output_path:
+                    output_path = os.path.join(os.path.dirname(target_img), f'align_{os.path.basename(target_img)}')
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                fits.writeto(output_path, aligned_target.data, aligned_target.header, overwrite=True)
+                
+                self.print('Image alignment complete \n', print_output)
+                return output_path
+            else:
+                # Return the aligned data and header
+                aligned_header = target_header.copy()
+                aligned_header['NAXIS1'] = aligned_data.shape[1]
+                aligned_header['NAXIS2'] = aligned_data.shape[0]
+                aligned_header['ALIGN'] = (True, 'Image has been aligned.')
+                aligned_header['ALIGTIME'] = (Time.now().isot, 'Time of alignment operation.')
+                aligned_header['ALIGFILE'] = (target_img, 'Original file path before alignment')
+                aligned_header['ALIGREF'] = (reference_img, 'Reference image path')
+                
+                self.print('Image alignment complete \n', print_output)
+                return aligned_data, aligned_header
+
+        except Exception as e:
             self.print('Failed to align the image. Check the image quality and the detection_sigma value.', print_output)
-            raise ActionFailedError('Failed to align the image. Check the image quality and the detection_sigma value.')
-        finally:    
-            tgt_hdul.close()
-            ref_hdul.close()
+            raise e#RuntimeError('Failed to align the image. Check the image quality and the detection_sigma value.') from e
+    
+    def img_scale(self,
+                  target_img: str or np.ndarray,
+                  target_header=None,
+                  output_path : str = None,
+                  zp_target: float = None,
+                  zp_reference: float = 25,
+                  zp_key: str = 'ZP_AUTO',
+                  print_output: bool = True):
+        """
+        Scale the input image data to a desired reference zeropoint.
+
+        Parameters
+        ----------
+        target_img : str or np.ndarray
+            - (str) Absolute path to the target FITS image.
+            - (np.ndarray) In-memory image data.
+        target_header : astropy.io.fits.Header or None, optional
+            - If target_img is a NumPy array, you can optionally supply a FITS Header.
+        zp_target : float or None, optional
+            - Zeropoint of the target image. If None, the function tries to read it:
+                * from the file header (if target_img is a string),
+                * or from the supplied target_header (if target_img is a NumPy array).
+        zp_reference : float, optional
+            - Desired reference zeropoint to scale the image to (default: 25).
+        zp_key : str, optional
+            - Header keyword where the zeropoint is stored (default: 'ZP_AUTO').
+        print_output : bool, optional
+            - If True, prints progress messages (default: True).
+
+        Returns
+        -------
+        - If target_img is a string (FITS file):
+            outputname : str
+                The path of the newly created scaled FITS file.
+        - If target_img is a NumPy array and a header is provided:
+            scaled_data, updated_header : (np.ndarray, astropy.io.fits.Header)
+                The scaled image data and the updated header (with new ZP).
+        - If target_img is a NumPy array and no header is provided:
+            scaled_data : np.ndarray
+                The scaled image data.
+        """
+        import os
+        from astropy.io import fits
+
+
+
+        self.print(f"Start image scaling to ZP={zp_reference}...", print_output)
+
+        # 1) If target_img is a string (path to FITS file)
+        if isinstance(target_img, str):
+            # Read data and header
+            with fits.open(target_img) as hdul:
+                target_data = hdul[0].data
+                target_header = hdul[0].header
+
+            # Determine zp_target from the header
+            if zp_key in target_header.keys():
+                zp_target = float(target_header[zp_key])
+            else:
+                raise ValueError(
+                    f"Zeropoint not found in the FITS header under key '{zp_key}'. "
+                    "Please provide zp_target or ensure the header has this keyword."
+                )
+
+            # Calculate scale factor
+            zp_diff = zp_target - zp_reference
+            scaling_factor = 100 ** (-zp_diff / 5)
+            self.print(f"Applying scaling factor: {scaling_factor:.6f} "
+                f"(zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+
+            scaled_data = target_data * scaling_factor
+
+            # Update header with new ZP
+            target_header[zp_key] = zp_reference
+            target_header['ZPSCALE'] = (True, 'Image has been scaled to a new zeropoint.')
+            target_header['ZPSCUNIT'] = (zp_key, 'Zeropoint unit for scaling.')
+            target_header['ZPSCTIME'] = (Time.now().isot, 'Time of ZP scaling operation.')
+            target_header['ZPSCFILE'] = (target_img, 'Original file path before scaling')
+
+            # Write scaled data to a new FITS file
+            if not output_path:
+                output_path = os.path.join(os.path.dirname(target_img),f"scaled_{os.path.basename(target_img)}")
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            fits.writeto(output_path, scaled_data, target_header, overwrite=True)
+
+            self.print(f"Image scaling complete. Output: {output_path}", print_output)
+            return output_path
+
+        # 2) If target_img is a NumPy array
+        elif isinstance(target_img, np.ndarray):
+            target_data = target_img
+
+            # 2a) If a header is provided
+            if target_header is not None:
+                target_header = target_header
+
+                # Determine zp_target from header
+                if zp_key in target_header:
+                    zp_target = float(target_header[zp_key])
+                else:
+                    raise ValueError(
+                        f"{zp_key} not found in the provided target_header, "
+                        "and 'zp_target' was also not supplied."
+                    )
+
+                # Calculate scale factor
+                zp_diff = zp_target - zp_reference
+                scaling_factor = 100 ** (-zp_diff / 5)
+                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+
+                scaled_data = target_data * scaling_factor
+
+                # Update the header's ZP
+                target_header[zp_key] = zp_reference
+                target_header['ZPSCALE'] = (True, 'Image has been scaled to a new zeropoint.')
+                target_header['ZPSCUNIT'] = (zp_key, 'Zeropoint unit for scaling.')
+                target_header['ZPSCTIME'] = (Time.now().isot, 'Time of ZP scaling operation.')
+
+                self.print("Image scaling complete (returning array and updated header).")
+                return scaled_data, target_header
+
+            # 2b) If a header is NOT provided
+            else:
+                # Must rely solely on zp_target
+                if zp_target is None:
+                    raise ValueError(
+                        "When providing a NumPy array without a header, you must supply zp_target."
+                    )
+
+                # Calculate scale factor
+                zp_diff = zp_target - zp_reference
+                scaling_factor = 100 ** (-zp_diff / 5)
+                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+
+                scaled_data = target_data * scaling_factor
+                self.print("Image scaling complete (returning array only).", print_output)
+                return scaled_data
+
+        else:
+            raise TypeError("target_img must be either a FITS file path (string) or a NumPy array.")
+
+    def img_convolve(self,
+                     target_img: str or np.ndarray,
+                     target_header=None,
+                     output_path : str = None,
+                     fwhm_target: float = None,
+                     fwhm_reference: float = None,
+                     fwhm_key: str = 'PEEING',
+                     method: str = 'gaussian',
+                     print_output: bool = True):
+        """
+        Parameters
+        ----------
+        target_img : str or np.ndarray
+            Path to the FITS file or image data as a NumPy array.
+        target_header : astropy.io.fits.Header, optional
+            FITS header associated with the image (only when target_img is a NumPy array).
+        fwhm_target : float, optional
+            FWHM of the target image in pixel scale. If None, will be read from header using fwhm_key.
+        fwhm_reference : float
+            Desired FWHM after convolution.
+        fwhm_key : str
+            Header keyword to fetch the FWHM in pixel scale. when target_img is a FITS file (default: 'FWHM_AUTO').
+
+        method : str
+            Convolution method, currently only supports 'gaussian' (default: 'gaussian').
+        print_output : bool
+            If True, prints progress messages (default: True).
+
+        Returns
+        -------
+        str or (np.ndarray, astropy.io.fits.Header) or np.ndarray
+            - If target_img is a string, returns the path to the convolved FITS file.
+            - If target_img is an array and header is provided, returns (convolved_data, header).
+            - If target_img is an array without header, returns convolved_data.
+        """
+        import os
+        import numpy as np
+        from astropy.io import fits
+        from astropy.convolution import convolve, Gaussian2DKernel
+        import matplotlib.pyplot as plt
+
+        self.print(f'Start convolution...', print_output)
+
+        # Load image data and determine fwhm_target
+        if isinstance(target_img, str):
+            # Load data and header from FITS file
+            data = fits.getdata(target_img)
+            header = fits.getheader(target_img)
+
+            # If fwhm_target is not provided, try to get it from the header
+            if fwhm_key in header:
+                fwhm_target = float(header[fwhm_key])
+            else:
+                if fwhm_target is None:
+                    raise ValueError(f"FWHM not found in header using key '{fwhm_key}', and 'fwhm_target' is not provided.")
         
-    def combine_img(self,
+        elif isinstance(target_img, np.ndarray):
+            # Use the provided image array
+            data = target_img
+
+            if target_header is not None:
+                header = target_header
+
+                # If fwhm_target is not provided, try to get it from the provided header
+                if fwhm_key in header:
+                    fwhm_target = float(header[fwhm_key])
+                else:
+                    if fwhm_target is None:
+                        raise ValueError(f"{fwhm_key} not found in target_header and 'fwhm_target' is not provided.")
+            else:
+                header = None
+        else:
+            raise TypeError("target_img must be either a string (FITS file path) or a NumPy array.")
+
+        self.print(f'Running convolution with the following values = (FWHM_TARGET = {fwhm_target}, FWHM_REFERENCE = {fwhm_reference})', print_output)
+
+        # Calculate the convolution kernel sigma
+        sigma_tgt = fwhm_target / 2.355
+        sigma_ref = fwhm_reference / 2.355
+        sigma_conv = np.sqrt(max(0, sigma_ref**2 - sigma_tgt**2))
+
+        self.print(f"Calculated convolution sigma: {sigma_conv:.6f} (method: {method})", print_output)
+
+        # Create a Gaussian kernel and convolve the image
+        if method.lower() == 'gaussian':
+            kernel = Gaussian2DKernel(sigma_conv)
+            convolved_image = convolve(data, kernel, normalize_kernel=True)
+        else:
+            raise ValueError(f"Unsupported convolution method: {method}. Currently only 'gaussian' is supported.")
+
+        # Output based on the input type
+        if isinstance(target_img, str):
+            # Save the convolved image to a new FITS file
+            if not output_path:
+                output_path = os.path.join(os.path.dirname(target_img), f'conv_{os.path.basename(target_img)}')
+            hdu = fits.PrimaryHDU(convolved_image, header=header)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            hdu.writeto(output_path, overwrite=True)
+            self.print(f"Image convolution complete. Output: {output_path}", print_output)
+            return output_path
+
+        elif isinstance(target_img, np.ndarray):
+            if target_header is not None:
+                self.print('Image convolution complete with header.\n', print_output)
+                return convolved_image, target_header
+            else:
+                self.print('Image convolution complete.\n', print_output)
+                return convolved_image
+
+    def img_crdetection(self,
+                        target_img: str or np.ndarray,
+                        target_header=None,
+                        output_path: str = None,
+                        gain: float = 1.0,
+                        readnoise: float = 6.0,
+                        sigclip: float = 4.5,
+                        sigfrac: float = 0.5,
+                        objlim: float = 2.0,
+                        niter: int = 4,
+                        cleantype: str = 'medmask',
+                        fsmode: str = 'median',
+                        verbose: bool = True,
+                        print_output: bool = True):
+        """
+        Detect and clean cosmic rays in the input image using the astroscrappy package.
+
+        Parameters
+        ----------
+        target_img : str or np.ndarray
+            - (str) Absolute path to the target FITS image.
+            - (np.ndarray) In-memory image data.
+        target_header : astropy.io.fits.Header or None, optional
+            - If target_img is a NumPy array, you can optionally supply a FITS Header.
+        output_path : str, optional
+            - The output path for saving the cleaned image as a FITS file.
+        gain : float, optional
+            - Gain of the image (default: 1.0 e-/ADU).
+        readnoise : float, optional
+            - Read noise of the detector (default: 6.0 e-).
+        sigclip : float, optional
+            - Sigma clipping limit for cosmic ray detection (default: 4.5).
+        sigfrac : float, optional
+            - Fraction of the sigma clipping limit for neighboring pixels (default: 0.5).
+        objlim : float, optional
+            - Object detection limit in sigma (default: 2.0).
+        niter : int, optional
+            - Number of iterations for cosmic ray detection (default: 4).
+        cleantype : str, optional
+            - Method to clean cosmic rays ('medmask', 'meanmask', 'idw') (default: 'medmask').
+        fsmode : str, optional
+            - Method to estimate the sky ('median', 'convolve', 'smooth') (default: 'median').
+        verbose : bool, optional
+            - If True, prints detailed information during processing (default: True).
+        print_output : bool, optional
+            - If True, prints progress messages via self.print (default: True).
+
+        Returns
+        -------
+        - If target_img is a string (FITS file):
+            outputname : str
+                The path of the newly created FITS file with cosmic rays removed.
+        - If target_img is a NumPy array and a header is provided:
+            clean_image, target_header : (np.ndarray, astropy.io.fits.Header)
+                The cleaned image data and the associated header.
+        - If target_img is a NumPy array and no header is provided:
+            clean_image : np.ndarray
+                The cleaned image data.
+        """
+        import os
+        import numpy as np
+        from astropy.io import fits
+        import astroscrappy as cr
+
+        self.print(f"Start cosmic ray detection...", print_output)
+
+        # 1) If target_img is a string (FITS file)
+        if isinstance(target_img, str):
+            # Read data and header from FITS file
+            with fits.open(target_img) as hdul:
+                target_data = hdul[0].data
+                target_header = hdul[0].header
+
+            # Perform cosmic ray detection and cleaning
+            mask, clean_image = cr.detect_cosmics(
+                target_data, gain=gain, readnoise=readnoise, 
+                sigclip=sigclip, sigfrac=sigfrac, 
+                objlim=objlim, niter=niter, 
+                cleantype=cleantype, fsmode=fsmode, 
+                verbose=verbose
+            )
+
+            # Prepare output path
+            if not output_path:
+                output_path = os.path.join(os.path.dirname(target_img), f"crclean_{os.path.basename(target_img)}")
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            # Write the cleaned image to a new FITS file
+            fits.writeto(output_path, clean_image, target_header, overwrite=True)
+
+            self.print(f"Cosmic ray cleaning complete. Output: {output_path}", print_output)
+            return output_path
+
+        # 2) If target_img is a NumPy array
+        elif isinstance(target_img, np.ndarray):
+            target_data = target_img
+
+            # Perform cosmic ray detection and cleaning
+            mask, clean_image = cr.detect_cosmics(
+                target_data, gain=gain, readnoise=readnoise, 
+                sigclip=sigclip, sigfrac=sigfrac, 
+                objlim=objlim, niter=niter, 
+                cleantype=cleantype, fsmode=fsmode, 
+                verbose=verbose
+            )
+
+            # 2a) If a header is provided
+            if target_header is not None:
+                self.print("Cosmic ray cleaning complete (returning array and header).", print_output)
+                return clean_image, target_header
+
+            # 2b) If a header is NOT provided
+            else:
+                self.print("Cosmic ray cleaning complete (returning array only).", print_output)
+                return clean_image
+
+        else:
+            raise TypeError("target_img must be either a FITS file path (string) or a NumPy array.")
+
+    def img_subtractbkg(self, 
+                        target_img: str or np.ndarray,
+                        target_header=None,
+                        output_path: str = None,
+                        apply_2D_bkg: bool = False,
+                        bkg_key : str = 'SKYVAL', # When apply_2D_bkg is False, the key to read the background value from the header
+                        bkgsig_key : str = 'SKYSIG', # When apply_2D_bkg is False, the key to read the background sigma from the header
+                        mask_sources: bool = False,
+                        mask_source_size_in_pixel: int = 10,
+                        bkg_estimator: str = 'median',  # mean, median, sextractor
+                        sigma: float = 5.0, 
+                        box_size: int = 100, 
+                        filter_size: int = 3, 
+                        visualize: bool = False,
+                        print_output: bool = True):
+        """
+        Subtract background from the image using sigma-clipped statistics.
+
+        Parameters
+        ----------
+        target_img : str or np.ndarray
+            - (str) Absolute path to the target FITS image.
+            - (np.ndarray) In-memory image data.
+        target_header : astropy.io.fits.Header or None, optional
+            - If target_img is a NumPy array, you can optionally supply a FITS Header.
+        output_path : str, optional
+            - The output path for saving the background-subtracted image as a FITS file.
+        apply_2D_bkg : bool, optional
+            - Whether to apply a 2D background model (default: True).
+        mask_sources : bool, optional
+            - Whether to mask sources before estimating the background (default: False).
+        mask_source_size_in_pixel : int, optional
+            - Size of source masking (default: 10 pixels).
+        bkg_estimator : str, optional
+            - Background estimator method ('mean', 'median', 'sextractor') (default: 'median').
+        sigma : float, optional
+            - Sigma level for sigma clipping in background estimation (default: 3.0).
+        box_size : int, optional
+            - Size of the box used for local background estimation (default: 300).
+        filter_size : int, optional
+            - Size of the filter used to smooth the background estimation (default: 3).
+        update_header : bool, optional
+            - Whether to update the FITS header with background subtraction info (default: True).
+        visualize : bool, optional
+            - Whether to display the original, background, and background-subtracted images.
+        print_output : bool, optional
+            - If True, prints progress messages via self.print (default: True).
+
+        Returns
+        -------
+        - If target_img is a string (FITS file):
+            outputname : str
+                The path of the newly created background-subtracted FITS file.
+        - If target_img is a NumPy array and a header is provided:
+            data_bkg_subtracted, target_header : (np.ndarray, astropy.io.fits.Header)
+                The background-subtracted image data and the associated header.
+        - If target_img is a NumPy array and no header is provided:
+            data_bkg_subtracted : np.ndarray
+                The background-subtracted image data.
+        """
+        import os
+        import numpy as np
+        from astropy.io import fits
+        from astropy.stats import SigmaClip, sigma_clipped_stats
+        from photutils.background import Background2D, MedianBackground, MeanBackground, SExtractorBackground
+        from photutils.segmentation import detect_threshold, detect_sources
+        from photutils.utils import circular_footprint
+        from astropy.time import Time
+        import matplotlib.pyplot as plt
+
+        self.print(f"Start background subtraction...", print_output)
+
+        # 1) If target_img is a string (FITS file)
+        if isinstance(target_img, str):
+            with fits.open(target_img) as hdul:
+                target_data = hdul[0].data
+                target_header = hdul[0].header
+
+        # 2) If target_img is a NumPy array
+        elif isinstance(target_img, np.ndarray):
+            target_data = target_img
+            target_header = target_header
+        else:
+            raise TypeError("target_img must be either a FITS file path (string) or a NumPy array.")
+
+        # Create a mask for sources in the image
+        mask = None
+        if mask_sources and apply_2D_bkg:
+            sigma_clip = SigmaClip(sigma=sigma)
+            threshold = detect_threshold(target_data, nsigma=sigma, sigma_clip=sigma_clip)
+            segment_img = detect_sources(target_data, threshold, npixels=mask_source_size_in_pixel)
+            footprint = circular_footprint(radius=mask_source_size_in_pixel)
+            mask = segment_img.make_source_mask(footprint=footprint)
+
+        # Estimate background using sigma-clipped statistics
+        bkg_estimator_dict = {
+            'mean': MeanBackground,
+            'median': MedianBackground,
+            'sextractor': SExtractorBackground
+        }
+        bkg_estimator_function = bkg_estimator_dict[bkg_estimator.lower()]
+
+        if apply_2D_bkg:
+            bkg = Background2D(target_data, (box_size, box_size), mask=mask,
+                            filter_size=(filter_size, filter_size),
+                            sigma_clip=SigmaClip(sigma=sigma),
+                            bkg_estimator=bkg_estimator_function())
+            bkg_value = bkg.background
+            bkg_value_median = bkg.background_median
+            bkg_rms = bkg.background_rms_median
+        else:
+            if bkg_key in target_header:
+                bkg_value = float(target_header[bkg_key])
+                bkg_value_median = bkg_value
+                bkg_rms = float(target_header[bkgsig_key]) 
+            else:
+                clipped_data = sigma_clipped_stats(target_data, sigma=sigma)
+                bkg_value = clipped_data[1] if bkg_estimator == 'median' else clipped_data[0]
+                bkg_value_median = clipped_data[0]
+                bkg_rms = clipped_data[2]
+
+        # Subtract background
+        data_bkg_subtracted = target_data - bkg_value
+
+        if visualize:
+            # Plot the background-subtracted image
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            import numpy as np
+
+            fig, ax = plt.subplots(1, 3, figsize=(12, 6))
+            divider = make_axes_locatable(ax[0])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            im0 = ax[0].imshow(target_data, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + 1 * bkg_rms)
+            ax[0].set_title('Original Image')
+            fig.colorbar(im0, cax=cax, orientation='vertical')
+            
+            if apply_2D_bkg:
+                bkg_img = bkg.background
+            else:
+                bkg_img = np.full(data.shape, bkg_value)
+
+            divider = make_axes_locatable(ax[1])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            im1 = ax[1].imshow(bkg_img, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + 1 * bkg_rms)
+            ax[1].set_title('Background')
+            fig.colorbar(im1, cax=cax, orientation='vertical')
+
+            divider = make_axes_locatable(ax[2])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            im2 = ax[2].imshow(data_bkg_subtracted, origin='lower', cmap='Greys_r', vmin=0, vmax= bkg_rms)
+            ax[2].set_title('Background-Subtracted Image')
+            fig.colorbar(im2, cax=cax, orientation='vertical')
+            plt.tight_layout()
+            plt.show()
+            
+        # Output handling
+        if isinstance(target_img, str):
+            # Update FITS header (optional)
+            target_header['SUBBKG'] = (True, 'Background subtracted')
+            target_header['SUBBTIME'] = (Time.now().isot, 'Time of background subtraction')
+            target_header['SUBBVALU'] = (bkg_value_median, 'Background median value)')
+            target_header['SUBBSIG'] = (bkg_rms, 'Background standard deviation')
+            target_header['SUBBFILE'] = (target_img, 'Original file path before background subtraction')
+            target_header['SUBBIS2D'] = (apply_2D_bkg, '2D background subtraction')
+            target_header['SUBBMASK'] = (mask_sources, 'Mask sources before background estimation')
+            target_header['SUBBTYPE'] = (bkg_estimator, 'Background estimator')
+            if not output_path:
+                output_path = os.path.join(os.path.dirname(target_img), f"subbkg_{os.path.basename(target_img)}")
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            fits.writeto(output_path, data_bkg_subtracted, target_header, overwrite=True)
+            self.print(f"Background subtraction completed. Output saved to {output_path}", print_output)
+            return output_path
+
+        elif isinstance(target_img, np.ndarray):
+            if target_header:
+                # Update FITS header (optional)
+                target_header['SUBBKG'] = (True, 'Background subtracted')
+                target_header['SUBBTIME'] = (Time.now().isot, 'Time of background subtraction')
+                target_header['SUBBVALU'] = (bkg_value_median, 'Background median value)')
+                target_header['SUBBSIG'] = (bkg_rms, 'Background standard deviation')
+                target_header['SUBBIS2D'] = (apply_2D_bkg, '2D background subtraction')
+                target_header['SUBBMASK'] = (mask_sources, 'Mask sources before background estimation')
+                target_header['SUBBTYPE'] = (bkg_estimator, 'Background estimator')
+                self.print("Background subtraction complete (returning array and header).", print_output)
+                return data_bkg_subtracted, target_header
+            else:
+                self.print("Background subtraction complete (returning array only).", print_output)
+                return data_bkg_subtracted
+    
+    def img_combine(self,
                     filelist,
+                    output_path: str = None,
+                    
+                    # combine parameters
                     combine_method: str = 'median',
-                    scale: str = 'multiply',
-                    prefix: str = 'com_',
-                    output_name : str = None,
-                    zp_key: str ='ZP5_1',
+                    clip: str = 'extrema',
+                    clip_sigma_low: int = 2,
+                    clip_sigma_high: int = 5,
+                    clip_minmax_min: int = 3,
+                    clip_minmax_max: int = 3,
+                    clip_extrema_nlow: int = 1,
+                    clip_extrema_nhigh: int = 1,
+                    
+                    # Background subtraction parameters
+                    subbkg: bool = True,
+                    apply_2D_bkg: bool = False,
+                    bkg_key : str = 'SKYVAL', # When apply_2D_bkg is False, the key to read the background value from the header
+                    bkgsig_key : str = 'SKYSIG', # When apply_2D_bkg is False, the key to read the background sigma from the header
+                    mask_sources: bool = False,
+                    mask_source_size_in_pixel: int = 10,
+                    bkg_estimator: str = 'median',
+                    sigma: float = 5.0, 
+                    box_size: int = 100, 
+                    filter_size: int = 3, 
+
+                    # ZP scaling parameters
+                    scale: bool = True,
+                    zp_key: str = 'ZP_AUTO',
+                    zp_reference: float = 25.0,
+
+                    print_output: bool = True,
+                    ):
+
+        from ccdproc import CCDData, combine
+        import psutil
+        import os
+        from astropy.time import Time
+        import numpy as np
+        from astropy.io import fits
+        from tqdm import tqdm
+
+        def print_memory_usage(output_string='Memory usage'):
+            process = psutil.Process(os.getpid())
+            mem_info = process.memory_info()
+            print(f"{output_string}: {mem_info.rss / 1024**2:.2f} MB")
+
+        if len(filelist) <= 3:
+            clip = None
+            self.print('Number of filelist is lower than the minimum. Skip clipping process... \n', print_output)
+        
+        self.print('Start image combine... \n', print_output)
+
+        ccdlist = []
+        for filename in tqdm(filelist, desc='Reading files...'):
+            with fits.open(filename, memmap = False) as hdul:
+                data = hdul[0].data
+                header = hdul[0].header
+            ccdlist.append(CCDData(data, unit='adu', meta=header))
+        hdr = ccdlist[0].header.copy()
+
+        for i, file in enumerate(filelist):
+            hdr[f'COMBIM{i+1}'] = os.path.basename(file)
+
+        hdr['NCOMBINE'] = int(len(filelist))
+        if 'JD' in hdr.keys():
+            hdr['JD'] = Time(np.mean([inim.header['JD'] for inim in ccdlist]), format='jd').value
+        if 'DATE-OBS' in hdr.keys():
+            hdr['DATE-OBS'] = Time(np.mean([Time(inim.header['DATE-OBS']).jd for inim in ccdlist]), format='jd').isot
+        hdr['TOTALEXP'] = (float(np.sum([inim.header['EXPTIME'] for inim in ccdlist])), 'Total exposure time of te combined image')
+
+        # Background subtraction
+        if subbkg:
+            self.print('Applying background subtraction...', print_output)
+            for idx, inim in tqdm(enumerate(ccdlist), desc='Background subtraction...'):
+                data_bkg_subtracted, inim.header = self.img_subtractbkg(
+                    target_img=inim.data,
+                    target_header=inim.header,
+                    apply_2D_bkg=apply_2D_bkg,
+                    bkg_key=bkg_key,
+                    bkgsig_key=bkgsig_key,
+                    mask_sources=mask_sources,
+                    mask_source_size_in_pixel=mask_source_size_in_pixel,
+                    bkg_estimator=bkg_estimator,
+                    sigma=sigma,
+                    box_size=box_size,
+                    filter_size=filter_size,
+                    print_output=print_output
+                )
+                inim.data = data_bkg_subtracted
+
+        # Scaling
+        if scale:
+            self.print('Applying image scaling...', print_output)
+            if not zp_reference:
+                zp_reference = np.min([inim.header[zp_key] for inim in ccdlist])
+            for inim in tqdm(ccdlist, desc = 'Image scaling...'):
+                scaled_data, inim.header = self.img_scale(
+                    target_img=inim.data,
+                    target_header=inim.header,
+                    zp_target=inim.header[zp_key],
+                    zp_reference=zp_reference,
+                    zp_key=zp_key,
+                    print_output=print_output
+                )
+                inim.data = scaled_data
+
+        print_memory_usage(output_string='Memory usage before combining')
+
+        # Combine with appropriate method and clipping
+        combine_kwargs = {}
+        if clip == 'minmax':
+            combine_kwargs['minmax_clip'] = True
+            combine_kwargs['minmax_clip_min'] = clip_minmax_min
+            combine_kwargs['minmax_clip_max'] = clip_minmax_max
+        elif clip == 'sigma':
+            combine_kwargs['sigma_clip'] = True
+            combine_kwargs['sigma_clip_low_thresh'] = clip_sigma_low
+            combine_kwargs['sigma_clip_high_thresh'] = clip_sigma_high
+        elif clip == 'extrema':
+            combine_kwargs['nlow'] = clip_extrema_nlow
+            combine_kwargs['nhigh'] = clip_extrema_nhigh
+
+        combined = combine(ccdlist, method=combine_method, **combine_kwargs)
+        combined.header = hdr
+        combined.data = combined.data.astype(np.float32)
+
+        if not output_path:
+            output_path = os.path.join(os.path.dirname(filelist[0]), f'com_{os.path.basename(filelist[0])}')
+        
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        fits.writeto(output_path, combined.data, header=hdr, overwrite=True)
+        #combined.write(output_path, overwrite=True, format='fits') #wHY FILESIZE IS SO LARGE?
+
+        print_memory_usage(output_string='Memory usage after writing')
+
+        self.print('Combine complete \n', print_output)
+        self.print('Combine information', print_output)
+        self.print(60 * '=', print_output)
+        self.print(f'Ncombine = {len(filelist)}', print_output)
+        self.print(f'method   = {clip}(clipping), {combine_method}(combining)', print_output)
+        self.print(f'image path = {output_path}', print_output)
+        
+        return output_path
+
+
+    def img_combine_(self,
+                    filelist,
+                    output_path : str = None,
+                    combine_method: str = 'median',
+                    subbkg : bool = True,
+                    scale: bool = True,
+                    bkg_key : str = 'SKYBKG',
+                    zp_key: str ='ZP_AUTO',
                     print_output: bool = True,
                     
                     # Clipping parameters
@@ -980,7 +1784,7 @@ class PhotometryHelper(TIPConfig):
                         method for clipping [None, minmax, sigma, extrema] (sigma)
         3. combine : str
                         method for combining [mean, median, sum] (median)
-        4. scale : str
+        4. scale : bool
                         method for scaling [None, zero, multiply] (zero)
         5. prefix : str
                         prefix of the combined image
@@ -1010,6 +1814,7 @@ class PhotometryHelper(TIPConfig):
         '''
         from ccdproc import CCDData
         from ccdproc import Combiner
+        from ccdproc import combine 
         import psutil
         import os
         import gc
@@ -1050,26 +1855,15 @@ class PhotometryHelper(TIPConfig):
         print_memory_usage(output_string = 'Memory usage before combiner')
         combiner = Combiner(ccdlist, dtype=np.float32)
         print_memory_usage(output_string = 'Memory usage after combiner')
-        if scale == 'multiply':
+        if scale:
             zp_median = np.median([inim.header[zp_key] for inim in ccdlist]) 
             for inim in ccdlist:
-                zp_diff = inim.header[zp_key] - zp_median
-                inim.data *= 100 ** (-zp_diff/5)
-            #for i, inim in enumerate(ccdlist):
-            #    zp = inim.header[zp_key]
-            #    zp_diff = zp - zp_median
-            #    ccdlist[i].data = ccdlist[i].data * 100 ** (-zp_diff/5)
-            
-        elif (scale == 'zero'):
-            averages = [np.mean(ccddata) for ccddata in ccdlist]
-            delvalues = averages - averages[0]
-            for i, delvalue in enumerate(delvalues):
-                ccdlist[i].data = ccdlist[i].data-delvalue
-                combiner = Combiner(ccdlist, dtype=np.float32)
-
+                scaled_data = self.img_scale(target_img = inim.data, zp_target = inim.header[zp_key], zp_reference = zp_median, zp_key = zp_key, print_output = False)
+                inim.data = scaled_data
+                
         # Free memory 
-        del ccdlist
-        gc.collect()
+        # del ccdlist
+        # gc.collect()
         
         # Clipping
         print_memory_usage(output_string = 'Memory usage before clipping')
@@ -1090,27 +1884,28 @@ class PhotometryHelper(TIPConfig):
         print_memory_usage(output_string = 'Memory usage after combining')
         
         # Free memory 
-        del combiner
-        gc.collect()
+        # del combiner
+        # gc.collect()
 
         combined.header = hdr
 
-        outputname = f'{os.path.dirname(filelist[0])}/{prefix}{os.path.basename(filelist[0])}'
-        if output_name:
-            outputname = os.path.join(os.path.dirname(filelist[0]), output_name)
+        if not output_path:
+            output_path = os.path.join(os.path.dirname(filelist[0]), f'com_{os.path.basename(filelist[0])}')
+        
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
         if (len(filelist) == 1):
             ccd.header = hdr
-            ccd.write(outputname, overwrite=True, format='fits')
+            ccd.write(output_path, overwrite=True, format='fits')
         else:
-            combined.write(outputname, overwrite=True, format='fits')
+            combined.write(output_path, overwrite=True, format='fits')
         fin_mean, fin_std = np.mean(combined.data), np.std(combined.data)
         
         # Free memory 
-        del combined
-        del ccd
-        gc.collect()
+        # del combined
+        # del ccd
+        # gc.collect()
         print_memory_usage(output_string = 'Memory usage after writing')
-
 
         self.print('Combine complete \n',print_output)
         self.print('Combine information',print_output)
@@ -1119,60 +1914,8 @@ class PhotometryHelper(TIPConfig):
         self.print(f'method   = {clip}(clipping), {combine_method}(combining)',print_output)
         self.print(f'mean     = {round(init_mean,3)} >>> {round(fin_mean,3)}',print_output)
         self.print(f'std      = {round(init_std,3)} >>> {round(fin_std,3)}',print_output)
-        self.print(f'image path = {outputname}',print_output)
-        return outputname
-
-    def convolve_img(self,
-                     target_img,
-                     fwhm_tgt, 
-                     fwhm_ref,
-                     pixelscale = 0.505,
-                     method = 'gaussian'):
-        print(f'Start convolution on {os.path.basename(target_img)}... \n COMMAND = (FWHM_TARGET = {fwhm_tgt}, FWHM_REFERENCE = {fwhm_ref}, PIXELSCALE = {pixelscale})')
-        import numpy as np
-        from astropy.io import fits
-        from astropy.convolution import convolve, Gaussian2DKernel
-        import matplotlib.pyplot as plt
-
-        # Calculate sigmas
-        sigma_tgt = fwhm_tgt / 2.355 / pixelscale
-        sigma_ref = fwhm_ref / 2.355 / pixelscale
-
-        # Calculate the convolution kernel sigma
-        sigma_conv = np.sqrt(sigma_ref**2 - sigma_tgt**2)
-
-        # Load the image
-        image_data = fits.getdata(target_img)
-        
-        # Create a Gaussian kernel for convolution
-        kernel = Gaussian2DKernel(sigma_conv)
-
-        # Convolve the good image with the kernel
-        convolved_image = convolve(image_data, kernel, normalize_kernel=True)
-
-        # Save the convolved image to a new FITS file
-        convolved_path = os.path.join(os.path.dirname(target_img), 'conv_' + os.path.basename(target_img))
-        
-        hdu = fits.PrimaryHDU(convolved_image)
-        hdu.header = fits.getheader(target_img)
-        hdu.writeto(convolved_path, overwrite=True)
-
-        # Display the original and convolved images
-        plt.figure(figsize=(10, 5))
-        plt.subplot(1, 2, 1)
-        plt.imshow(image_data, origin='lower', cmap='gray')
-        plt.title('Original Good Image')
-        plt.colorbar()
-
-        plt.subplot(1, 2, 2)
-        plt.imshow(convolved_image, origin='lower', cmap='gray')
-        plt.title('Convolved Image (Matched to Bad Seeing)')
-        plt.colorbar()
-
-        plt.tight_layout()
-        plt.show()
-
-        return convolved_path
+        self.print(f'image path = {output_path}',print_output)
+        return output_path
 
     def run_psfex(self, 
                   target_img : str, 
@@ -1211,7 +1954,7 @@ class PhotometryHelper(TIPConfig):
         # Command to run psfex
         output_file = self.run_sextractor(image = target_img, sex_configfile = sex_configfile, sex_params = sex_params, return_result = False, print_output = False)
         
-        all_params = self.load_psfexconfig(psfex_configfile)
+        all_params = self.load_config(psfex_configfile)
         psfexparams_str = ''
 
         if psfex_params:
@@ -1247,7 +1990,6 @@ class PhotometryHelper(TIPConfig):
         finally:
             os.chdir(current_path)
 
-        
     def run_hotpants(self,
                      target_img,
                      reference_img,
@@ -1316,135 +2058,7 @@ class PhotometryHelper(TIPConfig):
 
         self.print(f"Image subtraction completed. Output saved to {output_img}", print_output)      
         return output_img
-
-    def subtract_background(self, 
-                            target_img: str,
-                            apply_2D_bkg: bool = True,
-                            mask_sources: bool = False,
-                            mask_source_size_in_pixel : int = 10,
-                            bkg_estimator: str = 'median', # mean, median, sextractor, 
-                            bkg_sigma: float = 3.0, 
-                            bkg_box_size: int = 300, 
-                            bkg_filter_size: int = 3, 
-                            prefix : str = 'subbkg_',
-                            update_header: bool = True,
-                            visualize: bool = False,
-                            print_output: bool = True):
-        """
-        target_img: str
-        mask_sources: bool = True
-        mask_source_size_in_pixel : int = 10
-        bkg_estimator: str = 'median' # mean, median, sextractor
-        bkg_sigma: float = 3.0
-        bkg_box_size: int = 50
-        bkg_filter_size: int = 3
-        prefix : str = 'subbkg_'
-        update_header: bool = True
-        visualize: bool = True
-        Subtract background from the image using sigma-clipped statistics.
         
-        Parameters
-        ----------
-        bkg_sigma : float, optional
-            The sigma level for sigma clipping in background estimation, by default 3.0
-        bkg_box_size : int, optional
-            Size of the box used for local background estimation, by default 50
-        bkg_filter_size : int, optional
-            Size of the filter used to smooth the background estimation, by default 3
-        update_header : bool, optional
-            Whether to update the FITS header with the background subtraction info, by default True
-        """
-        from photutils.background import Background2D, MedianBackground, MeanBackground, SExtractorBackground
-        from astropy.stats import SigmaClip, sigma_clipped_stats
-        from photutils.segmentation import detect_threshold, detect_sources
-        from photutils.utils import circular_footprint
-        import matplotlib.pyplot as plt
-
-        self.print(f"Start background subtraction...", print_output)
-
-        # Load the image data
-        hdul = fits.open(target_img)
-        hdu = hdul[0]
-        data = hdu.data
-
-        # Create a mask for sources in the image
-        mask = None
-        if mask_sources & apply_2D_bkg:
-            sigma_clip = SigmaClip(sigma=3.0)
-            threshold = detect_threshold(data, nsigma = bkg_sigma, sigma_clip=sigma_clip)
-            segment_img = detect_sources(data, threshold, npixels=mask_source_size_in_pixel)
-            footprint = circular_footprint(radius=mask_source_size_in_pixel)
-            mask = segment_img.make_source_mask(footprint=footprint)
-
-        # Estimate background using sigma-clipped statistics
-        bkg_estimator_dict = dict(MEAN=MeanBackground, MEDIAN=MedianBackground, SEXTRACTOR=SExtractorBackground)
-        bkg_estimator = bkg_estimator_dict[bkg_estimator.upper()]
-        if apply_2D_bkg:
-            bkg = Background2D(data, (bkg_box_size, bkg_box_size), mask = mask, 
-                               filter_size=(bkg_filter_size, bkg_filter_size),
-                               sigma_clip= SigmaClip(sigma=3.0), 
-                               bkg_estimator=bkg_estimator())
-            bkg_value = bkg.background
-            bkg_value_median = bkg.background_median
-            bkg_rms = bkg.background_rms_median
-        else:
-            # Global background estimation
-            clipped_data = sigma_clipped_stats(data, sigma=bkg_sigma)
-            bkg_value = clipped_data[1] if bkg_estimator == 'median' else clipped_data[0]
-            bkg_value_median = clipped_data[0]
-            bkg_rms = clipped_data[2]
-
-        # Subtract background from image
-        data_bkg_subtracted = data - bkg_value
-
-        # Update FITS header (optional)
-        if update_header:
-            hdu.header['BKG_TIME'] = (Time.now().isot, 'Time of background subtraction')
-            hdu.header['BKG_SUB'] = (True, 'Background subtracted')
-            hdu.header['BKG_BOX'] = (bkg_box_size, 'Background estimation box size')
-            hdu.header['BKG_FILT'] = (bkg_filter_size, 'Background filter size')
-            hdu.header['BKG_SIG'] = (bkg_sigma, 'Sigma clipping level for background')
-
-        # Save the background-subtracted image (optional, overwrite or new file)
-        hdul.close()
-        output_filename = f'{os.path.dirname(target_img)}/{prefix}{os.path.basename(target_img)}'
-        hdu.data = data_bkg_subtracted
-        hdu.writeto(output_filename, overwrite=True)
-
-        if visualize:
-            # Plot the background-subtracted image
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
-            import numpy as np
-
-            fig, ax = plt.subplots(1, 3, figsize=(12, 6))
-            divider = make_axes_locatable(ax[0])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im0 = ax[0].imshow(data, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + 1 * bkg_rms)
-            ax[0].set_title('Original Image')
-            fig.colorbar(im0, cax=cax, orientation='vertical')
-            
-            if apply_2D_bkg:
-                bkg_img = bkg.background
-            else:
-                bkg_img = np.full(data.shape, bkg_value)
-
-            divider = make_axes_locatable(ax[1])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im1 = ax[1].imshow(bkg_img, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + 1 * bkg_rms)
-            ax[1].set_title('Background')
-            fig.colorbar(im1, cax=cax, orientation='vertical')
-
-            divider = make_axes_locatable(ax[2])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im2 = ax[2].imshow(data_bkg_subtracted, origin='lower', cmap='Greys_r', vmin=0, vmax= bkg_rms)
-            ax[2].set_title('Background-Subtracted Image')
-            fig.colorbar(im2, cax=cax, orientation='vertical')
-            plt.tight_layout()
-            plt.show()
-            
-        self.print(f"Background subtraction completed. Output saved to {output_filename}", print_output)      
-        return output_filename
-
     # Program running
     @timeout(seconds = 15)
     def run_astrometry(self,
@@ -1528,6 +2142,7 @@ class PhotometryHelper(TIPConfig):
 
     def run_sextractor(self, image, 
                        sex_configfile, 
+                       image_mask = None,
                        sex_params: dict = None, 
                        return_result: bool = True, 
                        print_output : bool = True):
@@ -1559,7 +2174,7 @@ class PhotometryHelper(TIPConfig):
         os.chdir(self.sexpath)
         
         # Load and apply SExtractor parameters
-        all_params = self.load_sexconfig(sex_configfile)
+        all_params = self.load_config(sex_configfile)
         sexparams_str = ''
 
         if sex_params:
@@ -1571,13 +2186,18 @@ class PhotometryHelper(TIPConfig):
             sex_params = dict()
             sex_params['CATALOG_NAME'] = f"{os.path.join(self.config['SEX_HISTORYDIR'], all_params['CATALOG_NAME'])}"
 
+        if image_mask:
+            sex_params['FLAG_IMAGE'] = image_mask
+
         for key, value in sex_params.items():
             sexparams_str += f'-{key} {value} '
             all_params[key] = value
+        
 
         # Command to run SExtractor
         command = f"source-extractor {image} -c {sex_configfile} {sexparams_str}"
         os.makedirs(os.path.dirname(all_params['CATALOG_NAME']), exist_ok=True)
+        print('RUN COMMAND: ', command)
 
         try:
             # Run the SExtractor command using subprocess.run
@@ -1625,7 +2245,7 @@ class PhotometryHelper(TIPConfig):
         all_images_str = ' '.join(sex_output_images.values())
         
         # Load and apply SCAMP parameters
-        all_params = self.load_scampconfig(scamp_configfile)
+        all_params = self.load_config(scamp_configfile)
         scampparams_str = ''
         if scamp_params:
             for key, value in scamp_params.items():
@@ -1638,7 +2258,7 @@ class PhotometryHelper(TIPConfig):
         try:
             current_path = os.getcwd()
             os.chdir(os.path.join(self.scamppath,'result'))
-            # Run the SExtractor command using subprocess.run
+            # Run the SExtractor command using subprocess.ru
             subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.print("SCAMP process finished=====================", print_output)
 
@@ -1725,7 +2345,7 @@ class PhotometryHelper(TIPConfig):
             succeeded_images = self.run_scamp(filelist = filelist, sex_configfile= sex_configfile, scamp_configfile= scamp_configfile, sex_params= sex_params, scamp_params= scamp_params, update_files = True, print_output= print_output)        
         
         # Load and apply SWARP parameters
-        all_params = self.load_swarpconfig(swarp_configfile)
+        all_params = self.load_config(swarp_configfile)
         swarpparams_str = ''
         if not swarp_params:
             swarp_params = dict()
@@ -1827,8 +2447,47 @@ class PhotometryHelper(TIPConfig):
 if __name__ == '__main__':
     import glob
     A = PhotometryHelper()
-    sexconfigpath = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_scamp = True)
-    #sexconfig = A.load_sexconfig(sexconfigpath)
+    tgt_image = '/home/hhchoi1022/data/test/calib_7DT07_T12400_20250110_023813_r_120.fits'
+    ref_image = '/home/hhchoi1022/data/test/ref_SkyMapper_T12400_00000000_000000_r_0.fits'
+    
+    tgt_dat = fits.getdata(tgt_image)
+    ref_dat = fits.getdata(ref_image)
+    tgt_hdr = fits.getheader(tgt_image)
+    ref_hdr = fits.getheader(ref_image)
+    
+    #B = A.img_scale(target_img = tgt_image, target_header  =tgt_hdr, zp_target = 22, zp_reference = 25, output_path = '/home/hhchoi1022/data/test/test.fits')
+    #B = A.img_subtractbkg(target_img = tgt_image, apply_2D_bkg = False, mask_sources = True, visualize = True)
+    sexconfigpath = A.get_psfexconfigpath()#telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1)
+    sexconfig = A.load_config(sexconfigpath)
+    imlist = glob.glob('/home/hhchoi1022/data/test/calib*120.fits')
+    #B = A.img_subtractbkg(imlist[0])
+    #A.img_scale(target_img = B, zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', print_output = True)
+    A.img_combine(
+        imlist,
+        output_path = None,#'/home/hhchoi1022/data/test/test.fits',
+        combine_method = 'median',
+        clip = 'extrema',
+        clip_sigma_low = 2,
+        clip_sigma_high = 5,
+        clip_minmax_min = 3,
+        clip_minmax_max = 3,
+        clip_extrema_nlow = 1,
+        clip_extrema_nhigh = 1,
+        subbkg = True,
+        apply_2D_bkg = False,
+        bkg_key = 'SKYBKG',
+        zp_key = 'ZP_AUTO',
+        mask_sources = False,
+        mask_source_size_in_pixel = 10,
+        bkg_estimator = 'median',
+        sigma = 5.0,
+        box_size = 100,
+        filter_size = 3,
+        scale = True,
+        zp_reference = None,#25.0,
+        print_output = True
+    )
+
     #A.run_sextractor(image = '/mnt/data1/7DT/calib_7DT02_S240422ed_20240423_013036_r_120.fits', sex_configfile = sexconfigpath)
     # file_ = '/data1/supernova_rawdata/SN2023rve/analysis/RASA36/reference_image/com_align_Calib-RASA36-NGC1097-20210719-091118-r-60.fits'
     # #file1 = '/data1/supernova_rawdata/SN2023rve/analysis/KCT_STX16803/r/align_com_align_cutoutmost_Calib-KCT_STX16803-NGC1097-20230801-075323-r-120.fits'
