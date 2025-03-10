@@ -16,7 +16,7 @@ DELTA_J2000              #Declination of barycenter (J2000)                     
 FLAGS                    #Extraction flags                                         
 CLASS_STAR
 THRESHOLD
-NIMAFLAGS_ISO
+#NIMAFLAGS_ISO
 
 #ID_PARENT                Parent ID (before deblending)                            
 #EXT_NUMBER               FITS extension number                                    

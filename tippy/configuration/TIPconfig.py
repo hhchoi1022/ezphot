@@ -7,7 +7,7 @@ import json
 
 class TIPConfig:
     def __init__(self,
-                 telkey: int = None,
+                 telkey: str = None,
                  configpath : str = f'{os.path.dirname(os.path.abspath(__file__))}',
                  **kwargs):
         self.telkey = telkey

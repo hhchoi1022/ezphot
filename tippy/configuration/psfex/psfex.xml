@@ -18,9 +18,9 @@
   <PARAM name="Soft_Auth" datatype="char" arraysize="*" ucd="meta.bib.author;meta.software" value="Emmanuel Bertin"/>
   <PARAM name="Soft_Ref" datatype="char" arraysize="*" ucd="meta.bib.bibcode;meta.software" value="2006ASPC..351..112B"/>
   <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="1"/>
-  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="2025-02-25"/>
-  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="11:51:52"/>
-  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="94" unit="s"/>
+  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="2025-03-10"/>
+  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="16:33:20"/>
+  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="11" unit="s"/>
   <PARAM name="User" datatype="char" arraysize="*" ucd="meta.curation" value="hhchoi1022"/>
   <PARAM name="Host" datatype="char" arraysize="*" ucd="meta.curation" value="(null)"/>
   <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/data/hhchoi1022/code/TIPpy/tippy/configuration/psfex"/>
@@ -30,7 +30,7 @@
    <PARAM name="NFields" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
    <!-- CurrField may differ from NFields if an error occurred -->
    <PARAM name="CurrField" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
-   <PARAM name="NSnapshots" datatype="int" arraysize="2" ucd="meta.number;meta.dataset" value="21 21"/>
+   <PARAM name="NSnapshots" datatype="int" arraysize="2" ucd="meta.number;meta.dataset" value="3 3"/>
    <FIELD name="Catalog_Name" datatype="char" arraysize="*" ucd="meta.id;meta.table;meta.file"/>
    <FIELD name="Image_Ident" datatype="char" arraysize="*" ucd="meta.id;obs.field"/>
    <FIELD name="NExtensions" datatype="int" ucd="meta.number"/>
@@ -104,29 +104,29 @@
    <FIELD name="PixelScale_WCS_Max" unit="arcsec" datatype="float" ucd="instr.scale;stat.max;instr.pixel"/>
    <DATA><TABLEDATA>
     <TR>
-     <TD>default.cat</TD><TD>0310155951</TD><TD>1</TD>
-     <TD>8565</TD><TD>8565</TD><TD>8565</TD><TD>8565</TD>
-     <TD>8075</TD><TD>8075</TD><TD>8075</TD><TD>8075</TD>
-     <TD>6.10562</TD><TD>6.10562</TD><TD>6.10562</TD>
-     <TD>1.29907</TD><TD>1.29907</TD><TD>1.29907</TD>
-     <TD>1.19547</TD><TD>1.19547</TD><TD>1.19547</TD>
-     <TD>4.44392</TD><TD>5.48454</TD><TD>5.56371</TD>
-     <TD>2.20247</TD><TD>2.65492</TD><TD>2.79928</TD>
-     <TD>0.0381282</TD><TD>0.0823449</TD><TD>0.191043</TD>
-     <TD>-0.0889105</TD><TD>-0.0777369</TD><TD>0.105328</TD>
-     <TD>-0.159447</TD><TD>0.0271597</TD><TD>0.027564</TD>
-     <TD>3.31577</TD><TD>9.99928</TD><TD>10</TD>
-     <TD>0.0104848</TD><TD>0.0246153</TD><TD>0.0392293</TD>
-     <TD>4.37055</TD><TD>5.44163</TD><TD>5.52158</TD>
-     <TD>2.16423</TD><TD>2.62957</TD><TD>2.77784</TD>
-     <TD>0.038731</TD><TD>0.0835488</TD><TD>0.195355</TD>
-     <TD>-0.0902394</TD><TD>-0.0788633</TD><TD>0.107675</TD>
-     <TD>-0.16304</TD><TD>0.0275859</TD><TD>0.0279924</TD>
-     <TD>3.23292</TD><TD>9.99897</TD><TD>10</TD>
-     <TD>0.0104667</TD><TD>0.0244483</TD><TD>0.0391055</TD>
-     <TD>0.0153381</TD><TD>0.0290554</TD><TD>0.0420478</TD>
-     <TD>62.6992</TD><TD>75.1302</TD><TD>76.5933</TD>
-     <TD>0.504915</TD><TD>0.504969</TD><TD>0.505</TD>
+     <TD>psfex.cat</TD><TD>T00176</TD><TD>1</TD>
+     <TD>1327</TD><TD>1327</TD><TD>1327</TD><TD>1327</TD>
+     <TD>1100</TD><TD>1100</TD><TD>1100</TD><TD>1100</TD>
+     <TD>4.26677</TD><TD>4.26677</TD><TD>4.26677</TD>
+     <TD>0.907823</TD><TD>0.907823</TD><TD>0.907823</TD>
+     <TD>1.61425</TD><TD>1.61425</TD><TD>1.61425</TD>
+     <TD>3.45991</TD><TD>3.53207</TD><TD>3.65733</TD>
+     <TD>1.74791</TD><TD>1.79118</TD><TD>1.83694</TD>
+     <TD>0.0461764</TD><TD>0.0461764</TD><TD>0.0842502</TD>
+     <TD>0.0410988</TD><TD>0.0450514</TD><TD>0.077911</TD>
+     <TD>-0.0034162</TD><TD>0.0101306</TD><TD>0.032062</TD>
+     <TD>6.04391</TD><TD>6.58072</TD><TD>7.60315</TD>
+     <TD>0.0213646</TD><TD>0.0253307</TD><TD>0.0352512</TD>
+     <TD>3.37698</TD><TD>3.45088</TD><TD>3.58178</TD>
+     <TD>1.70581</TD><TD>1.75078</TD><TD>1.79855</TD>
+     <TD>0.0477888</TD><TD>0.0477888</TD><TD>0.0871412</TD>
+     <TD>0.0425945</TD><TD>0.0466269</TD><TD>0.0805365</TD>
+     <TD>-0.00355205</TD><TD>0.0104739</TD><TD>0.0332786</TD>
+     <TD>5.68876</TD><TD>6.16998</TD><TD>7.18083</TD>
+     <TD>0.0212967</TD><TD>0.0253465</TD><TD>0.035228</TD>
+     <TD>0.0391471</TD><TD>0.0491196</TD><TD>0.0705548</TD>
+     <TD>33.5377</TD><TD>34.5177</TD><TD>35.8594</TD>
+     <TD>0.503938</TD><TD>0.505014</TD><TD>0.506974</TD>
     </TR>
    </TABLEDATA></DATA>
   </TABLE>
@@ -206,28 +206,28 @@
    <DATA><TABLEDATA>
     <TR>
      <TD>1</TD>
-     <TD>8565</TD><TD>8565</TD><TD>8565</TD><TD>8565</TD>
-     <TD>8075</TD><TD>8075</TD><TD>8075</TD><TD>8075</TD>
-     <TD>6.10562</TD><TD>6.10562</TD><TD>6.10562</TD>
-     <TD>1.29907</TD><TD>1.29907</TD><TD>1.29907</TD>
-     <TD>1.19547</TD><TD>1.19547</TD><TD>1.19547</TD>
-     <TD>4.44392</TD><TD>5.48454</TD><TD>5.56371</TD>
-     <TD>2.20247</TD><TD>2.65492</TD><TD>2.79928</TD>
-     <TD>0.0381282</TD><TD>0.0823449</TD><TD>0.191043</TD>
-     <TD>-0.0889105</TD><TD>-0.0777369</TD><TD>0.105328</TD>
-     <TD>-0.159447</TD><TD>0.0271597</TD><TD>0.027564</TD>
-     <TD>3.31577</TD><TD>9.99928</TD><TD>10</TD>
-     <TD>0.0104848</TD><TD>0.0246153</TD><TD>0.0392293</TD>
-     <TD>4.37055</TD><TD>5.44163</TD><TD>5.52158</TD>
-     <TD>2.16423</TD><TD>2.62957</TD><TD>2.77784</TD>
-     <TD>0.038731</TD><TD>0.0835488</TD><TD>0.195355</TD>
-     <TD>-0.0902394</TD><TD>-0.0788633</TD><TD>0.107675</TD>
-     <TD>-0.16304</TD><TD>0.0275859</TD><TD>0.0279924</TD>
-     <TD>3.23292</TD><TD>9.99897</TD><TD>10</TD>
-     <TD>0.0104667</TD><TD>0.0244483</TD><TD>0.0391055</TD>
-     <TD>0.0153381</TD><TD>0.0290554</TD><TD>0.0420478</TD>
-     <TD>62.6992</TD><TD>75.1302</TD><TD>76.5933</TD>
-     <TD>0.504915</TD><TD>0.504969</TD><TD>0.505</TD>
+     <TD>1327</TD><TD>1327</TD><TD>1327</TD><TD>1327</TD>
+     <TD>1100</TD><TD>1100</TD><TD>1100</TD><TD>1100</TD>
+     <TD>4.26677</TD><TD>4.26677</TD><TD>4.26677</TD>
+     <TD>0.907823</TD><TD>0.907823</TD><TD>0.907823</TD>
+     <TD>1.61425</TD><TD>1.61425</TD><TD>1.61425</TD>
+     <TD>3.45991</TD><TD>3.53207</TD><TD>3.65733</TD>
+     <TD>1.74791</TD><TD>1.79118</TD><TD>1.83694</TD>
+     <TD>0.0461764</TD><TD>0.0461764</TD><TD>0.0842502</TD>
+     <TD>0.0410988</TD><TD>0.0450514</TD><TD>0.077911</TD>
+     <TD>-0.0034162</TD><TD>0.0101306</TD><TD>0.032062</TD>
+     <TD>6.04391</TD><TD>6.58072</TD><TD>7.60315</TD>
+     <TD>0.0213646</TD><TD>0.0253307</TD><TD>0.0352512</TD>
+     <TD>3.37698</TD><TD>3.45088</TD><TD>3.58178</TD>
+     <TD>1.70581</TD><TD>1.75078</TD><TD>1.79855</TD>
+     <TD>0.0477888</TD><TD>0.0477888</TD><TD>0.0871412</TD>
+     <TD>0.0425945</TD><TD>0.0466269</TD><TD>0.0805365</TD>
+     <TD>-0.00355205</TD><TD>0.0104739</TD><TD>0.0332786</TD>
+     <TD>5.68876</TD><TD>6.16998</TD><TD>7.18083</TD>
+     <TD>0.0212967</TD><TD>0.0253465</TD><TD>0.035228</TD>
+     <TD>0.0391471</TD><TD>0.0491196</TD><TD>0.0705548</TD>
+     <TD>33.5377</TD><TD>34.5177</TD><TD>35.8594</TD>
+     <TD>0.503938</TD><TD>0.505014</TD><TD>0.506974</TD>
     </TR>
    </TABLEDATA></DATA>
   </TABLE>
@@ -241,7 +241,7 @@
   </TABLE>
   <RESOURCE ID="Config" name="Config">
    <DESCRIPTION>PSFEx configuration</DESCRIPTION>
-   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="psfex /home/hhchoi1022/code/sextractor/history/default.cat -c /home/hhchoi1022/code/TIPpy/tippy/configuration/psfex/default.psfexconfig -PSFVAR_NSNAP 21 -CHECKIMAGE_NAME /home/hhchoi1022/code/psfex/history/chi.fits,/home/hhchoi1022/code/psfex/history/proto.fits,/home/hhchoi1022/code/psfex/history/samp.fits,/home/hhchoi1022/code/psfex/history/resi.fits,/home/hhchoi1022/code/psfex/history/snap.fits,/home/hhchoi1022/code/psfex/history/moffat.fits,/home/hhchoi1022/code/psfex/history/resimoff.fits,/home/hhchoi1022/code/psfex/history/symme.fits"/>
+   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="psfex /home/hhchoi1022/code/sextractor/history/psfex.cat -c /home/hhchoi1022/code/TIPpy/tippy/configuration/psfex/default.psfexconfig -CHECKIMAGE_NAME /home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_chi.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_proto.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_samp.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_resi.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_snap.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_moffat.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_resimoff.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_symme.fits"/>
    <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="/home/hhchoi1022/code/TIPpy/tippy/configuration/psfex/default.psfexconfig"/>
    <PARAM name="Basis_Type" datatype="char" arraysize="*" ucd="meta.code" value="PIXEL"/>
    <PARAM name="Basis_Number" datatype="int" ucd="meta.number" value="20"/>
@@ -260,7 +260,7 @@
    <PARAM name="PSFVar_Keys" datatype="char" arraysize="*" ucd="meta.id;src;instr.det.psf" value="X_IMAGE,Y_IMAGE"/>
    <PARAM name="PSFVar_Groups" datatype="int" arraysize="2" ucd="meta.id;stat.fit.param;instr.det.psf" value="1 1"/>
    <PARAM name="PSFVar_Degrees" datatype="int" arraysize="2" ucd="stat.fit.param;instr.det.psf" value="2 2"/>
-   <PARAM name="PSFVar_NSnap" datatype="int" ucd="stat.fit.param;instr.det.psf" value="21"/>
+   <PARAM name="PSFVar_NSnap" datatype="int" ucd="stat.fit.param;instr.det.psf" value="3"/>
    <PARAM name="HiddenMEF_Type" datatype="char" arraysize="*" ucd="meta.code" value="COMMON"/>
    <PARAM name="Stability_Type" datatype="char" arraysize="*" ucd="meta.code" value="EXPOSURE"/>
    <PARAM name="Sample_AutoSelect" datatype="boolean" ucd="meta.code" value="T"/>
@@ -284,7 +284,7 @@
    <PARAM name="CheckPlot_Type" datatype="char" arraysize="*" ucd="meta.code" value="NONE"/>
    <PARAM name="CheckPlot_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file" value="None"/>
    <PARAM name="CheckImage_Type" datatype="char" arraysize="*" ucd="meta.code" value="CHI,PROTOTYPES,SAMPLES,RESIDUALS,SNAPSHOTS,MOFFAT,-MOFFAT,-SYMMETRICAL"/>
-   <PARAM name="CheckImage_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file;meta.fits" value="/home/hhchoi1022/code/psfex/history/chi.fits,/home/hhchoi1022/code/psfex/history/proto.fits,/home/hhchoi1022/code/psfex/history/samp.fits,/home/hhchoi1022/code/psfex/history/resi.fits,/home/hhchoi1022/code/psfex/history/snap.fits,/home/hhchoi1022/code/psfex/history/moffat.fits,/home/hhchoi1022/code/psfex/history/resimoff.fits,/home/hhchoi1022/code/psfex/history/symme.fits"/>
+   <PARAM name="CheckImage_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file;meta.fits" value="/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_chi.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_proto.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_samp.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_resi.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_snap.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_moffat.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_resimoff.fits,/home/hhchoi1022/data/test/psfex/calib_7DT15_T00176_20241216_024210_r_100_symme.fits"/>
    <PARAM name="CheckImage_Cube" datatype="boolean" ucd="meta.code" value="F"/>
    <PARAM name="PSF_Dir" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=" "/>
    <PARAM name="PSF_Suffix" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=".psf"/>

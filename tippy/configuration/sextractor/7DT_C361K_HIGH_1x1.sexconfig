@@ -42,7 +42,7 @@ WEIGHT_THRESH                   # weight threshold[s] for bad pixels
 
 #-------------------------------- FLAGging -----------------------------------
 
-FLAG_IMAGE       flag.fits      # filename for an input FLAG-image
+FLAG_IMAGE       flat.fits      # filename for an input FLAG-image
 FLAG_TYPE        OR             # flag pixel combination: OR, AND, MIN, MAX
                                 # or MOST
 
