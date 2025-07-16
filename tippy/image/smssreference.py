@@ -1,6 +1,5 @@
 #%%
 import os
-
 from tippy.helper import Helper
 from tippy.image import ReferenceImage
 
@@ -27,7 +26,9 @@ class SMSSReference(ReferenceImage):
         pass
 # %%
 if __name__ == '__main__':
-    image = '/home/hhchoi1022/data/refdata/7DT_C361K_HIGH_1x1/T12400/ref_SkyMapper_T12400_00000000_000000_r_0.fits'
+    image = '/home/hhchoi1022/data/refdata/main/Skymapper/Skymapper_DR1/T01462/SMSS/r/SkyMapper_r_20180622113232-22_232.255-67.924_326x612.fits'
+    
+    
     C = SMSSReference(image, telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
 
 # %%

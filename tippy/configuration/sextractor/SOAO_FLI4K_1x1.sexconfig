@@ -11,7 +11,7 @@ PARAMETERS_NAME  sex.param      # name of the file containing catalog contents
 #------------------------------- Extraction ----------------------------------
  
 DETECT_TYPE      CCD            # CCD (linear) or PHOTO (with gamma correction)
-DETECT_MINAREA   5              # min. # of pixels above threshold
+DETECT_MINAREA   8              # min. # of pixels above threshold
 DETECT_MAXAREA   0              # max. # of pixels above threshold (0=unlimited)
 THRESH_TYPE      RELATIVE       # threshold type: RELATIVE (in sigmas)
                                 # or ABSOLUTE (in ADUs)
@@ -56,14 +56,14 @@ PHOT_AUTOAPERS   1,1            # <estimation>,<measurement> minimum apertures
                                 # for MAG_AUTO and MAG_PETRO
 PHOT_FLUXFRAC    0.5            # flux fraction[s] used for FLUX_RADIUS
  
-SATUR_LEVEL      50000.0        # level (in ADUs) at which arises saturation
+SATUR_LEVEL      60000.0        # level (in ADUs) at which arises saturation
 SATUR_KEY        SATURATE       # keyword for saturation level (in ADUs)
  
 MAG_ZEROPOINT    0.0            # magnitude zero-point
 MAG_GAMMA        4.0            # gamma of emulsion (for photographic scans)
 GAIN             1.43           # detector gain in e-/ADU
 GAIN_KEY         EGAIN          # keyword for detector gain in e-/ADU
-PIXEL_SCALE      0.441          # size of pixel in arcsec (0=use FITS WCS info)
+PIXEL_SCALE      0.4454          # size of pixel in arcsec (0=use FITS WCS info)
  
 #------------------------- Star/Galaxy Separation ----------------------------
  

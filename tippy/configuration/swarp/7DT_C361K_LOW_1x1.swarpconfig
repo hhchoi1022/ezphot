@@ -49,7 +49,7 @@ CENTER_TYPE            ALL             # MANUAL, ALL or MOST
 CENTER         00:00:00.0, +00:00:00.0 # Coordinates of the image center
 PIXELSCALE_TYPE        MANUAL          # MANUAL,FIT,MIN,MAX or MEDIAN
 PIXEL_SCALE            0.505           # Pixel scale
-IMAGE_SIZE             0      # Image size (0 = AUTOMATIC)
+IMAGE_SIZE             10200,6800      # Image size (0 = AUTOMATIC)
  
 #-------------------------------- Resampling ----------------------------------
  

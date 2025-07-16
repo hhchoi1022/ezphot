@@ -1,4 +1,4 @@
-VIGNET(45,45)             #Pixel data around detection                               [count]
+VIGNET(25,25)             #Pixel data around detection                               [count]
 X_IMAGE                   #Object position along x                                   [pixel]
 Y_IMAGE                   #Object position along y                                   [pixel]
 FLUX_RADIUS               #Fraction-of-light radii                                   [pixel]

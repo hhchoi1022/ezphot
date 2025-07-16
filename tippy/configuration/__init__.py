@@ -1,2 +1,2 @@
 
-from .TIPconfig import TIPConfig
+from .tipconfig import TIPConfig

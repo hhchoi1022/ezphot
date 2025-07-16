@@ -1,739 +1,615 @@
 #%%
-import astropy.units as u
-import numpy as np
-import pandas as pd
 import os
-import inspect
-import glob
-from shapely.geometry import Point, Polygon
-from astropy.coordinates import SkyCoord
-from astropy.io import ascii
+import json
+import logging
+from pathlib import Path
+from typing import Union, Optional
+
+import numpy as np
+from numba import jit
+from astropy.io import fits
+from astropy.io.fits import Header
 from astropy.time import Time
-from astropy.table import Table, vstack
-from astroquery.mast import Catalogs
-from astroquery.vizier import Vizier
-from tippy.configuration import TIPConfig
-#%%
-class CatalogHistory():
+from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from scipy.spatial import cKDTree
+from astropy import units as u
+from astropy.wcs.utils import skycoord_to_pixel
+import matplotlib.pyplot as plt
+
+from types import SimpleNamespace
+from tippy.image import ScienceImage, ReferenceImage, Mask
+from tippy.helper import Helper
+
+
+class Info:
+    """Stores metadata of a FITS image with dot-access."""
     
-    HISTORY_FIELDS = ["objname", "ra", "dec", "fov_ra", "fov_dec", "filename", "cat_type", "save_date"]
-    
+    INFO_FIELDS = ["path", "target_img", "obsdate", "filter", "exptime", "depth", "seeing",
+                   "catalog_type", "ra", "dec", "fov_ra", "fov_dec", 'objname',
+                   "observatory", "telname", "aperture_diameter_arcsec"]
+    DEFAULT_VALUES = [None] * len(INFO_FIELDS)
+
     def __init__(self, **kwargs):
-        self.history = {step: None for step in self.HISTORY_FIELDS}
-        # Allow overriding default values
-        for key, value in kwargs.items():
-            if key in self.history:
-                self.history[key] = value
+        # Set defaults, then override with user-provided values
+        self._fields = {
+            field: kwargs.get(field, default)
+            for field, default in zip(self.INFO_FIELDS, self.DEFAULT_VALUES)
+        }
+
+    def __getattr__(self, name):
+        # Prevent infinite recursion when _fields is not yet initialized
+        if '_fields' in self.__dict__ and name in self._fields:
+            return self._fields[name]
+        raise AttributeError(f"'Info' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name == "_fields":
+            super().__setattr__(name, value)
+        elif "_fields" in self.__dict__ and name in self._fields:
+            self._fields[name] = value
+        else:
+            raise AttributeError(f"'Info' object has no attribute '{name}'")
+
+    def update(self, key, value):
+        if key in self._fields:
+            self._fields[key] = value
+        else:
+            print(f"WARNING: Invalid key: {key}")
 
     def to_dict(self):
-        return self.history
-    
-    def update(self, key, value):
-        """ Update an info field and set the update time. """
-        if key in self.history:
-            self.history[key] = value
-        else:
-            print(f'WARNING: Invalid key: {key}')
-            
+        return dict(self._fields)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**{key: data.get(key) for key in cls.INFO_FIELDS})
+
     def __repr__(self):
-        """ Represent process status as a readable string """
-        history_list = [f"{key}: {value}" for key, value in self.history.items()]
-        return "History =====================================\n  " + "\n  ".join(history_list) + "\n==================================================="
+        lines = [f"{key}: {value}" for key, value in self._fields.items()]
+        return "Info ============================================\n  " + "\n  ".join(lines) + "\n==================================================="
 
 
-
-class Catalog(TIPConfig):
+class TIPCatalog(Helper):
     
-    def __init__(self,
-                 objname : str = None,
-                 ra = None, # in deg
-                 dec = None, # in deg
-                 fov_ra : float = 1.3,
-                 fov_dec : float = 0.9,
-                 catalog_type : str = 'GAIAXP', #GAIAXP, GAIA, APASS, PS1, SDSS, SMSS
-                 overlapped_fraction : float = 0.9
-                 ):
-        
+    def __init__(self, path: Union[Path, str], catalog_type: str, info: Info = None, load: bool = True):
+        path = Path(path)
         super().__init__()
-        if catalog_type not in ['GAIAXP', 'GAIA', 'APASS', 'PS1', 'SDSS', 'SMSS']:
-            raise ValueError('Invalid catalog type: %s' % catalog_type)
-
-        self.objname = objname
-        self.ra = ra
-        self.dec = dec
-        self.fov_ra = fov_ra
-        self.fov_dec = fov_dec
-        self.catalog_type = catalog_type
-        self.overlapped_fraction = overlapped_fraction
-        self.filename = None
-        self.save_date = None
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type)        
-
-        self.get_catalog(catalog_type = catalog_type)
         
+        if catalog_type not in ['all', 'reference', 'valid', 'transient', 'forced']:
+            raise ValueError(f"Invalid catalog type: {catalog_type}")
+        self.is_loaded = False
+        self.path = path
+        self.catalog_type = catalog_type
+        self.target_img = None
+        self._data = None
+        self._target_data = None
+
+        self.info = Info(path = str(path), catalog_type = catalog_type)
+        if load:
+            self.load_info()
+            if not self.is_loaded:
+                self.load_target_img()
+            
+        if info is not None:
+            self.info = info
+            self.info.path = str(self.path)
+            self.info.catalog_type = catalog_type
+            if self.info.target_img is not None:
+                if Path(self.info.target_img).exists():
+                    self.target_img = ScienceImage(self.info.target_img, telinfo = self.estimate_telinfo(self.info.target_img), load = True)
 
     def __repr__(self):
-        txt = f"{self.objname} Catalog[type = {self.catalog_type}]"
-        return txt
-
-    def get_reference_sources(self, mag_lower : float = 10, mag_upper : float = 20, **kwargs):
-        if not self.data:
-            raise RuntimeError(f'No catalog data found for {self.objname}')
+        return f"TIPCatalog( N_selected/N_sources = {self.nselected}/{self.nsources}, is_exists={self.is_exists}, catalog_type={self.catalog_type}, path={self.path})"
+    
+    def help(self):
+        """Print available public methods and their docstrings."""
+        print(f"\n Help for {self.__class__.__name__}\n" + "="*40)
+        for attr_name in dir(self):
+            if attr_name.startswith("_"):
+                continue  # Skip dunder and private
+            attr = getattr(self, attr_name)
+            if callable(attr):
+                doc = attr.__doc__.strip() if attr.__doc__ else "No documentation."
+                print(f"{attr_name}()\n  >>> {doc}\n")
+    
+    @property
+    def savepath(self):
+        savedir = self.path.parent
+        savedir.mkdir(parents=True, exist_ok=True)
         
-        # For APASS Cut
-        cutline_apass = dict(e_ra = [0, 0.5], e_dec = [0, 0.5], e_V_mag = [0.01, 0.05], V_mag = [mag_lower, mag_upper])
-        # For GAIA cut 
-        cutline_gaia = dict(V_flag = [0,1], V_mag = [mag_lower, mag_upper])
-        # For GAIAXP cut pmra, pmdec for astrometric reference stars, bp-rp for color
-        cutline_gaiaxp = {"pmra" : [-20,20], "pmdec" : [-20,20], "bp-rp" : [0.0, 1.5], "g_mean" : [mag_lower, mag_upper]}
-        # For PS1 cut
-        cutline_ps1 = {"gFlags": [0,10], "g_mag": [mag_lower, mag_upper]}
-        # For SMSS cut
-        cutline_smss = {"ngood": [20,999], "class_star": [0.8, 1.0], "g_mag": [mag_lower, mag_upper]}
+        filename = self.path.name
+        return SimpleNamespace(
+            savedir = savedir,
+            savepath = savedir / filename,
+            refcatalogpath = self.path.with_suffix('.refcat'),
+            transientcatalogpath = self.path.with_suffix('.transient'),
+            candidatecatalogpath = self.path.with_suffix('.candidate'),
+            stamppath = self.path.with_suffix('.stamp'),
+            infopath=savedir / (filename + '.info'))
         
-        if self.catalog_type == 'APASS':
-            cutline = cutline_apass
-        elif self.catalog_type == 'GAIA':
-            cutline = cutline_gaia
-        elif self.catalog_type == 'GAIAXP':
-            cutline = cutline_gaiaxp
-        elif self.catalog_type == 'PS1':
-            cutline = cutline_ps1
-        elif self.catalog_type == 'SMSS':
-            cutline = cutline_smss
-        else:
-            raise ValueError('Invalid catalog type: %s' % self.catalog_type)
-        cutline = {**cutline, **kwargs}
-        
-        ref_sources = self.data
-        applied_kwargs = []
-        for key, value in cutline.items():
-            if key in ref_sources.colnames:
-                applied_kwargs.append({key : [value]})
-                ref_sources = ref_sources[(ref_sources[key] > value[0]) & (ref_sources[key] < value[1])]
-        return ref_sources, applied_kwargs
-        
+    @property
+    def data(self):
+        """Lazy-load table data from path by trying multiple formats."""
+        if not self.is_data_loaded and self.is_exists:
+            tried_formats = [
+                'fits',
+                'ascii.sextractor',
+                'ascii',
+                'csv',
+                'ascii.basic',
+                'ascii.commented_header',
+                'ascii.tab',
+                'ascii.fast_no_header',
+            ]
+            for fmt in tried_formats:
+                try:
+                    self._data = Table.read(self.path, format=fmt)
+                    self._target_data = self._data.copy()  # Keep a copy of the original data
+                    return self._data  # Success
+                except Exception:
+                    continue  # Try next format
+            self._data = None
+        return self._data     
+    
+    @data.setter
+    def data(self, value):
+        self._data = value
 
     @property
-    def catalog_summary(self):
-        catalog_summary_file = os.path.join(self.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
-        return catalog_summary_file
+    def is_data_loaded(self):
+        return self._data is not None
     
-    def get_catalog(self, catalog_type : str):
-
-        if catalog_type == 'GAIAXP':
-            self.get_GAIAXP(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        elif catalog_type == 'GAIA':
-            self.get_GAIA(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        elif catalog_type == 'APASS':
-            self.get_APASS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        elif catalog_type == 'PS1':
-            self.get_PS1(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        elif catalog_type == 'SDSS':
-            self.get_SDSS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        elif catalog_type == 'SMSS':
-            self.get_SMSS(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra, fov_dec = self.fov_dec)
-        else:
-            raise ValueError('Invalid catalog type: %s' % catalog_type)
+    @property
+    def target_data(self):
+        """Return a copy of the target data."""
+        if self._target_data is None:
+            return self.data
+        return self._target_data
     
-    def get_GAIAXP(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-
-        def GAIAXP_format(GAIAXP_catalog) -> Table:
-            original = ('source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'phot_g_mean_mag', 'bp_rp', 'mag_u', 'mag_g', 'mag_r', 'mag_i', 'mag_z', 'mag_m375w', 'mag_m400', 'mag_m412', 'mag_m425', 'mag_m425w', 'mag_m437', 'mag_m450', 'mag_m462', 'mag_m475', 'mag_m487', 'mag_m500', 'mag_m512', 'mag_m525', 'mag_m537', 'mag_m550', 'mag_m562', 'mag_m575', 'mag_m587', 'mag_m600', 'mag_m612', 'mag_m625', 'mag_m637', 'mag_m650', 'mag_m662', 'mag_m675', 'mag_m687', 'mag_m700', 'mag_m712', 'mag_m725', 'mag_m737', 'mag_m750', 'mag_m762', 'mag_m775', 'mag_m787', 'mag_m800', 'mag_m812', 'mag_m825', 'mag_m837', 'mag_m850', 'mag_m862', 'mag_m875', 'mag_m887')
-            format_ = ('id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'g_mean', 'bp-rp', 'u_mag', 'g_mag', 'r_mag', 'i_mag', 'z_mag', 'm375w_mag', 'm400_mag', 'm412_mag', 'm425_mag', 'm425w_mag', 'm437_mag', 'm450_mag', 'm462_mag', 'm475_mag', 'm487_mag', 'm500_mag', 'm512_mag', 'm525_mag', 'm537_mag', 'm550_mag', 'm562_mag', 'm575_mag', 'm587_mag', 'm600_mag', 'm612_mag', 'm625_mag', 'm637_mag', 'm650_mag', 'm662_mag', 'm675_mag', 'm687_mag', 'm700_mag', 'm712_mag', 'm725_mag', 'm737_mag', 'm750_mag', 'm762_mag', 'm775_mag', 'm787_mag', 'm800_mag', 'm812_mag', 'm825_mag', 'm837_mag', 'm850_mag', 'm862_mag', 'm875_mag', 'm887_mag')
-            GAIAXP_catalog.rename_columns(original, format_)
-            formatted_catalog = self.match_digit_tbl(GAIAXP_catalog)
-            return formatted_catalog
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'GAIAXP')
-
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'GAIAXP', filename = self.filename)
-        else:
-            raise ValueError(f'{self.objname} does not exist in GAIAXP catalog')
-                    
-        self.data = None
-        if data:
-            self.data = GAIAXP_format(data)
-
-    def get_GAIA(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-        def GAIA_format(GAIA_catalog) -> Table:
-            original = ('RA_ICRS', 'DE_ICRS', 'Bmag', 'e_Bmag', 'BFlag', 'Vmag', 'e_Vmag', 'VFlag', 'Rmag', 'e_Rmag', 'RFlag', 'gmag', 'e_gmag', 'gFlag', 'rmag', 'e_rmag', 'rFlag', 'imag', 'e_imag', 'iFlag')
-            format_ = ('ra', 'dec', 'B_mag', 'e_B_mag', 'B_flag', 'V_mag', 'e_Vmag', 'V_flag', 'R_mag', 'e_Rmag', 'R_flag', 'g_mag', 'e_gmag', 'g_flag', 'r_mag', 'e_rmag', 'r_flag', 'i_mag', 'e_imag', 'i_flag')
-            GAIA_catalog.rename_columns(original, format_)
-            if 'E_BP_RP_corr' in GAIA_catalog.colnames:
-                GAIA_catalog.rename_columns(['E_BP_RP_corr'], ['c_star'])
-            else:
-                GAIA_catalog['c_star'] = 0
-            formatted_catalog = self.match_digit_tbl(GAIA_catalog)
-            return formatted_catalog
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'GAIA')
-        
-        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'GAIA', filename = self.filename)
-        # Else, query object in the catalog and save to catalog_archive
-        else:
-            try:
-                # Try query and save to catalog_archive
-                data = self.query_catalog(catalog_name = 'GAIA')
-                filename = f'{self.objname}_GAIA.csv'
-                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
-                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
-                data.write(catalog_file, format ='csv', overwrite = True)
-                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
-                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
-                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
-            except:
-                # Elase, return Error
-                raise ValueError(f'{self.objname} does not exist in GAIA catalog')
-        
-        # After getting the data, format the data
-        self.data = None
-        if data:
-            self.data = GAIA_format(data)
-       
-    def get_APASS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-        def APASS_format(APASS_catalog) -> Table:
-            original = ('RAJ2000','DEJ2000','e_RAJ2000','e_DEJ2000','Bmag','e_Bmag','Vmag','e_Vmag',"g'mag","e_g'mag","r'mag","e_r'mag","i'mag","e_i'mag")
-            format_ = ('ra','dec','e_ra','e_dec','B_mag','e_B_mag','V_mag','e_V_mag','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag')
-            APASS_catalog.rename_columns(original, format_)
-            formatted_catalog = self.match_digit_tbl(APASS_catalog)
-            return formatted_catalog
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'APASS')
-        
-        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'APASS', filename = self.filename)
-        # Else, query object in the catalog and save to catalog_archive
-        else:
-            try:
-                # Try query and save to catalog_archive
-                data = self.query_catalog(catalog_name = 'APASS')
-                filename = f'{self.objname}_APASS.csv'
-                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
-                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
-                data.write(catalog_file, format ='csv', overwrite = True)
-                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
-                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
-                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
-            except:
-                # Elase, return Error
-                raise ValueError(f'{self.objname} does not exist in APASS catalog')
-        
-        # After getting the data, format the data
-        self.data = None
-        if data:
-            self.data = APASS_format(data)
+    @target_data.setter
+    def target_data(self, value):
+        """Set the target data and update the info."""
+        self._target_data = value
     
-    def get_PS1(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-        def PS1_format(PS1_catalog) -> Table:
-            original = ('objID','RAJ2000','DEJ2000','e_RAJ2000','e_DEJ2000','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag','ymag','e_ymag','gKmag','e_gKmag','rKmag','e_rKmag','iKmag','e_iKmag','zKmag','e_zKmag','yKmag','e_yKmag')
-            format_ = ('ID','ra','dec','e_ra','e_dec','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag','z_mag','e_z_mag','y_mag','e_y_mag','g_Kmag','e_g_Kmag','r_Kmag','e_r_Kmag','i_Kmag','e_i_Kmag','z_Kmag','e_z_Kmag','y_Kmag','e_y_Kmag')
-            PS1_catalog.rename_columns(original, format_)
-            formatted_catalog = self.match_digit_tbl(PS1_catalog)
-            return formatted_catalog
-            
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'PS1')
-
-        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'PS1', filename = self.filename)
-        # Else, query object in the catalog and save to catalog_archive
-        else:
-            try:
-                # Try query and save to catalog_archive
-                data = self.query_catalog(catalog_name = 'PS1')
-                filename = f'{self.objname}_PS1.csv'
-                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
-                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
-                data.write(catalog_file, format ='csv', overwrite = True)
-                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
-                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
-                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
-            except:
-                # Elase, return Error
-                raise ValueError(f'{self.objname} does not exist in PS1 catalog')
-        
-        # After getting the data, format the data
-        self.data = None
-        if data:
-            self.data = PS1_format(data)
-
-    def get_SMSS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-        def SMSS_format(SMSS_catalog) -> Table:
-            original = ('ObjectId','RAICRS','DEICRS','Niflags','flags','Ngood','Ngoodu','Ngoodv','Ngoodg','Ngoodr','Ngoodi','Ngoodz','ClassStar','uPSF','e_uPSF','vPSF','e_vPSF','gPSF','e_gPSF','rPSF','e_rPSF','iPSF','e_iPSF','zPSF','e_zPSF')
-            format_ = ('ID','ra','dec','nimflag','flag','ngood','ngoodu','ngoodv','ngoodg','ngoodr','ngoodi','ngoodz','class_star','u_mag','e_u_mag','v_mag','e_v_mag','g_mag','e_g_mag','r_mag','e_r_mag','i_mag','e_i_mag','z_mag','e_z_mag')
-            SMSS_catalog.rename_columns(original, format_)
-            formatted_catalog = self.match_digit_tbl(SMSS_catalog)
-            return formatted_catalog
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'SMSS')
-
-        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'SMSS', filename = self.filename)
-        # Else, query object in the catalog and save to catalog_archive
-        else:
-            try:
-                # Try query and save to catalog_archive
-                data = self.query_catalog(catalog_name = 'SMSS')
-                filename = f'{self.objname}_SMSS.csv'
-                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
-                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
-                data.write(catalog_file, format ='csv', overwrite = True)
-                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
-                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
-                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
-            except:
-                # Elase, return Error
-                raise ValueError(f'{self.objname} does not exist in SMSS catalog')
-        
-        # After getting the data, format the data
-        self.data = None
-        if data:
-            self.data = SMSS_format(data)
-
-    def get_SDSS(self, objname = None, ra = None, dec = None, fov_ra = 1.3, fov_dec = 0.9):
-        def SDSS_format(SDSS_catalog) -> Table:
-            original = ('RA_ICRS','DE_ICRS','umag','e_umag','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag')
-            format_ = ('ra','dec','umag','e_umag','gmag','e_gmag','rmag','e_rmag','imag','e_imag','zmag','e_zmag')
-            SDSS_catalog.rename_columns(original, format_)
-            formatted_catalog = self.match_digit_tbl(SDSS_catalog)
-            return formatted_catalog
-
-        self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = 'SDSS')
-
-        # If filename is defined by _register_objinfo function (meaning located in catalog_archive), Query from archive
-        if self.filename:
-            data = self._get_catalog_from_archive(catalog_name = 'SDSS', filename = self.filename)
-        # Else, query object in the catalog and save to catalog_archive
-        else:
-            try:
-                # Try query and save to catalog_archive
-                data = self.query_catalog(catalog_name = 'SDSS')
-                filename = f'{self.objname}_SDSS.csv'
-                catalog_file = os.path.join(self.config['CATALOG_DIR'], self.catalog_type, filename)
-                os.makedirs(os.path.join(self.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
-                data.write(catalog_file, format ='csv', overwrite = True)
-                summary_tbl = ascii.read(self.catalog_summary, format = 'fixed_width')
-                summary_tbl.add_row([self.objname, self.ra, self.dec, self.fov_ra, self.fov_dec, filename, self.catalog_type, Time.now().isot])
-                summary_tbl.write(self.catalog_summary, format = 'ascii.fixed_width', overwrite = True)
-            except:
-                # Elase, return Error
-                raise ValueError(f'{self.objname} does not exist in SDSS catalog')
-        
-        # After getting the data, format the data
-        self.data = None
-        if data:
-            self.data = SDSS_format(data)
-
+    @property
+    def is_exists(self):
+        return self.path.exists()
     
-    def match_digit_tbl(self, tbl):
-        for column in tbl.columns:
-            if tbl[column].dtype == 'float64':
-                tbl[column].format = '{:.5f}'
-        return tbl
-
-    def _get_catalog_from_archive(self, catalog_name: str, filename : str):
-        catalog_file = os.path.join(self.config['CATALOG_DIR'], catalog_name, filename)
-        is_exist = os.path.exists(catalog_file)
-        
-        if is_exist:
-            data = ascii.read(catalog_file, format = 'csv')
-            return data
-        else:
-            return None
-
-    def get_cataloginfo_by_coord(self, 
-                                 coord: SkyCoord, 
-                                 fov_ra: float = 1.5, 
-                                 fov_dec: float = 1.5, 
-                                 overlapped_fraction: float = 0.9) -> Table:
+    @property
+    def nsources(self):
+        """Number of sources in the catalog."""
+        if self.is_data_loaded:
+            return len(self.data)
+        return None
+    
+    @property
+    def nselected(self):
+        """Number of selected sources in the target data."""
+        if self._target_data is not None:
+            return len(self._target_data)
+        return None
+    
+    def copy(self) -> "TIPCatalog":
         """
-        Retrieves catalog information based on coordinates.
-        Requires fov_ra and fov_dec to calculate overlap.
-        Returns catalogs with sufficient overlap based on the given fraction.
+        Return an in-memory deep copy of this TIPCatalog instance,
+
         """
 
-        try:
-            catalog_summary_tbl = ascii.read(self.catalog_summary, format='fixed_width')
-            catalog_coords = SkyCoord(ra=catalog_summary_tbl['ra'], 
-                                      dec=catalog_summary_tbl['dec'], 
-                                      unit=(u.deg, u.deg))
+        new_instance = TIPCatalog(
+            path=self.path,
+            catalog_type=self.catalog_type,
+            info=Info.from_dict(self.info.to_dict()),
+            load=False
+        )
 
-            # Cut tiles into 10deg x 10deg regions
-            ra_min, ra_max = coord.ra.deg - 5, coord.ra.deg + 5
-            dec_min, dec_max = coord.dec.deg - 5, coord.dec.deg + 5
-            cut_tiles_mask = (
-                (catalog_summary_tbl['ra'] >= ra_min) & (catalog_summary_tbl['ra'] <= ra_max) &
-                (catalog_summary_tbl['dec'] >= dec_min) & (catalog_summary_tbl['dec'] <= dec_max)
-            )
-            catalog_summary_tbl = catalog_summary_tbl[cut_tiles_mask]
-            catalog_coords = catalog_coords[cut_tiles_mask]
+        # Manually copy loaded data and header
+        new_instance.data = None if self.data is None else self.data.copy()
+        new_instance.target_img = None if self.target_img is None else ScienceImage(self.target_img.path, telinfo=self.target_img.telinfo, load=True)
 
-            overlap_catalogs = []
-            overlap_fractions = []
-            for idx, (cat_ra, cat_dec, cat_fov_ra, cat_fov_dec) in enumerate(zip(
-                    catalog_summary_tbl['ra'], 
-                    catalog_summary_tbl['dec'], 
-                    catalog_summary_tbl['fov_ra'], 
-                    catalog_summary_tbl['fov_dec'])):
-                target_polygon = Polygon([  
-                    (coord.ra.deg - fov_ra / 2, coord.dec.deg - fov_dec / 2),
-                    (coord.ra.deg + fov_ra / 2, coord.dec.deg - fov_dec / 2),
-                    (coord.ra.deg + fov_ra / 2, coord.dec.deg + fov_dec / 2),
-                    (coord.ra.deg - fov_ra / 2, coord.dec.deg + fov_dec / 2)
-                ])
-                tile_polygon = Polygon([  
-                    (cat_ra - cat_fov_ra / 2, cat_dec - cat_fov_dec / 2),
-                    (cat_ra + cat_fov_ra / 2, cat_dec - cat_fov_dec / 2),
-                    (cat_ra + cat_fov_ra / 2, cat_dec + cat_fov_dec / 2),
-                    (cat_ra - cat_fov_ra / 2, cat_dec + cat_fov_dec / 2)
-                ])
-                if target_polygon.intersects(tile_polygon):
-                    intersection = target_polygon.intersection(tile_polygon)
-                    target_area = fov_ra * fov_dec
-                    fraction_overlap = intersection.area / target_area
-                    if fraction_overlap >= overlapped_fraction:
-                        overlap_catalogs.append(catalog_summary_tbl[idx])
-                        overlap_fractions.append(fraction_overlap)
-            if overlap_catalogs:
-                print(f'{coord} found in catalog_archive')
-
-                return vstack(overlap_catalogs)
-            else:
-                raise ValueError("No catalog found with sufficient overlap.")
-        except Exception as e:
-            raise RuntimeError(f'Failed to access catalog summary: {e}')
-
-    def get_cataloginfo_by_objname(self, objname, catalog_type, fov_ra, fov_dec):
-        catalog_summary_file = os.path.join(self.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
-        catalog_summary_tbl = ascii.read(catalog_summary_file, format = 'fixed_width')
+        return new_instance
+    
+    def find_corresponding_fits(self) -> Optional[Path]:
+        """
+        Find the corresponding .fits file for a given .cat file.
+        Assumes the .fits filename is the prefix of the .cat file, ending at '.fits'.
+        Searches both the current and parent directory.
+        """
+        search_dirs = [self.path.parent, self.path.parent.parent]       
         
-        idx = (catalog_summary_tbl['objname'] == objname) & (catalog_summary_tbl['cat_type'] == catalog_type) & (catalog_summary_tbl['fov_ra'] * 1.1 > fov_ra) & (catalog_summary_tbl['fov_dec'] * 1.1 > fov_dec)
-        if np.sum(idx) > 0:
-            print(f'{objname} found in catalog_archive')
-            matched_info = catalog_summary_tbl[idx]
-            return matched_info
-        else:
-            raise ValueError(f"{objname} not found in catalog_summary")
-
-    def query_coord_SIMBAD(self, objname) -> SkyCoord:
-        from astroquery.simbad import Simbad
-
-        # Create a custom Simbad instance with the necessary fields
-        custom_simbad = Simbad()
-        custom_simbad.add_votable_fields('ra', 'dec')
-
-        # Query an object (e.g., "Vega")
-        result_table = custom_simbad.query_object(objname)
-
-        # Extract coordinates
-        if result_table is not None:
-            ra = result_table['ra'][0]  # Right Ascension
-            dec = result_table['dec'][0]  # Declination
-            coord = SkyCoord(ra, dec, unit = (u.deg, u.deg))
-            return coord
-        else:
-            raise ValueError("Object not found in SIMBAD.")
-
-    def query_catalog(self, catalog_name: str = 'APASS'):
-
-        # APASS DR9
-        def apass_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=100000):
-            """
-            Query APASS @ VizieR using astroquery.vizier 
-            :param ra_deg: RA in degrees
-            :param dec_deg: Declination in degrees
-            :param rad_deg: field radius in degrees
-            :param maxmag: upper limit G magnitude (optional)
-            :param maxsources: maximum number of sources
-            :return: astropy.table object
-            """
-            vquery = Vizier(columns=['*'],
-                            column_filters={"Bmag":
-                                            ("<%f" % maxmag),
-                                            "Vmag":
-                                            ("<%f" % maxmag),
-                                            "g'mag":
-                                            ("<%f" % maxmag),
-                                            "r'mag":
-                                            ("<%f" % maxmag),
-                                            "i'mag":
-                                            ("<%f" % maxmag),
-                                            "Bmag":
-                                            (">%f" % minmag),
-                                            "Vmag":
-                                            (">%f" % minmag),
-                                            "g'mag":
-                                            (">%f" % minmag),
-                                            "r'mag":
-                                            (">%f" % minmag),
-                                            "i'mag":
-                                            (">%f" % minmag),
-
-                                        },
-                            
-                            row_limit=maxsources)
-
-            field = SkyCoord(ra=ra_deg, dec=dec_deg,
-                             unit=(u.deg, u.deg),
-                             frame='icrs')
-            query_data = vquery.query_region(field,
-                                             width=("%fd" % rad_deg),
-                                             catalog="II/336/apass9")
-            if len(query_data) > 0:
-                return query_data[0]
+        # Iteravely strip suffixes from the path to find candidates
+        candidates = []
+        path = self.path
+        while path.suffix:
+            path = path.with_suffix('')
+            if path.suffix.startswith('.fits'):
+                candidates.append(path.name)
             else:
-                return None
+                candidate = Path(str(path) + '.fits')
+                if candidate.name not in candidates:
+                    candidates.append(candidate.name)
 
-        # SDSS DR12
-        def sdss_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10,maxsources=100000):
-            """
-            Query SDSS @ VizieR using astroquery.vizier
-            :param ra_deg: RA in degrees
-            :param dec_deg: Declination in degrees
-            :param rad_deg: field radius in degrees
-            :param maxmag: upper limit G magnitude (optional)
-            :param maxsources: maximum number of sources
-            :return: astropy.table object
-            """
-            vquery = Vizier(columns=['*'],
-                            column_filters={"gmag":
-                                            ("<%f" % maxmag),
-                                            "rmag":
-                                            ("<%f" % maxmag),
-                                            "imag":
-                                            ("<%f" % maxmag),
-                                            "gmag":
-                                            (">%f" % minmag),
-                                            "rmag":
-                                            (">%f" % minmag),
-                                            "imag":
-                                            (">%f" % minmag)
-                                            },
-                            row_limit=maxsources)
+        # Search for candidate names in possible directories
+        for directory in search_dirs:
+            for name in candidates:
+                candidate_path = directory / name
+                if candidate_path.exists():
+                    return candidate_path
 
-            field = SkyCoord(ra=ra_deg, dec=dec_deg,
-                             unit=(u.deg, u.deg),
-                             frame='icrs')
-            query_data = vquery.query_region(field,
-                                             width=("%fd" % rad_deg),
-                                             catalog="V/147/sdss12")
-            if len(query_data) > 0:
-                return query_data[0]
-            else:
-                return None
+        print(f"[WARNING] No matching .fits found for: {self.path}")
+        return None
+        
+    def load_target_img(self, target_img: Union[ScienceImage, ReferenceImage] = None):
+        # Load the catalog from a target image path.
+        if target_img is None:
+            target_path = self.find_corresponding_fits()
+            if target_path is None:
+                print(f"[ERROR] No corresponding FITS file found for {self.path}")
+                return False
+            target_img = ScienceImage(target_path, telinfo = self.estimate_telinfo(target_path), load = True)
+        
+        self.target_img = target_img
+        self.info.target_img = str(target_img.path)
+        self.info.ra = target_img.ra
+        self.info.dec = target_img.dec
+        self.info.fov_ra = target_img.fovx
+        self.info.fov_dec = target_img.fovy
+        self.info.objname = target_img.objname
+        self.info.obsdate = target_img.obsdate
+        self.info.filter = target_img.filter
+        self.info.exptime = target_img.exptime
+        self.info.depth = target_img.depth
+        self.info.seeing = target_img.seeing
+        self.info.observatory = target_img.observatory
+        self.info.telname = target_img.telname
+        self.is_loaded = True
+        return True
 
-        # PanSTARRS DR1
-        def ps1_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources= 500000):
-            """
-            Query PanSTARRS @ VizieR using astroquery.vizier
-            :param ra_deg: RA in degrees
-            :param dec_deg: Declination in degrees
-            :param rad_deg: field radius in degrees
-            :param maxmag: upper limit G magnitude (optional)
-            :param maxsources: maximum number of sources
-            :return: astropy.table object
-            """
-            vquery = Vizier(columns=['*'],
-                            column_filters={"gmag":
-                                            ("<%f" % maxmag),
-                                            "rmag":
-                                            ("<%f" % maxmag),
-                                            "imag":
-                                            ("<%f" % maxmag),
-                                            "gmag":
-                                            (">%f" % minmag),
-                                            "rmag":
-                                            (">%f" % minmag),
-                                            "imag":
-                                            (">%f" % minmag),
-
-                                        },
-                            
-                            row_limit=maxsources)
-
-            field = SkyCoord(ra=ra_deg, dec=dec_deg,
-                             unit=(u.deg, u.deg),
-                             frame='icrs')
-            query_data = vquery.query_region(field,
-                                             width=("%fd" % rad_deg),
-                                             catalog="II/349/ps1")
-            if len(query_data) > 0:
-                return query_data[0]
-            else:
-                return None
+    def save_info(self, verbose = False):
+        """ Save processing info to a JSON file """
+        with open(self.savepath.infopath, 'w') as f:
+            json.dump(self.info.to_dict(), f, indent=4)
+        self.print(f"Saved: {self.savepath.infopath}", verbose)
+    
+    def load_info(self, verbose = False):
+        """ Load processing info from a JSON file """
+        if not self.savepath.infopath.exists():
+            self.print(f"Info file does not exist: {self.savepath.infopath}", verbose)
+            return self.info
+        
+        with open(self.savepath.infopath, 'r') as f:
+            data = json.load(f)
+        
+        self.info = Info.from_dict(data)
+        if self.info.target_img is not None:
+            target_path = Path(self.info.target_img)
+            if not target_path.exists():
+                self.print(f"Target image does not exist: {target_path}", verbose)
+                return self.info
             
-        # SkyMapper DR4
-        def smss_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=1000000):
-            """
-            Query PanSTARRS @ VizieR using astroquery.vizier
-            :param ra_deg: RA in degrees
-            :param dec_deg: Declination in degrees
-            :param rad_deg: field radius in degrees
-            :param maxmag: upper limit G magnitude (optional)
-            :param maxsources: maximum number of sources
-            :return: astropy.table object
-            """
-            vquery = Vizier(columns=['ObjectId','RAICRS','DEICRS','Niflags','flags','Ngood','Ngoodu','Ngoodv','Ngoodg','Ngoodr','Ngoodi','Ngoodz','ClassStar','uPSF','e_uPSF','vPSF','e_vPSF','gPSF','e_gPSF','rPSF','e_rPSF','iPSF','e_iPSF','zPSF','e_zPSF'],
-                            column_filters={"gPSF":
-                                            ("<%f" % maxmag),
-                                            "rPSF":
-                                            ("<%f" % maxmag),
-                                            "iPSF":
-                                            ("<%f" % maxmag),
-                                            "gmag":
-                                            (">%f" % minmag),
-                                            "rmag":
-                                            (">%f" % minmag),
-                                            "imag":
-                                            (">%f" % minmag),
+            self.target_img = ScienceImage(target_path, telinfo=self.estimate_telinfo(target_path), load=True)
+            self.is_loaded = True
+        self.print(f"Loaded: {self.savepath.infopath}", verbose)
+    
+    def search_sources(self, 
+                       x: Union[float, list, np.ndarray],
+                       y: Union[float, list, np.ndarray],
+                       unit='coord',
+                       matching_radius: float = 5.0):
+        """
+        Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
+        Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
+        """
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        target_catalog = self.data
 
-                                        },
-                            
-                            row_limit=maxsources)
+        if unit == 'pixel':
+            catalog_coords = np.vstack((target_catalog['X_IMAGE'], target_catalog['Y_IMAGE'])).T
+            input_coords = np.vstack((x, y)).T
 
-            field = SkyCoord(ra=ra_deg, dec=dec_deg,
-                                unit=(u.deg, u.deg),
-                                frame='icrs')
-            query_data = vquery.query_region(field,
-                                             width=("%fd" % rad_deg),
-                                             catalog="II/379/smssdr4")
-            if len(query_data) > 0:
-                return query_data[0]
-            else:
-                return None
+            tree = cKDTree(catalog_coords)
+            sep, idx = tree.query(input_coords, distance_upper_bound=matching_radius)
 
-        # SkyMapper DR4
-        def gaia_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=1000000):
-            """
-            Query PanSTARRS @ VizieR using astroquery.vizier
-            :param ra_deg: RA in degrees
-            :param dec_deg: Declination in degrees
-            :param rad_deg: field radius in degrees
-            :param maxmag: upper limit G magnitude (optional)
-            :param maxsources: maximum number of sources
-            :return: astropy.table object
-            """
-            vquery = Vizier(columns=['RA_ICRS', 'DE_ICRS', 'E_BP_RP_corr', 'Bmag', 'BFlag', 'Vmag', 'VFlag', 'Rmag', 'RFlag', 'gmag', 'gFlag', 'rmag', 'rFlag', 'imag', 'iFlag'],                            
-                            row_limit=maxsources)
+            valid = sep != np.inf
+            sep = sep[valid]
+            idx = idx[valid]
+            matched_catalog = target_catalog[idx]
 
-            field = SkyCoord(ra=ra_deg, dec=dec_deg,
-                                unit=(u.deg, u.deg),
-                                frame='icrs')
-            query_data = vquery.query_region(field,
-                                             width=("%fd" % rad_deg),
-                                             catalog="I/360/syntphot")
-            query_data[0]['e_Bmag'] = 0.02
-            query_data[0]['e_Vmag'] = 0.02
-            query_data[0]['e_Rmag'] = 0.02
-            query_data[0]['e_gmag'] = 0.02
-            query_data[0]['e_rmag'] = 0.02
-            query_data[0]['e_imag'] = 0.02
-            if len(query_data) > 0:
-                return query_data[0]
-            else:
-                return None
-        
-        if catalog_name == 'APASS':
-            print('Start APASS query...')
-            data = apass_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
-        elif catalog_name == 'PS1':
-            print('Start PS1 query...')
-            data = ps1_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
-        elif catalog_name == 'SDSS':
-            print('Start SDSS query...')
-            data = sdss_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
-        elif catalog_name == 'SMSS':
-            print('Start SMSS query...')
-            data = smss_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
-        elif catalog_name == 'GAIA':
-            print('Start GAIA query...')
-            data = gaia_query(ra_deg = float(self.ra), dec_deg = float(self.dec), rad_deg =  np.max([self.fov_ra, self.fov_dec]))
+            # Sort by separation
+            sort_idx = np.argsort(sep)
+            return matched_catalog[sort_idx], sep[sort_idx], idx[sort_idx]
+
+        elif unit == 'coord':
+            cat_sky = SkyCoord(ra=target_catalog['X_WORLD'], dec=target_catalog['Y_WORLD'], unit='deg')
+            input_sky = SkyCoord(ra=x, dec=y, unit='deg')
+
+            cat_xyz = np.vstack(cat_sky.cartesian.xyz).T
+            input_xyz = np.vstack(input_sky.cartesian.xyz).T
+
+            tree = cKDTree(cat_xyz)
+            matching_radius_rad = (matching_radius / 3600.0) * (np.pi / 180)
+            sep, idx = tree.query(input_xyz, distance_upper_bound=matching_radius_rad)
+
+            valid = sep != np.inf
+            sep = sep[valid]
+            idx = idx[valid]
+            matched_catalog = target_catalog[idx]
+            sep_arcsec = np.rad2deg(sep) * 3600
+
+            # Sort by separation
+            sort_idx = np.argsort(sep_arcsec)
+            return matched_catalog[sort_idx], sep_arcsec[sort_idx], idx[sort_idx]
+
         else:
-            raise ValueError(f'{self.objname} does not exist in {catalog_name}')                       
+            raise ValueError("unit must be either 'pixel' or 'coord'")
         
-        if not data:
-            raise ValueError(f'{catalog_name} is not registered')              
+    def select_sources(self,
+                       x: Union[float, list, np.ndarray],
+                       y: Union[float, list, np.ndarray],
+                       unit='coord',
+                       matching_radius: float = 5.0):
+        """
+        Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
+        Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
+        """
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        target_catalog = self.data
+
+        if unit == 'pixel':
+            catalog_coords = np.vstack((target_catalog['X_IMAGE'], target_catalog['Y_IMAGE'])).T
+            input_coords = np.vstack((x, y)).T
+
+            tree = cKDTree(catalog_coords)
+            sep, idx = tree.query(input_coords, distance_upper_bound=matching_radius)
+
+            valid = sep != np.inf
+            sep = sep[valid]
+            idx = idx[valid]
+            matched_catalog = target_catalog[idx]
+
+            # Sort by separation
+            sort_idx = np.argsort(sep)
+            self.target_data = matched_catalog[sort_idx]
+
+        elif unit == 'coord':
+            cat_sky = SkyCoord(ra=target_catalog['X_WORLD'], dec=target_catalog['Y_WORLD'], unit='deg')
+            input_sky = SkyCoord(ra=x, dec=y, unit='deg')
+
+            cat_xyz = np.vstack(cat_sky.cartesian.xyz).T
+            input_xyz = np.vstack(input_sky.cartesian.xyz).T
+
+            tree = cKDTree(cat_xyz)
+            matching_radius_rad = (matching_radius / 3600.0) * (np.pi / 180)
+            sep, idx = tree.query(input_xyz, distance_upper_bound=matching_radius_rad)
+
+            valid = sep != np.inf
+            sep = sep[valid]
+            idx = idx[valid]
+            matched_catalog = target_catalog[idx]
+            sep_arcsec = np.rad2deg(sep) * 3600
+
+            # Sort by separation
+            sort_idx = np.argsort(sep_arcsec)
+            self.target_data = matched_catalog[sort_idx]
+
+        else:
+            raise ValueError("unit must be either 'pixel' or 'coord'")
         
-        return data
+        
+    def apply_mask(self, 
+                   target_ivpmask: Mask,
+                   x_key: str = 'X_IMAGE',
+                   y_key: str = 'Y_IMAGE'):
+        mask = target_ivpmask.data
+        ny, nx = mask.shape
+        
+        # Round or convert positions to int for indexing
+        x = np.round(self.data['X_IMAGE']).astype(int)
+        y = np.round(self.data['Y_IMAGE']).astype(int)
+        
+        # Ensure coordinates are within image bounds
+        valid = (x >= 0) & (x < nx) & (y >= 0) & (y < ny)
+        x_valid = x[valid]
+        y_valid = y[valid]
+        
+        # Check if pixel is masked (== 0)
+        mask_values = mask[y_valid, x_valid]
+        is_masked = (mask_values == 0)
+        
+        # Apply final selection
+        final_indices = np.where(valid)[0][is_masked]
+        masked_sources = self.data[final_indices]
 
-    def _update_history(self):
-        self.history = CatalogHistory(objname = self.objname, ra = self.ra, dec = self.dec, fov_ra = self.fov_ra,fov_dec = self.fov_dec, filename = self.filename, cat_type = self.catalog_type, save_date = self.save_date)
+        return masked_sources
+        
+    def to_stamp(self,
+                 target_img: Union[ScienceImage, ReferenceImage],
+                 sort_by: str = 'FLUX_AUTO',
+                 max_number: int = 50000):
+        # Convert X_WORLD and Y_WORLD to pixel coordinates and save to a stamp catalog.
+        wcs = target_img.wcs
+        if sort_by in self.data.colnames:
+            self.data.sort(sort_by)
+        ra_deg = self.data['X_WORLD']
+        dec_deg = self.data['Y_WORLD']
+        skycoord = SkyCoord(ra=ra_deg, dec=dec_deg, unit = 'deg')
+        x_pix, y_pix = skycoord_to_pixel(skycoord, wcs, origin=0)        
+        if len(x_pix) > max_number:
+            x_pix = x_pix[:max_number]
+            y_pix = y_pix[:max_number]
+        # Save stamp catalog to a file.
+        with open(self.savepath.stamppath, "w") as f:
+            for x, y in zip(x_pix, y_pix):
+                f.write(f"{round(x,3)} {round(y,3)} \n")
+        return self.savepath.stamppath
+    
+    def write(self, format = 'ascii'):
+        """Write MaskImage data to FITS file."""
+        if self.data is None:
+            raise ValueError("Cannot save MaskImage: data is not registered.")
+        os.makedirs(self.savepath.savedir, exist_ok=True)
 
-    def _register_objinfo(self, objname, ra, dec, fov_ra, fov_dec, catalog_type):
-        self.objname = objname
-        self.ra = ra
-        self.dec = dec
-        self.fov_ra = fov_ra
-        self.fov_dec = fov_dec
-        self.catalog_type = catalog_type
+        # Write to disk
+        self.data.write(self.savepath.savepath, format=format, overwrite=True)
+        self.save_info()
+        
 
-        # 1. Check if neither objname nor (ra, dec) are provided
-        if (objname is None) and (ra is None) and (dec is None):
-            raise ValueError('objname or (ra, dec) must be provided')
+    def remove(self, 
+               remove_all: bool = True, 
+               skip_exts: list =  ['.png', '.cat'],
+               verbose: bool = False) -> dict:
+        """
+        Remove files associated with this ScienceImage.
 
-        # 2. If objname is given but ra and dec are not, retrieve coordinates
-        if objname is not None and (ra is None or dec is None):
-            try:
-                catinfo = self.get_cataloginfo_by_objname(objname = objname, catalog_type = catalog_type, fov_ra = fov_ra, fov_dec = fov_dec)
-                self.ra = catinfo['ra'][0]
-                self.dec = catinfo['dec'][0]
-                self.fov_ra = catinfo['fov_ra'][0]
-                self.fov_dec = catinfo['fov_dec'][0]
-                self.filename = catinfo['filename'][0]
-                self.save_date = catinfo['save_date'][0]
-            except:
+        Parameters:
+        - remove_all (bool): If True, remove all related files (FITS, .status, .info, .mask, etc.)
+                            If False, remove only the FITS file.
+        - verbose (bool): Print/log removed files.
+
+        Returns:
+        - dict: {filename (str): success (bool)} for each attempted removal
+        """
+        removed = {}
+
+        def try_remove(p: Union[str, Path]):
+            p = Path(p)
+            if p.exists():
                 try:
-                    coord = self.query_coord_SIMBAD(objname = objname)
-                    self.ra = coord.ra.deg
-                    self.dec = coord.dec.deg
-                except:
-                    raise ValueError(f"Failed to query coordinates for {objname}")
+                    p.unlink()
+                    self.print(f"[REMOVE] {p}", verbose)
+                    return True
+                except Exception as e:
+                    self.print(f"[FAILED] {p} - {e}", verbse)
+                    return False
+            return False
 
-        # 3. If objname is not provided, generate it using the coordinate format
-        if objname is None and ra is not None and dec is not None:
-            
-            coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
+        # Remove the main FITS file
+        if self.path and self.path.is_file():
+            removed[str(self.path)] = try_remove(self.path)
 
-            try:
-                catinfo = self.get_cataloginfo_by_coord(coord = coord, fov_ra = fov_ra, fov_dec = fov_dec, overlapped_fraction = overlapped_fraction)
-                self.objname = catinfo['objname'][0]
-                self.ra = catinfo['ra'][0]
-                self.dec = catinfo['dec'][0]
-                self.fov_ra = catinfo['fov_ra'][0]
-                self.fov_dec = catinfo['fov_dec'][0]
-                self.filename = catinfo['filename'][0]
-                self.save_date = catinfo['save_date'][0]        
-            except:
-                ra_hms = coord.ra.hms
-                dec_dms = coord.dec.dms
-                self.objname = f'J{int(ra_hms.h):02}{int(ra_hms.m):02}{ra_hms.s:05.2f}' \
-                            f'{int(dec_dms.d):+03}{int(abs(dec_dms.m)):02}{abs(dec_dms.s):04.1f}' 
-        
-        if (self.objname is None) or (self.ra is None) or (self.dec is None):
-            raise ValueError('objname, ra, and dec must be provided')
+        # Remove other savepath-related files (excluding dirs)
+        if remove_all:
+            for attr in vars(self.savepath).values():
+                if isinstance(attr, Path) and attr != self.path and attr.is_file():
+                    if attr.suffix in skip_exts:
+                        self.print(f"[SKIP] {attr} (skipped due to extension)", verbose)
+                        continue
+                    removed[str(attr)] = try_remove(attr)
 
-        self._update_history()
+        return removed   
+     
+    def show_source(self,
+                target_ra: float,
+                target_dec: float,
+                downsample: int = 4,
+                zoom_radius_pixel: float = 50,
+                matching_radius_arcsec: float = 3.0):
+        """
+        Show two-panel view:
+        - Left: full image with a single source marked (red).
+        - Right: zoomed-in view with the requested position (red) and matched source (blue, if found).
+        """
+        from astropy.coordinates import SkyCoord
+        from astropy import units as u
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        # Load image if not yet loaded
+        if self.target_img is None:
+            load_result = self.load_target_img(target_img=None)
+
+        # Convert RA/Dec to pixel coordinates
+        coord = SkyCoord(ra=target_ra * u.deg, dec=target_dec * u.deg)
+        x, y = self.target_img.wcs.world_to_pixel(coord)
+
+        # Match source in catalog
+        matched_catalog, seps, _ = self.search_sources(
+            x=[target_ra], y=[target_dec], unit='coord',
+            matching_radius=matching_radius_arcsec)
+
+        # If matched, get pixel coords of catalog source
+        matched_xy = None
+        if len(matched_catalog) > 0:
+            matched_coord = SkyCoord(ra=matched_catalog[0]['X_WORLD'] * u.deg,
+                                    dec=matched_catalog[0]['Y_WORLD'] * u.deg)
+            matched_xy = self.target_img.wcs.world_to_pixel(matched_coord)
+
+        # Downsampled dimensions for full image view
+        image_shape = self.target_img.data.shape
+        x_size_ds = image_shape[1] / downsample
+        y_size_ds = image_shape[0] / downsample
+        x_ds = x / downsample
+        y_ds = y / downsample
+
+        # Create figure with two subplots
+        fig, (ax_full, ax_zoom) = plt.subplots(1, 2, figsize=(14, 6))
+
+        # --- Full image ---
+        fig_full, _ = self.target_img.show(downsample=downsample, title=None)
+        plt.close(fig_full)
+        full_image = fig_full.axes[0].images[0]
+        ax_full.imshow(full_image.get_array(), cmap=full_image.get_cmap(), origin='lower',
+                    vmin=full_image.get_clim()[0], vmax=full_image.get_clim()[1])
+        ax_full.set_title(f"Full Image of {self.target_img.objname}")
+        ax_full.plot(x_ds, y_ds, 'ro', markersize=6, label='Requested Position')
+
+        if matched_xy is not None:
+            matched_x_ds, matched_y_ds = matched_xy[0] / downsample, matched_xy[1] / downsample
+            ax_full.plot(matched_x_ds, matched_y_ds, 'bo', markersize=6, label='Matched Source')
+
+        ax_full.legend()
+
+        # --- Zoomed view ---
+        fig_zoom, _ = self.target_img.show(downsample=1, title=None)
+        plt.close(fig_zoom)
+        zoom_image = fig_zoom.axes[0].images[0]
+        ax_zoom.imshow(zoom_image.get_array(), cmap=zoom_image.get_cmap(), origin='lower',
+                    vmin=zoom_image.get_clim()[0], vmax=zoom_image.get_clim()[1])
+        ax_zoom.set_title("Zoom on Target")
+
+        # Draw red circle for requested position
+        pixel_scale = np.abs(self.target_img.wcs.pixel_scale_matrix[0, 0]) * 3600  # arcsec/pixel
+        radius_pixel = matching_radius_arcsec / pixel_scale
+        circ = plt.Circle((x, y), radius_pixel, color='red', fill=False, linestyle='--',
+                        linewidth=2.5, alpha=0.7)
+        ax_zoom.add_patch(circ)
+        ax_zoom.text(x, y + 1.5 * radius_pixel, 'Requested', color='red', fontsize=13,
+                    ha='center', va='center')
+
+        # If matched, draw blue circle
+        if matched_xy is not None:
+            matched_x, matched_y = matched_xy
+            circ_match = plt.Circle((matched_x, matched_y), radius_pixel, color='blue', fill=False,
+                                    linestyle='-', linewidth=2.0, alpha=0.8)
+            ax_zoom.add_patch(circ_match)
+            ax_zoom.text(matched_x, matched_y - 1.5 * radius_pixel, 'Matched', color='blue', fontsize=13,
+                        ha='center', va='center')
+
+        # Zoom limits
+        ax_zoom.set_xlim(x - zoom_radius_pixel, x + zoom_radius_pixel)
+        ax_zoom.set_ylim(y - zoom_radius_pixel, y + zoom_radius_pixel)
+
+        fig.tight_layout()
+        plt.show()
+        return fig
+
+
+#%%
+if __name__ == "__main__":
+    catalog_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/NGC6121/7DT01/m400/calib_7DT01_NGC6121_20240722_010055_m400_100.com.fits.cat'
+    self = TIPCatalog(path=catalog_path, catalog_type ='all', load = True)
+
+    #sources =  self.data[(self.data['X_IMAGE'] < 4600) & (self.data['Y_IMAGE'] < 3100) & (self.data['X_IMAGE'] > 4400) & (self.data['Y_IMAGE'] > 2900)]
+    # source = sources[4]
+    # target_ra = source['X_WORLD']
+    # target_dec = source['Y_WORLD']
+    # matching_radius_arcsec = 3
+    #self.show_source(target_ra=target_ra, target_dec=target_dec, downsample=4, zoom_radius_pixel=50)
+    #target_img = ScienceImage(self.target_path, telinfo = self.estimate_telinfo(self.target_path), load = False)
+    #tbl = self.search_sources(x = 233.890152, y = -67.523614423, unit = 'coord')
+    #self.load_from_target_path()
+    #self.save_info()
+    #A = self.find_corresponding_fits()
     
-
-# %% Example
-if __name__ =='__main__':
-    # 7DT Tile id 
-    C = Catalog('T00000', catalog_type = 'GAIAXP')
-    print(C, "RA = %.2f Dec = %.2f, FOV_RA = %.2f, FOV_DEC = %.2f" % (C.ra, C.dec, C.fov_ra, C.fov_dec))
-    # Gaia catalog of NGC1566 with FOV_RA = 1.3, FOV_DEC = 0.9
-    C = Catalog('NGC1566', catalog_type = 'GAIA', fov_ra = 1.3, fov_dec = 0.9)
-    # APASS catalog of given ra dec with FOV_RA = 1.3, FOV_DEC = 0.9
-    C = Catalog(ra = 10.68458, dec = 41.26917, catalog_type = 'APASS', fov_ra = 1.3, fov_dec = 0.9)
-    print(C.data)
-    # Once queried, the data is saved in catalog_archive, so it can be called without querying again
-    # One can query reference sources with the mag_lower, mag_upper, and some keyword arguments. kwargs need to be list of [lower limit, upper limit]
-    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)
-    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15, ra = [10, 11], dec = [40, 41])
 # %%

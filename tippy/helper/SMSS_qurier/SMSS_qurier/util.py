@@ -97,7 +97,7 @@ def plot_rectangle_on_sky(center_ra, center_dec, x_size, y_size, pixel_scale, co
     plt.plot([ra_min, ra_min], [dec_min, dec_max], color=color)  # Left edge
     plt.plot([ra_max, ra_max], [dec_min, dec_max], color=color)  # Right edge
 
-def plot_pointings_on_sky(pointings, center_ra, center_dec, x_size, y_size, pixel_scale, output_path, title=None, save=True):
+def plot_pointings_on_sky(pointings, center_ra, center_dec, x_size, y_size, pixel_scale, target_outpath, title=None, save=True):
     """
     Plot the pointings and the central rectangle on the sky.
     
@@ -108,7 +108,7 @@ def plot_pointings_on_sky(pointings, center_ra, center_dec, x_size, y_size, pixe
     - x_size (int): X size of the image in pixels.
     - y_size (int): Y size of the image in pixels.
     - pixel_scale (float): Pixel scale in arcseconds per pixel.
-    - output_path (str): Path to save the plot image.
+    - target_outpath (str): Path to save the plot image.
     - title (str, optional): Title of the plot.
     - save (bool, optional): Whether to save the plot (default is True).
     """
@@ -143,8 +143,8 @@ def plot_pointings_on_sky(pointings, center_ra, center_dec, x_size, y_size, pixe
     plt.tight_layout()
     # Save or show the plot
     if save:
-        plt.savefig(output_path)
-        print(f"Plot saved to {output_path}")
+        plt.savefig(target_outpath)
+        print(f"Plot saved to {target_outpath}")
     # else:
         # plt.show()
     plt.show()

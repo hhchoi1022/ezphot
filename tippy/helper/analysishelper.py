@@ -157,10 +157,10 @@ class AnalysisHelper():
                         R = 'standard::r',
                         I = 'standard::i',
                         u = 'sdssu',
-                        g = 'ps1::g',
-                        r = 'ps1::r',
-                        i = 'ps1::i',
-                        z = 'ps1::z',
+                        g = 'sdss::g',
+                        r = 'sdss::r',
+                        i = 'sdss::i',
+                        z = 'sdss::z',
                         ATLAS_c = 'atlasc',
                         ATLAS_o = 'atlaso'
                         )
@@ -172,9 +172,9 @@ class AnalysisHelper():
                         R = 'GROUND_COUSINS_R',
                         I = 'GROUND_COUSINS_I',
                         u = 'SDSS_u',
-                        g = 'PS1_g',
-                        r = 'PS1_r',
-                        i = 'PS1_i',
+                        g = 'SDSS_g',
+                        r = 'SDSS_r',
+                        i = 'SDSS_i',
                         z = 'SDSS_z',
                         ATLAS_c = 'sdssg',
                         ATLAS_o = 'sdssr'
@@ -378,7 +378,7 @@ class AnalysisHelper():
         nu = self.c * 1e8 / wl_AA
         return nu
 
-    def lflux_to_nuflux(self, lflux, wl_AA):
+    def lflux_to_nuflux(self, f_lamb, wl_AA):
         '''
         parameters
         ----------
@@ -393,10 +393,10 @@ class AnalysisHelper():
         -----
         -----
         '''
-        f_nu = lflux  * wl_AA * wl_AA*1e-8 / c
+        f_nu = f_lamb  * wl_AA * wl_AA*1e-8 / c
         return f_nu
 
-    def nuflux_to_lflux(self, nuflux, wl_AA):
+    def nuflux_to_lflux(self, f_nu, wl_AA):
         '''
         parameters
         ----------
@@ -411,7 +411,7 @@ class AnalysisHelper():
         -----
         -----
         '''
-        f_lamb = nuflux * c / wl_AA / wl_AA / 1e-8
+        f_lamb = f_nu * c / wl_AA / wl_AA / 1e-8
         return f_lamb
 
     def fnu_to_ABmag(self, f_nu):
@@ -431,7 +431,7 @@ class AnalysisHelper():
         mag = -2.5*np.log10(f_nu)-48.6
         return mag
 
-    def flamb_to_ABmag(self, f_lamb, wave_AA):
+    def flamb_to_ABmag(self, f_lamb, wl_AA):
 
         '''
         parameters
@@ -446,10 +446,39 @@ class AnalysisHelper():
         -----
         -----
         '''
-        f_nu = self.nuflux_to_lflux(f_lamb, wave_AA)
+        f_nu = self.nuflux_to_lflux(f_lamb, wl_AA)
         mag = -2.5*np.log10(f_nu)-48.6
         return mag
+    
+    def flambSI_to_ABmag(self, f_lamb_SI, wl_AA):
+        """
+        Convert flux density in W / (nm * m²) at a given wavelength [Å] 
+        to AB magnitude.
 
+        Parameters
+        ----------
+        f_lamb_SI : float or array-like
+            Spectral flux density in W / (nm * m²)
+        wl_AA : float or array-like
+            Wavelength in Angstrom (Å)
+
+        Returns
+        -------
+        ABmag : float or array-like
+            AB magnitude
+        """
+        # Convert flux from W / (nm·m²) to erg / (s·cm²·Å)
+        # 1 W = 1e7 erg/s, 1 m² = 1e4 cm², 1 nm = 10 Å
+        f_lambda_cgs = f_lamb_SI * 1e7 / 1e4 / 10  # ? erg / s / cm² / Å
+
+        # Convert to f_nu
+        f_nu = f_lambda_cgs * (wl_AA**2) / const.c.cgs.value / 1e8  # Hz^-1
+
+        # Convert to AB magnitude
+        ABmag = -2.5 * np.log10(f_nu) - 48.6
+
+        return ABmag
+    
     def ABmag_to_fnu(self, ABmag):
         '''
         parameters
@@ -467,7 +496,7 @@ class AnalysisHelper():
         fnu = 10**((ABmag + 48.6)/(-2.5)) 
         return fnu
 
-    def ABmag_to_flamb(self, ABmag, wl):
+    def ABmag_to_flamb(self, ABmag, wl_AA):
 
         '''
         parameters
@@ -484,8 +513,37 @@ class AnalysisHelper():
         -----
         '''
         fnu = self.ABmag_to_fnu(ABmag)
-        flamb = self.nuflux_to_lflux(fnu, wl)
+        flamb = self.nuflux_to_lflux(fnu, wl_AA)
         return flamb
+    
+    def ABmag_to_flambSI(self, ABmag, wl_AA):
+        """
+        Convert AB magnitude to flux density in W / (nm * m²)
+        at a given wavelength in Ångström.
+
+        Parameters
+        ----------
+        ABmag : float or array-like
+            AB magnitude
+        wl_AA : float or array-like
+            Wavelength in Angstrom (Å)
+
+        Returns
+        -------
+        f_lambda_SI : float or array-like
+            Spectral flux density in W / (nm * m²)
+        """
+        # Convert AB mag to f_nu in cgs units (erg / s / cm² / Hz)
+        f_nu = 10**((-ABmag - 48.6) / 2.5)
+
+        # Convert f_nu to f_lambda in erg / s / cm² / Å
+        f_lambda_cgs = f_nu * const.c.cgs.value / (wl_AA**2) * 1e8
+
+        # Convert f_lambda to W / (nm * m²)
+        # 1 erg = 1e-7 J, 1 cm² = 1e-4 m², 1 Å = 0.1 nm
+        f_lambda_SI = f_lambda_cgs * 1e-7 * 1e4 * 10  # W / nm / m²
+
+        return f_lambda_SI
 
     def mag_to_flux(self, mag, zp = 25):
         '''
@@ -505,6 +563,28 @@ class AnalysisHelper():
         flux = 10**((mag -zp)/-2.5)
         return flux
 
+    def magerr_to_fluxerr(self, flux, magerr):
+        """
+        Convert magnitude uncertainty to flux uncertainty.
+
+        Parameters
+        ----------
+        flux : float or array-like
+            Flux value (e.g., in erg/s/cm^2/Hz or arbitrary units)
+        magerr : float or array-like
+            Magnitude uncertainty
+
+        Returns
+        -------
+        fluxerr : float or array-like
+            Flux uncertainty
+        """
+        flux = np.asarray(flux)
+        magerr = np.asarray(magerr)
+
+        fluxerr = flux * np.log(10) / 2.5 * magerr
+        return fluxerr        
+
     def flux_to_mag(self, flux, zp = 25):
         '''
         parameters
@@ -521,6 +601,34 @@ class AnalysisHelper():
         '''
         mag = -2.5*np.log10(flux) + zp
         return mag
+    
+    def fluxerr_to_magerr(self, flux, fluxerr):
+        """
+        Convert flux uncertainty to magnitude uncertainty.
+
+        Parameters
+        ----------
+        flux : float or array-like
+            Flux value
+        fluxerr : float or array-like
+            Flux uncertainty
+
+        Returns
+        -------
+        magerr : float or array-like
+            Magnitude uncertainty
+        """
+        flux = np.asarray(flux)
+        fluxerr = np.asarray(fluxerr)
+        
+        # Avoid division by zero or negative flux
+        with np.errstate(divide='ignore', invalid='ignore'):
+            magerr = 2.5/np.log(10) * (fluxerr / flux)
+            magerr = np.where(flux <= 0, np.nan, magerr)  # nan if flux is zero or negative
+
+        return magerr
+    
+
 
     def interpolate_spline(self, x, y, weight = None, k = 3, smooth = 0.05, show = False):
         '''

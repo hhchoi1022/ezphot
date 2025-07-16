@@ -56,14 +56,14 @@ PHOT_AUTOAPERS   3.0,3.0        # <estimation>,<measurement> minimum apertures
                                 # for MAG_AUTO and MAG_PETRO
 PHOT_FLUXFRAC    0.5            # flux fraction[s] used for FLUX_RADIUS
  
-SATUR_LEVEL      65536.0        # level (in ADUs) at which arises saturation
+SATUR_LEVEL      60000.0        # level (in ADUs) at which arises saturation
 SATUR_KEY        SATURATE       # keyword for saturation level (in ADUs)
  
 MAG_ZEROPOINT    0.0            # magnitude zero-point
 MAG_GAMMA        4.0            # gamma of emulsion (for photographic scans)
 GAIN             1.15           # detector gain in e-/ADU
 GAIN_KEY         EGAIN          # keyword for detector gain in e-/ADU
-PIXEL_SCALE      0.92           # size of pixel in arcsec (0=use FITS WCS info)
+PIXEL_SCALE      0.9196           # size of pixel in arcsec (0=use FITS WCS info)
  
 #------------------------- Star/Galaxy Separation ----------------------------
  

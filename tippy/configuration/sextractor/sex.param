@@ -1,14 +1,18 @@
 NUMBER                   #Running object number                                    
+FLUX_AUTO                #Flux within a Kron-like elliptical aperture               [count]
+FLUXERR_AUTO             #RMS error for AUTO flux                                   [count]
 FLUX_APER[5]             #Flux vector within fixed circular aperture(s)             [count]
 FLUXERR_APER[5]          #RMS error vector for aperture flux(es)                    [count]
-MAG_AUTO                #Kron-like elliptical aperture magnitude                   [mag]
-MAGERR_AUTO             #RMS error for AUTO magnitude                              [mag]
+MAG_AUTO                 #Kron-like elliptical aperture magnitude                   [mag]
+MAGERR_AUTO              #RMS error for AUTO magnitude                              [mag]
 MAG_APER[5]              #Fixed aperture magnitude vector                           [mag]
 MAGERR_APER[5]           #RMS error vector for fixed aperture mag.                  [mag]
 FWHM_IMAGE               #FWHM assuming a gaussian core                             [pixel]
 FWHM_WORLD               #FWHM assuming a gaussian core                             [deg]
 X_IMAGE                  #Object position along x                                   [pixel]
 Y_IMAGE                  #Object position along y                                   [pixel]
+XWIN_IMAGE               #Windowed position estimate along x                        [pixel]
+YWIN_IMAGE               #Windowed position estimate along y                        [pixel]
 X_WORLD                  #Barycenter position along world x axis                    [deg]
 Y_WORLD                  #sBarycenter position along world y axis                    [deg]
 ALPHA_J2000              #Right ascension of barycenter (J2000)                     [deg]
@@ -16,7 +20,22 @@ DELTA_J2000              #Declination of barycenter (J2000)                     
 FLAGS                    #Extraction flags                                         
 CLASS_STAR
 THRESHOLD
+A_IMAGE
+B_IMAGE
+ELONGATION               #A_IMAGE/B_IMAGE                                          
+ELLIPTICITY              #1 - B_IMAGE/A_IMAGE    
+KRON_RADIUS              #Kron apertures in units of A or B   
+FLUX_RADIUS              #Fraction-of-light radii                                   [pixel]
+THRESHOLD                #Detection threshold above background                      [count]
+THETA_IMAGE              #Position angle (CCW/x)                                    [deg]
+THETA_WORLD              #Position angle (CCW/world-x)                              [deg]
+THETA_SKY                #Position angle (east of north) (native)                   [deg]
+THETA_J2000              #Position angle (east of north) (J2000)                    [deg]
+BACKGROUND               #Background at centroid position                           [count]
+FLUX_MAX                 #Peak flux above background                                [count]
+ISOAREA_IMAGE 
 #NIMAFLAGS_ISO
+
 
 #ID_PARENT                Parent ID (before deblending)                            
 #EXT_NUMBER               FITS extension number                                    

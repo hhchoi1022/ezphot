@@ -1,234 +1,416 @@
 #%%
+from pathlib import Path
 from astropy.time import Time
 from astropy.io import fits
 import json
 import os
+from typing import Union
+from types import SimpleNamespace
 
 from tippy.configuration import TIPConfig
 from tippy.helper import Helper
 from tippy.image import Logger
 from tippy.image import BaseImage
 #%%
-# === Status Class ===
-class Status:
-    """ Manages the image processing steps status """
-    
-    PROCESS_STEPS = [
-        "biascor", "darkcor", "combine", "master"
-    ]
-    
-    def __init__(self, **kwargs):
-        """ Initialize status dictionary with uniform dict structure. """
-        # Initialize all status with dict(status=False, update_time=None)
-        self.status = {step: dict(status=False, update_time=None) for step in self.PROCESS_STEPS}
-        
-        # Allow overriding default values
-        for key, value in kwargs.items():
-            if key in self.status:
-                self.status[key] = value
 
-    def update(self, process_name):
-        """ Mark a process as completed and update timestamp. """
-        if process_name in self.status:
-            if self.status[process_name]['status'] == False:
-                self.status[process_name] = dict(status=True, update_time=Time.now().iso)
+from dataclasses import dataclass, asdict
+from astropy.time import Time
+from typing import Dict
+
+@dataclass
+class StepStatus:
+    status: bool = False
+    update_time: str = None
+
+    def update(self, status=True):
+        self.status = status
+        self.update_time = Time.now().isot
+
+    def to_dict(self):
+        return asdict(self)
+    
+class Status:
+    """Manages image processing steps with dot-access and timestamp tracking."""
+
+    PROCESS_STEPS = [
+        "BIASCOR", "DARKCOR"
+    ]
+
+    def __init__(self, **kwargs):
+        # Initialize all process steps
+        self._steps = {}
+        for step in self.PROCESS_STEPS:
+            value = kwargs.get(step, None)
+            if isinstance(value, dict):
+                self._steps[step] = {
+                    "status": value.get("status", False),
+                    "update_time": value.get("update_time", None)
+                }
+            else:
+                self._steps[step] = {
+                    "status": False,
+                    "update_time": None
+                }
+
+    def __getattr__(self, name):
+        if '_steps' in self.__dict__ and name in self.__dict__['_steps']:
+            return self.__dict__['_steps'][name]
+        raise AttributeError(f"'Status' object has no attribute '{name}'")
+    
+    def __setattr__(self, name, value):
+        if name == "_steps":
+            super().__setattr__(name, value)
+        elif '_steps' in self.__dict__ and name in self.__dict__['_steps']:
+            if isinstance(value, dict) and "status" in value:
+                self.__dict__['_steps'][name] = value
+            else:
+                raise ValueError(f"Status for '{name}' must be a dict with 'status' and 'update_time'")
+        else:
+            super().__setattr__(name, value)
+
+    def update(self, process_name, status: bool = True):
+        if process_name in self._steps:
+            self._steps[process_name]["status"] = status
+            self._steps[process_name]["update_time"] = Time.now().isot
         else:
             raise ValueError(f"Invalid process name: {process_name}")
 
     def to_dict(self):
-        return self.status
+        return self._steps
 
     @classmethod
     def from_dict(cls, data):
         return cls(**data)
 
     def __repr__(self):
-        """ Represent process status as a readable string """
-        status_list = [f"{key}: {value}" for key, value in self.status.items()]
-        return "Status =====================================\n  " + "\n  ".join(status_list) + "\n==================================================="
+        lines = [f"{k}: {v}" for k, v in self._steps.items()]
+        return "Status ============================================\n  " + "\n  ".join(lines) + "\n==================================================="
 
-# === Info Class ===
 class Info:
-    """Stores metadata of a FITS image in a uniform dict format."""
-    
     INFO_FIELDS = [
-        "PATH", "OBSERVATORY", "CCD", "TELKEY", "TELNAME",
-        "OBSDATE", "NAXIS1", "NAXIS2", "PIXELSCALE", "OBJNAME", 
-        "IMGTYPE", "FILTER", "BINNING", "EXPTIME", "GAIN"
+        "SAVEPATH", "BIASPATH", "DARKPATH", "OBSERVATORY", 
+        "CCD", "TELKEY", "TELNAME", "OBSDATE", "NAXIS1", "NAXIS2", "PIXELSCALE", 
+        "OBJNAME", "IMGTYPE", "FILTER", "BINNING", "EXPTIME", "GAIN", "EGAIN"
     ]
     
     def __init__(self, **kwargs):
-        """ Initialize info dictionary with uniform dict structure. """
-        # Initialize all info fields with dict(value=None, update_time=None)
-        self.info = {field: None for field in self.INFO_FIELDS}
-        
-        # Allow overriding default values
-        for key, value in kwargs.items():
-            if key in self.info:
-                self.info[key] = value
+        self._fields = {field: kwargs.get(field, None) for field in self.INFO_FIELDS}
 
+    def __getattr__(self, name):
+        if name in self._fields:
+            return self._fields[name]
+        raise AttributeError(f"'Info' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name == "_fields":
+            super().__setattr__(name, value)
+        elif name in self._fields:
+            self._fields[name] = value
+        else:
+            raise AttributeError(f"'Info' object has no attribute '{name}'")
+    
     def update(self, key, value):
-        """ Update an info field and set the update time. """
-        if key in self.info:
-            self.info[key] = value
+        if key in self._fields:
+            self._fields[key] = value
         else:
-            print(f'WARNING: Invalid key: {key}')
-    
-    def add(self, key, value):
-        """ Add a new info field and set the update time. """
-        if key not in self.info:
-            self.info[key] = value
-        else:
-            print(f'WARNING: Invalid key: {key}')
-    
-    def remove(self, key):
-        """ Remove an info field. """
-        if key in self.info:
-            del self.info[key]
-        else:
-            print(f'WARNING: Invalid key: {key}')
+            print(f"WARNING: Invalid key: {key}")
 
     def to_dict(self):
-        return self.info
+        return self._fields
 
     @classmethod
     def from_dict(cls, data):
-        """ Create an Info instance from a dictionary. """
-        return cls(**{key: data.get(key) for key in cls.INFO_FIELDS})
+        return cls(**{k: data.get(k) for k in cls.INFO_FIELDS})
 
     def __repr__(self):
-        """ Represent info as a readable string. """
-        info_list = [f"{key}: {value}" for key, value in self.info.items()]
-        return "Info =====================================\n  " + "\n  ".join(info_list) + "\n==================================================="
-
+        lines = [f"{k}: {v}" for k, v in self._fields.items()]
+        return "Info ============================================\n  " + "\n  ".join(lines) + "\n==================================================="
 
 #%%
 class CalibrationImage(BaseImage):
     """ Handles FITS image processing and tracks its status """
 
-    def __init__(self, path: str, telinfo : dict, status : Status = None, savedir : str = None):
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"File not found: {path}")
-
+    def __init__(self, path: Union[Path, str], telinfo : dict, status: Status = None, load: bool = True):
+        path = Path(path)  
         super().__init__(path = path, telinfo = telinfo)
-
-        if self.imgtype not in ['BIAS', 'DARK', 'FLAT']:
-            raise ValueError(f"Invalid image type: {self.imgtype}")
         
-        filename = os.path.basename(path)
-        if savedir:
-            self.savedir = savedir
-        else:
-            self.savedir = os.path.join(self.config['CALIBDATA_DIR'], self.observatory, self.telkey, self.imgtype, self.telname)
-        if not os.path.exists(self.savedir):
-            os.makedirs(self.savedir, exist_ok=True)
-            
-        self.statuspath = os.path.join(self.savedir, filename.split('.fits')[0] + '.calibim_status')
-        self.infopath = os.path.join(self.savedir, filename.split('.fits')[0] + '.calibim_info')
-        self.loggerpath = os.path.join(self.savedir, filename.split('.fits')[0] + '.calibim_log')
-        self.logger = Logger(logger_name = self.loggerpath).log()
-                
+        # Initialize Status and Info
+        self.status = Status()
+        self._logger = None
+        
         # Initialize or load status
-        if status:
-            # If status is provided, use it
-            self.status = status
-        # Otherwise, load from file or create a new instance
-        elif os.path.exists(self.statuspath):
-            self.status = self.load_status()
-        else:
-            self.status = Status()
+        if load:
+            # Load status and info if paths exist
+            self.load_header_from_path()
+            if self.savepath.statuspath is not None:
+                if self.savepath.statuspath.exists():
+                    self.status = self.load_status()
+            else:
+                raise ValueError("WARNING: Status path is not defined. Check the required header keys: OBSERVATORY, TELKEY, IMGTYPE, TELNAME")
             self._check_status()
-        self.save_status()
-        if os.path.exists(self.infopath):
-            self.info = self.load_info()
-        else:
-            self.info = Info(PATH = path, OBSERVATORY = self.telinfo['obs'], CCD = self.telinfo['ccd'], 
-                             TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate, 
-                             NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'], 
-                             OBJNAME = self.objname, IMGTYPE = self.imgtype, FILTER = self.filter, 
-                             BINNING = self.binning, EXPTIME = self.exptime, GAIN = self.gain)
-            self._check_info()
-        self.save_info()
         
+        if status is not None:
+            self.status = status
+
     def __repr__(self):
-        return f"CalibrationImage(type = {self.imgtype}, binning = {self.binning}, gain = {self.gain}, path = {os.path.basename(self.path)})"
+        return (
+            f"CalibrationImage(\n"
+            f"  is_exists   = {self.is_exists},\n"
+            f"  is_saved    = {self.is_saved},\n"
+            f"  data_load   = {self.is_data_loaded},\n"
+            f"  header_load = {self.is_header_loaded},\n"
+            f"  imgtype     = {self.imgtype},\n"
+            f"  exptime     = {self.exptime},\n"
+            f"  filter      = {self.filter},\n"
+            f"  path        = {self.path},\n"
+            f"  savedir     = {self.savedir}\n"
+            f")"
+        )  
         
-    def write(self, path : str):
-        """ Write fits CalibrationImage into fits file """
-        data = self.data
+    @property
+    def logger(self):
+        if self._logger is None and self.savepath.loggerpath is not None:
+            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+        return self._logger
+    
+    @property
+    def info(self):
+        """ Register necessary info fields """
+        info = Info(
+            SAVEPATH = str(self.savepath.savepath), OBSERVATORY =  self.telinfo['obs'], CCD = self.telinfo['ccd'],
+            TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate,
+            NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'],
+            OBJNAME = self.objname, IMGTYPE = self.imgtype, FILTER = self.filter,
+            BINNING = self.binning, EXPTIME = self.exptime, GAIN = self.gain, EGAIN = self.egain)
         header = self.header
-        status = self.status
-        os.makedirs(os.path.dirname(path), exist_ok = True)
-        fits.writeto(path, data, header, overwrite=True)
-        self.logger.info(f"CalibrationImage is written to {path}")
-        updated_instance = CalibrationImage(path = path, telinfo = self.telinfo, status = status)
-        updated_instance.save_status()
-        return updated_instance
+        if header is not None:
+            for key in info.INFO_FIELDS:
+                if key in self.key_variants:
+                    key_variants = self.key_variants[key]
+                    for variant in key_variants:
+                        if variant in header:
+                            info.update(key, header[variant])
+                        else:
+                            pass
+        return info
+    
+    @property
+    def savedir(self) -> Union[Path, None]:
+        """
+        Return the directory where this image and associated files will be saved.
+        If a custom savedir was set, use it. Otherwise, build from config and metadata.
+        Returns None if required fields are not available.
+        """
+        # Use manually set savedir if provided
+        if hasattr(self, '_savedir') and self._savedir is not None:
+            return self._savedir
+
+        # Check required fields
+        required_fields = [self.observatory, self.telkey, self.imgtype, self.telname]
+        if any(v is None for v in required_fields):
+            return self.path.parent  # Return parent directory if any field is missing
+
+        # Default construction from config
+        base_dir = Path(self.config['CALIBDATA_DIR'])
+        return base_dir / self.observatory / self.telkey / self.imgtype / self.telname
+
+    @savedir.setter
+    def savedir(self, value: Union[str, Path]):
+        """
+        Set a custom directory for saving the image and associated products.
+        """
+        if value is None:
+            self._savedir = None
+            return
+        value = Path(value)
+        if value.is_file():
+            value = value.parent
+        self._savedir = value
+
+    @property
+    def savepath(self):
+        """Dynamically builds save paths based on current header info"""
+        savedir = self.savedir
+        filename = self.path.name
+        return SimpleNamespace(
+            savedir=savedir,
+            savepath=savedir / filename,
+            statuspath=savedir / (filename + '.status'),
+            infopath=savedir / (filename + '.info'),
+            bpmaskpath= savedir / (filename + '.bpmask'),
+            loggerpath=savedir / (filename + '.log')
+        )
         
+    @property
+    def is_saved(self):
+        """ Check if the image has been saved """
+        if self.savepath.savepath is None:
+            return False
+        return self.savepath.savepath.exists()
+    
+    @property
+    def connected_files(self) -> set:
+        """
+        Return all associated files that would be deleted in `remove()` if remove_connected_files=True,
+        excluding the main FITS file (`self.path`).
+
+        Only includes existing files, not directories.
+
+        Returns
+        -------
+        set of Path: All connected auxiliary files.
+        """
+        connected = set()
+
+        # Files in same directory that start with the same base name (excluding self.path)
+        base_dir = self.path.parent
+        base_name = self.path.name
+        for f in base_dir.iterdir():
+            if f.is_file() and f.name.startswith(base_name) and f != self.path:
+                connected.add(f)
+
+        # Files explicitly listed in savepath (excluding self.path)
+        for p in vars(self.savepath).values():
+            if isinstance(p, Path) and p.exists() and p.is_file() and p != self.path:
+                connected.add(p)
+
+        return connected
+    
+
+    def copy(self) -> "CalibrationImage":
+        """
+        Return an in-memory deep copy of this CalibrationImage instance,
+        without writing to disk or changing the file path.
+        Equivalent to dict.copy() or Table.copy().
+        """
+        from copy import deepcopy
+
+        new_instance = CalibrationImage(
+            path=self.path,
+            telinfo=deepcopy(self.telinfo),
+            status=Status.from_dict(self.status.to_dict()),
+            load=False
+        )
+
+        # Manually copy loaded data and header
+        new_instance.data = None if self.data is None else self.data.copy()
+        new_instance.header = None if self.header is None else self.header.copy()
+
+        # Preserve savedir if manually set
+        if hasattr(self, '_savedir') and self._savedir is not None:
+            new_instance._savedir = self._savedir
+            
+        return new_instance
+
+    def write(self):
+        """Write CalibrationImage data to FITS file."""
+        if self.data is None:
+            raise ValueError("Cannot save CalibrationImage: data is not registered.")
+        if self.savepath.savepath is None:
+            raise ValueError("Cannot save CalibrationImage: save path is not defined.")
+        os.makedirs(self.savepath.savedir, exist_ok=True)
+        fits.writeto(self.savepath.savepath, self.data, self.header, overwrite=True)
+        self.save_status()
+        self.save_info()
+        self.path = self.savepath.savepath  # Update path to saved file
+        self.loaded = True
+    
+    def remove(self, 
+               remove_main: bool = True, 
+               remove_connected_files: bool = True,
+               skip_exts: list = [],
+               verbose: bool = False) -> dict:
+        """
+        Remove the main FITS file and/or associated connected files.
+
+        Parameters
+        ----------
+        remove_main : bool
+            If True, remove the main FITS file (self.path)
+        remove_connected_files : bool
+            If True, remove associated files (status, mask, coadd, etc.)
+        skip_exts : list
+            List of file extensions to skip (e.g. ['.png', '.cat'])
+        verbose : bool
+            If True, print removal results
+
+        Returns
+        -------
+        dict
+            {file_path (str): success (bool)} for each file attempted
+        """
+        removed = {}
+
+        def try_remove(p: Union[str, Path]):
+            p = Path(p)
+            if p.exists() and p.is_file():
+                try:
+                    p.unlink()
+                    if verbose:
+                        print(f"[REMOVE] {p}")
+                    return True
+                except Exception as e:
+                    if verbose:
+                        print(f"[FAILED] {p} - {e}")
+                    return False
+            return False
+
+        # Remove main FITS file
+        if remove_main and self.path and self.path.is_file():
+            removed[str(self.path)] = try_remove(self.path)
+
+        # Remove connected files
+        if remove_connected_files:
+            for f in self.connected_files:
+                if f.suffix in skip_exts:
+                    if verbose:
+                        print(f"[SKIP] {f} (skipped due to extension)")
+                    continue
+                removed[str(f)] = try_remove(f)
+
+        return removed
+
+    
     def load_status(self):
         """ Load processing status from a JSON file """
-        with open(self.statuspath, 'r') as f:
+        if self.savepath.statuspath is None:
+            raise ValueError("Cannot load CalibrationImage status: save path is not defined.")
+        with open(self.savepath.statuspath, 'r') as f:
             status_data = json.load(f)
         return Status.from_dict(status_data)
 
     def save_status(self):
         """ Save processing status to a JSON file """
-        with open(self.statuspath, 'w') as f:
+        if self.savepath.statuspath is None:    
+            raise ValueError("Cannot save CalibrationImage status: save path is not defined.")    
+        with open(self.savepath.statuspath, 'w') as f:
             json.dump(self.status.to_dict(), f, indent=4)
 
     def update_status(self, process_name):
         """ Mark a process as completed and update time """
         self.status.update(process_name)
-        self.save_status()
-        
-    def load_info(self):
-        """ Load processing info from a JSON file """
-        with open(self.infopath, 'r') as f:
-            info_data = json.load(f)
-        return Info.from_dict(info_data)
     
     def save_info(self):
         """ Save processing info to a JSON file """
-        with open(self.infopath, 'w') as f:
+        if self.savepath.infopath is None:
+            raise ValueError("Cannot save CalibrationImage info: save path is not defined.")
+        with open(self.savepath.infopath, 'w') as f:
             json.dump(self.info.to_dict(), f, indent=4)
-    
-    def update_info(self, key, value):
-        """ Update processing info """
-        self.info.update(key, value)
-        self.save_info()
-        
-    def add_info(self, key, value):
-        """ Add a new info field """
-        self.info.add(key, value)
-        self.save_info()
-    
-    def remove_info(self, key):
-        """ Remove an info field """
-        self.info.remove(key)
-        self.save_info()
-        
-    def _check_info(self):
-        """ Register necessary info fields """
-        header = self.header
-        for key in self.info.INFO_FIELDS:
-            if key in self.key_variants:
-                key_variants = self.key_variants[key]
-                for variant in key_variants:
-                    if variant in header:
-                        self.info.update(key, header[variant])
-                    else:
-                        pass
-        self.save_info()
-    
-    def _check_status(self):
-        """ Dummy function to check if all status are completed """
-        pass
 
-# %%
+    def _check_status(self):
+        pass
+#%%
 if __name__ == '__main__':
-    path = '/home/hhchoi1022/data/obsdata/7DT_C361K_gain2750_1x1/7DT02/2025-02-02_gain2750/7DT02_20250203_101702_DARK_m700_1x1_100.0s_0000.fits'
-    original_path = '/lyman/data1/obsdata/7DT02/2025-02-17_gain2750/7DT02_20250218_105201_BIAS_m700_1x1_0.0s_0000.fits'
-    C = CalibrationImage(path = original_path, telinfo =  Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
+    import time
+    start = time.time()
+    original_path = Path('/data/data1/obsdata/7DT02/2025-02-02_gain2750/7DT02_20250203_110212_BIAS_m700_1x1_0.0s_0001.fits')
+    C = CalibrationImage(path=original_path, telinfo=Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
+    #C.header = fits.getheader(original_path)
+    #self = C
     
-    self = C
+    #self.load()
+    #self.add_header(TELESCOP = '7DT02')
+    #self.add_header(IMGTYPE = 'DARK')
+    #print(f"Elapsed time: {time.time() - start:.2f} seconds")
+
 # %%

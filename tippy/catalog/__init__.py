@@ -1,2 +1,4 @@
 
-from .catalog import Catalog
+from .referencecatalog import ReferenceCatalog
+from .catalog import TIPCatalog
+from .catalogdataset import TIPCatalogDataset

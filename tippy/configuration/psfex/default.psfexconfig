@@ -12,9 +12,9 @@ NEWBASIS_TYPE    None            # Create new basis: NONE, PCA_INDEPENDENT
                                  # or PCA_COMMON
 NEWBASIS_NUMBER  8               # Number of new basis vectors
 PSF_SAMPLING     0.0             # Sampling step in pixel units (0.0 = auto)
-PSF_PIXELSIZE    1.0             # Effective pixel size in pixel step units
+PSF_PIXELSIZE    1.0             # Effective pixel size in pixel step uni
 PSF_ACCURACY     0.01            # Accuracy to expect from PSF "pixel" values
-PSF_SIZE         15,15           # Image size of the PSF model
+PSF_SIZE         25,25           # Image size of the PSF model
 PSF_RECENTER     Y               # Allow recentering of PSF-candidates Y/N ?
 MEF_TYPE        INDEPENDENT      # INDEPENDENT or COMMON
  
@@ -49,7 +49,7 @@ BADPIXEL_NMAX      0            # Maximum number of bad pixels allowed
  
 #----------------------- PSF homogeneisation kernel --------------------------
 
-HOMOBASIS_TYPE     GAUSS-LAGUERRE         # NONE or GAUSS-LAGUERRE
+HOMOBASIS_TYPE     None        # NONE or GAUSS-LAGUERRE
 HOMOBASIS_NUMBER   10           # Kernel basis number or parameter
 HOMOBASIS_SCALE    1.0          # GAUSS-LAGUERRE beta parameter
 HOMOPSF_PARAMS     2.0, 3.0     # Moffat parameters of the idealised PSF

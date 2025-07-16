@@ -1,27 +1,66 @@
 
 # %%
-from astropy.io import fits
-from astropy.io import ascii
-from astropy.coordinates import SkyCoord
-from astropy.time import Time
-from astropy.table import Table
-from astropy.table import Row
-from astropy.wcs import WCS
-from astropy.io.fits import Header
-import astroscrappy as cr
-from typing import List, Union, Optional, Tuple
-from pathlib import Path
-
-from tqdm import tqdm
+# Standard library
 import os
-import numpy as np
-from astropy.table import unique
-import inspect
-import subprocess
 import re
+import glob
+import json
+import shutil
+import inspect
 import warnings
-import json 
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import List, Union, Optional, Tuple
+import inspect
+from pympler import asizeof 
+
+# External libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse, Rectangle
+from tqdm import tqdm
+from numba import jit
+
+# Astropy
+import astropy.units as u
+import astropy.io.fits as fits
+from astropy.io.fits import Header
+from astropy.io import ascii
+from astropy.time import Time
+from astropy.table import Table, Row, unique
+from astropy.coordinates import SkyCoord
+from astropy.stats import SigmaClip, sigma_clipped_stats
+from astropy.wcs import WCS
+from astropy.wcs.utils import proj_plane_pixel_scales
+
+
+# Photutils
+from photutils.background import (
+    Background2D,
+    MedianBackground,
+    MeanBackground,
+    SExtractorBackground
+)
+from photutils.segmentation import detect_threshold, detect_sources
+from typing import Union, Optional, Literal
+from pathlib import Path
+import numpy as np
+from astropy.io import fits
+from astropy.convolution import convolve, convolve_fft, Gaussian2DKernel
+from astropy.time import Time
+from astropy.io.fits import Header
+import os
+
+# Astroscrappy
+import astroscrappy as cr
+
+# SEP
+import sep
+
+# Custom config
 from tippy.configuration import TIPConfig
+
 
 # Suppress all warnings
 warnings.filterwarnings('ignore')
@@ -81,16 +120,32 @@ class PhotometryHelper(TIPConfig):
         return Path(self.config['PSFEX_CONFIGDIR'])
         
     def __repr__(self):
-        methods = [f'PhotometryHelper.{name}()\n' for name, method in inspect.getmembers(
-            PhotometryHelper, predicate=inspect.isfunction) if not name.startswith('_')]
-        txt = '[Methods]\n'+''.join(methods)
-        return txt
-    
+        cls = self.__class__
+        methods = [
+            f'{cls.__name__}.{name}()\n'
+            for name, method in inspect.getmembers(cls, predicate=inspect.isfunction)
+            if not name.startswith('_') and method.__qualname__.startswith(cls.__name__)
+        ]
+        return '[Methods]\n' + ''.join(methods)
+
     def print(self, string, do_print : bool = False):
         print(string) if do_print else None
         
     # Load information
-
+    def load_fits(self,
+                  target_img: Union[str, Path, np.ndarray]):
+        if isinstance(target_img, (str, Path)):
+            target_img = Path(target_img)
+            with fits.open(target_img) as hdul:
+                target_data = hdul[0].data
+                target_header = hdul[0].header
+            return target_data, target_header
+        elif isinstance(target_img, np.ndarray):
+            target_data = target_img
+            return target_data, None
+        else:
+            raise TypeError("target_img must be a Path, string, or NumPy array.")
+    
     def get_imginfo(self, 
                     filelist: Union[List[str], List[Path]],
                     keywords: Optional[List[str]] = None,
@@ -178,7 +233,7 @@ class PhotometryHelper(TIPConfig):
         all_coll = all_coll[np.isin(filelist_queried, filelist_inputted)]
 
         # Sort the final result to match the original filelist order
-        file_order = {f: i for i, f in enumerate(filelist)}
+        file_order = {str(f): i for i, f in enumerate(filelist)}
         sort_idx = np.argsort([file_order.get(f, float('inf')) for f in all_coll['file']])
         all_coll = all_coll[sort_idx]
 
@@ -283,6 +338,109 @@ class PhotometryHelper(TIPConfig):
         else:
             raise FileNotFoundError(f'{file_key} not found :{file_path}')
 
+
+    def merge_header(self, 
+                    new_header, 
+                    original_header, 
+                    include_keys=['*'], 
+                    exclude_keys=['PV*']):
+        """
+        Merge original header metadata into a new header, preserving WCS from the new header.
+
+        Parameters
+        ----------
+        new_header : astropy.io.fits.Header
+            Header from the reprojected (SWarped) image (valid WCS).
+        original_header : astropy.io.fits.Header
+            Original image header with instrument metadata.
+        include_keys : list of str, optional
+            List of keys to include from the original header. Wildcards like '*' are supported.
+            Default is ['*'] (include all).
+        exclude_keys : list of str, optional
+            List of keys to exclude from the original header. Wildcards like '*' are supported.
+            Default is [''] (exclude none).
+
+        Returns
+        -------
+        merged_header : astropy.io.fits.Header
+        """
+        from astropy.wcs import WCS
+        from fnmatch import fnmatch
+
+        # WCS keywords to preserve from reprojected header
+        wcs_keys = WCS(new_header).to_header(relax=True).keys()
+
+        # Start from a copy of new_header (with valid WCS)
+        merged_header = new_header.copy()
+
+        # Check if a key should be included
+        def should_include(key):
+            return (any(fnmatch(key, pattern) for pattern in include_keys) and
+                    not any(fnmatch(key, pattern) for pattern in exclude_keys))
+
+        # Add non-WCS original keywords
+        for key, val in original_header.items():
+            if (key not in wcs_keys and key not in merged_header and should_include(key)):
+                if original_header[key] is not None:
+                    merged_header[key] = val
+
+        return merged_header
+
+
+    def estimate_telinfo(self, 
+                         path: Union[str, Path]):
+        path = Path(path)
+        header = fits.getheader(path)
+        # For 7DT
+        if '7DT' in str(path):
+            telescope = '7DT'
+            if header['NAXIS1'] < 13000:
+                ccd = 'C361K'
+            else:
+                ccd = 'C516k'
+            if 'GAIN' in header.keys():
+                if str(header['GAIN']) == '2750':
+                    readoutmode = 'HIGH'
+                else:
+                    readoutmode = 'LOW'
+            else:
+                print('WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.')
+                readoutmode = 'HIGH'
+                
+            if 'XBINNING' in header.keys():
+                if str(header['XBINNING']) == '1':
+                    binning = 1
+                else:
+                    binning = 2
+            else:
+                print('WARNING: XBINNING keyword not found in header. Assuming binning = 1.')
+                binning = 1
+        # For KCT
+        elif 'KCT' in str(path):
+            telescope = 'KCT'
+            if 'INSTRUME' in header.keys():
+                if 'STX' in header['INSTRUME']:
+                    ccd = 'STX16803'
+                else:
+                    ccd = 'ASI1600MM'
+            readoutmode = None
+            binning = 1
+        
+        # For RASA36
+        elif 'RASA' in str(path):
+            telescope = 'RASA36'
+            ccd = 'KL4040'
+            ############### ADD HERE FOR IDENTIFYING RASA36 RNMODE ###############
+            if 'CAMMODE' in header.keys():
+                if header['CAMMODE'] == 'HIGH':
+                    readoutmode = 'HIGH'
+                else:
+                    readoutmode = 'MERGE'
+            binning = 1
+                
+        telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
+        return telinfo
+
     def get_telinfo(self,
                     telescope: Optional[str] = None, 
                     ccd: Optional[str] = None, 
@@ -359,16 +517,20 @@ class PhotometryHelper(TIPConfig):
         obs_info = filter_by_column(all_obsinfo, key_observatory, telescope)
         if len(obs_info) == 0:
             raise AttributeError(f"No data found for telescope: {telescope}")
+        elif len(obs_info) == 1:
+            return obs_info[0]
 
         # Select CCD if not provided and multiple options exist
-        if ccd is None and len(set(obs_info[key_ccd])) > 1:
+        if ccd is None and len(obs_info[key_ccd]) > 1:
             ccd = prompt_choice(set(obs_info[key_ccd]), "Multiple CCDs found. Choose one")
         obs_info = filter_by_column(obs_info, key_ccd, ccd)
 
         # Select readout mode if not provided and multiple options exist
-        if readoutmode is None and len(set(obs_info[key_mode])) > 1:
+        if readoutmode is None and len(obs_info[key_mode]) > 1:
             readoutmode = prompt_choice(set(obs_info[key_mode]), "Multiple modes found. Choose one")
         obs_info = filter_by_column(obs_info, key_mode, readoutmode)
+        if len(obs_info) == 1:
+            return obs_info[0]
 
         # Select binning if not provided and multiple options exist
         if key_binning in obs_info.colnames and binning is None and len(set(obs_info[key_binning])) > 1:
@@ -421,6 +583,35 @@ class PhotometryHelper(TIPConfig):
                     config_dict[key] = value
         return config_dict
 
+    def flexible_time_parser(self, value) -> Time:
+        # If already a Time instance
+        if isinstance(value, Time):
+            return value
+
+        # If datetime object
+        if isinstance(value, datetime):
+            return Time(value)
+
+        # Convert to string
+        value = str(value).strip()
+
+        # Handle raw digits: YYMMDD or YYYYMMDD
+        if value.isdigit():
+            if len(value) == 6:  # YYMMDD
+                value = '20' + value
+            if len(value) == 8:  # YYYYMMDD
+                value = f"{value[:4]}-{value[4:6]}-{value[6:]}"
+            return Time(value, format='iso')
+
+        # Handle ISO or ISO with time
+        try:
+            return Time(value, format='iso', scale='utc')
+        except ValueError:
+            pass
+
+        # Fallback to automatic parsing
+        return Time(value)
+
     # Calculation
     
     def to_skycoord(self, 
@@ -466,6 +657,12 @@ class PhotometryHelper(TIPConfig):
         return SkyCoord(ra=ra, dec=dec, unit=units, frame=frame)
 
 
+    def to_native(self, value):
+        """Ensure array is a NumPy array with native byte order. Return as-is if not an array."""
+        if not isinstance(value, np.ndarray):
+            return value
+        return value.astype(value.dtype.newbyteorder('=')) if value.dtype.byteorder not in ('=', '|') else value
+
     def bn_median(self, masked_array: np.ma.MaskedArray, axis: Optional[int] = None) -> np.ndarray:
         """
 
@@ -494,18 +691,64 @@ class PhotometryHelper(TIPConfig):
         # construct a masked array result, setting the mask from any NaN entries
         return np.ma.array(med, mask=np.isnan(med))
 
+    def report_memory(self, threshold_mb: float = 1.0, sort: bool = True, top_n: int = 20):
+        frame = inspect.currentframe().f_back
+        var_sizes = []
+
+        for name, val in frame.f_locals.items():
+            try:
+                size_mb = asizeof.asizeof(val) / 1024**2
+                if size_mb > threshold_mb:
+                    var_sizes.append((name, size_mb))
+            except Exception as e:
+                print(e)
+
+        if sort:
+            var_sizes.sort(key=lambda x: -x[1])
+
+        print(f"[Memory usage by variable > {threshold_mb} MB]")
+        for name, size in var_sizes[:top_n]:
+            print(f"{name}: {size:.2f} MB")
+
+    def report_memory_process(self):
+        import psutil
+        import os
+        process = psutil.Process(os.getpid())
+        mem = process.memory_info().rss / (1024 ** 2)
+        print(f"[MEMORY REPORT] Memory usage: {mem:.2f} MB")
+
     # Table operation
+    def cross_match_pix(self,
+                        obj_coords: np.ndarray,
+                        sky_coords: np.ndarray,
+                        max_distance_pix: float = 1.0
+                        ):
+        from scipy.spatial import cKDTree
+        import numpy as np
+
+        # Build KDTree
+        tree = cKDTree(sky_coords)
+
+        # Query the nearest neighbors
+        distance, idx = tree.query(obj_coords, distance_upper_bound=max_distance_pix)
+
+        # Filter valid matches (those within the max distance)
+        matched = distance != np.inf
+        obj_idx = np.where(matched)[0]
+        sky_idx = idx[matched]
+        no_matched_idx = np.where(~matched)[0]
+        return obj_idx, sky_idx, no_matched_idx
 
     def cross_match(self, 
-                    obj_catalog: SkyCoord, 
-                    sky_catalog: SkyCoord, 
+                    obj_coords: SkyCoord, 
+                    sky_coords: SkyCoord, 
                     max_distance_second: float = 5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         '''
         parameters
         ----------
-        1. obj_catalog : SkyCoord
+        1. obj_coords : SkyCoord
                         source coordinates to be matched 
-        2. sky_catalog : SkyCoord
+        2. sky_coords : SkyCoord
                         coordinates of reference stars
         3. max_distance_second : float
                         separation distance in seconds which indicates tolerance for matching (5)
@@ -522,11 +765,11 @@ class PhotometryHelper(TIPConfig):
         notes 
         -----
         To extract matched objects from each catalog, 
-        USE : obj_catalog[matched_object_idx] & sky_catalog[matched_catalog_idx]
+        USE : obj_coords[matched_object_idx] & sky_coords[matched_catalog_idx]
         -----
         '''
         from astropy.coordinates import match_coordinates_sky
-        closest_ids, closest_dists, closest_dist3d = match_coordinates_sky(obj_catalog, sky_catalog)
+        closest_ids, closest_dists, closest_dist3d = match_coordinates_sky(obj_coords, sky_coords)
         max_distance = max_distance_second/3600
         matched_object_idx = []
         matched_catalog_idx = []
@@ -539,42 +782,88 @@ class PhotometryHelper(TIPConfig):
                 no_matched_object_idx.append(i)
         return matched_object_idx, matched_catalog_idx, no_matched_object_idx
 
-    def group_table(self, tbl: Table, key: str, tolerance: float = 0.1) -> Table:
-        '''
-        parameters
+    # def group_table(self, tbl: Table, key: str, tolerance: float = 0.1) -> Table:
+    #     '''
+    #     parameters
+    #     ----------
+    #     group components in the {table} with the difference of the {key} smaller than the {tolerance}
+
+    #     returns 
+    #     -------
+    #     1. groupped tables
+
+    #     notes 
+    #     -----
+
+    #     -----
+    #     '''
+    #     from astropy.table import Table
+    #     from astropy.table import vstack
+    #     i = 0
+    #     table = tbl.copy()
+    #     table['group'] = 0
+    #     groupped_tbl = Table()
+    #     while len(table) >= 1:
+    #         group_idx = (np.abs(table[0][key] - table[key]) < tolerance)
+    #         group_tbl = table[group_idx]
+    #         group_tbl['group'] = i
+    #         remove_idx = np.where(group_idx == True)
+    #         table.remove_rows(remove_idx)
+    #         groupped_tbl = vstack([group_tbl, groupped_tbl])
+    #         i += 1
+
+    #     return groupped_tbl
+
+    def group_table(self, tbl: Table, key: str, tolerance: float = 0.1):
+        """
+        Group rows in the table where values of the specified key are within a given tolerance.
+
+        Parameters
         ----------
-        group components in the {table} with the difference of the {key} smaller than the {tolerance}
+        tbl : Table
+            The input astropy table.
+        key : str
+            The column name to group by, using value proximity within tolerance.
+        tolerance : float
+            The maximum difference between values to consider them in the same group.
 
-        returns 
+        Returns
         -------
-        1. groupped tables
-
-        notes 
-        -----
-
-        -----
-        '''
-        from astropy.table import Table
-        from astropy.table import vstack
-        i = 0
+        Table
+            Table with an additional 'group' column indicating group ID.
+        """
+        import numpy as np
+        from astropy.table import Table, vstack
+        import pandas as pd
         table = tbl.copy()
-        table['group'] = 0
-        groupped_tbl = Table()
-        while len(table) >= 1:
-            group_idx = (np.abs(table[0][key] - table[key]) < tolerance)
-            group_tbl = table[group_idx]
-            group_tbl['group'] = i
-            remove_idx = np.where(group_idx == True)
-            table.remove_rows(remove_idx)
-            groupped_tbl = vstack([group_tbl, groupped_tbl])
+        table[key] = pd.to_numeric(table[key], errors='coerce')
+        table.sort(key)  # Sort by key to make grouping faster
+        group_ids = np.full(len(table), -1, dtype=int)
+
+        current_group = 0
+        i = 0
+
+        while np.any(group_ids == -1):
+            idx_unassigned = np.where(group_ids == -1)[0]
+            ref_idx = idx_unassigned[0]
+            ref_val = table[key][ref_idx]
+
+            # Assign all unassigned rows close to ref_val
+            close_idx = idx_unassigned[np.abs(table[key][idx_unassigned] - ref_val) < tolerance]
+            group_ids[close_idx] = current_group
+
+            current_group += 1
             i += 1
 
-        return groupped_tbl
+        table['group'] = group_ids
+        return table.group_by('group')
+
 
     def match_table(self, 
                     tbl1: Table, 
                     tbl2: Table, 
-                    key: str, 
+                    key1: str,
+                    key2: str, 
                     tolerance: float = 0.01) -> Table:
         '''
         parameters
@@ -597,9 +886,9 @@ class PhotometryHelper(TIPConfig):
 
         matched_tbl = Table()
         for obs in tbl1:
-            ol_idx = (np.abs(obs[key] - tbl2[key]) < tolerance)
+            ol_idx = (np.abs(obs[key1] - tbl2[key2]) < tolerance)
             if True in ol_idx:
-                closest_idx = np.argmin(np.abs(obs[key]-tbl2[key]))
+                closest_idx = np.argmin(np.abs(obs[key1]-tbl2[key2]))
                 compare_tbl = tbl2[closest_idx]
                 # join(obs, compare_tbl, keys = 'observatory', join_type = 'outer')
                 compare_tbl = hstack([obs, compare_tbl])
@@ -695,10 +984,48 @@ class PhotometryHelper(TIPConfig):
         return tbl
 
     # Image processing
+    def make_regions(self, path: Union[str, Path], 
+                    list_x: List[float],
+                    list_y: List[float],
+                    radius: Union[List[float], float] = 5.0,
+                    type: str = 'pixel',
+                    color: str = 'green',
+                    verbose: bool = True):
+        """
+        Save a DS9 region file with circular regions.
+
+        Parameters:
+        - path: output region file path
+        - list_x: list of x or RA coordinates
+        - list_y: list of y or Dec coordinates
+        - radius: single float or list of floats; unit depends on `type`
+        - type: 'pixel' or 'fk5'
+        - color: DS9 region color
+        - verbose: whether to print confirmation
+        """
+        region_file = Path(path)
+        if isinstance(radius, float):
+            radius = [float(radius)] * len(list_x)
+
+        # Write region file
+        with open(region_file, 'w') as f:
+            f.write('# Region file format: DS9 version 4.1\n')
+            f.write(f'global color={color} font="helvetica 10 normal" '
+                    'select=1 highlite=1 edit=1 move=1 delete=1 include=1 fixed=0\n')
+
+            for x, y, r in zip(list_x, list_y, radius):
+                r_str = f'{r}' if type == 'pixel' else f'{r}"'
+                f.write(f'circle({x},{y},{r_str})\n')
+
+        if verbose:
+            self.print(f'Saved region file to {region_file}', verbose)
+
+
+    
     def calculate_rotang(self, 
                          target_img: Union[str, Path], 
                          update_header: bool = False, 
-                         print_output: bool = False):
+                         verbose: bool = False):
         from astropy.io import fits
         from astropy.wcs import WCS
         import numpy as np
@@ -733,17 +1060,80 @@ class PhotometryHelper(TIPConfig):
             hdul[0].header['ROTANG'] = pa_degrees
             hdul.writeto(target_img, overwrite=True)
         hdul.close()
-        self.print(f"Camera rotation angle (Position Angle) toward North: {pa_degrees:.2f} degrees", print_output)
+        self.print(f"Camera rotation angle (Position Angle) toward North: {pa_degrees:.2f} degrees", verbose)
+        
+    def is_wcs_equal(self, wcs1, wcs2, tolerance = 1e-4, check_sip=False):
+        """
+        Compare whether two WCS headers represent the same projection.
+
+        Parameters
+        ----------
+        header1, header2 : astropy.io.fits.Header
+            FITS headers to compare.
+        rtol : float
+            Relative tolerance for comparing matrix values.
+        atol : float
+            Absolute tolerance for comparing CRVAL and CRPIX.
+        check_sip : bool
+            Whether to compare SIP distortion terms.
+
+        Returns
+        -------
+        bool
+            True if WCS match within tolerances.
+        """
+
+        # Check CRVAL (sky center)
+        if not np.allclose(wcs1.wcs.crval, wcs2.wcs.crval, atol=tolerance):
+            return False
+
+        # Check CRPIX (reference pixel)
+        if not np.allclose(wcs1.wcs.crpix, wcs2.wcs.crpix, atol=tolerance):
+            return False
+
+        # Check PC/CD matrix
+        if wcs1.wcs.has_pc() and wcs2.wcs.has_pc():
+            matrix1 = wcs1.wcs.pc
+            matrix2 = wcs2.wcs.pc
+        elif wcs1.wcs.has_cd() and wcs2.wcs.has_cd():
+            matrix1 = wcs1.wcs.cd
+            matrix2 = wcs2.wcs.cd
+        else:
+            return False  # Incompatible or missing projection matrix
+
+        if not np.allclose(matrix1, matrix2, atol=tolerance):
+            return False
+
+        # # Check projection type
+        # if wcs1.wcs.ctype != wcs2.wcs.ctype:
+        #     return False
+
+        # Check pixel scale
+        scale1 = proj_plane_pixel_scales(wcs1)
+        scale2 = proj_plane_pixel_scales(wcs2)
+        if not np.allclose(scale1, scale2, atol=tolerance):
+            return False
+
+        # Check SIP distortion terms
+        if check_sip:
+            sip1 = getattr(wcs1.sip, 'a', None)
+            sip2 = getattr(wcs2.sip, 'a', None)
+            if (sip1 is not None) or (sip2 is not None):
+                if (sip1 is None) or (sip2 is None):
+                    return False
+                if not np.allclose(sip1, sip2, atol=tolerance):
+                    return False
+        return True
         
     def img_cutout(self, 
                    target_img: Union[str, Path, np.ndarray], 
                    target_header: Optional[Header] = None,  # When target_img is np.ndarray
-                   output_path: Optional[str] = None,
+                   target_outpath: Optional[str] = None,
                    xsize: float = 0.9, 
                    ysize: float = 0.9,
                    xcenter: Optional[float] = None, 
                    ycenter: Optional[float] = None, 
-                   print_output: bool = True):
+                   verbose: bool = True):
         '''
         parameters
         ----------
@@ -758,13 +1148,13 @@ class PhotometryHelper(TIPConfig):
         4. xcenter, ycenter : optional, int or (float or str)
                         (int) pixel coordinate of the center
                         (float or str) RA/Dec coordinate of the center
-        5. print_output : bool
+        5. verbose : bool
                         If True, prints progress messages
                         
         returns 
         -------
         1. If target_img is str:
-            output_path : str
+            target_outpath : str
                 {abspath} of the cutout image
         2. If target_img is np.ndarray:
             (cutouted.data, cutouted_header) : tuple
@@ -775,7 +1165,7 @@ class PhotometryHelper(TIPConfig):
         from astropy.io import fits
         import os
         
-        self.print('Start image cutout... \n', print_output)
+        self.print('Start image cutout... \n', verbose)
         
         if isinstance(target_img, (str, Path)):
             target_img = Path(target_img)
@@ -818,13 +1208,13 @@ class PhotometryHelper(TIPConfig):
             cutouted_hdu.header['CUTOTIME'] = (Time.now().isot, 'Time of cutout operation.')
             cutouted_hdu.header['CUTOFILE'] = (str(target_img), 'Original file path before cutout')
 
-            if not output_path:
-                output_path = target_img.parent / f'cutout_{target_img.name}'
-            cutouted_hdu.writeto(output_path, overwrite=True)
+            if not target_outpath:
+                target_outpath = target_img.parent / f'cutout_{target_img.name}'
+            cutouted_hdu.writeto(target_outpath, overwrite=True)
 
             hdul.close()
-            self.print(f'Image cutout complete: {output_path}\n', print_output)
-            return str(output_path)
+            self.print(f'Image cutout complete: {target_outpath}\n', verbose)
+            return str(target_outpath)
         else:  # If input was a NumPy array
             cutouted_header = target_header.copy()
             cutouted_header.update(cutouted.wcs.to_header())
@@ -833,7 +1223,7 @@ class PhotometryHelper(TIPConfig):
             cutouted_header['CUTOUT'] = (True, 'Image has been cut out.')
             cutouted_header['CUTOTIME'] = (Time.now().isot, 'Time of cutout operation.')
             cutouted_header['CUTOFILE'] = ('Array input', 'Original data was an array')
-            self.print('Image cutout complete \n', print_output)
+            self.print('Image cutout complete \n', verbose)
             return cutouted.data, cutouted_header
 
     def img_astroalign(self, 
@@ -841,9 +1231,9 @@ class PhotometryHelper(TIPConfig):
                        reference_img: Union[str, Path, np.ndarray], 
                        target_header: Optional[Header] = None, 
                        reference_header: Optional[Header] = None, 
-                       output_path: Optional[str] = None,
-                       detection_sigma: float = 5, 
-                       print_output: bool = True):
+                       target_outpath: Optional[str] = None,
+                       detection_sigma: float = 5.0, 
+                       verbose: bool = True):
 
         """
         WARNING: Astroalign fails when the image size is too large and distortion exists in the images.
@@ -861,13 +1251,13 @@ class PhotometryHelper(TIPConfig):
                         Required if reference_img is np.ndarray
         5. detection_sigma : float
                         Detection threshold for astroalign (default: 5)
-        6. print_output : bool
+        6. verbose : bool
                         If True, prints progress messages (default: True)
 
         returns
         ----------
         1. If target_img is str:
-            output_path : str
+            target_outpath : str
                 Absolute path of the aligned image
         2. If target_img is np.ndarray:
             (aligned_data, aligned_header) : tuple
@@ -880,7 +1270,7 @@ class PhotometryHelper(TIPConfig):
         from astropy.io import fits
         import os
 
-        self.print('Start image alignment... \n', print_output)
+        self.print('Start image alignment... \n', verbose)
 
         # Convert paths
         if isinstance(target_img, (str, Path)):
@@ -917,14 +1307,34 @@ class PhotometryHelper(TIPConfig):
 
         # Prepare WCS and header update
         reference_wcs = WCS(reference_header)
-        wcs_hdr = reference_wcs.to_header(relax=True)
+        wcs_hdr = reference_wcs.to_header(relax=False)
         for key in ['DATE-OBS', 'MJD-OBS', 'RADESYS', 'EQUINOX']:
             wcs_hdr.remove(key, ignore_missing=True)
-        
         target_header.update(wcs_hdr)
+        
+        if reference_wcs.wcs.has_pc():
+            # Use PC matrix if available
+            linear_matrix = reference_wcs.wcs.pc
+        elif reference_wcs.wcs.has_cd():
+            # Use CD matrix if PC is not available
+            linear_matrix = reference_wcs.wcs.cd
+        else:
+            # Fallback to CDELT and CRPIX if no CD matrix is available
+            linear_matrix = np.array([[reference_wcs.wcs.cdelt[0], 0],
+                                        [0, reference_wcs.wcs.cdelt[1]]])
+        # Safely update header with PC matrix, explicitly set even 0s
+        target_header['PC1_1'] = linear_matrix[0, 0]
+        target_header['PC1_2'] = linear_matrix[0, 1]
+        target_header['PC2_1'] = linear_matrix[1, 0]
+        target_header['PC2_2'] = linear_matrix[1, 1]
+            
+        target_header['CD1_1'] = linear_matrix[0, 0]
+        target_header['CD1_2'] = linear_matrix[0, 1]
+        target_header['CD2_1'] = linear_matrix[1, 0]
+        target_header['CD2_2'] = linear_matrix[1, 1]
+        
         target_data = np.array(target_data, dtype=target_data.dtype.newbyteorder('<'))
         reference_data = np.array(reference_data, dtype=reference_data.dtype.newbyteorder('<'))
-
 
         try:
             # Perform image alignment using astroalign
@@ -942,13 +1352,13 @@ class PhotometryHelper(TIPConfig):
                 aligned_target.header['ALIGFILE'] = (str(target_img), 'Original file path before alignment')
                 aligned_target.header['ALIGREF'] = (str(reference_img), 'Reference image path')
 
-                if not output_path:
-                    output_path = target_img.parent / f'align_{target_img.name}'
-                os.makedirs(output_path.parent, exist_ok=True)
-                fits.writeto(output_path, aligned_target.data, aligned_target.header, overwrite=True)
+                if not target_outpath:
+                    target_outpath = target_img.parent / f'align_{target_img.name}'
+                os.makedirs(target_outpath.parent, exist_ok=True)
+                fits.writeto(target_outpath, aligned_target.data, aligned_target.header, overwrite=True)
 
-                self.print('Image alignment complete \n', print_output)
-                return str(output_path)
+                self.print('Image alignment complete \n', verbose)
+                return str(target_outpath)
             else:
                 # Return the aligned data and header
                 aligned_header = target_header.copy()
@@ -959,27 +1369,27 @@ class PhotometryHelper(TIPConfig):
                 aligned_header['ALIGFILE'] = ('Array input', 'Original data was an array')
                 aligned_header['ALIGREF'] = ('Array input', 'Reference data was an array')
 
-                self.print('Image alignment complete \n', print_output)
-                return aligned_data, aligned_header
+                self.print('Image alignment complete \n', verbose)
+                return aligned_data, aligned_header, footprint
 
         except Exception as e:
-            self.print('Failed to align the image. Check the image quality and the detection_sigma value.', print_output)
+            self.print('Failed to align the image. Check the image quality and the detection_sigma value.', verbose)
             raise e
 
     def img_scale(self,
                   target_img: Union[str, Path, np.ndarray],
                   target_header: Optional[Header] = None,
-                  output_path: Optional[str] = None,
+                  target_outpath: Optional[str] = None,
                   zp_target: Optional[float] = None,
                   zp_reference: float = 25,
                   zp_key: str = 'ZP_AUTO',
-                  print_output: bool = True):
+                  verbose: bool = True):
 
         """
         Scale the input image data to a desired reference zeropoint.
         """
 
-        self.print(f"Start image scaling to ZP={zp_reference}...", print_output)
+        self.print(f"Start image scaling to ZP={zp_reference}...", verbose)
 
         # Convert target_img to Path if it's a string
         if isinstance(target_img, (str, Path)):
@@ -993,20 +1403,20 @@ class PhotometryHelper(TIPConfig):
                 target_data = hdul[0].data
                 target_header = hdul[0].header
 
-            # Determine zp_target from the header
-            if zp_key in target_header:
-                zp_target = float(target_header[zp_key])
-            else:
-                raise ValueError(
-                    f"Zeropoint not found in the FITS header under key '{zp_key}'. "
-                    "Please provide zp_target or ensure the header has this keyword."
-                )
+            # Priority to zp_target
+            if zp_target is None:
+                if zp_key in target_header:
+                    zp_target = float(target_header[zp_key])
+                else:
+                    raise ValueError(
+                        f"Zeropoint not found in the FITS header under key '{zp_key}', and 'zp_target' is not provided."
+                    )
 
             # Calculate scale factor
             zp_diff = zp_target - zp_reference
             scaling_factor = 100 ** (-zp_diff / 5)
             self.print(f"Applying scaling factor: {scaling_factor:.6f} "
-                    f"(zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+                    f"(zp_target={zp_target}, zp_reference={zp_reference})", verbose)
 
             scaled_data = target_data * scaling_factor
 
@@ -1018,30 +1428,30 @@ class PhotometryHelper(TIPConfig):
             target_header['ZPSCFILE'] = (str(target_img), 'Original file path before scaling')
 
             # Write scaled data to a new FITS file
-            if not output_path:
-                output_path = target_img.parent / f"scaled_{target_img.name}"
-            os.makedirs(output_path.parent, exist_ok=True)
-            fits.writeto(output_path, scaled_data, target_header, overwrite=True)
+            if not target_outpath:
+                target_outpath = target_img.parent / f"scaled_{target_img.name}"
+            os.makedirs(target_outpath.parent, exist_ok=True)
+            fits.writeto(target_outpath, scaled_data, target_header, overwrite=True)
 
-            self.print(f"Image scaling complete. Output: {output_path}", print_output)
-            return str(output_path)
+            self.print(f"Image scaling complete. Output: {target_outpath}", verbose)
+            return str(target_outpath)
 
         elif isinstance(target_img, np.ndarray):
             target_data = target_img
 
             if target_header is not None:
-                if zp_key in target_header:
-                    zp_target = float(target_header[zp_key])
-                else:
-                    raise ValueError(
-                        f"{zp_key} not found in the provided target_header, "
-                        "and 'zp_target' was also not supplied."
-                    )
+                if zp_target is None:
+                    if zp_key in target_header:
+                        zp_target = float(target_header[zp_key])
+                    else:
+                        raise ValueError(
+                            f"{zp_key} not found in the provided target_header, and 'zp_target' was also not supplied."
+                        )
 
                 # Calculate scale factor
                 zp_diff = zp_target - zp_reference
                 scaling_factor = 100 ** (-zp_diff / 5)
-                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", verbose)
 
                 scaled_data = target_data * scaling_factor
 
@@ -1063,139 +1473,284 @@ class PhotometryHelper(TIPConfig):
                 # Calculate scale factor
                 zp_diff = zp_target - zp_reference
                 scaling_factor = 100 ** (-zp_diff / 5)
-                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", print_output)
+                self.print(f"Applying scaling factor: {scaling_factor:.6f} (zp_target={zp_target}, zp_reference={zp_reference})", verbose)
 
                 scaled_data = target_data * scaling_factor
-                self.print("Image scaling complete (returning array only).", print_output)
+                self.print("Image scaling complete (returning array only).", verbose)
                 return scaled_data
 
         else:
             raise TypeError("target_img must be either a FITS file path (string, Path) or a NumPy array.")
 
-    def img_convolve(self,
-                     target_img: Union[str, Path, np.ndarray],
-                     target_header: Optional[Header] = None,
-                     output_path: Optional[str] = None,
-                     fwhm_target: Optional[float] = None,
-                     fwhm_reference: Optional[float] = None,
-                     fwhm_key: str = 'PEEING',
-                     method: str = 'gaussian',
-                     print_output: bool = True):
+    # def img_convolve(self,
+    #                  target_img: Union[str, Path, np.ndarray],
+    #                  input_type: Literal['image', 'error'] = 'image',
+    #                  kernel: str = 'gaussian',
+    #                  target_header: Optional[Header] = None,
+    #                  target_outpath: Optional[str] = None,
+    #                  fwhm_target: Optional[float] = None,
+    #                  fwhm_reference: Optional[float] = None,
+    #                  fwhm_key: str = 'PEEING',
+    #                  verbose: bool = True):
 
+    #     """
+    #     Parameters
+    #     ----------
+    #     target_img : str, Path, or np.ndarray
+    #         Path to the FITS file or image data as a NumPy array.
+    #     target_header : astropy.io.fits.Header, optional
+    #         FITS header associated with the image (only when target_img is a NumPy array).
+    #     fwhm_target : float, optional
+    #         FWHM of the target image in pixel scale. If None, will be read from header using fwhm_key.
+    #     fwhm_reference : float
+    #         Desired FWHM after convolution.
+    #     fwhm_key : str
+    #         Header keyword to fetch the FWHM in pixel scale when target_img is a FITS file (default: 'FWHM_AUTO').
+    #     method : str
+    #         Convolution method, currently only supports 'gaussian' (default: 'gaussian').
+    #     verbose : bool
+    #         If True, prints progress messages (default: True).
+
+    #     Returns
+    #     -------
+    #     str or (np.ndarray, astropy.io.fits.Header) or np.ndarray
+    #         - If target_img is a string or Path, returns the path to the convolved FITS file.
+    #         - If target_img is an array and header is provided, returns (convolved_data, header).
+    #         - If target_img is an array without header, returns convolved_data.
+    #     """
+    #     from pathlib import Path
+    #     import numpy as np
+    #     from astropy.io import fits
+    #     from astropy.convolution import convolve, Gaussian2DKernel
+    #     from astropy.time import Time
+    #     import os
+
+    #     self.print(f'Start convolution...', verbose)
+
+    #     # Convert target_img to Path if it's a string
+    #     if isinstance(target_img, (str, Path)):
+    #         target_img = Path(target_img)
+    #         if not target_img.is_file():
+    #             raise FileNotFoundError(f"File {target_img} does not exist.")
+
+    #         # Load data and header from FITS file
+    #         with fits.open(target_img) as hdul:
+    #             data = hdul[0].data
+    #             header = hdul[0].header
+
+    #         # --- Change here: Priority to fwhm_target ---
+    #         if fwhm_target is None:
+    #             if fwhm_key in header:
+    #                 fwhm_target = float(header[fwhm_key])
+    #             else:
+    #                 raise ValueError(f"FWHM not found in header using key '{fwhm_key}', and 'fwhm_target' is not provided.")
+
+    #     elif isinstance(target_img, np.ndarray):
+    #         data = target_img
+    #         if target_header is not None:
+    #             header = target_header
+    #             # --- Change here: Priority to fwhm_target ---
+    #             if fwhm_target is None:
+    #                 if fwhm_key in header:
+    #                     fwhm_target = float(header[fwhm_key])
+    #                 else:
+    #                     raise ValueError(f"{fwhm_key} not found in target_header and 'fwhm_target' is not provided.")
+    #         else:
+    #             header = None
+                
+    #     else:
+    #         raise TypeError("target_img must be either a Path, string (FITS file path), or a NumPy array.")
+
+    #     # Create a Gaussian kernel and convolve the image
+    #     if type(kernel) == str:
+    #         if kernel.lower() == 'gaussian':
+    #             # Calculate the convolution kernel sigma
+    #             sigma_tgt = fwhm_target / 2.355
+    #             sigma_ref = fwhm_reference / 2.355
+    #             #sigma_conv = np.sqrt(max(0, sigma_ref**2 - sigma_tgt**2))
+    #             # Compute kernel sigma
+    #             diff_fwhm = fwhm_reference - fwhm_target
+
+    #             if diff_fwhm < 0.1:
+    #                 self.print(f"FWHM difference ({diff_fwhm:.3f}) is small; applying minimal smoothing kernel (?=0.1)", verbose)
+    #                 sigma_conv = 0.1  # small smoothing kernel to equalize processing
+    #             else:
+    #                 sigma_conv = np.sqrt(sigma_ref**2 - sigma_tgt**2)
+
+    #             self.print(f"Calculated convolution sigma: {sigma_conv:.6f} (method: {kernel})", verbose)
+
+    #             kernel = Gaussian2DKernel(sigma_conv)
+    #             self.print(f'Running convolution with the following values = (FWHM_TARGET = {fwhm_target}, FWHM_REFERENCE = {fwhm_reference})', verbose)
+    #             convolved_image = convolve(data, kernel, normalize_kernel=True)
+    #         else:
+    #             raise ValueError(f"Unsupported convolution kernel '{kernel}'. Currently only 'gaussian' is supported.")
+    #     # Add more convolution methods here
+    #     else:
+    #         from astropy.convolution import convolve_fft
+    #         self.print(f'Running convolution with the input kernel', verbose)
+    #         convolved_image = convolve_fft(data, kernel, boundary='wrap', normalize_kernel=True)
+
+    #     # Output based on the input type
+    #     if isinstance(target_img, Path):
+    #         # Save the convolved image to a new FITS file
+    #         if not target_outpath:
+    #             target_outpath = target_img.parent / f'conv_{target_img.name}'
+    #         os.makedirs(target_outpath.parent, exist_ok=True)
+
+    #         # Update header
+    #         header['CONVOLVE'] = (True, 'Image has been convolved.')
+    #         header['CONVTIME'] = (Time.now().isot, 'Time of convolution operation.')
+    #         header['CONVFILE'] = (str(target_img), 'Original file path before convolution')
+
+    #         hdu = fits.PrimaryHDU(convolved_image, header=header)
+    #         hdu.writeto(target_outpath, overwrite=True)
+            
+    #         self.print(f"Image convolution complete. Output: {target_outpath}", verbose)
+    #         return str(target_outpath), None
+
+    #     elif isinstance(target_img, np.ndarray):
+    #         if target_header is not None:
+    #             self.print('Image convolution complete with header.\n', verbose)
+    #             return convolved_image, target_header
+    #         else:
+    #             self.print('Image convolution complete.\n', verbose)
+    #             return convolved_image, None
+
+
+    def img_convolve(self,
+                    target_img: Union[str, Path, np.ndarray],
+                    input_type: Literal['image', 'error'] = 'image',
+                    kernel: str = 'gaussian',
+                    target_header: Optional[Header] = None,
+                    target_outpath: Optional[str] = None,
+                    fwhm_target: Optional[float] = None,
+                    fwhm_reference: Optional[float] = None,
+                    fwhm_key: str = 'PEEING',
+                    verbose: bool = True):
         """
+        Convolve an image or error map with a Gaussian kernel to match target seeing.
+
         Parameters
         ----------
         target_img : str, Path, or np.ndarray
             Path to the FITS file or image data as a NumPy array.
+        kernel : str
+            Type of kernel to use ('gaussian').
         target_header : astropy.io.fits.Header, optional
-            FITS header associated with the image (only when target_img is a NumPy array).
+            Header of the image (required if target_img is a NumPy array).
+        target_outpath : str, optional
+            Path to save the convolved FITS file.
         fwhm_target : float, optional
-            FWHM of the target image in pixel scale. If None, will be read from header using fwhm_key.
+            Original FWHM of the image.
         fwhm_reference : float
             Desired FWHM after convolution.
         fwhm_key : str
-            Header keyword to fetch the FWHM in pixel scale when target_img is a FITS file (default: 'FWHM_AUTO').
-        method : str
-            Convolution method, currently only supports 'gaussian' (default: 'gaussian').
-        print_output : bool
-            If True, prints progress messages (default: True).
+            Header keyword used to read FWHM from FITS header.
+        input_type : 'image' or 'error'
+            Determines whether to convolve an image or an error map.
+        verbose : bool
+            Print progress messages.
 
         Returns
         -------
         str or (np.ndarray, astropy.io.fits.Header) or np.ndarray
-            - If target_img is a string or Path, returns the path to the convolved FITS file.
-            - If target_img is an array and header is provided, returns (convolved_data, header).
-            - If target_img is an array without header, returns convolved_data.
+            Convolved image or path depending on input.
         """
-        from pathlib import Path
-        import numpy as np
-        from astropy.io import fits
-        from astropy.convolution import convolve, Gaussian2DKernel
-        from astropy.time import Time
-        import os
 
-        self.print(f'Start convolution...', print_output)
+        self.print(f'Start convolution...', verbose)
 
-        # Convert target_img to Path if it's a string
+        # Load image data and header
         if isinstance(target_img, (str, Path)):
             target_img = Path(target_img)
-
             if not target_img.is_file():
                 raise FileNotFoundError(f"File {target_img} does not exist.")
-
-            # Load data and header from FITS file
             with fits.open(target_img) as hdul:
                 data = hdul[0].data
                 header = hdul[0].header
 
-            # If fwhm_target is not provided, try to get it from the header
-            if fwhm_key in header:
-                fwhm_target = float(header[fwhm_key])
-            elif fwhm_target is None:
-                raise ValueError(f"FWHM not found in header using key '{fwhm_key}', and 'fwhm_target' is not provided.")
+            if fwhm_target is None:
+                if fwhm_key in header:
+                    fwhm_target = float(header[fwhm_key])
+                else:
+                    raise ValueError(f"FWHM not found in header using key '{fwhm_key}', and 'fwhm_target' is not provided.")
 
         elif isinstance(target_img, np.ndarray):
             data = target_img
-
             if target_header is not None:
                 header = target_header
-                if fwhm_key in header:
-                    fwhm_target = float(header[fwhm_key])
-                elif fwhm_target is None:
-                    raise ValueError(f"{fwhm_key} not found in target_header and 'fwhm_target' is not provided.")
+                if fwhm_target is None:
+                    if fwhm_key in header:
+                        fwhm_target = float(header[fwhm_key])
+                    else:
+                        raise ValueError(f"{fwhm_key} not found in target_header and 'fwhm_target' is not provided.")
             else:
                 header = None
         else:
             raise TypeError("target_img must be either a Path, string (FITS file path), or a NumPy array.")
 
-        self.print(f'Running convolution with the following values = (FWHM_TARGET = {fwhm_target}, FWHM_REFERENCE = {fwhm_reference})', print_output)
+        # Create Gaussian kernel
+        if isinstance(kernel, str):
+            if kernel.lower() == 'gaussian':
+                sigma_tgt = fwhm_target / 2.355
+                sigma_ref = fwhm_reference / 2.355
+                diff_fwhm = fwhm_reference - fwhm_target
 
-        # Calculate the convolution kernel sigma
-        sigma_tgt = fwhm_target / 2.355
-        sigma_ref = fwhm_reference / 2.355
-        sigma_conv = np.sqrt(max(0, sigma_ref**2 - sigma_tgt**2))
+                if diff_fwhm < 0.1:
+                    self.print(f"FWHM difference ({diff_fwhm:.3f}) is small; applying minimal smoothing kernel (?=0.1)", verbose)
+                    sigma_conv = 0.1
+                else:
+                    sigma_conv = np.sqrt(sigma_ref**2 - sigma_tgt**2)
 
-        self.print(f"Calculated convolution sigma: {sigma_conv:.6f} (method: {method})", print_output)
-
-        # Create a Gaussian kernel and convolve the image
-        if method.lower() == 'gaussian':
-            kernel = Gaussian2DKernel(sigma_conv)
-            convolved_image = convolve(data, kernel, normalize_kernel=True)
-        # Add more convolution methods here
+                self.print(f"Calculated convolution sigma: {sigma_conv:.6f} (method: {kernel})", verbose)
+                kernel = Gaussian2DKernel(sigma_conv)
+            else:
+                raise ValueError(f"Unsupported convolution kernel '{kernel}'. Only 'gaussian' is supported.")
         else:
-            raise ValueError(f"Unsupported convolution method: {method}. Currently only 'gaussian' is supported.")
+            # user-defined kernel
+            kernel = kernel  # already given as array
 
-        # Output based on the input type
+        # Perform convolution
+        if input_type == 'image':
+            convolved_image = convolve(data, kernel, normalize_kernel=True)
+        elif input_type == 'error':
+            kernel_array = kernel.array if isinstance(kernel, Gaussian2DKernel) else kernel
+            var = data**2
+            var_convolved = convolve(var, kernel_array**2, normalize_kernel=True) ## kernel_array or kernel_array**2 ???
+            convolved_image = np.sqrt(var_convolved)
+            self.print("Error map convolved using variance propagation.", verbose)
+        else:
+            raise ValueError("input_type must be either 'image' or 'error'.")
+
+        # Return result
         if isinstance(target_img, Path):
-            # Save the convolved image to a new FITS file
-            if not output_path:
-                output_path = target_img.parent / f'conv_{target_img.name}'
-            os.makedirs(output_path.parent, exist_ok=True)
+            if not target_outpath:
+                target_outpath = target_img.parent / f'conv_{target_img.name}'
+            os.makedirs(target_outpath.parent, exist_ok=True)
 
             # Update header
             header['CONVOLVE'] = (True, 'Image has been convolved.')
-            header['CONVMTD'] = (method, 'Convolution method used.')
             header['CONVTIME'] = (Time.now().isot, 'Time of convolution operation.')
             header['CONVFILE'] = (str(target_img), 'Original file path before convolution')
 
             hdu = fits.PrimaryHDU(convolved_image, header=header)
-            hdu.writeto(output_path, overwrite=True)
-            
-            self.print(f"Image convolution complete. Output: {output_path}", print_output)
-            return str(output_path)
+            hdu.writeto(target_outpath, overwrite=True)
+
+            self.print(f"Image convolution complete. Output: {target_outpath}", verbose)
+            return str(target_outpath), None
 
         elif isinstance(target_img, np.ndarray):
             if target_header is not None:
-                self.print('Image convolution complete with header.\n', print_output)
+                self.print('Image convolution complete with header.\n', verbose)
                 return convolved_image, target_header
             else:
-                self.print('Image convolution complete.\n', print_output)
-                return convolved_image
+                self.print('Image convolution complete.\n', verbose)
+                return convolved_image, None
+
 
     def img_crdetection(self,
                         target_img: Union[str, Path, np.ndarray],
                         target_header: Optional[Header] = None,
-                        output_path: Optional[str] = None,
+                        target_outpath: Optional[str] = None,
                         gain: float = 1.0,
                         readnoise: float = 6.0,
                         sigclip: float = 4.5,
@@ -1204,8 +1759,7 @@ class PhotometryHelper(TIPConfig):
                         niter: int = 4,
                         cleantype: str = 'medmask',
                         fsmode: str = 'median',
-                        verbose: bool = True,
-                        print_output: bool = True):
+                        verbose: bool = True):
 
         """
         Detect and clean cosmic rays in the input image using the astroscrappy package.
@@ -1216,7 +1770,7 @@ class PhotometryHelper(TIPConfig):
         import astroscrappy as cr
         import os
 
-        self.print(f"Start cosmic ray detection...", print_output)
+        self.print(f"Start cosmic ray detection...", verbose)
 
         # Convert target_img to Path if it's a string
         if isinstance(target_img, (str, Path)):
@@ -1240,15 +1794,15 @@ class PhotometryHelper(TIPConfig):
             )
 
             # Prepare output path
-            if not output_path:
-                output_path = target_img.parent / f"crclean_{target_img.name}"
-            os.makedirs(output_path.parent, exist_ok=True)
+            if not target_outpath:
+                target_outpath = target_img.parent / f"crclean_{target_img.name}"
+            os.makedirs(target_outpath.parent, exist_ok=True)
 
             # Write the cleaned image to a new FITS file
-            fits.writeto(output_path, clean_image, target_header, overwrite=True)
+            fits.writeto(target_outpath, clean_image, target_header, overwrite=True)
 
-            self.print(f"Cosmic ray cleaning complete. Output: {output_path}", print_output)
-            return str(output_path)
+            self.print(f"Cosmic ray cleaning complete. Output: {target_outpath}", verbose)
+            return str(target_outpath), None
 
         elif isinstance(target_img, np.ndarray):
             target_data = target_img
@@ -1263,206 +1817,55 @@ class PhotometryHelper(TIPConfig):
             )
 
             if target_header is not None:
-                self.print("Cosmic ray cleaning complete (returning array and header).", print_output)
+                self.print("Cosmic ray cleaning complete (returning array and header).", verbose)
                 return clean_image, target_header
             else:
-                self.print("Cosmic ray cleaning complete (returning array only).", print_output)
-                return clean_image
+                self.print("Cosmic ray cleaning complete (returning array only).", verbose)
+                return clean_image, None
 
         else:
             raise TypeError("target_img must be either a Path, string (FITS file path), or a NumPy array.")
 
-
-    def img_subtractbkg(self, 
-                        target_img: Union[str, Path, np.ndarray],
-                        target_header: Optional[Header] = None,
-                        output_path: Optional[str] = None,
-                        apply_2D_bkg: bool = False,
-                        use_header : bool = False,
-                        bkg_key: str = 'SKYVAL',
-                        bkgsig_key: str = 'SKYSIG',
-                        mask_sources: bool = False,
-                        mask_source_size_in_pixel: int = 30,
-                        bkg_estimator: str = 'median',
-                        sigma: float = 5.0, 
-                        box_size: int = 100, 
-                        filter_size: int = 3, 
-                        visualize: bool = False,
-                        save_bkgmap: bool = False,
-                        print_output: bool = True):
-
+    def img_extract_stamp(self, 
+                          target_data: np.ndarray, 
+                          x_center: float, 
+                          y_center: float, 
+                          size: int = 25) -> np.ndarray:
         """
-        target_img: Union[str, Path, np.ndarray] = filelist[0]
-        target_header: Optional[Header] = None
-        output_path: Optional[str] = None
-        apply_2D_bkg: bool = False
-        bkg_key: str = 'SKYVAL'
-        bkgsig_key: str = 'SKYSIG'
-        mask_sources: bool = False
-        mask_source_size_in_pixel: int = 10
-        bkg_estimator: str = 'median'
-        sigma: float = 5.0
-        box_size: int = 100
-        filter_size: int = 3
-        visualize: bool = False
-        print_output: bool = True
-        Subtract background from the image using sigma-clipped statistics.
+        Extract a square stamp (cutout) around a given (x, y) position.
+
+        Parameters
+        ----------
+        data : 2D np.ndarray
+            The image array.
+        x_center : float
+            X-coordinate (pixel) of the center.
+        y_center : float
+            Y-coordinate (pixel) of the center.
+        size : int
+            Size of the square stamp (in pixels). The output will be (size, size).
+
+        Returns
+        -------
+        stamp : 2D np.ndarray
+            The extracted image cutout.
         """
-        from pathlib import Path
-        import numpy as np
-        from astropy.io import fits
-        from astropy.stats import SigmaClip, sigma_clipped_stats
-        from photutils.background import Background2D, MedianBackground, MeanBackground, SExtractorBackground
-        from photutils.segmentation import detect_threshold, detect_sources
-        from photutils.utils import circular_footprint
-        from astropy.time import Time
-        import os
-        import matplotlib.pyplot as plt
+        x_center = int(round(x_center))
+        y_center = int(round(y_center))
+        half_size = size // 2
 
-        self.print(f"Start background subtraction... [2D_bkg ={apply_2D_bkg}, Mask_sources ={mask_sources}, Use_header ={use_header}]", print_output)
+        x_min = max(0, x_center - half_size)
+        x_max = min(target_data.shape[1], x_center + half_size + 1)
+        y_min = max(0, y_center - half_size)
+        y_max = min(target_data.shape[0], y_center + half_size + 1)
 
-        # Convert target_img to Path if it's a string
-        if isinstance(target_img, (str, Path)):
-            target_img = Path(target_img)
+        return target_data[y_min:y_max, x_min:x_max]
 
-            if not target_img.is_file():
-                raise FileNotFoundError(f"File {target_img} does not exist.")
-
-            # Read data and header from FITS file
-            with fits.open(target_img) as hdul:
-                target_data = hdul[0].data
-                target_header = hdul[0].header
-
-        elif isinstance(target_img, np.ndarray):
-            target_data = target_img
-        else:
-            raise TypeError("target_img must be either a Path, string (FITS file path), or a NumPy array.")
-
-        # If the background value is already in the header, use it
-        if use_header:
-            bkg_value = float(target_header[bkg_key])
-            bkg_value_median = bkg_value
-            bkg_rms = float(target_header.get(bkgsig_key, 0))
-        # Otherwise, estimate the background using sigma-clipped statistics
-        else:
-            # Create a mask for sources in the image
-            mask = None
-            if mask_sources:
-                self.print('Masking sources before background estimation...', print_output)
-                sigma_clip = SigmaClip(sigma=sigma)
-                threshold = detect_threshold(target_data, nsigma=sigma, sigma_clip=sigma_clip)
-                segment_img = detect_sources(target_data, threshold, npixels=mask_source_size_in_pixel)
-                footprint = circular_footprint(radius=mask_source_size_in_pixel)
-                mask = segment_img.make_source_mask(footprint=footprint)
-
-            # Estimate background using sigma-clipped statistics
-            bkg_estimator_dict = {
-                'mean': MeanBackground,
-                'median': MedianBackground,
-                'sextractor': SExtractorBackground
-            }
-            bkg_estimator_function = bkg_estimator_dict[bkg_estimator.lower()]
-
-            if apply_2D_bkg:
-                self.print('Applying 2D background subtraction...', print_output)
-                bkg = Background2D(target_data, (box_size, box_size), mask=mask,
-                                filter_size=(filter_size, filter_size),
-                                sigma_clip=SigmaClip(sigma=sigma),
-                                bkg_estimator=bkg_estimator_function())
-                bkg_value = bkg.background
-                bkg_value_median = bkg.background_median
-                bkg_rms = bkg.background_rms_median
-            else:
-                self.print('Applying 1D background subtraction...', print_output)
-                # Estimate background using sigma-clipped statistics
-                clipped_data = sigma_clipped_stats(target_data, sigma=sigma, mask=mask)
-                bkg_value = clipped_data[1] if bkg_estimator == 'median' else clipped_data[0]
-                bkg_value_median = clipped_data[0]
-                bkg_rms = clipped_data[2]
-
-        # Subtract background
-        self.print('Subtracting background...', print_output)
-        data_bkg_subtracted = target_data - bkg_value
-
-        if visualize:
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
-            fig, ax = plt.subplots(1, 3, figsize=(12, 6))
-            divider = make_axes_locatable(ax[0])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im0 = ax[0].imshow(target_data, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + bkg_rms)
-            ax[0].set_title('Original Image')
-            fig.colorbar(im0, cax=cax, orientation='vertical')
-
-            if apply_2D_bkg:
-                bkg_img = bkg.background
-            else:
-                bkg_img = np.full(target_data.shape, bkg_value)
-
-            divider = make_axes_locatable(ax[1])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im1 = ax[1].imshow(bkg_img, origin='lower', cmap='Greys_r', vmin=bkg_value_median, vmax=bkg_value_median + bkg_rms)
-            ax[1].set_title('Background')
-            fig.colorbar(im1, cax=cax, orientation='vertical')
-
-            divider = make_axes_locatable(ax[2])
-            cax = divider.append_axes('right', size='5%', pad=0.05)
-            im2 = ax[2].imshow(data_bkg_subtracted, origin='lower', cmap='Greys_r', vmin=0, vmax=bkg_rms)
-            ax[2].set_title('Background-Subtracted Image')
-            fig.colorbar(im2, cax=cax, orientation='vertical')
-            plt.tight_layout()
-            plt.show()
-
-        # Output handling
-        if isinstance(target_img, Path):
-            # Update FITS header
-            target_header['SUBBKG'] = (True, 'Background subtracted')
-            target_header['SUBBTIME'] = (Time.now().isot, 'Time of background subtraction')
-            target_header['SUBBVALU'] = (bkg_value_median, 'Background median value')
-            target_header['SUBBSIG'] = (bkg_rms, 'Background standard deviation')
-            target_header['SUBBFILE'] = (str(target_img), 'Original file path before background subtraction')
-            target_header['SUBBIS2D'] = (apply_2D_bkg, '2D background subtraction')
-            target_header['SUBBMASK'] = (mask_sources, 'Mask sources before background estimation')
-            target_header['SUBBTYPE'] = (bkg_estimator, 'Background estimator')
-
-            if not output_path:
-                output_path = target_img.parent / f"subbkg_{target_img.name}"
-            os.makedirs(output_path.parent, exist_ok=True)
-            fits.writeto(output_path, data_bkg_subtracted, target_header, overwrite=True)
-            if save_bkgmap:
-                bkg_filename = output_path.stem + '.bkgmap.fits'
-                bkg_path = output_path.parent / bkg_filename
-                fits.writeto(bkg_path, bkg_img, target_header, overwrite=True)
-                self.print(f"Background map saved to {bkg_path}", print_output)
-
-            self.print(f"Background subtraction completed. Output saved to {output_path}", print_output)
-            return str(output_path)
-
-        elif isinstance(target_img, np.ndarray):
-            if target_header:
-                target_header['SUBBKG'] = (True, 'Background subtracted')
-                target_header['SUBBTIME'] = (Time.now().isot, 'Time of background subtraction')
-                target_header['SUBBVALU'] = (bkg_value_median, 'Background median value')
-                target_header['SUBBSIG'] = (bkg_rms, 'Background standard deviation')
-                target_header['SUBBIS2D'] = (apply_2D_bkg, '2D background subtraction')
-                target_header['SUBBMASK'] = (mask_sources, 'Mask sources before background estimation')
-                target_header['SUBBTYPE'] = (bkg_estimator, 'Background estimator')
-
-                self.print("Background subtraction complete (returning array and header).", print_output)
-                
-                if save_bkgmap:
-                    return data_bkg_subtracted, target_header, bkg_img
-                else:
-                    return data_bkg_subtracted, target_header
-            else:
-                self.print("Background subtraction complete (returning array only).", print_output)
-                if save_bkgmap:
-                    return data_bkg_subtracted, bkg_img
-                else:
-                    return data_bkg_subtracted
-
+    
     def img_combine(self,
+                    # Input parameters
                     filelist: List[Union[str, Path]],
-                    output_path: Optional[str] = None,
+                    target_outpath: Optional[str] = None,
 
                     # Combine parameters
                     combine_method: str = 'median',
@@ -1474,29 +1877,8 @@ class PhotometryHelper(TIPConfig):
                     clip_extrema_nlow: int = 1,
                     clip_extrema_nhigh: int = 1,
 
-                    # Background subtraction parameters
-                    subbkg: bool = True,
-                    apply_2D_bkg: bool = False,
-                    use_header : bool = True,
-                    bkg_key: str = 'SKYVAL',
-                    bkgsig_key: str = 'SKYSIG',
-                    mask_sources: bool = False,
-                    mask_source_size_in_pixel: int = 10,
-                    bkg_estimator: str = 'median',
-                    sigma: float = 5.0,
-                    box_size: int = 100,
-                    filter_size: int = 3,
-
-                    # ZP scaling parameters
-                    scale: bool = True,
-                    zp_key: str = 'ZP_AUTO',
-                    zp_reference: float = None,
-                    
-                    # Alignment parameters
-                    align: bool = False,
-                    
-
-                    print_output: bool = True):
+                    # Other parameters
+                    verbose: bool = True):
 
         from pathlib import Path
         from ccdproc import CCDData, combine
@@ -1514,9 +1896,9 @@ class PhotometryHelper(TIPConfig):
 
         if len(filelist) <= 3:
             clip = None
-            self.print('Number of filelist is lower than the minimum. Skipping clipping process... \n', print_output)
+            self.print('Number of filelist is lower than the minimum. Skipping clipping process... \n', verbose)
 
-        self.print('Start image combine... \n', print_output)
+        self.print('Start image combine... \n', verbose)
 
         # Ensure filelist contains Paths
         filelist = [Path(file) for file in filelist]
@@ -1532,61 +1914,184 @@ class PhotometryHelper(TIPConfig):
 
             ccdlist.append(CCDData(data, unit='adu', meta=header))
 
-        # Background subtraction
-        if subbkg:
-            self.print('Applying background subtraction...', print_output)
-            for idx, inim in tqdm(enumerate(ccdlist), desc='Background subtraction...'):
-                data_bkg_subtracted, inim.header = self.img_subtractbkg(
-                    target_img=inim.data,
-                    target_header=inim.header,
-                    apply_2D_bkg=apply_2D_bkg,
-                    bkg_key=bkg_key,
-                    bkgsig_key=bkgsig_key,
-                    mask_sources=mask_sources,
-                    mask_source_size_in_pixel=mask_source_size_in_pixel,
-                    bkg_estimator=bkg_estimator,
-                    sigma=sigma,
-                    box_size=box_size,
-                    filter_size=filter_size,
-                    print_output=print_output
-                )
-                inim.data = data_bkg_subtracted
+        # Header update
+        hdr = ccdlist[0].header.copy()
 
-        print_memory_usage(output_string='Memory usage after subbkg')
+        for i, file in enumerate(filelist):
+            hdr[f'COMBIM{i+1}'] = file.name
 
-        # Scaling
-        if scale:
-            self.print('Applying image scaling...', print_output)
-            if not zp_reference:
-                zp_reference = np.min([inim.header[zp_key] for inim in ccdlist])
-            for inim in tqdm(ccdlist, desc='Image scaling...'):
-                scaled_data, inim.header = self.img_scale(
-                    target_img=inim.data,
-                    target_header=inim.header,
-                    zp_target=inim.header[zp_key],
-                    zp_reference=zp_reference,
-                    zp_key=zp_key,
-                    print_output=print_output
-                )
-                inim.data = scaled_data
+        hdr['NCOMBINE'] = len(filelist)
+        if 'JD' in hdr:
+            hdr['JD'] = Time(np.mean([inim.header['JD'] for inim in ccdlist]), format='jd').value
+        if 'DATE-OBS' in hdr:
+            hdr['DATE-OBS'] = Time(np.mean([Time(inim.header['DATE-OBS']).jd for inim in ccdlist]), format='jd').isot
+        hdr['TOTALEXP'] = (float(np.sum([inim.header['EXPTIME'] for inim in ccdlist])), 'Total exposure time of the combined image')
+        hdr['COMBMETD'] = (combine_method, 'Method used for combining images')
+        hdr['COMBCLIP'] = (clip, 'Clipping method used for combining images')
 
-        print_memory_usage(output_string='Memory usage after scaling')
+        # Combine with appropriate method and clipping
+        combine_kwargs = {}
+        if clip == 'minmax':
+            combine_kwargs['minmax_clip'] = True
+            combine_kwargs['minmax_clip_min'] = clip_minmax_min
+            combine_kwargs['minmax_clip_max'] = clip_minmax_max
+        elif clip == 'sigma':
+            combine_kwargs['sigma_clip'] = True
+            combine_kwargs['sigma_clip_low_thresh'] = clip_sigma_low
+            combine_kwargs['sigma_clip_high_thresh'] = clip_sigma_high
+        elif clip == 'extrema':
+            combine_kwargs['nlow'] = clip_extrema_nlow
+            combine_kwargs['nhigh'] = clip_extrema_nhigh
+
+        self.print('Combining images...', verbose)
+        combined = combine(ccdlist, method=combine_method, **combine_kwargs)
+        combined.header = hdr
+        combined.data = combined.data.astype(np.float32)
+
+        if not target_outpath:
+            target_outpath = filelist[0].parent / f"com_{filelist[0].name}"
+        target_outpath = Path(target_outpath)
+        os.makedirs(target_outpath.parent, exist_ok=True)
+
+        fits.writeto(target_outpath, combined.data, header=hdr, overwrite=True)
+
+        print_memory_usage(output_string='Memory usage after writing')
+
+        self.print('Combine complete \n', verbose)
+        self.print('Combine information', verbose)
+        self.print(60 * '=', verbose)
+        self.print(f'Ncombine = {len(filelist)}', verbose)
+        self.print(f'method   = {clip}(clipping), {combine_method}(combining)', verbose)
+        self.print(f'image path = {target_outpath.name}', verbose)
+
+        return str(target_outpath)
+
+    
+    def _img_combine(self,
+                    filelist: List[Union[str, Path]],
+                    target_outpath: Optional[str] = None,
+
+                    # Combine parameters
+                    combine_method: str = 'median',
+                    clip: str = 'extrema',
+                    clip_sigma_low: int = 2,
+                    clip_sigma_high: int = 5,
+                    clip_minmax_min: int = 3,
+                    clip_minmax_max: int = 3,
+                    clip_extrema_nlow: int = 1,
+                    clip_extrema_nhigh: int = 1,
+
+                    # # Background subtraction parameters
+                    # subbkg: bool = True,
+                    # apply_2D_bkg: bool = False,
+                    # use_header : bool = True,
+                    # bkg_key: str = 'SKYVAL',
+                    # bkgsig_key: str = 'SKYSIG',
+                    # mask_sources: bool = False,
+                    # mask_source_size_in_pixel: int = 10,
+                    # bkg_estimator: str = 'median',
+                    # sigma: float = 5.0,
+                    # box_size: int = 100,
+                    # filter_size: int = 3,
+
+                    # # ZP scaling parameters
+                    # scale: bool = True,
+                    # zp_key: str = 'ZP_AUTO',
+                    # zp_reference: float = None,
+                    
+                    # # Alignment parameters
+                    # align: bool = False,
+                    verbose: bool = True):
+
+        from pathlib import Path
+        from ccdproc import CCDData, combine
+        import psutil
+        import os
+        from astropy.time import Time
+        import numpy as np
+        from astropy.io import fits
+        from tqdm import tqdm
+
+        def print_memory_usage(output_string='Memory usage'):
+            process = psutil.Process(os.getpid())
+            mem_info = process.memory_info()
+            print(f"{output_string}: {mem_info.rss / 1024**2:.2f} MB")
+
+        if len(filelist) <= 3:
+            clip = None
+            self.print('Number of filelist is lower than the minimum. Skipping clipping process... \n', verbose)
+
+        self.print('Start image combine... \n', verbose)
+
+        # Ensure filelist contains Paths
+        filelist = [Path(file) for file in filelist]
+
+        ccdlist = []
+        for filename in tqdm(filelist, desc='Reading files...'):
+            if not filename.is_file():
+                raise FileNotFoundError(f"File {filename} does not exist.")
+
+            with fits.open(filename, memmap=False) as hdul:
+                data = hdul[0].data
+                header = hdul[0].header
+
+            ccdlist.append(CCDData(data, unit='adu', meta=header))
+
+        # # Background subtraction
+        # if subbkg:
+        #     self.print('Applying background subtraction...', verbose)
+        #     for idx, inim in tqdm(enumerate(ccdlist), desc='Background subtraction...'):
+        #         data_bkg_subtracted, inim.header = self.img_subtractbkg(
+        #             target_img=inim.data,
+        #             target_header=inim.header,
+        #             apply_2D_bkg=apply_2D_bkg,
+        #             bkg_key=bkg_key,
+        #             bkgsig_key=bkgsig_key,
+        #             mask_sources=mask_sources,
+        #             mask_source_size_in_pixel=mask_source_size_in_pixel,
+        #             bkg_estimator=bkg_estimator,
+        #             sigma=sigma,
+        #             box_size=box_size,
+        #             filter_size=filter_size,
+        #             verbose=verbose
+        #         )
+        #         inim.data = data_bkg_subtracted
+
+        # print_memory_usage(output_string='Memory usage after subbkg')
+
+        # # Scaling
+        # if scale:
+        #     self.print('Applying image scaling...', verbose)
+        #     if not zp_reference:
+        #         zp_reference = np.min([inim.header[zp_key] for inim in ccdlist])
+        #     for inim in tqdm(ccdlist, desc='Image scaling...'):
+        #         scaled_data, inim.header = self.img_scale(
+        #             target_img=inim.data,
+        #             target_header=inim.header,
+        #             zp_target=inim.header[zp_key],
+        #             zp_reference=zp_reference,
+        #             zp_key=zp_key,
+        #             verbose=verbose
+        #         )
+        #         inim.data = scaled_data
+
+        # print_memory_usage(output_string='Memory usage after scaling')
         
-        # Align
-        if align:
-            self.print('Aligning images...', print_output)
-            reference_image = ccdlist[0]
-            for idx, inim in tqdm(enumerate(ccdlist), desc='Image alignment...'):
-                aligned_data, aligned_header = self.img_astroalign(
-                    target_img = inim.data,
-                    reference_img = reference_image.data,
-                    target_header = inim.header,
-                    reference_header = reference_image.header,
-                    print_output = print_output
-                )
-                inim.data = aligned_data
+        # # Align
+        # if align:
+        #     self.print('Aligning images...', verbose)
+        #     reference_image = ccdlist[0]
+        #     for idx, inim in tqdm(enumerate(ccdlist), desc='Image alignment...'):
+        #         aligned_data, aligned_header = self.img_astroalign(
+        #             target_img = inim.data,
+        #             reference_img = reference_image.data,
+        #             target_header = inim.header,
+        #             reference_header = reference_image.header,
+        #             verbose = verbose
+        #         )
+        #         inim.data = aligned_data
 
-        print_memory_usage(output_string='Memory usage after alignment')
+        # print_memory_usage(output_string='Memory usage after alignment')
 
         hdr = ccdlist[0].header.copy()
 
@@ -1618,32 +2123,32 @@ class PhotometryHelper(TIPConfig):
         combined.header = hdr
         combined.data = combined.data.astype(np.float32)
 
-        if not output_path:
-            output_path = filelist[0].parent / f"com_{filelist[0].name}"
-        output_path = Path(output_path)
-        os.makedirs(output_path.parent, exist_ok=True)
+        if not target_outpath:
+            target_outpath = filelist[0].parent / f"com_{filelist[0].name}"
+        target_outpath = Path(target_outpath)
+        os.makedirs(target_outpath.parent, exist_ok=True)
 
-        fits.writeto(output_path, combined.data, header=hdr, overwrite=True)
+        fits.writeto(target_outpath, combined.data, header=hdr, overwrite=True)
 
         print_memory_usage(output_string='Memory usage after writing')
 
-        self.print('Combine complete \n', print_output)
-        self.print('Combine information', print_output)
-        self.print(60 * '=', print_output)
-        self.print(f'Ncombine = {len(filelist)}', print_output)
-        self.print(f'method   = {clip}(clipping), {combine_method}(combining)', print_output)
-        self.print(f'image path = {output_path.name}', print_output)
+        self.print('Combine complete \n', verbose)
+        self.print('Combine information', verbose)
+        self.print(60 * '=', verbose)
+        self.print(f'Ncombine = {len(filelist)}', verbose)
+        self.print(f'method   = {clip}(clipping), {combine_method}(combining)', verbose)
+        self.print(f'image path = {target_outpath.name}', verbose)
 
-        return str(output_path)
+        return str(target_outpath)
 
     def run_psfex(self, 
-                  target_img: Union[str, Path], 
-                  sex_configfile: Union[str, Path], 
+                  target_path: Union[str, Path], 
+                  psfex_sexconfigfile: Union[str, Path], 
                   psfex_configfile: Union[str, Path],                   
-                  output_path: Optional[Union[str, Path]] = None,
-                  sex_params: Optional[dict] = None,
+                  psfex_sexparams: Optional[dict] = None,
                   psfex_params: Optional[dict] = None,
-                  print_output: bool = True) -> None:
+                  target_outpath: Optional[Union[str, Path]] = None,
+                  verbose: bool = True) -> None:
 
         """
         Run SExtractor followed by PSFEx on the specified image using the provided configuration and parameters.
@@ -1653,111 +2158,93 @@ class PhotometryHelper(TIPConfig):
         import subprocess
         import datetime
 
-        self.print('Start PSFEx process...=====================', print_output)
+        self.print('Start PSFEx process...=====================', verbose)
         current_dir = Path.cwd()
-        target_path = Path(target_img)
+        target_path = Path(target_path)
         psfex_config_path = Path(psfex_configfile)
 
         # Run SExtractor
-        output_file = self.run_sextractor(target_img=str(target_path), 
-                                          sex_configfile=str(sex_configfile), 
-                                          sex_params=sex_params, 
-                                          return_result=False, 
-                                          print_output=False)
+        sex_result, output_file = self.run_sextractor(
+            target_path=target_path, 
+            sex_configfile=psfex_sexconfigfile, 
+            sex_params=psfex_sexparams, 
+            return_result=False, 
+            verbose=False)
 
         # Load default PSFEx config
         all_params = self.load_config(psfex_config_path)
 
         # Set up history directory for outputs
-        if not output_path:
-            output_path = target_path.parent
-        if output_path.is_file():
-            output_path = output_path.parent
+        if not target_outpath:
+            target_outpath = target_path.parent
+        if target_outpath.is_file():
+            target_outpath = target_outpath.parent
         
         # Handle CHECKIMAGE_NAME parameter
         if not psfex_params:
-            psfex_params = {}
+            psfex_params = dict
 
-        fits_files = (psfex_params.get('CHECKIMAGE_NAME') or all_params.get('CHECKIMAGE_NAME', '')).split(',')
+        # Check image
+        psfex_params['CHECKIMAGE_NAME'] = psfex_params.get('CHECKIMAGE_NAME') or all_params.get('CHECKIMAGE_NAME', '')
         abspath_fits_files = []
-        for file_ in fits_files:
-            filename = target_path.stem + "." + file_
-            abspath_fits_files.append(str(output_path / filename))
-        abspath_fits_files_str = ','.join(abspath_fits_files)
-        psfex_params['CHECKIMAGE_NAME'] = abspath_fits_files_str
-
+        checkimage_filelist = psfex_params['CHECKIMAGE_NAME'].split(',')
+        for filename in checkimage_filelist:
+            file_ = Path(filename)
+            output_file_path = Path(output_file)
+            abspath = output_file_path.parent / (file_.stem + '_' + output_file_path.stem + file_.suffix)
+            abspath_fits_files.append(abspath)
+            
         # Build PSFEx parameter string
         psfexparams_str = ' '.join([f"-{key} {value}" for key, value in psfex_params.items()])
 
         command = f"psfex {output_file} -c {psfex_configfile} {psfexparams_str}"
 
         try:
-            os.chdir(self.psfexpath)
-            self.print('RUN COMMAND: ', command)
+            os.chdir(target_path.parent)
+            self.print(f'RUN COMMAND: {command}', verbose)
             result = subprocess.run(command, shell=True, check=True, 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if print_output:
-                self.print(result.stdout.decode(), print_output)
-                self.print(result.stderr.decode(), print_output)
+            if verbose:
+                self.print(result.stdout.decode(), verbose)
+                self.print(result.stderr.decode(), verbose)
 
-            self.print("PSFEx process finished=====================", print_output)
+            self.print("PSFEx process finished=====================", verbose)
             return abspath_fits_files
         except subprocess.CalledProcessError as e:
-            self.print(f"Error during PSFEx execution: {e.stderr.decode()}", print_output)
+            self.print(f"Error during PSFEx execution: {e.stderr.decode()}", verbose)
             return None
         finally:
             os.chdir(current_dir)  # Ensure directory is reset
     
     def run_hotpants(self,
-                     target_img: Union[str, Path],
-                     reference_img: Union[str, Path],
-                     output_path: Optional[Union[str, Path]] = None,
+                     target_path: Union[str, Path],
+                     reference_path: Union[str, Path],
                      convolve_path: Optional[Union[str, Path]] = None,
                      target_mask: Optional[Union[str, Path]] = None,
                      reference_mask: Optional[Union[str, Path]] = None,
                      stamp: Optional[Union[str, Path]] = None,
-                     
-                     # Subtract background
-                     subbkg : bool = True, 
-                     apply_2D_bkg: bool = False,
-                     use_header : bool = True,
-                     bkg_key: str = 'SKYVAL',
-                     bkgsig_key: str = 'SKYSIG',
-                     mask_sources: bool = False,
-                     mask_source_size_in_pixel: int = 10,
-                     bkg_estimator: str = 'median',
-                     sigma: float = 5.0,
-                     box_size: int = 100,
-                     filter_size: int = 3,
-                        
-                     # Zeropoint scaling
-                     scale: bool = True,
-                     zp_key: str = 'ZP_AUTO',
-                     zp_reference: float = None,    
-                     
-                     # Alignment
-                     align: bool = True,
-                     detection_sigma: float = 5, 
+                     target_outpath: Optional[Union[str, Path]] = None,
 
                      # Hotpants config
+                     verbose: bool = True,
+                     
                      convim: str = 't',
                      normim: str = 'i',
-                     iu: int = 60000,
-                     il: int = -10000,
-                     tu: int = 6000000,
-                     tl: int = -10000,
                      nrx: int = 3,
                      nry: int = 2,
-                     v: int = 0,
-                     print_output: bool = True) -> str:
+                     iu: float = 60000,
+                     il: float = -10000,
+                     tu: float = 60000,
+                     tl: float = -10000,
+                     **hotpants_kwargs) -> str:
         """
         Run Hotpants for image subtraction.
         """
         from pathlib import Path
         import subprocess
 
-        target_path = Path(target_img)
-        reference_path = Path(reference_img)
+        target_path = Path(target_path)
+        reference_path = Path(reference_path)
         current_dir = Path.cwd()
 
         if not target_path.is_file():
@@ -1765,78 +2252,29 @@ class PhotometryHelper(TIPConfig):
         if not reference_path.is_file():
             raise FileNotFoundError(f"Reference image {reference_path} does not exist.")
         
-        if subbkg | scale | align:
-            target_data = fits.getdata(target_path)
-            target_header = fits.getheader(target_path)
-            ref_data = fits.getdata(reference_path)
-            ref_header = fits.getheader(reference_path)
-        
-        if subbkg:
-            target_data, target_header = self.img_subtractbkg(target_img = target_data, target_header = target_header, 
-                                                              apply_2D_bkg = apply_2D_bkg, use_header = use_header,
-                                                              bkg_key = bkg_key, bkgsig_key = bkgsig_key, mask_sources = mask_sources,
-                                                              mask_source_size_in_pixel = mask_source_size_in_pixel, bkg_estimator = bkg_estimator,
-                                                              sigma = sigma, box_size = box_size, filter_size = filter_size, print_output = print_output)
-            ref_data, ref_header = self.img_subtractbkg(target_img = ref_data, target_header = ref_header,
-                                                        apply_2D_bkg = apply_2D_bkg, use_header = use_header,
-                                                        bkg_key = bkg_key, bkgsig_key = bkgsig_key, mask_sources = mask_sources,
-                                                        mask_source_size_in_pixel = mask_source_size_in_pixel, bkg_estimator = bkg_estimator,
-                                                        sigma = sigma, box_size = box_size, filter_size = filter_size, print_output = print_output)
-        if scale:
-            if zp_reference is None:
-                zp_target = target_header[zp_key]
-                zp_reference = ref_header[zp_key]
-            else:
-                zp_target = zp_reference
-                zp_reference = zp_reference
-            # When zp_target is larger than zp_reference, scale zp_reference to zp_target
-            if zp_target > zp_reference:
-                target_data, target_header = self.img_scale(target_img = target_data, target_header = target_header,
-                                                            zp_reference = zp_reference, zp_key = zp_key)
-            # When zp_reference is larger than zp_target, scale zp_target to zp_reference
-            elif zp_target < zp_reference:
-                ref_data, ref_header = self.img_scale(target_img = ref_data, target_header = ref_header,
-                                                      zp_reference = zp_target, zp_key = zp_key)
-            # When zp_reference is given, so we need to scale both images to the same zeropoint
-            else:
-                target_data, target_header = self.img_scale(target_img = target_data, target_header = target_header,
-                                                            zp_reference = zp_reference, zp_key = zp_key)
-                ref_data, ref_header = self.img_scale(target_img = ref_data, target_header = ref_header,
-                                                        zp_reference = zp_reference, zp_key = zp_key)
-        if align:
-            target_data, target_header = self.img_astroalign(target_img = target_data, reference_img = ref_data,
-                                                             target_header = target_header, reference_header = ref_header,
-                                                             detection_sigma = detection_sigma, print_output = print_output)            
-        
-        if subbkg | scale | align:
-            target_path = target_path.parent / f'sci_{target_path.name}'
-            ref_path = reference_path.parent / f'ref_{reference_path.name}'
-            fits.writeto(target_path, target_data, target_header, overwrite = True)
-            fits.writeto(ref_path, ref_data, ref_header, overwrite = True)    
-
-        if not output_path:
-            output_path = target_path.parent / f'sub_{target_path.name}'
+        if not target_outpath:
+            target_outpath = target_path.parent / f'sub_{target_path.name}'
         else:
-            output_path = Path(output_path)
+            target_outpath = Path(target_outpath)
 
-        self.print(f'Starting image subtraction with hotpants on {target_path.name}...', print_output)
+        self.print(f'Starting image subtraction with hotpants on {target_path.name}...', verbose)
 
-        # Build the command
-        command = [
-            'hotpants',
+        command = ['hotpants']
+
+        # Required base options
+        command.extend([
             '-c', convim,
             '-n', normim,
             '-inim', str(target_path),
             '-tmplim', str(reference_path),
-            '-outim', str(output_path),
+            '-outim', str(target_outpath),
+            '-nrx', str(nrx),
+            '-nry', str(nry),
             '-iu', str(iu),
             '-il', str(il),
             '-tu', str(tu),
             '-tl', str(tl),
-            '-v', str(v),
-            '-nrx', str(nrx),
-            '-nry', str(nry)
-        ]
+        ])
 
         if convolve_path:
             convolve_path = Path(convolve_path)
@@ -1851,7 +2289,13 @@ class PhotometryHelper(TIPConfig):
             stamp = Path(stamp)
             command.extend(['-ssf', str(stamp)])
 
-        self.print(f"RUN COMMAND: {' '.join(command)}", print_output)
+        # Additional hotpants kwargs
+        for key, value in hotpants_kwargs.items():
+            # Only include keys that look like valid flags
+            command.extend([f'-{key}', str(value)])
+
+
+        self.print(f"RUN COMMAND: {' '.join(command)}", verbose)
 
         try:
             result = subprocess.run(
@@ -1861,43 +2305,57 @@ class PhotometryHelper(TIPConfig):
                 capture_output=True,
                 timeout=900
             )
-            if print_output:
-                self.print(result.stdout, print_output)
-                self.print(result.stderr, print_output)
+            if verbose:
+                self.print(result.stdout, verbose)
+                self.print(result.stderr, verbose)
 
-            self.print(f"Image subtraction completed successfully. Output saved to {output_path}", print_output)
-            return str(output_path)
+            self.print(f"Image subtraction completed successfully. Output saved to {target_outpath}", verbose)
+            return str(target_outpath)
 
         except subprocess.CalledProcessError as e:
-            self.print(f"Error during hotpants execution: {e.stderr}", print_output)
+            self.print(f"Error during hotpants execution: {e.stderr}", verbose)
             return ""
 
         except subprocess.TimeoutExpired:
-            self.print(f"Hotpants process timed out after 900 seconds.", print_output)
+            self.print(f"Hotpants process timed out after 900 seconds.", verbose)
             return ""
 
     def run_astrometry(self,
-                       target_img: Union[str, Path], 
-                       sex_configfile: Union[str, Path],
-                       output_path: Optional[Union[str, Path]] = None,
+                       target_path: Union[str, Path], 
+                       astrometry_sexconfigfile: Union[str, Path],
                        ra: Optional[float] = None,
                        dec: Optional[float] = None,
-                       radius: Optional[float] = None,
-                       scalelow: float = 0.6, 
-                       scalehigh: float = 0.8, 
-                       remove: bool = True,
-                       print_output: bool = True):
+                       radius: Optional[float] = 1,
+                       pixelscale: Optional[float] = None,
+                       target_outpath: Optional[Union[str, Path]] = None,
+                       verbose: bool = True):
 
         """
         Run the Astrometry.net process to solve WCS coordinates.
         """
         import os
         import subprocess
+        import tempfile
 
-        target_path = Path(target_img)
-        target_dir = target_path.parent
-        sexconfig_path = Path(sex_configfile)
         current_dir = Path.cwd()
+        target_path = Path(target_path)
+        target_dir = target_path.parent
+        sexconfig_path = Path(astrometry_sexconfigfile)
+        hdr = fits.getheader(target_path)
+        if not ra:
+            ra_keys = ['RA', 'OBJCTRA', 'CRVAL1']
+            for ra_key in ra_keys:
+                if ra_key in hdr.keys():
+                    ra = hdr[ra_key]
+                    self.print(f'RA key found in header: {ra}', verbose)
+                    break
+        if not dec:
+            dec_keys = ['DEC', 'OBJCTDEC', 'CRVAL2']
+            for dec_key in dec_keys:
+                if dec_key in hdr.keys():
+                    dec = hdr[dec_key]
+                    self.print(f'DEC key found in header: {dec}', verbose)
+                    break
 
         if not target_path.is_file():
             raise FileNotFoundError(f"Target image {target_path} does not exist.")
@@ -1905,88 +2363,119 @@ class PhotometryHelper(TIPConfig):
             raise FileNotFoundError(f"SExtractor config file {sexconfig_path} does not exist.")
 
         try:
-            self.print('Start Astrometry process...=====================', print_output)
+            self.print('Start Astrometry process...=====================', verbose)
 
-            # Set up directories and copy configuration files
-            os.chdir(self.sexpath)
-            os.system(f'cp {sexconfig_path} {self.sexpath}/*.param {self.sexpath}/*.conv {self.sexpath}/*.nnw {target_dir}')
-            os.chdir(target_dir)
-            self.print(f'Solving WCS using Astrometry with RA/Dec of {ra}/{dec} and radius of {radius} arcmin', print_output)
+            with tempfile.TemporaryDirectory(dir = target_dir) as tmpdir:
+                tmpdir = Path(tmpdir)
+                os.chdir(tmpdir)
+                # Copy configs into tmpdir
+                for ext in ['.param', '.conv', '.nnw']:
+                    for file in Path(self.sexpath).glob(f'*{ext}'):
+                        shutil.copy(file, tmpdir)
+                        
+                # # Set up directories and copy configuration files
+                self.print(f'Solving WCS using Astrometry with RA/Dec of {ra}/{dec} and radius of {radius} deg', verbose)
 
-            # Define output path
-            if not output_path:
-                output_path = target_dir / f'astrometry_{target_path.name}'
-            else:
-                output_path = Path(output_path)
+                # Define output path
+                if not target_outpath:
+                    target_outpath = target_dir / f'astrometry_{target_path.name}'
+                else:
+                    target_outpath = Path(target_outpath)
+                    
+                # Rename target_path if target_outpath and target_path are the same
+                remove_tmpfile = False
+                if target_outpath.resolve() == target_path.resolve():
+                    tmp_target_path = target_path.with_name(target_path.stem + '_tmp.fits')
+                    target_path.rename(tmp_target_path)  # Rename the actual file
+                    target_path = tmp_target_path  # Update reference in script
+                    remove_tmpfile = True
 
-            # Build the command
-            command = [
-                'solve-field',
-                str(target_path),
-                '--cpulimit', '300',
-                '--use-source-extractor',
-                '--source-extractor-config', str(sexconfig_path),
-                '--x-column', 'X_IMAGE',
-                '--y-column', 'Y_IMAGE',
-                '--sort-column', 'MAG_AUTO',
-                '--sort-ascending',
-                '--scale-unit', 'arcsecperpix',
-                '--scale-low', str(scalelow),
-                '--scale-high', str(scalehigh),
-                '--no-remove-lines',
-                '--uniformize', '0',
-                '--no-plots',
-                '--new-fits', str(output_path),
-                '--temp-dir'
-            ]
+                # Build the command
+                command = [
+                    'solve-field', str(target_path),
+                    '--dir', str(tmpdir),
+                    '--cpulimit', '300',
+                    '--use-source-extractor',
+                    '--source-extractor-config', str(sexconfig_path),
+                    '--x-column', 'X_IMAGE',
+                    '--y-column', 'Y_IMAGE',
+                    '--sort-column', 'MAG_AUTO',
+                    '--sort-ascending',
+                    '--no-remove-lines',
+                    '--uniformize', '0',
+                    '--no-plots',
+                    '--new-fits', str(target_outpath),
+                    '--overwrite'
+                ]
 
-            if ra is not None and dec is not None:
-                command.extend(['--ra', str(ra), '--dec', str(dec)])
-            if radius is not None:
-                command.extend(['--radius', str(radius)])
+                if ra is not None and dec is not None:
+                    command.extend(['--ra', str(ra), '--dec', str(dec), '--radius', str(radius)])
+                if pixelscale:
+                    command.extend(['--scale-unit', 'arcsecperpix','--scale-low', str(pixelscale - 0.1), '--scale-high', str(pixelscale + 0.1)])
+                
+                # Run astrometry with timeout
+                command_str = ' '.join(command)
+                self.print(f'RUN COMMAND: {command_str}', verbose)
+                result = subprocess.run(command, timeout=900, check=True, text=True, capture_output=True)
+                if verbose:
+                    self.print(result.stdout, verbose)
+                    self.print(result.stderr, verbose)
+                    
+                # Check if the output file was created
+                solved_file = tmpdir / Path(target_path).with_suffix('.solved').name              
+                if solved_file.is_file():
+                    # Check the number of output files
+                    #orinum = int(subprocess.check_output("ls C*.fits | wc -l", shell=True).strip())
+                    #resnum = int(subprocess.check_output("ls a*.fits | wc -l", shell=True).strip())
 
-            # Run astrometry with timeout
-            result = subprocess.run(command, timeout=900, check=True, text=True, capture_output=True)
-            if print_output:
-                self.print(result.stdout, print_output)
-                self.print(result.stderr, print_output)
+                    # Clean up intermediate files
+                    #if remove:
+                    #    os.system(f'rm -f tmp* *.conv default.nnw *.wcs *.rdls *.corr *.xyls *.solved *.axy *.match check.fits *.param {sexconfig_path.name}')
 
-            # Check the number of output files
-            orinum = int(subprocess.check_output("ls C*.fits | wc -l", shell=True).strip())
-            resnum = int(subprocess.check_output("ls a*.fits | wc -l", shell=True).strip())
-
-            # Clean up intermediate files
-            if remove:
-                os.system(f'rm -f tmp* *.conv default.nnw *.wcs *.rdls *.corr *.xyls *.solved *.axy *.match check.fits *.param {sexconfig_path.name}')
-
-            self.print('Astrometry process finished=====================', print_output)
-            return str(output_path)
-
+                    if remove_tmpfile:
+                        os.remove(tmp_target_path)
+                    self.print('Astrometry process finished=====================', verbose)
+                    return True, str(target_outpath)
+                else:
+                    if remove_tmpfile:
+                        tmp_target_path.rename(target_path)
+                    self.print('Astrometry process failed=====================', verbose)
+                    return False, target_path
+            
         except subprocess.TimeoutExpired:
-            self.print("The astrometry process exceeded the timeout limit.", print_output)
-            return None
+            self.print("The astrometry process exceeded the timeout limit.", verbose)
+            return False, target_path
         except subprocess.CalledProcessError as e:
-            self.print(f"An error occurred while running the astrometry process: {e}", print_output)
-            return None
+            self.print(f"An error occurred while running the astrometry process: {e}", verbose)
+            return False, target_path
         except Exception as e:
-            self.print(f"An unknown error occurred while running the astrometry process: {e}", print_output)
-            return None
+            self.print(f"An unknown error occurred while running the astrometry process: {e}", verbose)
+            return False, target_path
         finally:
+            if 'tmp_target_path' in locals() and tmp_target_path.exists():
+                tmp_target_path.rename(target_path)
             os.chdir(current_dir)
 
 
     def run_sextractor(self, 
-                       target_img: Union[str, Path], 
+                       target_path: Union[str, Path], 
                        sex_configfile: Union[str, Path], 
-                       image_mask: Optional[Union[str, Path]] = None,
                        sex_params: Optional[dict] = None, 
+                       
+                       # Sextractor parameters
+                       target_mask: Optional[Union[str, Path]] = None,
+                       target_weight: Optional[Union[str, Path]] = None,
+                       weight_type: str = 'MAP_RMS', # BACKGROUND, MAP_RMS, MAP_VAR, MAP_WEIGHT
+                       
+                       # Optional parameters
+                       target_outpath : Optional[Union[str, Path]] = None,
                        return_result: bool = True, 
-                       print_output: bool = True):
+                       verbose: bool = True):
 
         """
         Parameters
         ----------
-        1. target_img : str
+        1. target_path : str
                 Absolute path of the target image.
         2. sex_params : dict
                 Configuration parameters in dict format. Can be loaded by load_sexconfig().
@@ -2004,65 +2493,90 @@ class PhotometryHelper(TIPConfig):
         -------
         This method runs SExtractor on the specified image using the provided configuration and parameters.
         """
-        self.print('Start SExtractor process...=====================', print_output)
+        self.print('Start SExtractor process...=====================', verbose)
 
         # Switch to the SExtractor directory
-        current_path = os.getcwd()
+        target_path = Path(target_path)
+        current_path = Path.cwd()
         os.chdir(self.sexpath)
         
         # Load and apply SExtractor parameters
-        all_params = self.load_config(sex_configfile)
-        sexparams_str = ''
-
-        if sex_params:
-            if "CATALOG_NAME" not in sex_params.keys():
-                sex_params['CATALOG_NAME'] = f"{os.path.join(self.config['SEX_HISTORYDIR'], os.path.basename(sex_params['CATALOG_NAME']))}"
-            else:
-                pass
-        else:
+        default_params = self.load_config(sex_configfile)
+        if not sex_params:
             sex_params = dict()
-            sex_params['CATALOG_NAME'] = f"{os.path.join(self.config['SEX_HISTORYDIR'], all_params['CATALOG_NAME'])}"
-
-        if image_mask:
-            sex_params['FLAG_IMAGE'] = image_mask
+        sexparams_str = ''
+        if not target_outpath:
+            target_outpath = target_path.parent / f"{target_path.stem}.cat"
+        sex_params['CATALOG_NAME'] = str(target_outpath)
+        if 'DETECT_MINAREA' in sex_params.keys():
+            minarea = max(default_params['DETECT_MINAREA'], sex_params['DETECT_MINAREA'])
+            sex_params['DETECT_MINAREA'] = str(minarea)
+            
+        if target_mask is not None:
+            sex_params['FLAG_IMAGE'] = str(target_mask)
+            sex_params['PARAMETERS_NAME'] = 'sexflag.param'
+            
+        if target_weight is not None:
+            sex_params['WEIGHT_GAIN'] = 'N'
+            sex_params['WEIGHT_IMAGE'] = str(target_weight)
+            sex_params['WEIGHT_TYPE'] = str(weight_type)
 
         for key, value in sex_params.items():
-            sexparams_str += f'-{key} {value} '
-            all_params[key] = value
-        
+            sexparams_str += f'-{key} {value} '        
 
         # Command to run SExtractor
-        command = f"source-extractor {target_img} -c {sex_configfile} {sexparams_str}"
+        command = f"source-extractor {target_path} -c {sex_configfile} {sexparams_str}"
         #os.makedirs(os.path.dirname(all_params['CATALOG_NAME']), exist_ok=True)
-        print('RUN COMMAND: ', command)
+        self.print(f'RUN COMMAND: {command}', verbose)
 
         try:
             # Run the SExtractor command using subprocess.run
-            subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            self.print("SExtractor process finished=====================", print_output)
-
-            if return_result:
-                # Read the catalog produced by SExtractor
-                sexresult = ascii.read(all_params['CATALOG_NAME'])
+            result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            result_file = Path(target_outpath)
+            if result_file.is_file():
+                self.print("SExtractor process finished=====================", verbose)
+                self.print(f'Output path: {target_outpath}', verbose)
+                if return_result:
+                    # Read the catalog produced by SExtractor
+                    sexresult = ascii.read(sex_params['CATALOG_NAME'])
+                    os.chdir(current_path)
+                    return True, sexresult
+                else:
+                    return True, sex_params['CATALOG_NAME']
+            else: 
                 os.chdir(current_path)
-                return sexresult
-            else:
-                return all_params['CATALOG_NAME']
+                return False, None
         except:
-            self.print(f"Error during SExtractor execution", print_output)
+            self.print(f"Error during SExtractor execution", verbose)
             os.chdir(current_path)
-            return None
+            return False, None
 
     def run_scamp(self, 
-                  target_img: Union[str, List[str], Path, List[Path]], 
-                  sex_configfile: Union[str, Path], 
+                  target_path: Union[str, List[str], Path, List[Path]], 
+                  scamp_sexconfigfile: Union[str, Path], 
                   scamp_configfile: Union[str, Path],                   
-                  sex_params: Optional[dict] = None,
+                  scamp_sexparams: Optional[dict] = None,
                   scamp_params: Optional[dict] = None,
-                  update_files: bool = True, 
-                  print_output: bool = True):
+                  output_dir: Optional[str] = None,
+                  
+                  # Other parameters
+                  overwrite: bool = True, 
+                  verbose: bool = True,
+                  ):
 
         """
+                  target_path: Union[str, List[str], Path, List[Path]] = target_path
+                  sex_configfile: Union[str, Path] = scamp_sexconfigfile
+                  scamp_configfile: Union[str, Path] = scamp_configfile
+                  scamp_sexparams: Optional[dict] = None
+                  scamp_params: Optional[dict] = None
+                  target_mask : Optional[Union[str, Path]] = None
+                  target_outpath: Optional[Union[str, Path]] = None
+                  update_files: bool = True
+                  verbose: bool = True
+                  remove : bool = True
+        
         Run SCAMP for astrometric calibration on a set of images.
         """
         from pathlib import Path
@@ -2072,56 +2586,63 @@ class PhotometryHelper(TIPConfig):
         from tqdm import tqdm
         from astropy.io import fits
 
-        # Ensure target_img is a list
-        if isinstance(target_img, (str, Path)):
-            target_img = [Path(target_img)]
+        # Ensure target_path is a list
+        if isinstance(target_path, (str, Path)):
+            target_path = [Path(target_path)]
         else:
-            target_img = [Path(img) for img in target_img]
-
-        if not target_img:
+            target_path = [Path(img) for img in target_path]
+            
+        if not target_path:
             raise ValueError("No valid images provided for SCAMP.")
+                    
+        if output_dir is None:
+            output_dir = target_path[0].parent
+        
+        self.print(f'Start SCAMP process on {len(target_path)} images...=====================', verbose)
 
-        self.print(f'Start SCAMP process on {len(target_img)} images...=====================', print_output)
-
-        # Run SExtractor on each image
         sex_output_images = {}
-        for image in tqdm(target_img, desc='Running Source Extractor...'):
+        if verbose:
+            iterator = tqdm(target_path, desc='Running Source Extractor...')
+        else:
+            iterator = target_path
+        for image in iterator:
             if not image.is_file():
-                self.print(f"Warning: Image {image} does not exist. Skipping...", print_output)
+                self.print(f"Warning: Image {image} does not exist. Skipping...", verbose)
                 continue
-
-            basename = image.stem
-            history_dir = Path(self.config['SCAMP_HISTORYDIR']) / basename
-            history_dir.mkdir(parents=True, exist_ok=True)
-            history_path = history_dir / f"{basename}_scamp.cat"
-
+            
+            hdr = fits.getheader(image)
+            
+            if 'CRVAL1' not in hdr:
+                raise RuntimeError(f'CRVAL1 or CRVAL2 is not included in the header. Run astrometry first.')
+            
             # Ensure sex_params is a dictionary and update it
-            sex_params = sex_params or {}
-            sex_params.update({
-                'CATALOG_NAME': str(history_path),
-                'PARAMETERS_NAME': str(Path(self.sexpath) / 'scamp.param')
+            scamp_sexparams = scamp_sexparams or {}
+            scamp_sexparams.update({
+                'PARAMETERS_NAME': str(Path(self.sexpath) / 'scamp.param'),
+                'CATALOG_TYPE': 'FITS_LDAC'
             })
 
-            output_file = self.run_sextractor(target_img=str(image), 
-                                              sex_configfile=str(sex_configfile), 
-                                              sex_params=sex_params, 
-                                              return_result=False, 
-                                              print_output=False)
-            if output_file:
+            sex_result, output_file = self.run_sextractor(
+                target_path= image, 
+                sex_configfile= scamp_sexconfigfile, 
+                sex_params= scamp_sexparams, 
+                target_outpath= output_dir / (image.name + ".scamp.cat"),
+                return_result= False, 
+                verbose= False)
+            
+            if sex_result:
                 sex_output_images[str(image)] = output_file
 
         # Filter out images that failed
         if not sex_output_images:
-            self.print("No valid SExtractor catalogs generated. Aborting SCAMP.", print_output)
+            self.print("No valid SExtractor catalogs generated. Aborting SCAMP.", verbose)
             return None
 
         scamp_output_images = {key: value.replace('.cat', '.head') for key, value in sex_output_images.items()}
         all_images_str = ' '.join(sex_output_images.values())
 
         # Load and apply SCAMP parameters
-        all_params = self.load_config(scamp_configfile)
         scamp_params = scamp_params or {}
-        scamp_params.update(all_params)
         scampparams_str = ' '.join([f'-{key} {value}' for key, value in scamp_params.items()])
 
         # SCAMP command
@@ -2133,12 +2654,18 @@ class PhotometryHelper(TIPConfig):
             result_dir.mkdir(parents=True, exist_ok=True)
             os.chdir(result_dir)
 
-            self.print(f'RUN COMMAND: {command}', print_output)
-            subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
-
-            self.print("SCAMP process finished=====================", print_output)
-
-            if update_files:
+            self.print(f'RUN COMMAND: {command}', verbose)
+            result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
+            
+            is_succeeded = [Path(scamp_output).is_file() for scamp_output in scamp_output_images.values()]
+            
+            if all(is_succeeded):    
+                self.print("SCAMP process finished=====================", verbose)
+            else:
+                self.print("SCAMP process failed. Some output files are missing.", verbose)
+                return None
+            
+            if overwrite:
                 def sanitize_header(header: fits.Header) -> fits.Header:
                     """
                     Remove non-ASCII and non-printable characters from a FITS header.
@@ -2164,50 +2691,87 @@ class PhotometryHelper(TIPConfig):
                         hdul[0].header.update(head_header)
                         hdul.flush()
 
-                    self.print(f"Updated WCS for {image_file} using {head_file}", print_output)
+                    self.print(f"Updated WCS for {image_file} using {head_file}", verbose)
 
-                for image, header in scamp_output_images.items():
+                for (image, header), result in zip(scamp_output_images.items(), is_succeeded):
                     update_fits_with_head(Path(image), Path(header))
-
-                return list(scamp_output_images.keys())
+                    # Remove header file
+                    os.remove(header)
+                # When updating files, return the updated file names
+                return is_succeeded, list(scamp_output_images.keys())
             else:
-                return list(scamp_output_images.values())
+                # When not updating files, return the output files and headers
+                return is_succeeded, scamp_output_images
 
         except subprocess.CalledProcessError as e:
-            self.print(f"Error during SCAMP execution: {e}", print_output)
+            self.print(f"Error during SCAMP execution: {e}", verbose)
             return None
         finally:
+            # Remove cat file
+            for cat in sex_output_images.values():
+                os.remove(cat)
             os.chdir(current_path)
 
-
     def run_swarp(self,
-                  target_img: Union[str, List[str], Path, List[Path]], 
-                  output_path: Union[str, Path],
+                  # Input parameters
+                  target_path: Union[str, List[str], Path, List[Path]],  
                   swarp_configfile: Union[str, Path],
                   swarp_params: Optional[dict] = None,
+                  target_outpath: Union[str, Path] = None,
                   weight_inpath: Optional[Union[str, List[str], Path, List[Path]]] = None,
                   weight_outpath: Optional[str] = None,
+                  weight_type: str = 'MAP_RMS', # BACKGROUND, MAP_RMS, MAP_VAR, MAP_WEIGHT
+                  
+                  # Resampling configuration
+                  resample: bool = True,
+                  resample_type: bool = 'LANCZOS3',
                   center_ra: Optional[float] = None,
                   center_dec: Optional[float] = None,
-                  combine: bool = False,
-                  combine_type: str = 'median',
-                  print_output: bool = True) -> None:
+                  x_size: Optional[int] = None,
+                  y_size: Optional[int] = None,
+                  pixelscale: Optional[float] = None,
+                  
+                  # Combine configuration
+                  combine: bool = True,
+                  combine_type: str = 'MEDIAN',
+                  
+                  # Background subtraction configuration (From SWARP, Not recommended)
+                  subbkg: bool = False,
+                  box_size: int = 512,
+                  filter_size: int = 3,
+                  
+                  verbose: bool = True) -> None:
 
         """_summary_
 
         Args:
-            target_img = glob.glob('/home/hhchoi1022/data/test/swarp/calib*100.fits')
-            output_path = '/home/hhchoi1022/data/test/swarp/coadd.fits'
+            target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00176/7DT16/g/subbkg_calib_7DT16_T00176_20250315_025251_g_100.fits'
+            target_outpath = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00176/7DT16/g/subbkg_calib_7DT16_T00176_20250315_025251_g_100.coadd.fits'
             swarp_configfile = self.get_swarpconfigpath('7DT', 'C361K', 1, 'HIGH')
             swarp_params = None
-            weight_inpath = None
-            weight_outpath = None
-            center_ra = None
-            center_dec = None
-            combine = True
-            combine_type = 'median'
-            print_output = True
-
+            weight_inpath: Optional[Union[str, List[str], Path, List[Path]]] = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00176/7DT16/g/calib_7DT16_T00176_20250315_025251_g_100.fits.errormap'
+            weight_outpath: Optional[str] = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00176/7DT16/g/calib_7DT16_T00176_20250315_025251_g_100.fits.coadd.errormap'
+            weight_type: str = 'MAP_RMS' # BACKGROUND, MAP_RMS, MAP_VAR, MAP_WEIGHT
+            
+            # Resampling configuration
+            resample: bool = True
+            center_ra: Optional[float] = None
+            center_dec: Optional[float] = None
+            x_size: Optional[int] = None
+            y_size: Optional[int] = None
+            
+            # Combine configuration
+            combine: bool = False
+            combine_type: str = 'median'
+            
+            # Background subtraction configuration (From SWARP, Not recommended)
+            subbkg: bool = False
+            box_size: int = 512
+            filter_size: int = 3
+            
+            verbose: bool = True
+            
+            
         Raises:
             ValueError: _description_
 
@@ -2222,44 +2786,118 @@ class PhotometryHelper(TIPConfig):
         import re
         from tqdm import tqdm   
         from astropy.io import fits
-
-        # Ensure target_img is a list
-        if isinstance(target_img, (str, Path)):
-            target_img = [Path(target_img)]
+            
+        # swarp_configfile check
+        if Path(swarp_configfile).is_file():
+            swarp_config = Path(swarp_configfile)
         else:
-            target_img = [Path(img) for img in target_img]
-
-        if not target_img:
-            raise ValueError("No valid images provided for SCAMP.")
+            raise ValueError("SWARP configuration file does not exist.")
         
-        output_path = Path(output_path)
-        swarp_config = Path(swarp_configfile)
-        weight_inpath = Path(weight_inpath) if weight_inpath else None
+        # target_inpath setting
+        if isinstance(target_path, (str, Path)):
+            target_path = [Path(target_path)]
+        else:
+            target_path = [Path(img) for img in target_path]
+        if not target_path:
+            raise ValueError("No valid images provided for SWARP.")
+        
+        # target_outpath check
+        target_outpath = Path(target_outpath) if target_outpath is not None else target_path[0].with_suffix('.com.fits')
+        output_dir = target_outpath.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # weight_inpath check
+        if isinstance(weight_inpath, (str, Path)):
+            weight_inpath = [Path(weight_inpath)]
+        elif isinstance(weight_inpath, list):
+            weight_inpath = [Path(img) for img in weight_inpath]
+        else:
+            weight_inpath = None
+            
+        # weight_outpath check
         weight_outpath = Path(weight_outpath) if weight_outpath else None
+
+        # center_ra/dec check
+        target_header = [fits.getheader(img) for img in tqdm(target_path, desc = 'Reading headers...')]
+        if not center_ra or not center_dec:
+            if 'OBJCTRA' in target_header[0].keys():
+                center_ra = target_header[0]['OBJCTRA']
+                center_dec = target_header[0]['OBJCTDEC']
+                self.print(f'Center RA/Dec not provided. Using the mean of OBJCTRA/OBJCTDEC: {center_ra}/{center_dec}', verbose)    
+            else:
+                center_ra = np.mean([hdr['CRVAL1'] for hdr in target_header])
+                center_dec = np.mean([hdr['CRVAL2'] for hdr in target_header])
+                self.print(f'Center RA/Dec not provided. Using the mean of CRVAL1/CRVAL2: {center_ra}/{center_dec}', verbose)    
+                center_coord = SkyCoord(center_ra, center_dec, unit='deg')
+                center_ra = center_coord.ra.to_string(unit=u.hourangle, sep=':')
+                center_dec = center_coord.dec.to_string(unit=u.degree, sep=':', alwayssign=True)
+
+        if x_size and y_size:
+            x_size = int(x_size)
+            y_size = int(y_size)
         
-        # Load and apply SWARP parameters
-        all_params = self.load_config(swarp_configfile)
-        swarpparams_str = ''
         if not swarp_params:
             swarp_params = dict()
-        swarp_params['IMAGEOUT_NAME'] = path_outim
-        swarp_params['WEIGHTOUT_NAME'] = os.path.splitext(path_outim)[0] + '.weight.fits'
-        if swarp_params:
-            for key, value in swarp_params.items():
-                swarpparams_str += f'-{key} {value} '   
-                all_params[key] = value
+        
+        # Input and output file settings
+        all_params = self.load_config(swarp_configfile)
+        swarp_params['CENTER_TYPE'] = 'MANUAL'
+        swarp_params['CENTER'] = f'{center_ra},{center_dec}'
+        if x_size and y_size:
+            swarp_params['IMAGE_SIZE'] = f'{x_size},{y_size}'
+        swarp_params['RESAMPLE'] = 'Y' if resample else 'N'
+        swarp_params['RESAMPLE_DIR'] = str(output_dir)
+        swarp_params['RESAMPLING_TYPE'] = resample_type.upper()
+        if pixelscale:
+            swarp_params['PIXEL_SCALE'] = str(pixelscale)
+        
+        swarp_params['IMAGEOUT_NAME'] = str(target_outpath)
+        if weight_outpath is not None:
+            swarp_params['WEIGHTOUT_NAME'] = weight_outpath
+        else:
+            swarp_params['WEIGHTOUT_NAME'] = str(Path(target_outpath).with_suffix('.weight.fits'))
+        if weight_inpath is not None:
+            swarp_params['WEIGHT_IMAGE'] = ','.join([str(img) for img in weight_inpath])
+            swarp_params['WEIGHT_TYPE'] = weight_type.upper()
+        else:
+            swarp_params['WEIGHT_TYPE'] = 'NONE'
+        
+        # When combine is False, just resample the images to the specified coordinate
+        if not combine:
+            swarp_params['COMBINE'] = 'N'
+            swarp_params['DELETE_TMPFILES'] = 'N'
+            target_outlist = [Path(swarp_params['RESAMPLE_DIR']) / (file_.stem + all_params['RESAMPLE_SUFFIX']) for file_ in target_path]
+            weights_outlist = [Path(swarp_params['RESAMPLE_DIR']) / (file_.stem + '_resamp.fits')for file_ in weight_inpath] if weight_inpath is not None else []
+            output_filelist = [target_outlist, weights_outlist]
+        # When combine is True, combine the images. If combine_type == 'weighted', use the weighted mean
+        else:
+            swarp_params['COMBINE'] = 'Y'
+            swarp_params['COMBINE_TYPE'] = combine_type.upper()
+            swarp_params['DELETE_TMPFILES'] = 'Y'              
+            output_filelist = [swarp_params['IMAGEOUT_NAME'], swarp_params['WEIGHTOUT_NAME']]    
+
+        # Input and output file settings
+        if subbkg:
+            swarp_params['SUBTRACT_BACK'] = 'Y'
+            swarp_params['BACK_SIZE'] = box_size
+            swarp_params['BACK_FILTERSIZE'] = filter_size
+            
+        swarpparams_str = ''
+        
+        for key, value in swarp_params.items():
+            swarpparams_str += f'-{key} {value} '   
         
         # Command to run SWARP
-        all_images_str = ' '.join(succeeded_images)
+        all_images_str = ' '.join([str(img) for img in target_path])
         command = f'SWarp {all_images_str} -c {swarp_configfile} {swarpparams_str}'
         
         try:
+            self.print(f'RUN COMMAND: {command}', verbose)
             current_path = os.getcwd()
-            os.chdir(os.path.join(self.swarppath,'result'))
             # Run the SExtractor command using subprocess.run
             subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            self.print("SWARP process finished=====================", print_output)
-            return path_outim
+            self.print("SWARP process finished=====================", verbose)
+            return output_filelist
         except:
             return None
 
@@ -2293,30 +2931,48 @@ class PhotometryHelper(TIPConfig):
         sp.communicate()
         # os.system(ds9_command)
 
-    def to_regions(self, reg_ra, reg_dec, reg_size: float = 5.0, output_file_name: str = 'regions.reg'):
-        from regions import CircleSkyRegion, write_ds9
+    def to_regions(self, reg_x, reg_y, reg_size: float = 5.0, unit: str = 'pixel', output_file_path: str = None):
+        import os
         import astropy.units as u
-        # Check if ra and dec are single float values or lists
-        if isinstance(reg_ra, float) and isinstance(reg_dec, float):
-            ra_list = [reg_ra]
-            dec_list = [reg_dec]
-        elif isinstance(reg_ra, list) and isinstance(reg_dec, list):
-            ra_list = reg_ra
-            dec_list = reg_dec
-        else:
-            ra_list = reg_ra
-            dec_list = reg_dec
+        from regions import CirclePixelRegion, PixCoord, Regions
 
-        regions = []
-        for ra, dec in zip(ra_list, dec_list):
-            center = SkyCoord(ra, dec, unit='deg', frame='icrs')
-            radius = reg_size * u.arcsec  # Example radius
-            region = CircleSkyRegion(center, radius)
-            regions.append(region)
-        # Write the regions to a DS9 region file
-        output_file_path = os.path.join(self.configpath, output_file_name)
-        write_ds9(regions, output_file_path)
-        return output_file_path
+        # Normalize input
+        if isinstance(reg_x, (int, float)) and isinstance(reg_y, (int, float)):
+            x_list = [reg_x]
+            y_list = [reg_y]
+        elif isinstance(reg_x, list) and isinstance(reg_y, list):
+            x_list = reg_x
+            y_list = reg_y
+        else:
+            x_list = list(reg_x)
+            y_list = list(reg_y)
+
+        # Handle radius unit
+        if isinstance(reg_size, (int, float)):
+            if unit == 'pixel':
+                radius = reg_size
+            elif unit == 'arcsec':
+                raise ValueError("Pixel regions require size in pixel units.")
+            else:
+                raise ValueError(f"Unsupported unit '{unit}' for pixel region.")
+        else:
+            radius = float(reg_size)
+
+        # Create regions
+        region_list = []
+        for x, y in zip(x_list, y_list):
+            center = PixCoord(x=x, y=y)
+            region = CirclePixelRegion(center=center, radius=radius)
+            region_list.append(region)
+
+        # Write to file
+        reg = Regions(region_list)
+        if output_file_path is not None:
+            reg.write(output_file_path, format='ds9', overwrite=True)
+            return reg
+        else:
+            return reg
+
     
     def visualize_image(self, filename : str):
         from astropy.visualization import ImageNormalize, ZScaleInterval
@@ -2330,102 +2986,109 @@ class PhotometryHelper(TIPConfig):
         plt.colorbar()
         plt.title(f'{os.path.basename(filename)}')
         plt.show()
-        
+    
+
+
+
 
 #%% Initialization
 if __name__ == '__main__':
-    A = PhotometryHelper()
-    print_output = True
-    psfex_sexconfigfile = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = True)
-    psfex_configfile = A.get_psfexconfigpath()
+    self = PhotometryHelper()
+    verbose = True
+    psfex_sexconfigfile = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = True)
+    scamp_sexconfigfile = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_scamp = True)
+    psfex_configfile = self.get_psfexconfigpath()
+    scamp_configfile = self.get_scampconfigpath()
+    swarp_configfile = self.get_swarpconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1)
+    sex_configfile = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False)
 # %% Test get_imginfo
 
 if __name__ == '__main__':
     import glob
     filelist = glob.glob('/home/hhchoi1022/data/test/swarp/*.fits')
     A = PhotometryHelper()
-    tbl = A.get_imginfo(filelist)
+    
 #%% Load configuration
 if __name__ == '__main__':
     import glob
     filelist = glob.glob('/home/hhchoi1022/data/test/swarp/*.fits')
-    psfex_configpath = A.get_psfexconfigpath()
-    scamp_configpath = A.get_scampconfigpath()
-    sexconfig = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False)
-    sexconfig_psfex = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = True)
-    sexconfig_scamp = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_scamp = True)
-    swarpconfig = A.get_swarpconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1)
-    print(A.load_config(psfex_configpath))
-    print(A.load_config(scamp_configpath))
-    print(A.load_config(sexconfig))
-    print(A.load_config(sexconfig_psfex))
-    print(A.load_config(sexconfig_scamp))
-    print(A.load_config(swarpconfig))
+    psfex_configpath = self.get_psfexconfigpath()
+    scamp_configpath = self.get_scampconfigpath()
+    sexconfig = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False)
+    sexconfig_psfex = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = True)
+    sexconfig_scamp = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_scamp = True)
+    swarpconfig = self.get_swarpconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1)
+    print(self.load_config(psfex_configpath))
+    print(self.load_config(scamp_configpath))
+    print(self.load_config(sexconfig))
+    print(self.load_config(sexconfig_psfex))
+    print(self.load_config(sexconfig_scamp))
+    print(self.load_config(swarpconfig))
 #%% astrolaign 
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/astroalign/').glob('*.fits'))
     # Path-based running
-    A.img_astroalign(target_img = filelist[0], reference_img = filelist[1], output_path = None, print_output = True)
+    self.img_astroalign(target_img = filelist[0], reference_img = filelist[1], target_outpath = None, verbose = True)
     # Data-based running
     target_img = fits.getdata(filelist[0])
     reference_img = fits.getdata(filelist[1])
     target_header = fits.getheader(filelist[0])
     reference_header = fits.getheader(filelist[1])
-    aligned_data, aligned_heeader = A.img_astroalign(target_img = target_img, reference_img = reference_img, target_header = target_header, reference_header = reference_header, output_path = None, print_output = True)
+    aligned_data, aligned_heeader = self.img_astroalign(target_img = target_img, reference_img = reference_img, target_header = target_header, reference_header = reference_header, target_outpath = None, verbose = True)
     fits.writeto('/home/hhchoi1022/data/test/astroalign/aligned_database.fits', aligned_data, header = aligned_heeader, overwrite = True)
 #%% cutout
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/cutout/').glob('*.fits'))
     # Path-based running
     ## Cutout based on pixel
-    A.img_cutout(target_img = filelist[0], output_path = None, xsize = 0.5, ysize = 0.5, xcenter = 4632, ycenter = 3194)
+    self.img_cutout(target_img = filelist[0], target_outpath = None, xsize = 0.5, ysize = 0.5, xcenter = 4632, ycenter = 3194)
     ## Cutout based on WCS
-    A.img_cutout(target_img = filelist[0], output_path = None, xcenter = '03:35:39', ycenter = '-82:21:39', xsize = 50, ysize = 50)
+    self.img_cutout(target_img = filelist[0], target_outpath = None, xcenter = '03:35:39', ycenter = '-82:21:39', xsize = 50, ysize = 50)
     ## Data-based running with pixel
     target_img = fits.getdata(filelist[0])
     target_header = fits.getheader(filelist[0])
-    cutouted_data, cutouted_header = A.img_cutout(target_img = target_img, target_header = target_header, xsize = 0.5, ysize = 0.5, xcenter = 4632, ycenter = 3194)
+    cutouted_data, cutouted_header = self.img_cutout(target_img = target_img, target_header = target_header, xsize = 0.5, ysize = 0.5, xcenter = 4632, ycenter = 3194)
     fits.writeto(Path(filelist[0]).with_name('cutout_data_bsased.fits'), cutouted_data, cutouted_header, overwrite = True)
     ## Data-based running with WCS
-    cutouted_data, cutouted_header = A.img_cutout(target_img = target_img, target_header = target_header, xcenter = '03:35:39', ycenter = '-82:21:39', xsize = 50, ysize = 50)
+    cutouted_data, cutouted_header = self.img_cutout(target_img = target_img, target_header = target_header, xcenter = '03:35:39', ycenter = '-82:21:39', xsize = 50, ysize = 50)
     fits.writeto(Path(filelist[0]).with_name('cutout_data_bsased_wcs.fits'), cutouted_data, cutouted_header, overwrite = True)
 
 #%% scaling
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/scale/').glob('*.fits'))
     # Path-based running
-    A.img_scale(target_img = filelist[0], zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', print_output = True)
+    self.img_scale(target_img = filelist[0], zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', verbose = True)
     # Data-based running with the header
     target_img = fits.getdata(filelist[0])
     target_header = fits.getheader(filelist[0])
-    scaled_data, scaled_header = A.img_scale(target_img = target_img, target_header = target_header, zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', print_output = True)
+    scaled_data, scaled_header = self.img_scale(target_img = target_img, target_header = target_header, zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', verbose = True)
     fits.writeto(Path(filelist[0]).with_name('scaled_data_based.fits'), scaled_data, scaled_header, overwrite = True)
 
     # Data-based running without the header
     target_img = fits.getdata(filelist[0])
-    scaled_data = A.img_scale(target_img = target_img, zp_target = 27, zp_reference = 25, zp_key = 'ZP_AUTO', print_output = True)
+    scaled_data = self.img_scale(target_img = target_img, zp_target = 27, zp_reference = 25, zp_key = 'ZP_AUTO', verbose = True)
     fits.writeto(Path(filelist[0]).with_name('scaled_data_based_nohead.fits'), scaled_data, overwrite = True)
 
 #%% convolution
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/convolve/').glob('*.fits'))
     # Path-based running
-    convolved_file = A.img_convolve(target_img = filelist[0], fwhm_target = 3, fwhm_reference = 3.95, output_path = None, print_output = True)
+    convolved_file = self.img_convolve(target_img = filelist[0], fwhm_target = 3, fwhm_reference = 3.95, target_outpath = None, verbose = True)
     # Data-based running
     target_img = fits.getdata(filelist[0])
     target_header = fits.getheader(filelist[0])
-    convolved_data, convolved_header = A.img_convolve(target_img = target_img, target_header = target_header, fwhm_reference = 3.95, output_path = None, print_output = True)
+    convolved_data, convolved_header = self.img_convolve(target_img = target_img, target_header = target_header, fwhm_reference = 3.95, target_outpath = None, verbose = True)
     fits.writeto(Path(filelist[0]).with_name('convolved_data_based.fits'), convolved_data, header = convolved_header, overwrite = True)
-    convolved_data = A.img_convolve(target_img = target_img, fwhm_target = 3, fwhm_reference = 3.95, output_path = None, print_output = True)
+    convolved_data = self.img_convolve(target_img = target_img, fwhm_target = 3, fwhm_reference = 3.95, target_outpath = None, verbose = True)
     fits.writeto(Path(filelist[0]).with_name('convolved_data_based_nopix.fits'), convolved_data, overwrite = True)
     # Check convolution is applied well
     import matplotlib.pyplot as plt
     convolved_file = Path(filelist[0]).with_name('convolved_data_based.fits')
-    tbl = A.run_sextractor(target_img = filelist[0], sex_configfile = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False))
+    tbl = self.run_sextractor(target_img = filelist[0], sex_configfile = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False))
     peeing_sources = tbl[(tbl['MAG_APER'] > -13) & (tbl['MAG_APER'] < -10) & (tbl['CLASS_STAR'] > 0.9)]
     plt.scatter(tbl['MAG_APER'], tbl['FWHM_IMAGE'], label = f'Peeing= {np.mean(peeing_sources["FWHM_IMAGE"]):.2f}')
     
-    tbl = A.run_sextractor(target_img = convolved_file, sex_configfile = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False))
+    tbl = self.run_sextractor(target_img = convolved_file, sex_configfile = self.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False))
     peeing_sources = tbl[(tbl['MAG_APER'] > -13) & (tbl['MAG_APER'] < -10) & (tbl['CLASS_STAR'] > 0.9)]
     plt.scatter(tbl['MAG_APER'], tbl['FWHM_IMAGE'], label = f'Peeing= {np.mean(peeing_sources["FWHM_IMAGE"]):.2f}')
     plt.legend()
@@ -2434,56 +3097,175 @@ if __name__ == '__main__':
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/crdetection/').glob('*.fits'))
     # Path-based running
-    telinfo = A.get_telinfo('7DT', 'C361K', 'HIGH', 1)
-    A.img_crdetection(target_img = filelist[0], gain = telinfo['gain'], readnoise = telinfo['readnoise'], output_path = None, print_output = True)
+    telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1)
+    self.img_crdetection(target_img = filelist[0], gain = telinfo['gain'], readnoise = telinfo['readnoise'], target_outpath = None, verbose = True)
     # Data-based running
     target_img = fits.getdata(filelist[0])
     target_header = fits.getheader(filelist[0])
-    crdetection_data, crdetection_header = A.img_crdetection(target_img = target_img, target_header = target_header, gain = telinfo['gain'], readnoise = telinfo['readnoise'], output_path = None, print_output = True)
+    crdetection_data, crdetection_header = self.img_crdetection(target_img = target_img, target_header = target_header, gain = telinfo['gain'], readnoise = telinfo['readnoise'], target_outpath = None, verbose = True)
     fits.writeto(Path(filelist[0]).with_name('crdetection_data_based.fits'), crdetection_data, header = crdetection_header, overwrite = True)
     # Data-based running without header
     target_img = fits.getdata(filelist[0])
-    crdetection_data = A.img_crdetection(target_img = target_img, gain = telinfo['gain'], readnoise = telinfo['readnoise'], output_path = None, print_output = True)
+    crdetection_data = self.img_crdetection(target_img = target_img, gain = telinfo['gain'], readnoise = telinfo['readnoise'], target_outpath = None, verbose = True)
     fits.writeto(Path(filelist[0]).with_name('crdetection_data_based_nohead.fits'), crdetection_data, overwrite = True)
+#%% estimatebkg
+if __name__ == '__main__':
+    filelist = list(Path('/home/hhchoi1022/data/test/subbkg/').glob('*.fits'))
+    # Path-based running
+    ## 1D bkg with no masking
+    bkg_map, bkginfo = self.img_bkgmap(target_img = filelist[0], 
+                                target_outpath = filelist[0].with_name('bkg_2D_30nomask.fits'),
+                                apply_2D_bkg = True,
+                                mask_sources = False, 
+                                visualize = True,
+                                bkg_estimator = 'median',
+                                verbose = True)
+    
+    bkg_map, bkginfo = self.img_bkgmap_sep(target_img = filelist[0], 
+                            target_outpath = filelist[0].with_name('bkg_2D_30mask_sep.fits'),
+                            mask_sources = True, 
+                            visualize = True,
+                            verbose = True)
 #%% subbkg
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/subbkg/').glob('*.fits'))
     # Path-based running
     ## 1D bkg with no masking
-    A.img_subtractbkg(target_img = filelist[0], apply_2D_bkg = False, mask_sources = False, use_header = False, visualize = True, output_path = Path(filelist[0]).with_name('subbkg_1D_30nomask.fits'), print_output = True, save_bkgmap = True)
+    self.img_subtractbkg(target_img = filelist[0], 
+                      target_outpath = Path(filelist[0]).with_name('subbkg_1D_nomask.fits'), 
+                      apply_2D_bkg = False, 
+                      mask_sources = False, 
+                      use_header = False, 
+                      visualize = True, 
+                      verbose = True, 
+                      box_size = 100,
+                      save_bkgmap = True)
     ## 1D bkg with masking
-    A.img_subtractbkg(target_img = filelist[0], apply_2D_bkg = False, mask_sources = True, use_header = False, visualize = True, output_path = Path(filelist[0]).with_name('subbkg_1D_30mask.fits'), print_output = True, save_bkgmap = True)
+    self.img_subtractbkg(target_img = filelist[0], 
+                      target_outpath = Path(filelist[0]).with_name('subbkg_1D_mask.fits'), 
+                      apply_2D_bkg = False, 
+                      mask_sources = True, 
+                      use_header = False, 
+                      visualize = True, 
+                      verbose = True, 
+                      save_bkgmap = True)
     ## 2D bkg with no masking
-    A.img_subtractbkg(target_img = filelist[0], apply_2D_bkg = True, mask_sources = False, use_header = False, visualize = True, output_path = Path(filelist[0]).with_name('subbkg_2D_30nomask.fits'), print_output = True, save_bkgmap = True)
+    self.img_subtractbkg(target_img = filelist[0], 
+                      target_outpath = Path(filelist[0]).with_name('subbkg_2D_nomask.fits'),
+                      apply_2D_bkg = True, 
+                      mask_sources = False, 
+                      use_header = False, 
+                      visualize = True, 
+                      verbose = True, 
+                      save_bkgmap = True)
     ## 2D bkg with masking
-    A.img_subtractbkg(target_img = filelist[0], apply_2D_bkg = True, mask_sources = True, use_header = False, visualize = True, output_path = Path(filelist[0]).with_name('subbkg_2D_30mask.fits'), print_output = True, save_bkgmap = True)
-
+    self.img_subtractbkg(target_img = filelist[0], 
+                      target_outpath = Path(filelist[0]).with_name('subbkg_2D_mask.fits'),
+                      apply_2D_bkg = True, 
+                      mask_sources = True, 
+                      use_header = False, 
+                      visualize = True, 
+                      verbose = True, 
+                      save_bkgmap = True)
+    
     # data-based running
     target_img = fits.getdata(filelist[0])
     target_header = fits.getheader(filelist[0])
     ## 2D bkg with masking
-    subbkg_data, subbkg_header, bkg_map = A.img_subtractbkg(target_img = target_img, target_header = target_header, apply_2D_bkg = True, mask_sources = True, use_header = False, visualize = True, output_path = None, print_output = True, save_bkgmap = True)
+    subbkg_data, subbkg_header, bkg_map, bkg_info = self.img_subtractbkg(
+        target_img = target_img, 
+        target_header = target_header,
+        target_outpath = Path(filelist[0]).with_name('subbkg_2D_mask.fits'),
+        apply_2D_bkg = True,
+        mask_sources = True, 
+        use_header = False, 
+        visualize = True, 
+        verbose = True, 
+        save_bkgmap = True)
     fits.writeto(Path(filelist[0]).with_name('subbkg_2D_data_based_mask.fits'), subbkg_data, header = subbkg_header, overwrite = True)
     fits.writeto(Path(filelist[0]).with_name('subbkg_2D_data_based_mask_bkgmap.fits'), bkg_map, target_header, overwrite = True)
+#%% subbkg with sep
+if __name__ == '__main__':
+    filelist = list(Path('/home/hhchoi1022/data/test/subbkg_sep/').glob('*.fits'))
+    # Path-based running
+    ## 2D bkg with no masking
+    self.img_subtractbkg_sep(
+        target_img = filelist[0], 
+        target_outpath = Path(filelist[0]).with_name('subbkg_2D_nomask.fits'),
+        mask_sources = False, 
+        visualize = True, 
+        verbose = True, 
+        save_bkgmap = True)
+    ## 2D bkg with masking
+    self.img_subtractbkg_sep(
+        target_img = filelist[0], 
+        target_outpath = Path(filelist[0]).with_name('subbkg_2D_masself.img_subtractbkg_sepk.fits'),
+        mask_sources = True, 
+        visualize = True, 
+        verbose = True, 
+        save_bkgmap = True)
+    
+    # data-based running
+    target_img = fits.getdata(filelist[0])
+    target_header = fits.getheader(filelist[0])
+    ## 2D bkg with masking
+    subbkg_data, subbkg_header, bkg_map, bkg_info = self.img_subtractbkg_sep(
+        target_img = target_img, 
+        target_header = target_header,
+        target_outpath = Path(filelist[0]).with_name('subbkg_2D_mask.fits'),
+        mask_sources = True, 
+        visualize = True, 
+        verbose = True, 
+        save_bkgmap = True)
+    fits.writeto(Path(filelist[0]).with_name('subbkg_2D_data_based_mask.fits'), subbkg_data, header = subbkg_header, overwrite = True)
+    fits.writeto(Path(filelist[0]).with_name('subbkg_2D_data_based_mask_bkgmap.fits'), bkg_map, target_header, overwrite = True)
+#%% Errormap
+if __name__ == '__main__':
+    filelist = list(Path('/home/hhchoi1022/data/test/errormap/').glob('*.fits'))
+    bkg_img, bkg_info =self.img_bkgmap(target_img = filelist[0], apply_2D_bkg = True)
+    errormap = self.img_errormap(target_img = filelist[0], 
+                              bkg_img = bkg_img,
+                              target_outpath = Path(filelist[0]).with_name('errormap.fits'))
+    
+    errormap = self.img_errormap(target_img = filelist[0],
+                              target_outpath = Path(filelist[0]).with_name('errormap_sep.fits'),
+                              bkg_estimator = 'sep'
+                              )
+#%% SOurce detection
+if __name__ == '__main__':
+    filelist = list(Path('/home/hhchoi1022/data/test/sourcedetection/').glob('*.fits'))
+    # Path-based   running
+    tbl1 = self.img_detection(target_img = filelist[0], 
+                           calculate_bkg = True,
+                           apply_2D_bkg = False,
+                           use_header= True,
+                           visualize = True
+                           )
+    tbl2 = self.img_detection_sep(target_img = filelist[0],
+                               threshold_sigma = 3,
+                               mask_sources = True,
+                               visualize = True,
+                               )
+
 #%% combine
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/combine/').glob('*20250104*100.fits'))
     # Path-based running
-    A.img_combine(filelist = filelist, subbkg = True, apply_2D_bkg = True, mask_sources = True, mask_source_size_in_pixel = 30, zp_reference = None, align = True)
+    self.img_combine(filelist = filelist, subbkg = True, apply_2D_bkg = True, mask_sources = True, mask_source_size_in_pixel = 30, zp_reference = None, align = True)
     # Data-based running
-    A.img_combine(filelist = filelist, )
+    self.img_combine(filelist = filelist, )
     
 #%% PSFex
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/psfex/').glob('*.fits'))
     # Path-based running
-    A.run_psfex(target_img = filelist[0], sex_configfile = psfex_sexconfigfile, psfex_configfile = psfex_configfile)
+    self.run_psfex(target_img = filelist[0], sex_configfile = psfex_sexconfigfile, psfex_configfile = psfex_configfile)
 #%% hotpants
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/subtract/').glob('calib*.com.fits'))
     masklist = list(Path('/home/hhchoi1022/data/test/subtract/').glob('calib*.mask.fits'))
     stamplist = list(Path('/home/hhchoi1022/data/test/subtract/').glob('*.ssf.txt'))
-    A.run_hotpants(target_img = filelist[0], reference_img = filelist[1], 
+    self.run_hotpants(target_img = filelist[0], reference_img = filelist[1], 
                    convolve_path = str(filelist[0]).replace('calib', 'conv_calib'),
                    target_mask = masklist[0], reference_mask = masklist[1],
                    stamp = stamplist[0],
@@ -2494,110 +3276,95 @@ if __name__ == '__main__':
 if __name__ == '__main__':
     filelist = list(Path('/home/hhchoi1022/data/test/sextractor/').glob('*com.fits'))
     masklist = list(Path('/home/hhchoi1022/data/test/sextractor/').glob('*.mask.fits'))
-    sci_catalog = A.run_sextractor(target_img = filelist[0], sex_configfile = sexconfig, image_mask = masklist[0])
     
+    sci_catalog1 = self.run_sextractor(target_img = filelist[0], 
+                                   sex_configfile = sex_configfile, 
+                                   sex_params = dict(SEEING_FWHM = 2),
+                                   target_outpath = str(filelist[0]).replace('.fits', '.cat1'), 
+                                   target_mask = masklist[0],
+                                   return_result = True)
+    sci_catalog2 = self.run_sextractor(target_img = filelist[0], 
+                                   sex_configfile = sex_configfile, 
+                                   sex_params = dict(SEEING_FWHM = 2),
+                                   target_outpath = str(filelist[0]).replace('.fits', '.cat2'),
+                                   return_result = True)#, target_mask = masklist[0])
+
 #%% Visualization for sextractor
 if __name__ == '__main__': 
-    from tippy.catalog import Catalog
-    cat = Catalog(objname = 'T00176', catalog_type = 'GAIAXP')
-    ref_catalog, _ = cat.get_reference_sources(mag_lower = 13, mag_upper = 16)
+    
+    from tippy.catalog import ReferenceCatalog
+    import matplotlib.pyplot as plt
+    cat = ReferenceCatalog(objname = 'T00176', catalog_type = 'GAIAXP')
+    ref_catalog, _ = cat.get_reference_sources(mag_lower = 10, mag_upper = 16)
+    masked_sources = sci_catalog1[sci_catalog1['IMAFLAGS_ISO'] > 128]
+    sci_catalog1 = sci_catalog1[(sci_catalog1['CLASS_STAR'] > 0.9) & (sci_catalog1['FLAGS'] == 0)]
+    sci_catalog2 = sci_catalog2[(sci_catalog2['CLASS_STAR'] > 0.9) & (sci_catalog2['FLAGS'] == 0)]
     ref_catalog_coord = SkyCoord(ra = ref_catalog['ra'], dec = ref_catalog['dec'], unit = 'deg')
-    obj_catalog_coord = SkyCoord(ra = sci_catalog['ALPHA_J2000'], dec = sci_catalog['DELTA_J2000'], unit = 'deg')
-    matched_object_idx, matched_catalog_idx, _ = A.cross_match(obj_catalog_coord, ref_catalog_coord, 1)
-    obj_matched = sci_catalog[matched_object_idx]
-    ref_matched = ref_catalog[matched_catalog_idx]
+    obj_catalog_coord1 = SkyCoord(ra = sci_catalog1['ALPHA_J2000'], dec = sci_catalog1['DELTA_J2000'], unit = 'deg')
+    obj_catalog_coord2 = SkyCoord(ra = sci_catalog2['ALPHA_J2000'], dec = sci_catalog2['DELTA_J2000'], unit = 'deg')
+    matched_object_idx1, matched_catalog_idx1, _ = self.cross_match(obj_catalog_coord1, ref_catalog_coord, 1)
+    matched_object_idx2, matched_catalog_idx2, _ = self.cross_match(obj_catalog_coord2, ref_catalog_coord, 1)
+
+    obj_matched1 = sci_catalog1[matched_object_idx1]
+    obj_matched2 = sci_catalog2[matched_object_idx1]
+
+    ref_matched1 = ref_catalog[matched_catalog_idx1]
+    ref_matched2 = ref_catalog[matched_catalog_idx2]
+
+    
     # Seeing plotplt.figure()
-    plt.scatter(sci_catalog['MAG_APER'], sci_catalog['FWHM_IMAGE'], alpha = 0.1, c = 'k')
-    plt.scatter(obj_matched['MAG_APER'], obj_matched['FWHM_IMAGE'], c = 'r')
+    plt.scatter(sci_catalog1['MAG_APER'], sci_catalog1['FWHM_IMAGE'], alpha = 0.1, c = 'k')
+    plt.scatter(obj_matched1['MAG_APER'], obj_matched1['FWHM_IMAGE'], c = 'r', alpha = 0.5)
+    plt.scatter(obj_matched2['MAG_APER'], obj_matched2['FWHM_IMAGE'], c = 'b', alpha = 0.5)
+
     # ZP plot
     plt.figure()
-    zp = obj_matched['MAG_APER'] - ref_matched['r_mag']
-    plt.scatter(ref_matched['r_mag'], zp)
-#%%
+    zp1 = ref_matched1['r_mag'] -obj_matched1['MAG_APER']
+    zp2 = ref_matched2['r_mag'] -obj_matched2['MAG_APER']
+
+    plt.scatter(ref_matched1['r_mag'], zp1)
+    plt.scatter(ref_matched2['r_mag'], zp2)
+
+    # Color - ZP plot
+    plt.figure()
+    color1 = ref_matched1['m400_mag'] - ref_matched1['m875_mag']
+    color2 = ref_matched2['m400_mag'] - ref_matched2['m875_mag']
+
+    plt.scatter(color1, zp1, s = 30)
+    plt.scatter(color2, zp2, s = 50)
+    
+    # Masked sources
+    plt.scatter(sci_catalog['X_IMAGE'], sci_catalog['Y_IMAGE'], alpha = 0.1, c = 'k')
+    plt.scatter(masked_sources['X_IMAGE'], masked_sources['Y_IMAGE'], c = 'g', alpha = 0.5)
+#%% SCAMP
 if __name__ == '__main__':
-    A.get_imginfo(filelist)
-    test_folder = '/home/hhchoi1022/data/test/test4/'
-    
-    reference_img = os.path.join(test_folder, 'calib_7DT15_T00176_20250227_034830_r_300.com.fits')
-    target_img = os.path.join(test_folder, 'calib_7DT15_T00176_20241220_022038_r_300.com.fits')
-    target_mask = target_img.replace('.fits', '.mask.fits')
-    ssf_path = target_img.replace('.fits', '.ssf.txt')
-    
-    tgt_dat = fits.getdata(target_img)
-    ref_dat = fits.getdata(reference_img)
-    tgt_hdr = fits.getheader(target_img)
-    ref_hdr = fits.getheader(reference_img)
-    
-    #tgt_scaled = A.img_scale(target_img = target_img, target_header  =tgt_hdr,  zp_reference = 23)
-    #ref_scaled = A.img_scale(target_img = reference_img, target_header = ref_hdr, zp_reference = 23)
-    #B = A.img_subtractbkg(target_img = tgt_image, apply_2D_bkg = False, mask_sources = True, visualize = True)
-    psfexconfigpath = A.get_psfexconfigpath()#telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1)
-    psfex_config = A.load_config(psfexconfigpath)
-    sex_configfile = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False)
-    #convimg=  A.img_convolve(target_img = tgt_scaled,  fwhm_reference = 5)
-    #A.run_psfex(target_img = target_img, sex_configfile = psfex_config, psfex_configfile = psfexconfigpath)
-    output_hotpants = os.path.join(test_folder, 'sub2.fits')
-    output_conv = os.path.join(test_folder, 'conv2.fits')
-    # 0
-    #A.run_hotpants(target_img = target_img, reference_img = reference_img, output_path = output_hotpants, convolved_img = output_conv, target_mask = None, reference_mask = None, stamp = None, convim = 't')
-    # 1 with mask
-    #A.run_hotpants(target_img = target_img, reference_img = reference_img, output_path = output_hotpants, convolved_img = output_conv, target_mask = target_mask, reference_mask = None, stamp = None, convim = 't')
-    # 2 with stamp
-    #A.run_hotpants(target_img = target_img, reference_img = reference_img, output_path = output_hotpants, convolved_img = output_conv, target_mask = None, reference_mask = None, stamp = ssf_path, convim = 't')
-    
-    # Test SCAMP
-    scampconfig = A.get_scampconfigpath()
-    sex_configfile = A.get_sexconfigpath(telescope = '7DT', ccd = 'C361K', readoutmode = 'HIGH', binning = 1, for_psfex = False, for_scamp = True)
-    #A.run_scamp(target_img = target_img, sex_configfile = sexampconfig, scamp_configfile = scampconfig)
-    
-    
-
-    #A.run_astrometry(image = target_img, sex_configfile = sexconfig)
-    #B = A.img_subtractbkg(imlist[0])
-    #A.img_scale(target_img = B, zp_target = 25, zp_reference = 25, zp_key = 'ZP_AUTO', print_output = True)
-    # A.img_combine(
-    #     imlist,
-    #     output_path = None, #'/home/hhchoi1022/data/test/test.fits',
-    #     combine_method = 'median', 
-    #     clip = 'extrema', 
-    #     clip_sigma_low = 2,
-    #     clip_sigma_high = 5,
-    #     clip_minmax_min = 3,
-    #     clip_minmax_max = 3,
-    #     clip_extrema_nlow = 1,
-    #     clip_extrema_nhigh = 1,
-    #     subbkg = True,
-    #     apply_2D_bkg = False,
-    #     bkg_key = 'SKYBKG',
-    #     zp_key = 'ZP_AUTO',
-    #     mask_sources = False,
-    #     mask_source_size_in_pixel = 10,
-    #     bkg_estimator = 'median',
-    #     sigma = 5.0,
-    #     box_size = 100,
-    #     filter_size = 3,
-    #     scale = True,
-    #     zp_reference = None,#25.0,
-    #     print_output = True
-    # )
-
-    #A.run_sextractor(image = '/mnt/data1/7DT/calib_7DT02_S240422ed_20240423_013036_r_120.fits', sex_configfile = sexconfigpath)
-    # file_ = '/data1/supernova_rawdata/SN2023rve/analysis/RASA36/reference_image/com_align_Calib-RASA36-NGC1097-20210719-091118-r-60.fits'
-    # #file1 = '/data1/supernova_rawdata/SN2023rve/analysis/KCT_STX16803/r/align_com_align_cutoutmost_Calib-KCT_STX16803-NGC1097-20230801-075323-r-120.fits'
-    # #file2 = '/data1/supernova_rawdata/SN2023rve/analysis/KCT_STX16803/reference_image/cut_Ref-KCT_STX16803-NGC1097-r-5400.com.fits'
-    # sex_configfile = '/home/hhchoi1022/hhpy/Research/photometry/sextractor/RASA36_HIGH.scampconfig'
-    # filelist = glob.glob('/mnt/data1/supernova_rawdata/SN2023rve/analysis/RASA36/reference_image_tmp/cutout*.fits')
-    # #sex_configfile = '/home/hhchoi1022/hhpy/Research/photometry/sextractor/KCT.config'
-    # #A.run_astrometry(image = file1, sex_configfile = sex_configfile)
-    # #A.run_scamp(filelist = file_, sex_configfile = sex_configfile)
-    
-    # #sex_params = dict()
-    # #sex_params['CATALOG_NAME'] = f"{A.scamppath}/catalog/{os.path.basename(file_).split('.')[0]}.cat"
-    # #sex_params['PARAMETERS_NAME'] = f'{A.sexpath}/scamp.param'
-    # target_img = glob.glob('/mnt/data1/supernova_rawdata/SN2023rve/analysis/KCT_STX16803/g/Calib*.fits')[10]
-    # reference_img = '/mnt/data1/supernova_rawdata/SN2023rve/analysis/KCT_STX16803/g/Calib-KCT_STX16803-NGC1097-20230927-063834-g-120.fits'
-    # A.visualize_image(target_img)
-    # A.visualize_image(reference_img)
-    #A.align_img(target_img, reference_img)
-
-# %%
+    #target_img = list(Path('/home/hhchoi1022/data/test/scamp/').glob('*.fits'))
+    self = PhotometryHelper()
+    target_img = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT16/g/calib_7DT16_T22956_20250329_043218_g_100.fits'
+    hdr = fits.getheader(target_img)
+    astrometry_sexconfigfile = sex_configfile
+    ra = hdr['OBJCTRA']
+    dec = hdr['OBJCTDEC']
+    verbose = True
+    #self.run_astrometry(target_path = target_img, astrometry_sexconfigfile = sex_configfile, ra = hdr['OBJCTRA'], dec = hdr['OBJCTDEC'], verbose = True)
+    # Do astrometry first
+    # astrometry_img = self.run_astrometry(target_img = target_img[0], sex_configfile = sex_configfile)
+    # self.run_scamp(target_img =target_img, scamp_sexconfigfile = scamp_sexconfigfile, 
+    #             scamp_configfile = scamp_configfile, astrometry = True, astrometry_sexconfigfile = sex_configfile
+    #             )
+#%% SWARP
+if __name__ == '__main__':
+    target_img = list(Path('/home/hhchoi1022/data/test/swarp/').glob('*100.fits'))
+    center_ra = np.mean([fits.getheader(img)['CRVAL1'] for img in target_img])
+    center_dec = np.mean([fits.getheader(img)['CRVAL2'] for img in target_img])
+    for img in target_img:
+        self.run_swarp(target_img = target_img, 
+                    swarp_configfile = swarp_configfile, 
+                    target_outpath = None,
+                    x_size = 11000,
+                    y_size = 7500,
+                    combine = True,
+                    subbkg = True,
+                    center_ra = center_ra,
+                    center_dec = center_dec,
+                    verbose = True)

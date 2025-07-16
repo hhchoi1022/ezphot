@@ -6,7 +6,7 @@
  xmlns:stc="http://www.ivoa.net/xml/STC/v1.10">
 <DESCRIPTION>produced by SCAMP</DESCRIPTION>
 <!-- VOTable description at http://www.ivoa.net/Documents/latest/VOT.html -->
-<RESOURCE ID="SCAMP" name="calib_7DT15_T00176_20241220_022038_r_300.com_scamp.cat">
+<RESOURCE ID="SCAMP" name="calib_7DT15_T01357_20250207_074546_r_100.1_1.fits.scamp.cat">
  <DESCRIPTION>Data related to SCAMP</DESCRIPTION>
  <INFO name="QUERY_STATUS" value="OK" />
  <COOSYS ID="J2000" equinox="J2000" epoch="2000.0" system="ICRS"/>
@@ -18,13 +18,13 @@
   <PARAM name="Soft_URL" datatype="char" arraysize="*" ucd="meta.ref.url;meta.software" value="http://astromatic.net/software/scamp"/>
   <PARAM name="Soft_Auth" datatype="char" arraysize="*" ucd="meta.bib.author;meta.software" value="Emmanuel Bertin"/>
   <PARAM name="Soft_Ref" datatype="char" arraysize="*" ucd="meta.bib.bibcode;meta.software" value="2006ASPC..351..112B"/>
-  <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="128"/>
-  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.end;meta.software" value="2025-03-06"/>
-  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.end;meta.software" value="16:56:26"/>
-  <PARAM name="Duration" datatype="float" ucd="time.duration;meta.software" value="6" unit="s"/>
+  <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="64"/>
+  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.end;meta.software" value="2025-06-25"/>
+  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.end;meta.software" value="23:48:02"/>
+  <PARAM name="Duration" datatype="float" ucd="time.duration;meta.software" value="8" unit="s"/>
   <PARAM name="User" datatype="char" arraysize="*" ucd="meta.curation" value="hhchoi1022"/>
   <PARAM name="Host" datatype="char" arraysize="*" ucd="meta.curation" value="(null)"/>
-  <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/data/hhchoi1022/code/TIPpy/tippy/configuration/scamp/result"/>
+  <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/data/data1/factory_hhchoi/code/tippy/tippy/configuration/scamp/result"/>
   <TABLE ID="Fields" name="Fields">
    <DESCRIPTION>Data gathered by SCAMP for every  input catalog</DESCRIPTION>
    <!-- NFields may be 0 if an error occurred early in the processing -->
@@ -76,15 +76,15 @@
    <FIELD name="NDeg_Reference_HighSN" datatype="int" ucd="stat.fit.dof"/>
    <DATA><TABLEDATA>
     <TR>
-     <TD>1</TD><TD>calib_7DT15_T00176_20241220_022038_r_300.com_scamp.cat</TD><TD>T00176</TD>
+     <TD>1</TD><TD>calib_7DT15_T01357_20250207_074546_r_100.1_1.fits.scamp.cat</TD><TD>no ident</TD>
      <TD>1</TD><TD>2</TD><TD>0</TD><TD>1</TD><TD>F</TD>
-     <TD>2542</TD><TD>1</TD><TD>A1</TD><TD>P1</TD><TD>F</TD><TD>F</TD>
-     <TD>2024.968095483</TD><TD>300.000</TD><TD>1.61</TD><TD>53.99981996 -82.35850642</TD>
-     <TD>0.505  0.505</TD><TD>51.5914</TD><TD>0</TD>
-     <TD>0.99999</TD><TD>0.000290542</TD><TD>64.9995</TD>
-     <TD>-7.60138e-05</TD><TD>-4.18118e-06</TD><TD>89.1374</TD><TD>2.11115e-05</TD><TD>78.6232</TD>
+     <TD>5566</TD><TD>1</TD><TD>A1</TD><TD>P1</TD><TD>F</TD><TD>F</TD>
+     <TD>0.000000000</TD><TD>1.000</TD><TD>1.00</TD><TD>235.1305711 -69.00203237</TD>
+     <TD>0.506344  0.506344</TD><TD>26.7219</TD><TD>0</TD>
+     <TD>0.999977</TD><TD>0.000597767</TD><TD>66.5748</TD>
+     <TD>-5.60094e-06</TD><TD>1.90298e-07</TD><TD>98.3086</TD><TD>3.63792e-05</TD><TD>77.8615</TD>
      <TD>0</TD><TD>0</TD><TD>0</TD><TD>0</TD>
-     <TD>0.00206572 -0.0124619</TD><TD>0.195366 0.221523</TD><TD>-0.245339</TD><TD>4.17146</TD><TD>2140</TD><TD>-0.060909 -0.0138704</TD><TD>0.285037 0.352098</TD><TD>-0.432042</TD><TD>16.9764</TD><TD>11</TD>
+     <TD>-0.00159921 0.00240893</TD><TD>0.0755769 0.0835034</TD><TD>-0.14887</TD><TD>0.933846</TD><TD>4455</TD><TD>-0.00294433 -0.0101275</TD><TD>0.0728513 0.0789959</TD><TD>-0.216555</TD><TD>1.32212</TD><TD>381</TD>
     </TR>
    </TABLEDATA></DATA>
   </TABLE>
@@ -140,15 +140,15 @@
    <TR>
      <TD>G1</TD><TD>1</TD><TD>1</TD>
      <TD>2</TD><TD>0</TD><TD>1</TD>
-     <TD>54 -82.35849057</TD><TD>0.505  0.505</TD><TD>51.5914</TD>
+     <TD>235.1305966 -69.00202866</TD><TD>0.506347  0.506347</TD><TD>26.722</TD>
      <TD>2MASS</TD><TD>J</TD>
-     <TD>0 0</TD><TD>0</TD><TD>0</TD><TD>2140</TD>
-     <TD>0 0</TD><TD>0</TD><TD>0</TD><TD>11</TD>
-     <TD>0.00206572 -0.0124619</TD><TD>0.195366 0.221523</TD><TD>-0.245339</TD><TD>4.17146</TD><TD>2140</TD>
-     <TD>-0.060909 -0.0138704</TD><TD>0.285037 0.352098</TD><TD>-47.7296</TD><TD>16.9764</TD><TD>11</TD>
+     <TD>0 0</TD><TD>0</TD><TD>0</TD><TD>4455</TD>
+     <TD>0 0</TD><TD>0</TD><TD>0</TD><TD>381</TD>
+     <TD>-0.00159921 0.00240893</TD><TD>0.0755769 0.0835034</TD><TD>-0.14887</TD><TD>0.933846</TD><TD>4455</TD>
+     <TD>-0.00294433 -0.0101275</TD><TD>0.0728513 0.0789959</TD><TD>-1.74073</TD><TD>1.32212</TD><TD>381</TD>
      <TD>P1</TD>
-     <TD>0</TD><TD>0</TD><TD>2140</TD>
-     <TD>0</TD><TD>0</TD><TD>11</TD>
+     <TD>0</TD><TD>0</TD><TD>4455</TD>
+     <TD>0</TD><TD>0</TD><TD>381</TD>
      <TD>0</TD><TD>0</TD><TD>0</TD>
      <TD>0</TD><TD>0</TD><TD>0</TD>
     </TR>
@@ -166,7 +166,7 @@
    <DATA><TABLEDATA>
     <TR>
      <TD>A1</TD><TD>1</TD><TD>1</TD><TD>1</TD>
-     <TD>2</TD><TD>FILTER  = 'r       '            ,QRUNID  =                       </TD>
+     <TD>2</TD><TD>FILTER  =                       ,QRUNID  =                       </TD>
     </TR>
    </TABLEDATA></DATA>
   </TABLE>
@@ -182,7 +182,7 @@
    <DATA><TABLEDATA>
     <TR>
      <TD>P1</TD><TD>1</TD><TD>1</TD><TD>0</TD>
-     <TD>1</TD><TD>FILTER  = 'r       '            </TD>
+     <TD>1</TD><TD>FILTER  =                       </TD>
     </TR>
    </TABLEDATA></DATA>
   </TABLE>
@@ -192,13 +192,13 @@
    <FIELD name="Time" datatype="char" arraysize="*" ucd="meta;time.end"/>
    <FIELD name="Msg" datatype="char" arraysize="*" ucd="meta"/>
    <DATA><TABLEDATA>
-    <TR><TD>2025-03-06</TD><TD>16:56:20</TD><TD>This executable has been compiled using a version of the ATLAS library without sPerformance will be degraded.</TD></TR>
+    <TR><TD>2025-06-25</TD><TD>23:47:54</TD><TD>This executable has been compiled using a version of the ATLAS library without sPerformance will be degraded.</TD></TR>
    </TABLEDATA></DATA>
   </TABLE>
   <RESOURCE ID="Config" name="Config">
    <DESCRIPTION>SCAMP configuration</DESCRIPTION>
-   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="scamp /home/hhchoi1022/code/scamp/history/calib_7DT15_T00176_20241220_022038_r_300.com/calib_7DT15_T00176_20241220_022038_r_300.com_scamp.cat -c /home/hhchoi1022/code/TIPpy/tippy/configuration/scamp/default.scampconfig"/>
-   <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="/home/hhchoi1022/code/TIPpy/tippy/configuration/scamp/default.scampconfig"/>
+   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="scamp /home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01357/7DT15/r/calib_7DT15_T01357_20250207_074546_r_100.1_1.fits.scamp.cat -c /data/data1/factory_hhchoi/code/tippy/tippy/configuration/scamp/default.scampconfig"/>
+   <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="/data/data1/factory_hhchoi/code/tippy/tippy/configuration/scamp/default.scampconfig"/>
    <PARAM name="Ref_Server" datatype="char" arraysize="*" ucd="meta.ref.url" value="vizier.unistra.fr"/>
    <PARAM name="Ref_TimeOut" unit="s" datatype="double" arraysize="1" ucd="meta;time.duration" value="10"/>
    <PARAM name="AstRef_Catalog" datatype="char" arraysize="*" ucd="meta.code;meta.file" value="2MASS"/>
@@ -290,7 +290,7 @@
    <PARAM name="Verbose_Type" datatype="char" arraysize="*" ucd="meta.code" value="NORMAL"/>
    <PARAM name="Write_XML" datatype="boolean" ucd="meta.code" value="T"/>
    <PARAM name="XSL_URL" datatype="char" arraysize="*" ucd="meta.ref.url" value="file:///usr/share/scamp/scamp.xsl"/>
-   <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="128"/>
+   <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="64"/>
   </RESOURCE>
  </RESOURCE>
 </RESOURCE>
