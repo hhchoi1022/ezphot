@@ -49,7 +49,7 @@ class TIPAperturePhotometry(Helper):
                        target_bkgrms: Optional[Errormap] = None, # It must be background error map
                        target_mask: Optional[Mask] = None, # For masking certain source (such as hot pixels)
                        sex_params: dict = None,
-                       detection_sigma: float = 1.5,
+                       detection_sigma: float = 5,
                        aperture_diameter_arcsec: Union[float, list] = [5,7,10],
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
@@ -77,6 +77,7 @@ class TIPAperturePhotometry(Helper):
         img_path = target_img.savepath.savepath
         cat_path = target_img.savepath.catalogpath
         sexconfig_path = target_img.config['SEX_CONFIG']
+        all_sexconfig = self.load_config(sexconfig_path)
         
         # Image
         remove_subbkg = False
@@ -119,9 +120,9 @@ class TIPAperturePhotometry(Helper):
             mask_path = None
                     
         # First Sextractor run to estimate seeing if not provided
-        if 'SEEING_FWHM' not in sex_params.keys():
+        if target_img.seeing is None:
             sex_params['DETECT_THRESH'] = 10
-            result, catalog_first = self.run_sextractor(
+            result, catalog_first, global_bkgval, global_bkgrms = self.run_sextractor(
                 target_path = img_path,
                 sex_configfile = sexconfig_path,
                 sex_params = sex_params,
@@ -152,10 +153,11 @@ class TIPAperturePhotometry(Helper):
             rough_flags &= (seeing_arcsec > 0.5)
             catalog_filtered = catalog_first[rough_flags]
             seeing_estimate = max(1.2, np.mean(catalog_filtered['FWHM_WORLD']) * 3600)
-            if seeing_estimate is not None:
-                sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate
-            
-            
+        else:
+            seeing_estimate = target_img.seeing
+        
+        if "SEEING_FWHM" not in sex_params.keys():
+            sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate            
         sex_params['PIXEL_SCALE'] = np.mean(target_img.pixelscale)
         if isinstance(aperture_diameter_arcsec, (float, int)):
             aperture_diameter_arcsec = [aperture_diameter_arcsec]
@@ -164,9 +166,17 @@ class TIPAperturePhotometry(Helper):
         sex_params['SATUR_LEVEL'] = saturation_level
         sex_params['PHOT_AUTOPARAMS'] = f"{kron_factor},3.5"
         sex_params['DETECT_THRESH'] = detection_sigma
+        sex_params['ANALYSIS_THRESH'] = detection_sigma
+        sex_params['DETECT_MINAREA'] = np.pi* (float(sex_params['SEEING_FWHM']) *0.8 / np.mean(target_img.pixelscale) / 2)**2
+        
+        for key, value in sex_params.items():
+            all_sexconfig[key] = value
+        
+        sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(all_sexconfig['DETECT_MINAREA'])
+        sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
         
         # Second Sextractor run with the estimated parameters
-        result, catalog = self.run_sextractor(
+        result, catalog, global_bkgval, global_bkgrms = self.run_sextractor(
             target_path = img_path,
             sex_configfile = sexconfig_path,
             sex_params = sex_params.copy(),
@@ -184,7 +194,8 @@ class TIPAperturePhotometry(Helper):
         # Modification of the catalog
         catalog['X_IMAGE'] = catalog['X_IMAGE'] -1 # 0-based index
         catalog['Y_IMAGE'] = catalog['Y_IMAGE'] -1 # 0-based index
-        catalog['SKYSIG'] = catalog['THRESHOLD'] / detection_sigma
+        catalog['SKYSIG'] = global_bkgrms
+        catalog['SKYVAL'] = global_bkgval
         catalog['DETECT_THRESH'] = detection_sigma
 
         # Kron aperture area
@@ -836,18 +847,14 @@ class TIPAperturePhotometry(Helper):
 
 #%%
 if __name__ == '__main__':
-    self = TIPAperturePhotometry()
-    target_path = '/data/data1/factory_hhchoi/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01462/7DT15/i/calib_7DT15_T01462_20250212_051656_i_100.com.fits'
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01158/7DT03/r/calib_7DT03_T01158_20250208_044740_r_100.com.fits'
-
-    target_img  = ScienceImage(target_path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    #target_sourcemask = Mask(path = target_img.savepath.maskpath, load = True)
-    #target_bkg, _ = self.background.calculate_sep(target_img = target_img, target_mask = None, save = True, visualize = True, n_iterations = 4)
-    #target_bkg = Background(path = target_img.savepath.bkgpath, load = True)    
-    target_bkg = None
-    #bkgrmspath = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT16/r/convolved_scaled_calib_7DT16_T22956_20250401_064352_r_100.fits.bkgrms'
-    #target_bkgrms =  Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
-    target_bkgrms = None
+    from tippy.helper import TIPDataBrowser
+    dbrowser = TIPDataBrowser('scidata')
+    dbrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
+    target_imglist = dbrowser.search('Calib*60.fits', 'science')
+#%%
+    target_img  = target_imglist[0]
+    target_bkg = Background(path = target_img.savepath.bkgpath, load = True)
+    target_bkgrms = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
     target_mask: Optional[Mask] = None # For masking certain source (such as hot pixels)
     mode: str = 'sep'
     detection_sigma: float = 1.5

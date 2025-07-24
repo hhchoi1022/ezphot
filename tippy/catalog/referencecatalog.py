@@ -729,15 +729,15 @@ class ReferenceCatalog(Helper):
 # %% Example
 if __name__ =='__main__':
     # 7DT Tile id 
-    #C = Catalog('T00000', catalog_type = 'GAIAXP')
+    C = ReferenceCatalog('T00000', catalog_type = 'GAIAXP')
     #print(C, "RA = %.2f Dec = %.2f, FOV_RA = %.2f, FOV_DEC = %.2f" % (C.ra, C.dec, C.fov_ra, C.fov_dec))
     # Gaia catalog of NGC1566 with FOV_RA = 1.3, FOV_DEC = 0.9
-    C = ReferenceCatalog('NGC1566', catalog_type = 'SMSS', fov_ra = 1.3, fov_dec = 0.9)
+    #C = ReferenceCatalog('NGC1566', catalog_type = 'SMSS', fov_ra = 1.3, fov_dec = 0.9)
     # APASS catalog of given ra dec with FOV_RA = 1.3, FOV_DEC = 0.9
     #C = Catalog(ra = 10.68458, dec = 41.26917, catalog_type = 'APASS', fov_ra = 1.3, fov_dec = 0.9)
     print(C.data)
     # Once queried, the data is saved in catalog_archive, so it can be called without querying again
     # One can query reference sources with the mag_lower, mag_upper, and some keyword arguments. kwargs need to be list of [lower limit, upper limit]
-    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)
-    reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15, ra = [10, 11], dec = [40, 41])
+    #reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)
+    #reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15, ra = [10, 11], dec = [40, 41])
 # %%

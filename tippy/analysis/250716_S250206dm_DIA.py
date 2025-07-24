@@ -3,13 +3,12 @@
 #%%
 from tippy.photometry import *
 from tippy.image import *
-from tippy.helper import Helper
+from tippy.helper import Helper, TIPDataBrowser
 from tippy.utils import SDTData
 from tqdm import tqdm
 import gc
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
 import matplotlib
 #%%
 matplotlib.use('Agg') 
@@ -27,6 +26,7 @@ PhotometricCalibration = TIPPhotometricCalibration()
 Stacking = TIPStacking()
 DIA = TIPSubtraction()
 sdt_data_querier = SDTData()
+Databrowser = TIPDataBrowser('scidata')
 helper = Helper()
 
 print(Preprocessor)
@@ -38,12 +38,17 @@ print(AperturePhotometry)
 print(PSFPhotometry)
 print(Stacking)
 #%%
-### CONFIOGURATION FOR SINGLE IMAGE PROCESSING
+#=============== CONFIOGURATION FOR SINGLE IMAGE PROCESSING ===============#
+save = True
+visualize = False
+save_fig = True
+verbose = False
+
 
 do_platesolve = False
 platesolve_kwargs = dict(
     overwrite = True,
-    verbose = True,
+    verbose = verbose,
     )
 
 do_generatemask = True
@@ -51,10 +56,10 @@ mask_kwargs = dict(
     sigma = 5,
     radius_factor = 1.5,
     saturation_level = 50000,
-    save = False,
-    verbose = True,
-    visualize = False,
-    save_fig = True
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig
 )
 
 do_circularmask = False
@@ -63,10 +68,10 @@ circlemask_kwargs = dict(
     y_position = -26.5227669,
     radius_arcsec = 350,
     unit = 'deg',
-    save = False,
-    verbose = True,
-    visualize = False,
-    save_fig = True
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig
 )
 
 do_objectmask = False
@@ -75,10 +80,10 @@ objectmask_kwargs = dict(
     y_position = -26.5227669,
     radius_arcsec = 600,
     unit = 'deg',
-    save = False,
-    verbose = True,
-    visualize = False,
-    save_fig = True
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig
 )
 
 do_generatebkg = True
@@ -89,32 +94,32 @@ bkg_kwargs = dict(
     mask_sigma = 3,
     mask_radius_factor = 3,
     mask_saturation_level = 60000,
-    save = True,
-    verbose = True,
-    visualize = False,
-    save_fig = True
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig
 )
 
 do_generateerrormap = True
 errormap_from_propagation = True,
 errormap_kwargs = dict(
     save = True,
-    verbose = True,
-    visualize = False,
-    save_fig = True
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig
 )
 
 do_aperturephotometry = True
 aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
     saturation_level = 60000,
     kron_factor = 2.5,
-    save = False,
-    verbose = True,
-    visualize = False,
-    save_fig = True,
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
 )
 
 do_photometric_calibration = True
@@ -147,14 +152,14 @@ photometriccalibration_kwargs = dict(
     elongation_key = 'ELONGATION',
     flag_key = 'FLAGS',
     maskflag_key = 'IMAFLAGS_ISO',
-    save = True,
-    verbose = True,
-    visualize = False,
-    save_fig = True,
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
     save_refcat = True,
 )
 
-### CONFIGURATION FOR STACKING
+#=============== CONFIGURATION FOR STACKING ===============#
 do_stacking = True
 stacking_kwargs = dict(
     combine_type = 'mean',
@@ -181,22 +186,22 @@ stacking_kwargs = dict(
     seeing_key = 'SEEING',
     kernel = 'gaussian',
     # Other parameters
-    verbose = True,
-    save = True
+    verbose = verbose,
+    save = save
     )
 
-### CONFIGURATION FOR STACKED IMAGE PROCESSING
+#=============== CONFIGURATION FOR STACKED IMAGE PROCESSING ===============#
 
 stack_aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
     saturation_level = 60000,
     kron_factor = 2.5,
-    save = False,
-    verbose = True,
-    visualize = True,
-    save_fig = True,
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
 )
 
 stack_photometriccalibration_kwargs = dict(
@@ -229,13 +234,25 @@ stack_photometriccalibration_kwargs = dict(
     elongation_key = 'ELONGATION',
     flag_key = 'FLAGS',
     maskflag_key = 'IMAFLAGS_ISO',
-    save = True,
-    verbose = True,
-    visualize = False,
-    save_fig = True,
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
     save_starcat = False,
     save_refcat = True,
 )
+
+# =============== CONFIGURATION FOR DIA =============== #
+DIA_kwargs = dict(
+    detection_sigma = 5,
+    target_transient_number = 5,
+    reject_variable_sources = True,
+    negative_detection = True,
+    reverse_subtraction = False,
+    save = True,
+    verbose = True,
+    visualize = True,
+    show_transient_numbers = 10)
 
 #%% Define the tile IDs for S250206dm
 tile_ids_S250206dm = list([
@@ -249,33 +266,26 @@ tile_ids_S250206dm = list([
     "T01471", "T01809", "T01356", "T01810", "T01263", "T01811", "T01061", "T01688",
     "T01687", "T01461", "T01155"
     ])
-tile_ids_S250206dm = list(['T01570'])
-
+tile_ids_S250206dm = list(['T01161'])
 #%% Query object frames
-
+import time
 for tile_id in tile_ids_S250206dm:
     # Load the data
-    sdt_data_querier.sync_scidata(targetname = tile_id)
-
-    target_images = sdt_data_querier.show_scidestdata(
-        tile_id,
-        False,
-        'filter',
-        'calib*100.fits'
+    #sdt_data_querier.sync_scidata(targetname = tile_id)
+    start = time.time()
+    Databrowser.objname = tile_id
+    target_imglist = Databrowser.search(
+        pattern = 'calib*100.fits',
+        return_type = 'science'
     )
-    target_imglist_all = [target_imgpath for target_imglist in target_images.values() for target_imgpath in target_imglist]
-    imginfo_all = sdt_data_querier.get_imginfo(target_imglist_all)
-    imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
-    print(f'Tile ID: {tile_id}, Number of images: {len(imginfo_all)}, Number of groups: {len(imginfo_groups)}')
+    print(f'Tile ID: {tile_id}, Number of images: {len(target_imglist)}')
     
     # Set telescope information
-    target_path = imginfo_groups[0]['file'][0]
-    telinfo = helper.estimate_telinfo(target_path)
+    telinfo = helper.estimate_telinfo(target_imglist[0].path)
     
     # Define the image processing function
     # 76 images -> 9min 41s
-    def imgprocess(target_path, telinfo):
-        target_img = ScienceImage(path = target_path, telinfo = telinfo, load = True)
+    def imgprocess(target_img):
         mbias_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'BIAS', max_days = 60)[0]
         mdark_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'DARK', max_days = 60)[0]
         mflat_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'FLAT', max_days = 60)[0]
@@ -363,6 +373,7 @@ for tile_id in tile_ids_S250206dm:
 
         status['errormap'] = None
         target_bkgrms = None
+        bkg_instance = None
         if do_generateerrormap:
             try:
                 if errormap_from_propagation:
@@ -384,6 +395,7 @@ for tile_id in tile_ids_S250206dm:
             except Exception as e:
                 status['errormap'] = e
 
+        sex_catalog = None
         if do_aperturephotometry:
             try:
                 # Perform aperture photometry
@@ -398,6 +410,7 @@ for tile_id in tile_ids_S250206dm:
             except Exception as e:
                 status['aperture_photometry'] = e
 
+        calib_catalog = None
         if do_photometric_calibration and do_aperturephotometry:
             try:
                 target_img, calib_catalog, filtered_catalog = PhotometricCalibration.photometric_calibration(
@@ -412,60 +425,79 @@ for tile_id in tile_ids_S250206dm:
         # Clean up memory
         del target_srcmask, target_objectmask
         del mbias, mdark, mflat
-        target_img.data = None
-        target_bkg.data = None
-        target_bkgrms.data = None
+        del target_img
+        del target_bkg
+        del bkg_instance
+        del target_bkgrms
+        del calib_catalog
+        del sex_catalog
+        del filtered_catalog
         gc.collect()
-        return target_img, target_bkg, target_bkgrms, calib_catalog, status
+        return status
     
-    # Process the images (Masking, Background, Errormap, Aperture Photometry, Photometric Calibration)
-    imginfo_all.sort('filter')
-    arglist = [(str(row['file']), telinfo) for row in imginfo_all]
-    results_by_filter = {
-        str(filtername): {
-            'target_img': [],
-            'target_bkg': [],
-            'target_bkgrms': [],
-            'target_catalog': [],
-            'status': []
-        } for filtername in set(imginfo_all['filter'])
-    }
-    with ProcessPoolExecutor(max_workers=20) as executor:
-        futures = [executor.submit(imgprocess, *args) for args in arglist]
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    import gc
+    from tqdm import tqdm
 
-        for future in tqdm(as_completed(futures), total=len(futures)):
-            try:
-                result = future.result()
-                if result is not None:
-                    target_img, target_bkg, target_bkgrms, target_catalog, status = result
-                    filtername = target_img.filter
-                    results_by_filter[filtername]['target_img'].append(target_img)
-                    results_by_filter[filtername]['target_bkg'].append(target_bkg)
-                    results_by_filter[filtername]['target_catalog'].append(status.get('calib_catalog', None))
-                    results_by_filter[filtername]['target_bkgrms'].append(target_bkgrms)
-                    results_by_filter[filtername]['status'].append(status)
-                else:
-                    print(f"[WARNING] Skipped a result due to None")
-            except Exception as e:
-                print(f"[ERROR] {e}")
-                
+    start = time.time()
+    def chunk_list(lst, chunk_size):
+        """Yield successive chunk_size-sized chunks from lst."""
+        for i in range(0, len(lst), chunk_size):
+            yield lst[i:i + chunk_size]
+
+    def process_batch(batch_images, batch_index, max_workers=8):
+        print(f"\nStarting batch {batch_index+1} with {len(batch_images)} images...")
+
+        results = []
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(imgprocess, img) for img in batch_images]
+
+            for future in tqdm(as_completed(futures), total=len(futures), desc=f"Batch {batch_index+1}"):
+                try:
+                    result = future.result()
+                    if result is not None:
+                        results.append(result)
+                except Exception as e:
+                    print(f"[ERROR in batch {batch_index+1}] {e}")
+        
+        # Clean up memory between batches
+        gc.collect()
+        return results
+
+    # ? Main loop over batches
+    batch_size = 32
+    all_results = []
+
+    for batch_index, batch in enumerate(chunk_list(target_imglist, batch_size)):
+        batch_results = process_batch(batch, batch_index, max_workers=8)
+        all_results.extend(batch_results)
+    
+    single_procee_time = (time.time() - start)
+
+    start = time.time()
     # Stack the images
-    imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
+    target_imginfo = Databrowser.search(
+        pattern = 'calib*100.fits',
+        return_type = 'imginfo'
+    )
+    
+    target_imginfo_groups = target_imginfo.group_by(['filter', 'telescop']).groups
+    print('Number of groups:', len(target_imginfo_groups))
     stack_imglist = []
     stack_bkgrmslist = []
     failed_imglist = []
-    for imginfo_group in imginfo_groups:
-        imginfo_group = helper.group_table(imginfo_group, 'mjd', 0.2)
-        imginfo_subgroups = imginfo_group.group_by('group').groups
-        for imginfo_subgroup in imginfo_subgroups:
-            target_imglist = [ScienceImage(path=row['file'], telinfo=telinfo, load=True) for row in imginfo_subgroup]
-            target_imglist = [target_img for target_img in target_imglist if 'ZP_APER' in target_img.header.keys()]
-            target_bkglist = [Background(path = target_img.savepath.bkgpath, load=True) for target_img in target_imglist]
-            target_bkgrmslist = [Errormap(path = target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load=True) for target_img in target_imglist]
-
+    for target_imginfo_group in target_imginfo_groups:
+        target_imginfo_group = helper.group_table(target_imginfo_group, 'mjd', 0.2)
+        target_imginfo_subgroups = target_imginfo_group.group_by('group').groups
+        for target_imginfo_subgroup in target_imginfo_subgroups:
+            target_imglist = [ScienceImage(path=row['file'], telinfo=telinfo, load=True) for row in target_imginfo_subgroup]
+            target_imglist = Stacking.select_quality_images(target_imglist, seeing_limit = 6, depth_limit = 15, ellipticity_limit = 0.6, max_numbers = len(target_imglist))
             if len(target_imglist) == 0:
                 print(f"[WARNING] No images found. skipping stacking.")
                 continue
+            target_bkglist = [Background(path = target_img.savepath.bkgpath, load=True) for target_img in target_imglist]
+            target_bkgrmslist = [Errormap(path = target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load=True) for target_img in target_imglist]
+
             try:
                 stack_img, stack_bkgrms = Stacking.stack_multiprocess(
                     target_imglist = target_imglist,
@@ -491,52 +523,93 @@ for tile_id in tile_ids_S250206dm:
                 print(f"[ERROR] Stacking failed, skipping stacking.")
                 failed_imglist.extend(target_imglist)
                 continue
+    
+    print(f"Stacking completed in {time.time() - start:.2f} seconds.")
+            
+    # Stack the images
+    stacked_imglist = Databrowser.search(
+        pattern = 'calib*100.com.fits',
+        return_type = 'science'
+    )
 
-    def stackprocess(stack_path, stack_bkgrmspath, telinfo):
-        stack_img = ScienceImage(path=stack_path, telinfo=telinfo, load=True)
-        stack_bkgrms = Errormap(path=stack_bkgrmspath, emaptype='bkgrms', load=True)
-        stacked_status = dict()
+    def stackprocess(stacked_img):
+        stack_bkgrms = Errormap(path=stacked_img.savepath.bkgrmspath, emaptype='bkgrms', load=True)
+        if not stack_bkgrms.is_exists:
+            print(f"[WARNING] Background RMS file not found: {stack_bkgrms.path}")
+            stack_bkgrms = None
+            
+        status = dict()
         try:
             # Perform aperture photometry
             aperturephotometry_kwargs = stack_aperturephotometry_kwargs.copy()
-            aperturephotometry_kwargs['aperture_diameter_arcsec'].extend([2.5* stack_img.seeing, 3.5*stack_img.seeing])
+            aperturephotometry_kwargs['aperture_diameter_arcsec'].extend([2.5* stacked_img.seeing, 3.5*stacked_img.seeing])
             sex_catalog = AperturePhotometry.sex_photometry(
-                target_img = stack_img,
+                target_img = stacked_img,
                 target_bkg = None,
                 target_bkgrms = stack_bkgrms,
                 target_mask = None, ################################ HERE, Central stars are masked for ZP caclculation
                 **stack_aperturephotometry_kwargs
             )
-            stacked_status['aperture_photometry'] = True
+            status['aperture_photometry'] = True
         except Exception as e:
-            stacked_status['aperture_photometry'] = e
+            status['aperture_photometry'] = e
 
         try:
-            stack_img, calib_catalog, filtered_catalog = PhotometricCalibration.photometric_calibration(
-                target_img = stack_img,
+            stacked_img, calib_catalog, filtered_catalog = PhotometricCalibration.photometric_calibration(
+                target_img = stacked_img,
                 target_catalog = sex_catalog,
                 **stack_photometriccalibration_kwargs
             )
-            stacked_status['photometric_calibration'] = True
+            status['photometric_calibration'] = True
         except Exception as e:
-            stacked_status['photometric_calibration'] = e
+            status['photometric_calibration'] = e
             
         # Clean up memory
-        stack_img.data = None
-        stack_bkgrms.data = None
+        del stacked_img
+        del stack_bkgrms
+        del calib_catalog
+        del filtered_catalog
         gc.collect()
-        return stack_img, stack_bkgrms, calib_catalog, stacked_status
+        return status
 
-    arglist = [(stack_img.path, stack_bkgrms.path, telinfo) for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist)]
     with ProcessPoolExecutor(max_workers=10) as executor:
-        failed_stacked_path = []
-        futures = [executor.submit(stackprocess, *args) for args in arglist]
+        futures = [executor.submit(stackprocess, stacked_img) for stacked_img in stacked_imglist]
         for future in tqdm(as_completed(futures), total=len(futures)):
             try:
                 result = future.result()
             except Exception as e:
-                failed_stacked_path.append(args[0])
                 print(f"[ERROR] {e}")
+                
+    # Stack the images
+    stacked_imglist = Databrowser.search(
+        pattern = 'calib*100.com.fits',
+        return_type = 'science'
+    )        
+        
+    def subtract_process(target_img):
+        reference_img = DIA.get_referenceframe_from_image(target_img)[0]
+        result = DIA.find_transients(
+            target_img = target_img, 
+            reference_imglist = [reference_img],
+            target_bkg = None,
+            **DIA_kwargs)
+        
+        del reference_img
+        del target_img
+        return result
+
+    with ProcessPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(subtract_process, stacked_img) for stacked_img in stacked_imglist]
+        for future in tqdm(as_completed(futures), total=len(futures)):
+            try:
+                result = future.result()
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                
+                
+    #### TODO SAVE TRANSIENT PLOTS FOR DIAGNOSTICS IN TIPSUBTRACT CLASS
+
+    
             
 #%% SUBTRACTION WITH SMSS HIPS2FITS IMAGE
 tile_ids_S250206dm = list([
@@ -596,8 +669,34 @@ tile_ids_S250206dm = list([
     "T01471", "T01809", "T01356", "T01810", "T01263", "T01811", "T01061", "T01688",
     "T01687", "T01461", "T01155"
     ])
-idx = 74
-tile_id =  'T01357'   #tile_ids_S250206dm[idx]
+from tippy.helper import TIPDataBrowser
+from astropy.table import Table, vstack
+databrowser = TIPDataBrowser('scidata')
+imginfo_all = Table()
+for tile_id in tile_ids_S250206dm:
+    print(f"Processing tile ID: {tile_id}")
+    # Load the data
+    databrowser.objname = tile_id
+    imginfo_tile = databrowser.search(pattern  = 'calib*100.com.fits', return_type = 'imginfo')
+    imginfo_all = vstack([imginfo_all, imginfo_tile])
+#%%
+import numpy as np
+
+all_mjd = np.array(imginfo_all['mjd'], float)
+imginfo_all['mjd'] = all_mjd
+imginfo_all = imginfo_all[(imginfo_all['mjd'] > 60700) & (imginfo_all['mjd'] < 60800)]
+#%%
+groupped_imginfo = helper.group_table(imginfo_all, 'mjd', 0.7)
+#%%
+groupped_table = groupped_imginfo.group_by('group').groups
+#%%
+idx = 6
+print(groupped_table[idx][0]['locdate'])
+print(set(groupped_table[idx]['filter']))
+print(len(set(groupped_table[idx]['object'])))
+#%%
+#%%
+tile_id =  'T01462'   #tile_ids_S250206dm[idx]
 print(f"Processing tile ID: {tile_id}")
 file_dict = sdt_data_querier.show_scidestdata(
     targetname = tile_id,
@@ -625,9 +724,9 @@ real_transients = merged_transient_tbl
 real_transients = merged_transient_tbl[merged_transient_tbl['n_detections'] > 1]
 print(f"Number of real transients: {len(real_transients)}")
 for i, catalog in enumerate(transientcatalog_list):
-    print(f'Idx = {i}, N_detections: {catalog.nsources}, Depth: {catalog.target_img.depth}, Seeing: {catalog.target_img.seeing}, Filter: {catalog.target_img.filter}')
+    print(f'Idx = {i}, Obsdate = {catalog.info.obsdate}, N_detections: {catalog.nsources}, Depth: {catalog.target_img.depth}, Seeing: {catalog.target_img.seeing}, Filter: {catalog.target_img.filter}')
 #%%
-idx = 4
+idx = 5
 target_pathlist = [catalog.target_img.savepath.savedir / catalog.target_img.savepath.savepath.name.replace('sub_', '') for catalog in transientcatalog_list]
 target_imglist = [ScienceImage(path = path, telinfo = telinfo, load = True) for path in target_pathlist]
 target_img = target_imglist[idx]
@@ -646,7 +745,7 @@ print(target_img.obsdate, target_img.depth, target_img.seeing, target_img.filter
 #     )
 # %%
 ra, dec = 234.6855127, -68.794466 #cfkg for T01357 (Faint, but no-detection)
-#ra, dec = 232.0696807, -67.8969778 #cflm for T01464 (Faint, but no-detection)
+ra, dec = 232.0696807, -67.8969778 #cflm for T01464 (Faint, but no-detection)
 #ra, dec = 241.624307, -70.3271458 #cgem for T01158
 #ra, dec = 229.4253039, -67.0045685 #chrk for T01571
 #ra, dec = 228.3214072, -69.9576424 #dcnj for T01253
@@ -670,6 +769,7 @@ ra, dec = 234.6855127, -68.794466 #cfkg for T01357 (Faint, but no-detection)
 # ra, dec = 242.5642418,	-72.8343142 # chmn for T00887
 
 #ra, dec = 233.322342, -68.007909 # Transient with T01462
+#ra, dec = 262.154312, -68.789571 # Transient with T01365
 
 for target_img, target_catalog in zip(target_imglist, transientcatalog_list):
     subtracted_img = target_catalog.target_img

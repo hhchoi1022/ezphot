@@ -310,6 +310,7 @@ class TIPPSFPhotometry(Helper):
             self._visualize_objects(target_img, result_tbl, size=2000)
         return result_tbl
 
+    #TODO CHANGE EXTRACT SOURCES TO FIND PEAKS OR MAKE ANOTHER METHOD TO FIND PEAKS
     def extract_sources(self,
                         target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
                         target_bkg: Optional[Background] = None,
@@ -317,7 +318,7 @@ class TIPPSFPhotometry(Helper):
                         target_mask: Optional[Mask] = None,
                      
                         # Detection criteria
-                        detection_sigma: float = 1.5,
+                        detection_sigma: float = 5,
                         minarea_pixels: int = 5,
                         deblend_nlevels: int = 32,
                         deblend_contrast: float = 0.003,
@@ -374,7 +375,7 @@ class TIPPSFPhotometry(Helper):
         target_data = self.to_native(target_img.data).astype(np.float32)
         error = calc_total_error(data=target_data, bkg_error=bkgrms, effective_gain=target_img.egain)
 
-        threshold = detection_sigma * bkgrms
+        threshold = detection_sigma * bkgrms / np.sqrt(minarea_pixels)
         segm = detect_sources(target_data, threshold, npixels=minarea_pixels, mask=mask_map)
         if segm is None:
             self.print("No sources detected.", verbose)
@@ -816,6 +817,7 @@ class TIPPSFPhotometry(Helper):
             target_mask = invalid_mask
         
         if sources is None:
+            #TODO CHANGE THIS PART TO FIND PEAKS RATHER THAN FIND SOURCES
             sources, _ = self.extract_sources(
                 target_img=target_img_sub,
                 target_bkg=None,

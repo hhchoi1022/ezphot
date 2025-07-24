@@ -162,6 +162,17 @@ class HIPS2FITS:
         catalog_ids['ZTF/ZTF7/r'] = "CDS/P/ZTF/DR7/r"
         catalog_ids['ZTF/ZTF7/i'] = "CDS/P/ZTF/DR7/i"
         
+        # DECAM
+        catalog_ids['DECALS/DEC5/g'] = "CDS/P/DECaLS/DR5/g"
+        catalog_ids['DECALS/DEC5/r'] = "CDS/P/DECaLS/DR5/r"
+        
+        # DES
+        catalog_ids['DES/DES2/g'] = "CDS/P/DES-DR2/g"
+        catalog_ids['DES/DES2/r'] = "CDS/P/DES-DR2/r"
+        catalog_ids['DES/DES2/i'] = "CDS/P/DES-DR2/i"
+        catalog_ids['DES/DES2/z'] = "CDS/P/DES-DR2/z"
+        catalog_ids['DES/DES2/Y'] = "CDS/P/DES-DR2/Y"
+        
         
         return catalog_ids
     
@@ -479,6 +490,8 @@ class ImageQuerier(HIPS2FITS):
             UL5_APER_2 = 21.0
         )
         stack_instance.header.update(**update_header_kwargs)
+        if np.max(stack_instance.data) < 1e3:
+            stack_instance.data *= 1e3
         if save_path is not None:
             stack_instance.savedir = Path(save_path).parent
             if verbose:
@@ -500,24 +513,18 @@ class ImageQuerier(HIPS2FITS):
 # Example usage:
 if __name__ == "__main__":
     import glob
-    self = ImageQuerier(catalog_key='SkyMapper/SMSS4/g')
+    self = ImageQuerier(catalog_key='DECALS/DEC5/g')
 
     
     from astropy.io import fits
     from tippy.image import ScienceImage
-    from tippy.helper import Helper
+    from tippy.helper import Helper, TIPDataBrowser
     from tippy.utils import SDTData
-    tile_id = 'T01570'
-    sdt_data_querier = SDTData()
-    imginfo_all = sdt_data_querier.show_scidestdata(
-    targetname = tile_id,
-    show_only_numbers = False,
-    key = 'filter',
-    pattern = 'calib*100.com.fits'
-    )
-    helper = Helper()
-    target_img = ScienceImage(imginfo_all['g'][0], telinfo = helper.estimate_telinfo(imginfo_all['r'][0]), load = True)
-    helper = Helper()
+    tile_id = 'T22956'
+    databrowser = TIPDataBrowser('scidata')
+    databrowser.observatory = '7DT'
+    databrowser.objname = 'T22956'
+    target_img = databrowser.search(f'calib*_g_*100.fits', 'science')[0]
     telinfo = target_img.telinfo
     width = target_img.naxis1
     height = target_img.naxis2
@@ -542,4 +549,5 @@ if __name__ == "__main__":
         verbose=verbose
     )
     
+
 # %%

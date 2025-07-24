@@ -104,7 +104,7 @@ errormap_kwargs = dict(
 do_aperturephotometry = True
 aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [6.0, 9.0, 12.0],
     saturation_level = 60000,
     kron_factor = 2.5,
@@ -186,7 +186,7 @@ stacking_kwargs = dict(
 
 stack_aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [6.0, 9.0, 12.0],
     saturation_level = 60000,
     kron_factor = 2.5,

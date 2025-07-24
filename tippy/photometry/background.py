@@ -63,6 +63,7 @@ class TIPBackground(Helper): ############## CHECKED ##############
                       # Input parameters
                       target_img: Union[ScienceImage, ReferenceImage],
                       target_mask: Optional[Mask] = None,
+                      is_2D_bkg: bool = True,
                       box_size: int = 32,
                       filter_size: int = 3,
                       
@@ -107,7 +108,12 @@ class TIPBackground(Helper): ############## CHECKED ##############
                              fw=filter_size, 
                              fh=filter_size)
         bkg_map = bkg.back()
-
+        if is_2D_bkg:
+            bkg_map = bkg_map
+        else:
+            bkg_val = np.mean(bkg_map)
+            bkg_map = np.full_like(image_data, bkg_val, dtype=image_data.dtype)
+        
         # Step 3: Iterative background estimation
         prev_n_mask = -1
         i = 0
@@ -115,9 +121,11 @@ class TIPBackground(Helper): ############## CHECKED ##############
             target_img.data = self.operation.subtract(image_data, bkg_map)
             for i in range(n_iterations):
                 self.print(f"Iterative background estimation {i+1}/{n_iterations}...", verbose)
+                previous_mask = target_mask.data
+                mask_sigma_iter = max(3, mask_sigma - i * 0.5)
                 target_mask = self.mask_sources(target_img = target_img,
                                                 target_mask = target_mask,
-                                                sigma = mask_sigma,
+                                                sigma = mask_sigma_iter,
                                                 mask_radius_factor = mask_radius_factor,
                                                 saturation_level = mask_saturation_level,
                                                 save = False,
@@ -140,13 +148,20 @@ class TIPBackground(Helper): ############## CHECKED ##############
                                      fw=filter_size, 
                                      fh=filter_size)
                 bkg_map = bkg.back()
-                if visualize:
-                    self._visualize(target_img = target_img,
-                                    mask_data = mask_to_use ,
-                                    bkg_map = bkg_map, 
-                                    save_path = None)
+                if visualize or save_fig:
+                    save_path = None
+                    if save_fig:
+                        save_path = str(target_mask.savepath.savepath) + f'.iter_{i}.png'
+                        
+                print(save_path)
+                self._visualize(target_img = target_img,
+                                mask_data = previous_mask ,
+                                bkg_map = mask_to_use, 
+                                save_path = save_path,
+                                subtitles = ['Target Image', 'Previous Mask', 'New Mask'],
+                                show = visualize)
                 #target_img.data -= bkg_map
-                target_img.data = self.operation.subtract(target_img.data, bkg_map)
+                #target_img.data = self.operation.subtract(target_img.data, bkg_map)
 
                 prev_n_mask = n_mask
                 
@@ -196,15 +211,16 @@ class TIPBackground(Helper): ############## CHECKED ##############
 
         if save:
             target_bkg.write()
-            
-        if visualize:
+        
+        if visualize or save_fig:
             save_path = None
             if save_fig:
                 save_path = str(target_img.savepath.bkgpath) + '.png'
             self._visualize(target_img = target_img,
                             mask_data = mask_to_use ,
                             bkg_map = bkg_map, 
-                            save_path = save_path)
+                            save_path = save_path,
+                            show = visualize)
         
         return target_bkg, bkg
 
@@ -299,7 +315,8 @@ class TIPBackground(Helper): ############## CHECKED ##############
                     self._visualize(target_img = target_img,
                                     mask_data = mask_to_use ,
                                     bkg_map = bkg_map, 
-                                    save_path = None)
+                                    save_path = None,
+                                    show = visualize)
 
                 #target_img.data -= bkg_map
                 target_img.data = self.operation.subtract(target_img.data, bkg_map)
@@ -349,15 +366,16 @@ class TIPBackground(Helper): ############## CHECKED ##############
 
         if save:
             target_bkg.write()
-            
-        if visualize:
+        
+        if save_fig or visualize:
             save_path = None
             if save_fig:
                 save_path = str(target_img.savepath.bkgpath) + '.png'
             self._visualize(target_img = target_img, 
                             mask_data = mask_to_use , 
                             bkg_map = bkg_map, 
-                            save_path = save_path)
+                            save_path = save_path,
+                            show = visualize)
         
         return target_bkg, bkg
 
@@ -402,71 +420,80 @@ class TIPBackground(Helper): ############## CHECKED ##############
         # Step 4: Save the image
         if save:
             target_img.write()
-            
-        if visualize:
+        
+        if visualize or save_fig:
             save_path = None
             if save_fig:
                 save_path = str(target_img.savepath.savepath) + '.subbkg.png'
-            self._visualize(target_img = target_img,
-                            mask_data = None ,
-                            bkg_map = bkg_data, 
-                            save_path = save_path,
-                            show = visualize)
+            self._visualize(
+                target_img = target_img,
+                mask_data = None ,
+                bkg_map = bkg_data, 
+                save_path = save_path,
+                show = visualize)
         
         return target_img
-
+    
     def _visualize(self, 
                    target_img: Union[ScienceImage, ReferenceImage],
                    mask_data: Optional[np.ndarray] = None,
                    bkg_map: Optional[np.ndarray] = None,
+                   subtitles: Optional[list] = None,
                    save_path: str = None,
                    show: bool = False):
         """
         Visualize available data: image, mask, and/or background map.
         """
         from astropy.visualization import ZScaleInterval
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        import matplotlib.pyplot as plt
+        import numpy as np
+
         interval = ZScaleInterval()
+
         def downsample(data, factor=4):
             return data[::factor, ::factor]
 
         panels = []
-        titles = []
+        default_titles = []
 
         image_data = target_img.data
         image_data_small = downsample(image_data)
-        bkg_value = np.mean(image_data_small)
-        bkg_rms = np.std(image_data_small)
         vmin, vmax = interval.get_limits(image_data_small)
         panels.append((image_data_small, dict(cmap='Greys_r', vmin=vmin, vmax=vmax)))
-        titles.append("Target Image")
+        default_titles.append("Target Image")
 
         if mask_data is not None:
             mask_data_small = downsample(mask_data)
             panels.append((mask_data_small, dict(cmap='Greys_r', vmin=0, vmax=1)))
-            titles.append("Mask")
+            default_titles.append("Mask")
 
         if bkg_map is not None:
             bkg_map_small = downsample(bkg_map)
-            panels.append((bkg_map_small, dict(cmap='viridis')))
-            titles.append("2D Background")
+            vmin, vmax = interval.get_limits(bkg_map_small)
+            panels.append((bkg_map_small, dict(cmap='Greys_r', vmin=vmin, vmax=vmax)))
+            default_titles.append("2D Background")
 
         n = len(panels)
         if n == 0:
             print("Nothing to visualize.")
             return
 
+        if subtitles is None or len(subtitles) != n:
+            subtitles = default_titles
+
         fig, axes = plt.subplots(1, n, figsize=(6 * n, 6))
         if n == 1:
-            axes = [axes]  # make iterable
+            axes = [axes]
 
         for i, (data, imshow_kwargs) in enumerate(panels):
             ax = axes[i]
             divider = make_axes_locatable(ax)
             cax = divider.append_axes('right', size='5%', pad=0.05)
             im = ax.imshow(data, origin='lower', **imshow_kwargs)
-            ax.set_title(titles[i])
+            ax.set_title(subtitles[i])
             fig.colorbar(im, cax=cax, orientation='vertical')
-
+            
         plt.tight_layout()
 
         if save_path is not None:
@@ -476,6 +503,7 @@ class TIPBackground(Helper): ############## CHECKED ##############
             plt.show()
         
         plt.close(fig)
+
     
 # %%
 if __name__ == '__main__':

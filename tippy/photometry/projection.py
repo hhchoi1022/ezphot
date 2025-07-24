@@ -197,8 +197,13 @@ class TIPProjection(Helper):
         if target_img.is_exists is False:
             target_img.write()
         # If target_errormap is not saved, save it to the savepath
+
+        if target_errormap is not None:
+            if target_errormap.emaptype == 'bkgrms':
+                target_errormap.to_weight()
         if target_errormap is not None and target_errormap.is_exists is False:
             target_errormap.write()
+
         original_header = target_img.header
         target_path = target_img.path
         # If overwrite, set the output path to the savepath
@@ -271,17 +276,22 @@ class TIPProjection(Helper):
         reprojected_img.update_status(process_name = 'REPROJECT')
 
         if target_errormap is not None:
-            target_errormap = Errormap(path = errormap_outpath, emaptype = target_errormap.emaptype, status = target_errormap.status, load = True)
+            target_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', status = target_errormap.status, load = True)
             target_errormap.header = original_header
+            target_errormap.data
+            target_errormap.remove(
+                remove_main = True, 
+                remove_connected_files = True,
+                skip_exts = [],
+                verbose = False)
+            target_errormap.to_rms()
+
         else:
             target_errormap = None       
         
         if not save:
             reprojected_img.data
             reprojected_img.remove()
-            if errormap_outpath is not None:
-                target_errormap.data
-                target_errormap.remove()
         else:
             reprojected_img.write()
             if target_errormap is not None:
@@ -308,16 +318,22 @@ class TIPProjection(Helper):
 # %%
 if __name__ == "__main__":
     import glob
-    from tippy.image import ScienceImage, ReferenceImage, Errormap
+    from tippy.image import ScienceImage, ReferenceImage, Errormap 
+    from tippy.helper import TIPDataBrowser
     self= TIPProjection()
+    databrowser = TIPDataBrowser('scidata')
+    databrowser.observatory = 'RASA36'
+    databrowser.objname = 'NGC1566'
+    databrowser.keys
+    target_imglist = databrowser.search(pattern='Calib*60.fits', return_type='science')
     
     # Non-bkg subtrcated
-    filelist = glob.glob('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/*.fits')
-    target_img = ScienceImage(filelist[0], telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    reference_img = ReferenceImage('/home/hhchoi1022/data/refdata/main/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/calib_7DT14_T22956_20250403_054224_m600_300.com.fits', telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    #target_errormap = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
-    target_errormap = None
-    detection_sigma = 1.5
+    #reference_img = ReferenceImage('/home/hhchoi1022/data/refdata/main/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/calib_7DT14_T22956_20250403_054224_m600_300.com.fits', telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
+#%%
+if __name__ == "__main__":
+    target_img = target_imglist[0]
+    target_errormap = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
+    detection_sigma = 5
     verbose = True
     visualize = True
     return_mask = True
@@ -334,20 +350,20 @@ if __name__ == "__main__":
     y_size: Optional[int] = None#None#6800
     verbose: bool = True
     overwrite = False
-    reprojected_img, reprojected_weight = self.reproject(
-        target_img = reference_img,
-        target_errormap = target_errormap,
-        swarp_params = swarp_params,
-        errormap_type = errormap_type,
-        resample_type = resample_type,
-        center_ra = center_ra,
-        center_dec = center_dec,
-        x_size = x_size,
-        y_size = y_size,
-        verbose = verbose,
-        overwrite = overwrite,
-        save = save
-    )
+    # reprojected_img, reprojected_weight = self.reproject(
+    #     target_img = reference_img,
+    #     target_errormap = target_errormap,
+    #     swarp_params = swarp_params,
+    #     errormap_type = errormap_type,
+    #     resample_type = resample_type,
+    #     center_ra = center_ra,
+    #     center_dec = center_dec,
+    #     x_size = x_size,
+    #     y_size = y_size,
+    #     verbose = verbose,
+    #     overwrite = overwrite,
+    #     save = save
+    # )
         
     
     # aligned_img = T.align(target_img = target_img,

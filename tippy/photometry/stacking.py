@@ -72,7 +72,6 @@ def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma
     else:
         raise ValueError(f"Unknown combine_method: {combine_method}")
     
-
     # --- Combine RMS ---
     if clipped_rms is not None:
         N = clipped_rms.shape[0]
@@ -331,6 +330,41 @@ class TIPStacking(Helper):
                            verbose: bool = True,
                            save: bool = True,
                            **kwargs):
+        """
+        target_outpath: str = None
+        bkgrms_outpath: str = None
+        combine_type: str = 'median'
+        n_proc=4
+        
+        # Clip parameters
+        clip_type: str = None
+        sigma: float = 3.0
+        nlow: int = 1
+        nhigh: int = 1
+        
+        # Resample parameters
+        resample: bool = True
+        resample_type: str = 'LANCZOS3'
+        center_ra: float = None
+        center_dec: float = None
+        pixel_scale: float = None
+        x_size: int = None
+        y_size: int = None
+        
+        # Scale parameters
+        scale: bool = True
+        scale_type: str = 'min'
+        zp_key : str = 'ZP_APER_1'
+        
+        # Convolution parameters
+        convolve: bool = False
+        seeing_key: str = 'SEEING'
+        kernel: str = 'gaussian'
+        
+        # Other parameters
+        verbose: bool = True
+        save: bool = True
+        """
         
         if self.combiner.n_proc != n_proc:
             self.print('[Combiner] Re-initializing Combiner with new n_proc', verbose)
@@ -442,28 +476,6 @@ class TIPStacking(Helper):
             if target_bkgrmslist is None:
                 coadd_bkgrmslist = None
 
-            # coadd_imglist = []
-            # coadd_bkgrmslist = [] if target_bkgrmslist is not None else None            
-            # for i, (target_img, target_bkgrms) in enumerate(zip(target_imglist, target_bkgrmslist or [None] * len(target_imglist))):
-            #     reprojected_img, reprojected_bkgrms, _ = self.projection.reproject(
-            #         target_img=target_img,
-            #         target_errormap=target_bkgrms,
-            #         swarp_params=None,
-            #         resample_type=resample_type,
-            #         center_ra=center_ra,
-            #         center_dec=center_dec,
-            #         x_size=x_size,
-            #         y_size=y_size,
-            #         pixelscale=pixel_scale,
-            #         verbose=verbose,
-            #         overwrite=False,
-            #         save=False,
-            #         return_ivpmask = False,
-            #     )
-            #     coadd_imglist.append(reprojected_img)
-            #     if coadd_bkgrmslist is not None:
-            #         coadd_bkgrmslist.append(reprojected_bkgrms)
-            # #TODO MULTIPROCESSING THIS PART
         else:
             coadd_imglist = target_imglist
             coadd_bkgrmslist = target_bkgrmslist
@@ -826,12 +838,14 @@ class TIPStacking(Helper):
                               seeing_limit: float = 6.0,
                               depth_limit: float = 18.0,
                               ellipticity_limit: float = 0.3,
-                              ):
+                              visualize: bool = False,
+                              verbose: bool = True):
         seeinglist = []
         depthlist = []
         ellipticitylist = []
         obsdatelist = []
-        for target_img in tqdm(target_imglist, desc = 'Querying images...'):
+        iterator = tqdm(target_imglist, desc="Querying images...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else target_imglist
+        for target_img in iterator:
             seeinglist.append(target_img.header.get(seeing_key, None))
             depthlist.append(target_img.header.get(depth_key, None))
             ellipticitylist.append(target_img.header.get(ellipticity_key, None))
@@ -851,7 +865,9 @@ class TIPStacking(Helper):
         depthlist = np.array([v if v is not None else np.nan for v in depthlist], dtype=float)
         ellipticitylist = np.array([v if v is not None else np.nan for v in ellipticitylist], dtype=float)
         valid_value_mask = (~np.isnan(seeinglist)) & (~np.isnan(depthlist)) & (~np.isnan(ellipticitylist))
-                
+        if not np.any(valid_value_mask):
+            return []
+                    
         # Apply limits mask
         valid_seeing_mask = seeinglist < seeing_limit
         valid_ellipticity_mask = ellipticitylist < ellipticity_limit
@@ -864,7 +880,9 @@ class TIPStacking(Helper):
             valid_seeing_mask &
             valid_ellipticity_mask &
             valid_depth_mask
-        )          
+        )
+        if not np.any(combined_mask):
+            return []
         
         # Apply final mask
         ell_all = np.array(ellipticitylist)[valid_value_mask]
@@ -936,94 +954,95 @@ class TIPStacking(Helper):
         num_images_p25 = np.sum((x_all <= p25_x) & (y_all >= p25_y))  # Number of images below or equal to the 75th percentile
 
         # Create figure with GridSpec layout
-        fig = plt.figure(figsize=(6, 6), dpi=300)
-        gs = GridSpec(4, 4, fig, wspace=1.5, hspace=0.5)
+        if visualize:
+            fig = plt.figure(figsize=(6, 6), dpi=300)
+            gs = GridSpec(4, 4, fig, wspace=1.5, hspace=0.5)
 
-        # Create scatter plot
-        ax_main = fig.add_subplot(gs[1:, :-1])
-        sc = ax_main.scatter(x_all, y_all,
-                            c=c_all,
-                            s=marker_sizes,
-                            alpha=marker_alphas,
-                            cmap='viridis', edgecolors='k', linewidths=0.5,
-                            label = f'All images ({len(x_all)})')        
-        ax_main.scatter(0,0, s = 10, alpha = 0.2, label = f'Filtered out images ({len(x_all) - len(x_selected)})')
-        cbar = fig.colorbar(sc, ax=ax_main, pad=0.01)
-        cbar.set_label('Ellipticity')
-        ax_main.axvline(p90_x, color='r', linestyle='--')
-        ax_main.axvline(p75_x, color='b', linestyle='--')
-        ax_main.axvline(p50_x, color='g', linestyle='--')
-        ax_main.axvline(p25_x, color='k', linestyle='--')
-        ax_main.axhline(p90_y, color='r', linestyle='--')
-        ax_main.axhline(p75_y, color='b', linestyle='--')
-        ax_main.axhline(p50_y, color='g', linestyle='--')
-        ax_main.axhline(p25_y, color='k', linestyle='--')
-        ax_main.set_xlim(p90_x - 0.5, p10_x + 0.5)
-        ax_main.set_ylim(p10_y - 1, p90_y + 1)
-        ax_main.set_xlabel('Seeing [arcsec]')
-        ax_main.set_ylabel('Depth [AB]')
-        ax_main.scatter(x_selected, y_selected, marker='*', s=200, c='red', edgecolors='black', label=f'Selected ({len(selected_idx)}) images')
-        ax_main.scatter(x_best, y_best, marker='*', s=200, c='red', edgecolors='black')
-        ax_main.text(x_best, y_best + 0.3,
-                    f"Best\nSeeing = {x_best:.2f} arcsec\nDepth = {y_best:.2f} AB\nEllipticity = {c_best:.2f}",
-                    color='red', fontsize=8, ha='center', va='bottom',
-                    bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
-        ax_main.legend(loc='upper right', fontsize=8, frameon=True)
+            # Create scatter plot
+            ax_main = fig.add_subplot(gs[1:, :-1])
+            sc = ax_main.scatter(x_all, y_all,
+                                c=c_all,
+                                s=marker_sizes,
+                                alpha=marker_alphas,
+                                cmap='viridis', edgecolors='k', linewidths=0.5,
+                                label = f'All images ({len(x_all)})')        
+            ax_main.scatter(0,0, s = 10, alpha = 0.2, label = f'Filtered out images ({len(x_all) - len(x_selected)})')
+            cbar = fig.colorbar(sc, ax=ax_main, pad=0.01)
+            cbar.set_label('Ellipticity')
+            ax_main.axvline(p90_x, color='r', linestyle='--')
+            ax_main.axvline(p75_x, color='b', linestyle='--')
+            ax_main.axvline(p50_x, color='g', linestyle='--')
+            ax_main.axvline(p25_x, color='k', linestyle='--')
+            ax_main.axhline(p90_y, color='r', linestyle='--')
+            ax_main.axhline(p75_y, color='b', linestyle='--')
+            ax_main.axhline(p50_y, color='g', linestyle='--')
+            ax_main.axhline(p25_y, color='k', linestyle='--')
+            ax_main.set_xlim(p90_x - 0.5, p10_x + 0.5)
+            ax_main.set_ylim(p10_y - 1, p90_y + 1)
+            ax_main.set_xlabel('Seeing [arcsec]')
+            ax_main.set_ylabel('Depth [AB]')
+            ax_main.scatter(x_selected, y_selected, marker='*', s=200, c='red', edgecolors='black', label=f'Selected ({len(selected_idx)}) images')
+            ax_main.scatter(x_best, y_best, marker='*', s=200, c='red', edgecolors='black')
+            ax_main.text(x_best, y_best + 0.3,
+                        f"Best\nSeeing = {x_best:.2f} arcsec\nDepth = {y_best:.2f} AB\nEllipticity = {c_best:.2f}",
+                        color='red', fontsize=8, ha='center', va='bottom',
+                        bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
+            ax_main.legend(loc='upper right', fontsize=8, frameon=True)
 
 
-        # Create top histogram
-        ax_histx = fig.add_subplot(gs[0, :-1], sharex=ax_main)
-        ax_histx.hist(x_valid, bins=30, color='black', edgecolor='black', alpha=0.7)
-        ax_histx.spines['top'].set_visible(False)  # Hide top spine
-        ax_histx.spines['right'].set_visible(False)  # Hide right spine
+            # Create top histogram
+            ax_histx = fig.add_subplot(gs[0, :-1], sharex=ax_main)
+            ax_histx.hist(x_valid, bins=30, color='black', edgecolor='black', alpha=0.7)
+            ax_histx.spines['top'].set_visible(False)  # Hide top spine
+            ax_histx.spines['right'].set_visible(False)  # Hide right spine
 
-        # Create right histogram
-        ax_histy = fig.add_subplot(gs[1:, -1], sharey=ax_main)
-        ax_histy.hist(y_valid, bins=30, color='black', edgecolor='black', alpha=0.7, orientation='horizontal')
-        ax_histy.spines['top'].set_visible(False)  # Hide top spine
-        ax_histy.spines['right'].set_visible(False)  # Hide right spine
+            # Create right histogram
+            ax_histy = fig.add_subplot(gs[1:, -1], sharey=ax_main)
+            ax_histy.hist(y_valid, bins=30, color='black', edgecolor='black', alpha=0.7, orientation='horizontal')
+            ax_histy.spines['top'].set_visible(False)  # Hide top spine
+            ax_histy.spines['right'].set_visible(False)  # Hide right spine
 
-        # Set limits for histograms to fit within the black box
-        ax_histx.set_xlim(ax_main.get_xlim())
-        ax_histy.set_ylim(ax_main.get_ylim())
+            # Set limits for histograms to fit within the black box
+            ax_histx.set_xlim(ax_main.get_xlim())
+            ax_histy.set_ylim(ax_main.get_ylim())
 
-        # Plot vertical regions for percentiles in histograms
-        ax_histx.axvline(p90_x, color='r', linestyle='--', label='90%')
-        ax_histx.axvline(p75_x, color='b', linestyle='--', label='75%')
-        ax_histx.axvline(p50_x, color='g', linestyle='--', label='50%')
-        ax_histx.axvline(p25_x, color='k', linestyle='--', label='25%')
+            # Plot vertical regions for percentiles in histograms
+            ax_histx.axvline(p90_x, color='r', linestyle='--', label='90%')
+            ax_histx.axvline(p75_x, color='b', linestyle='--', label='75%')
+            ax_histx.axvline(p50_x, color='g', linestyle='--', label='50%')
+            ax_histx.axvline(p25_x, color='k', linestyle='--', label='25%')
 
-        ax_histy.axhline(p90_y, color='r', linestyle='--', label='90%')
-        ax_histy.axhline(p75_y, color='b', linestyle='--', label='75%')
-        ax_histy.axhline(p50_y, color='g', linestyle='--', label='50%')
-        ax_histy.axhline(p25_y, color='k', linestyle='--', label='25%')
+            ax_histy.axhline(p90_y, color='r', linestyle='--', label='90%')
+            ax_histy.axhline(p75_y, color='b', linestyle='--', label='75%')
+            ax_histy.axhline(p50_y, color='g', linestyle='--', label='50%')
+            ax_histy.axhline(p25_y, color='k', linestyle='--', label='25%')
 
-        # Add text annotation in the upper right region of the scatter plot
-        text = f'Percentile (# of images, Seeing, Depth):\n'
-        text += f'90% ({num_images_p90}, {p90_x:.2f}, {p90_y:.2f})\n'
-        text += f'75% ({num_images_p75}, {p75_x:.2f}, {p75_y:.2f})\n'
-        text += f'50% ({num_images_p50}, {p50_x:.2f}, {p50_y:.2f})\n'
-        text += f'25% ({num_images_p25}, {p25_x:.2f}, {p25_y:.2f})'
-        ax_main.text(0.5, 0.15, text,
-                    ha='center', va='center',
-                    transform=ax_main.transAxes,
-                    bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.5'))
-        
-        from matplotlib.lines import Line2D
+            # Add text annotation in the upper right region of the scatter plot
+            text = f'Percentile (# of images, Seeing, Depth):\n'
+            text += f'90% ({num_images_p90}, {p90_x:.2f}, {p90_y:.2f})\n'
+            text += f'75% ({num_images_p75}, {p75_x:.2f}, {p75_y:.2f})\n'
+            text += f'50% ({num_images_p50}, {p50_x:.2f}, {p50_y:.2f})\n'
+            text += f'25% ({num_images_p25}, {p25_x:.2f}, {p25_y:.2f})'
+            ax_main.text(0.5, 0.15, text,
+                        ha='center', va='center',
+                        transform=ax_main.transAxes,
+                        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.5'))
+            
+            from matplotlib.lines import Line2D
 
-        dashed_lines = [
-            Line2D([0], [0], color='red', linestyle='--', label='90%'),
-            Line2D([0], [0], color='blue', linestyle='--', label='75%'),
-            Line2D([0], [0], color='green', linestyle='--', label='50%'),
-            Line2D([0], [0], color='black', linestyle='--', label='25%')
-        ]
+            dashed_lines = [
+                Line2D([0], [0], color='red', linestyle='--', label='90%'),
+                Line2D([0], [0], color='blue', linestyle='--', label='75%'),
+                Line2D([0], [0], color='green', linestyle='--', label='50%'),
+                Line2D([0], [0], color='black', linestyle='--', label='25%')
+            ]
 
-        fig.legend(handles=dashed_lines,
-                loc='upper right',
-                bbox_to_anchor=(0.95, 0.95),
-                fontsize=10, frameon=True)
-        plt.tight_layout()
-        plt.show()
+            fig.legend(handles=dashed_lines,
+                    loc='upper right',
+                    bbox_to_anchor=(0.95, 0.95),
+                    fontsize=10, frameon=True)
+            plt.tight_layout()
+            plt.show()
         
         selected_images = imgs_filtered[selected_idx]
         
@@ -1096,160 +1115,15 @@ class TIPStacking(Helper):
             for img, errormap in zip(target_imglist, target_errormaplist or [None] * len(target_imglist))
         ]
         # Run with process_map
-        results = process_map(_scale_worker, tasks, desc="Matching ZP...", max_workers=n_proc)
+        if verbose:
+            desc = "Matching ZP..."
+        else:
+            desc = None
+        results = process_map(_scale_worker, tasks, desc=desc, max_workers=n_proc)
         scaled_imglist, scaled_errormaplist = zip(*results)
 
         return list(scaled_imglist), list(scaled_errormaplist) if target_errormaplist else None
     
-    # def match_zeropoints(self,
-    #                      target_imglist: List[Union[ScienceImage, CalibrationImage]],
-    #                      target_errormaplist: Optional[List[Errormap]] = None,
-    #                      method: str = 'median',
-    #                      zp_key: str = 'ZP_APER_1',
-                         
-    #                      # Other parameters
-    #                      save: bool = False,
-    #                      overwrite: bool = False,
-    #                      verbose: bool = True,
-    #                      **kwargs):
-    #     """
-    #     Scale multiple images (and optional error maps) to match their zero points.
-
-    #     Parameters
-    #     ----------
-    #     target_imglist : List[Union[ScienceImage, CalibrationImage]]
-    #         List of images to scale.
-    #     target_errormaplist : Optional[List[Errormap]]
-    #         Optional list of error maps to scale with the same factors.
-    #     method : str
-    #         Method to determine reference ZP ('min', 'max', or 'median').
-    #     zp_key : str
-    #         Header keyword for zero point.
-    #     overwrite : bool
-    #         Whether to overwrite existing files.
-    #     save : bool
-    #         Whether to save scaled images and error maps.
-    #     verbose : bool
-    #         Print progress messages.
-
-    #     Returns
-    #     -------
-    #     Tuple[List[Union[ScienceImage, CalibrationImage]], Optional[List[Errormap]]]
-    #         List of scaled images and optionally scaled error maps.
-    #     """
-    #     import numpy as np
-    #     from tqdm import tqdm
-
-    #     # Get all ZP values
-    #     zp_values = []
-    #     for target_img in target_imglist:
-    #         if target_img.header is None:
-    #             target_img.load_header()
-    #         if zp_key not in target_img.header:
-    #             raise ValueError(f"ZP key '{zp_key}' not found in header of {target_img.path}")
-    #         zp_values.append(float(target_img.header[zp_key]))
-
-    #     # Determine reference ZP
-    #     if method.lower() == 'min':
-    #         ref_zp = np.min(zp_values)
-    #     elif method.lower() == 'max':
-    #         ref_zp = np.max(zp_values)
-    #     elif method.lower() == 'median':
-    #         ref_zp = np.median(zp_values)
-    #     else:
-    #         raise ValueError(f"Unknown method '{method}'. Use 'min', 'max', or 'median'")
-        
-    #     self.print(f"Scaling images to reference ZP = {ref_zp:.3f} using {method} method", verbose)
-
-    #     # Scale each image
-    #     scaled_imglist = []
-    #     scaled_errormaplist = [] if target_errormaplist is not None else None
-    #     iterator = tqdm(zip(target_imglist, target_errormaplist or [None] * len(target_imglist)), desc='Matching ZP...') if verbose else zip(target_imglist, target_errormaplist or [None] * len(target_imglist))
-
-    #     for target_img, target_errormap in iterator:
-    #         if not overwrite:
-    #             target_img_path = target_img.savepath.savedir / f"scaled_{target_img.savepath.savepath.name}"
-    #             if target_errormap is not None:
-    #                 target_errormap_path = target_errormap.savepath.savedir / f"scaled_{target_errormap.savepath.savepath.name}"
-    #         else:
-    #             target_img_path = target_img.savepath.savepath
-    #             target_errormap_path = target_errormap.savepath.savepath if target_errormap is not None else None
-            
-    #         zp = float(target_img.header[zp_key])
-    #         delta_zp = ref_zp - zp
-    #         scale_factor = 10 ** (0.4 * (delta_zp))
-    #         self.print(f"Scaling {target_img.path.name} by factor {scale_factor:.3f} (ZP: {zp:.3f} -> {ref_zp:.3f})", verbose)
-
-    #         # Copy and scale image
-    #         scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status = target_img.status, load=False)
-    #         scaled_img.header = target_img.header.copy()
-    #         scaled_img.data = target_img.data * scale_factor
-    #         # Update headers 
-    #         scaled_img.header[zp_key] = ref_zp  # update ZP in header
-    #         update_header_kwargs = dict(
-    #             SCALEKEY = zp_key,
-    #             SCALEREF = ref_zp,
-    #             SCALEZP = delta_zp,
-    #             SCALEFACT = scale_factor,
-    #         )
-    #         for key in target_img.header.keys():
-    #             if key.startswith('ZP_'):
-    #                 update_header_kwargs[key] = target_img.header[key] + delta_zp
-            
-    #         # Print update header keywords
-    #         # if verbose:
-    #         #     for update_header_kwargs_key in update_header_kwargs.keys():
-    #         #         if update_header_kwargs_key not in target_img.header:
-    #         #             self.print(f"Updating header keyword {update_header_kwargs_key} to {update_header_kwargs[update_header_kwargs_key]}", verbose)
-    #         #         else:
-    #         #             self.print(f"Updating header keyword {update_header_kwargs_key} from {target_img.header[update_header_kwargs_key]} to {update_header_kwargs[update_header_kwargs_key]}", verbose)
-            
-    #         scaled_img.header.update(update_header_kwargs) # update other keywords
-    #         scaled_img.update_status('ZPSCALE')
-    #         scaled_imglist.append(scaled_img)
-
-    #         # Scale error map if provided
-    #         if target_errormap is not None:
-    #             emaptype = target_errormap.emaptype.lower()
-    #             if emaptype == 'bkgrms':
-    #                 factor = scale_factor
-    #             elif emaptype == 'bkgweight':
-    #                 factor = 1.0 / scale_factor**2
-    #             else:
-    #                 raise ValueError(f"Unsupported emaptype '{emaptype}' in match_zeropoints")
-
-    #             scaled_error = Errormap(path=target_errormap_path, emaptype = target_errormap.emaptype, status = target_errormap.status, load=False)
-    #             scaled_error.data = target_errormap.data * scale_factor
-    #             update_header_kwargs = dict(
-    #                 SCALEKEY = zp_key,
-    #                 SCALEREF = ref_zp,
-    #                 SCALEZP = delta_zp,
-    #                 SCALEFACT = scale_factor
-    #             )
-                
-    #             scaled_error.header.update(update_header_kwargs)
-                
-    #             update_status_kwargs = dict(
-    #                 key = zp_key,
-    #                 ref_zp = ref_zp,
-    #                 scale_zp = delta_zp,
-    #                 scale_factor = scale_factor
-    #             )
-                
-    #             scaled_error.add_status('zpscale', **update_status_kwargs)
-    #             scaled_errormaplist.append(scaled_error)
-
-    #         if save:
-    #             # Update image path for saving
-    #             scaled_img.write()
-    #             if target_errormap is not None:
-    #                 scaled_error.write()
-
-
-    #     self.print(f"Successfully scaled {len(scaled_imglist)} images", verbose)
-
-    #     return scaled_imglist, scaled_errormaplist
-
     def match_seeing(self,
                      target_imglist: List[Union[ScienceImage, CalibrationImage]],
                      target_errormaplist: Optional[List[Errormap]] = None,

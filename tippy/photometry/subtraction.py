@@ -19,7 +19,7 @@ from matplotlib.gridspec import GridSpec
 from sklearn.preprocessing import MinMaxScaler
 from astropy.visualization import ZScaleInterval, MinMaxInterval
 import matplotlib.pyplot as plt
-
+import uuid
 
 from tippy.helper import Helper
 from tippy.image import ScienceImage, ReferenceImage
@@ -715,7 +715,7 @@ class TIPSubtraction(Helper):
                         target_img: ScienceImage,
                         reference_imglist: List[ReferenceImage],
                         target_bkg: Background = None,
-                        detection_sigma: float = 1.5,
+                        detection_sigma: float = 5,
                         
                         target_transient_number: int = 5,
                         reject_variable_sources: bool = False,
@@ -735,6 +735,20 @@ class TIPSubtraction(Helper):
         AFTER SUBTRACTION, PERFORM APERTURE PHOTOMETRY ON THE SUBTRACTED IMAGE
         SELECTED SOURCES WILL BE DETECTED SOURCES FROM MANY SUBTRACTED IMAGES
         AFTER SUBTRCATION, COMBINE IMAGES?
+        reference_imglist = [reference_img]
+        target_bkg: Background = None
+        detection_sigma: float = 5
+        
+        target_transient_number: int = 5
+        reject_variable_sources: bool = True
+        negative_detection: bool = True
+        reverse_subtraction: bool = False
+        
+        save: bool = True
+        verbose: bool = True
+        visualize: bool = False
+        show_transient_numbers: int = 10
+        
         """
 
         # Prepare reprojected target_img
@@ -810,8 +824,8 @@ class TIPSubtraction(Helper):
         
         transient_criteria = dict()
         reprojected_target_ref_catalog_data = reprojected_target_ref_catalog.data
-        saturation_level = np.percentile(reprojected_target_ref_catalog_data['FLUX_MAX'], 99)
-        transient_criteria['flux_upper_target'] = min(60000, saturation_level)
+        saturation_level = np.percentile(reprojected_target_ref_catalog_data['FLUX_MAX'], 99.9)
+        transient_criteria['flux_upper_target'] = 60000#min(60000, saturation_level)
         transient_criteria['flux_lower_target'] = reprojected_target_img.info.SKYVAL - 15 * reprojected_target_img.info.SKYSIG if reprojected_target_img.info.SKYVAL is not None and reprojected_target_img.info.SKYSIG is not None else -10000
         transient_criteria['classstar_lower'] = min(0.5, 0.9 * np.median(reprojected_target_ref_catalog_data['CLASS_STAR']))
         transient_criteria['elongation_upper'] = max(1.5, 1.2 * np.median(reprojected_target_ref_catalog_data['ELONGATION']))
@@ -828,6 +842,9 @@ class TIPSubtraction(Helper):
         transient_catalogs = []
         candidate_catalogs = []
         for i, reference_img in tqdm(enumerate(reference_imglist), total=len(reference_imglist), desc="Subtraction Progress"):
+            reference_img_temp = reference_img.copy()
+            reference_img_temp.path = reference_img.savedir / (uuid.uuid4().hex + '.fits')
+            reference_img_temp.write()
             
             # Step 1: If reference_img.seeing is None, update seeing
             reference_catalog = None
@@ -839,7 +856,7 @@ class TIPSubtraction(Helper):
                     reference_catalog.load_target_img(reference_img)
                 else:
                     reference_catalog = self.aperphot.sex_photometry(
-                        target_img = reference_img,
+                        target_img = reference_img_temp,
                         target_bkg = None,  # No background for subtraction
                         target_bkgrms = None,  # No background RMS for subtraction
                         target_mask = None,
@@ -850,18 +867,17 @@ class TIPSubtraction(Helper):
                         save = save,
                         verbose = verbose,
                         visualize = visualize,
-                        save_fig = False
-                    )
+                        save_fig = False)
                 
                 try:
-                    reference_img, reference_catalog, reference_ref_catalog = self.photcal.photometric_calibration(
-                        target_img = reference_img,
+                    reference_img_temp, reference_catalog, reference_ref_catalog = self.photcal.photometric_calibration(
+                        target_img = reference_img_temp,
                         target_catalog = reference_catalog,
                         catalog_type = 'GAIAXP',
                         max_distance_second = 1.0,
                         calculate_color_terms = False,
                         calculate_mag_terms = False,
-                        snr_lower = 15,
+                        snr_lower = 0.0,
                         snr_upper = 500,
                         save = True,
                         verbose = verbose,
@@ -874,15 +890,17 @@ class TIPSubtraction(Helper):
                     reference_ref_catalog, status, peeing = self.photcal.select_stars(
                      target_catalog = reference_catalog   
                     )
-                    reference_img.header['SEEING'] = peeing * np.mean(reference_img.pixelscale)
+                    reference_img_temp.header['SEEING'] = peeing * np.mean(reference_img_temp.pixelscale)
 
             # Step 2: Reproject reference images to reprojected_target_img
             reprojected_reference_img, reprojected_reference_ivpmask = self._reproject_to_target(
-                reference_img = reference_img,
+                reference_img = reference_img_temp,
                 target_img = reprojected_target_img,
                 save = save,
                 verbose = verbose
             )
+            reference_img_temp.clear()
+            reference_img_temp.remove(remove_main = True, remove_connected_files = True, skip_exts = [''])
             reference_img.clear()
             reprojected_reference_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
             
@@ -906,8 +924,8 @@ class TIPSubtraction(Helper):
             # Set saturation level
             if reference_ref_catalog is not None:
                 if len(reference_ref_catalog.data) > 0:
-                    saturation_level = np.percentile(reference_ref_catalog.data['FLUX_MAX'], 99)
-                    transient_criteria['flux_upper_reference'] = min(saturation_level, 60000)
+                    saturation_level = np.percentile(reference_ref_catalog.data['FLUX_MAX'], 99.9)
+                    transient_criteria['flux_upper_reference'] = 60000#min(saturation_level, 60000)
                 else:
                     transient_criteria['flux_upper_reference'] = 60000
             else:
@@ -934,8 +952,8 @@ class TIPSubtraction(Helper):
                 # HOTPANTS Parameters
                 convim = None,
                 normim = 'i',
-                nrx = 2,
-                nry = 2,
+                nrx = 1,
+                nry = 1,
                 iu = transient_criteria['flux_upper_target'],
                 il = transient_criteria['flux_lower_target'],
                 tu = transient_criteria['flux_upper_reference'],
@@ -960,7 +978,7 @@ class TIPSubtraction(Helper):
                 target_bkg = None,  # No background for subtraction
                 target_bkgrms = None,  # No background RMS for subtraction
                 target_mask = subframe_subtract_ivpmask,
-                sex_params = dict(SEEING_FWHM = subtract_seeing, DETECT_MINAREA = np.pi*(subtract_seeing/2/np.mean(subframe_subtract_img.pixelscale))**2),
+                sex_params = dict(SEEING_FWHM = subtract_seeing),
                 detection_sigma = detection_sigma,
                 aperture_diameter_arcsec = [5,7,10],
                 saturation_level = 60000,
@@ -968,6 +986,11 @@ class TIPSubtraction(Helper):
                 verbose = verbose,
                 visualize = visualize,
                 save_fig = False
+            )
+            self.photcal.apply_zp(
+                target_img = subframe_subtract_img,
+                target_catalog = tbl_first,
+                save = True
             )
         
             # Step 6: Filter the table for significant sources
@@ -1317,23 +1340,23 @@ if __name__ == "__main__":
     from tippy.image import *
     from tippy.photometry import TIPSubtraction, TIPStacking
     from tippy.utils import *
-    from tippy.helper import Helper
+    from tippy.helper import Helper, TIPDataBrowser
     import numpy as np
     helper = Helper()
     sdt_data_querier = SDTData()
-    imginfo_all = sdt_data_querier.show_scidestdata(
-        targetname = 'T01061',
-        show_only_numbers = False,
-        key = 'filter',
-        pattern = 'calib*100.com.fits'
-    )
-    imginfo = imginfo_all['g']
-    telinfo = helper.estimate_telinfo(imginfo[0])
+    databrowser = TIPDataBrowser('scidata')
+    databrowser.objname = 'NGC1566'
+    databrowser.observatory = 'KCT'
+    stacked_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
+    
+    target_img = stacked_imglist[0]
+    reference_img = self.get_referenceframe_from_image(target_img)[0]
+    telinfo = target_img.telinfo
 
-    stacking = TIPStacking()
-    target_imglist = [ScienceImage(img, telinfo = telinfo, load = True) for img in imginfo]
-    target_img = stacking.select_quality_images(target_imglist, max_numbers = 3)[0]
-    reference_img, _ = self.get_referenceframe_from_image(target_img)
+    # stacking = TIPStacking()
+    # target_imglist = [ScienceImage(img, telinfo = telinfo, load = True) for img in imginfo]
+    # target_img = stacking.select_quality_images(target_imglist, max_numbers = 3)[0]
+    # reference_img, _ = self.get_referenceframe_from_image(target_img)
 #%%
 if __name__ == "__main__":
     combine_type = 'weight'
@@ -1376,71 +1399,13 @@ if __name__ == "__main__":
     # target_img = target_imglist[0]
     # reference_img = reference_imglist[0]
 #%%
-    target_ra = 234.6855127
-    target_dec = -68.794466
-    target_bkg = None
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01571/7DT09/r/calib_7DT09_T01571_20250207_083642_r_300.com.fits'
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01158/7DT03/r/calib_7DT03_T01158_20250208_045111_r_100.fits'
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00176/7DT16/g/calib_7DT16_T00176_20250407_000927_g_100.fits'
-    target_img = ScienceImage(target_path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    reference_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01571/7DT09/r/hips2fits_T01571_r.fits'
-    reference_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01158/7DT03/r/hips2fits_T01158_r.fits'
-    reference_path = self.get_referenceframe_from_image(target_img)[0]['file']
-    reference_img = ReferenceImage(reference_path, telinfo = target_img.telinfo, load = True)
-    #reference_img.savedir = target_img.savedir
-    #reference_imglist = [reference_img]
-    #reference_imglist = [img for img in reference_imglist if (target_ra <img.center['ra'] +0.1) and (target_ra > img.center['ra'] -0.1) and (target_dec < img.center['dec'] +0.1) and (target_dec >  img.center['dec']-0.1)]
-    #target_pathlist = obsinfo['g']
-    #target_imglist = [ScienceImage(path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = False) for path in target_pathlist]
-#%%
-
-if __name__ == "__main__":
-    from tippy.utils import SDTData
-    obsinfo = SDTData().show_scisourcedata(targetname = 'T22956', file_pattern  ='calib*com.fits')
-#%%
-if __name__ == "__main__":
-    target_pathlist = obsinfo['g']
-    failed_keys = []
-    for key, target_pathlist in obsinfo.items():
-        print(f"{key}: {len(target_pathlist)}")
-        target_imglist = [ScienceImage(path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = False) for path in target_pathlist]
-        try:
-            best_image = self.select_reference_image(
-                target_imglist = target_imglist,
-                max_obsdate = 20250401,
-                weight_depth = 2,
-                weight_ellipticity = 1,
-                weight_seeing = 1.5,
-                max_numbers = 1,
-            )
-            self.register_reference_image(
-                target_img = best_image[0])
-        except:
-            print(f"No valid images found for {key}.")
-            failed_keys.append(key)
-
-#%%
-
-#%%
-if __name__ == "__main__":
-    target_img = target_imglist[14]
-    reference_imginfo = self.get_referenceframe_from_image(
-        target_img = target_img,
-    )
-    reference_img = ReferenceImage(reference_imginfo[0]['file'], 
-        telinfo = target_img.telinfo, 
-        load = True
-    )
-    reference_img.show()
-
-#%%
 if __name__ == "__main__":
     result = self.find_transients(
         target_img = target_img,
         reference_imglist = [reference_img],
         target_bkg = None,
         detection_sigma = 5,
-        reject_variable_sources = False,
+        reject_variable_sources = True,
         negative_detection = True,
         reverse_subtraction = False,
         save = True,

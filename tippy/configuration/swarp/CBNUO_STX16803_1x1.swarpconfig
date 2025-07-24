@@ -73,7 +73,7 @@ GAIN_KEYWORD           EGAIN           # FITS keyword for effect. gain (e-/ADU)
 GAIN_DEFAULT           1.27            # Default gain if no FITS keyword found
                                        # 0 = infinity (all or for each image)
 SATLEV_KEYWORD         SATURATE        # FITS keyword for saturation level (ADU)
-SATLEV_DEFAULT         65000.0         # Default saturation if no FITS keyword
+SATLEV_DEFAULT         40000.0         # Default saturation if no FITS keyword
  
 #--------------------------- Background subtraction ---------------------------
  

@@ -8,13 +8,13 @@ from shapely.geometry import Polygon
 
 def select_reference_sources(catalog: ReferenceCatalog,
                              mag_lower : float = 12, 
-                             mag_upper : float = 18, 
+                             mag_upper : float = 20, 
                              **kwargs):
     if not catalog.data:
         raise RuntimeError(f'No catalog data found for {catalog.objname}')
     
     # For APASS Cut
-    cutline_apass = dict(e_ra = [0, 0.5], e_dec = [0, 0.5], e_V_mag = [0.01, 0.05], V_mag = [mag_lower, mag_upper])
+    cutline_apass = dict(e_V_mag = [0.001, 0.2], V_mag = [mag_lower, mag_upper])
     # For GAIA cut 
     cutline_gaia = dict(V_flag = [0,1], V_mag = [mag_lower, mag_upper])
     # For GAIAXP cut pmra, pmdec for astrometric reference stars, bp-rp for color
@@ -22,7 +22,7 @@ def select_reference_sources(catalog: ReferenceCatalog,
     # For PS1 cut
     cutline_ps1 = {"gFlags": [0,10], "g_mag": [mag_lower, mag_upper]}
     # For SMSS cut
-    cutline_smss = {"ngood": [20,999], "class_star": [0.8, 1.0], "g_mag": [mag_lower, mag_upper]}
+    cutline_smss = {"ngood": [5,999], "class_star": [0.3, 1.0], "g_mag": [mag_lower, mag_upper]}
     
     if catalog.catalog_type == 'APASS':
         cutline = cutline_apass

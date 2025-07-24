@@ -6,6 +6,9 @@ from tippy.image import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tippy.helper import TIPDataBrowser
+from tippy.catalog import *
+import psutil, os
+from pympler import asizeof
 
 from tqdm import tqdm
 import gc
@@ -39,14 +42,14 @@ databrowser = TIPDataBrowser('scidata')
 databrowser.observatory = 'KCT'
 databrowser.objname = 'NGC1566'
 databrowser.keys
-target_imglist = databrowser.search(pattern='Calib*120.fits', return_type='science')
+target_imglist = databrowser.search(pattern='Calib*20211202*.fits', return_type='science')
 #%%
+
 ### CONFIOGURATION FOR SINGLE IMAGE PROCESSING
 visualize = False
 verbose = False
 save_fig = True
 save = True
-
 
 do_platesolve = False
 platesolve_kwargs = dict(
@@ -113,7 +116,7 @@ errormap_kwargs = dict(
 )
 errormap_from_sourcemask = True
 errormap_mask_kwargs = dict(
-    box_size = 64,
+    box_size = 128,
     filter_size = 3,
     errormap_type = 'bkgrms',
     mode = 'sep',
@@ -131,7 +134,7 @@ errormap_mask_kwargs = dict(
 do_aperturephotometry = True
 aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
     saturation_level = 35000,
     kron_factor = 2.5,
@@ -151,7 +154,7 @@ photometriccalibration_kwargs = dict(
     mag_upper = None,
     snr_lower = 30,
     snr_upper = 500,
-    classstar_lower = 0.7,
+    classstar_lower = 0.5,
     elongation_upper = 3,
     elongation_sigma = 5,
     fwhm_lower = 2,
@@ -181,7 +184,7 @@ photometriccalibration_kwargs = dict(
 ### CONFIGURATION FOR STACKING
 do_stacking = True
 stacking_kwargs = dict(
-    combine_type = 'mean',
+    combine_type = 'median',
     n_proc = 8,
     # Clip parameters
     clip_type = 'extrema',
@@ -213,7 +216,7 @@ stacking_kwargs = dict(
 
 stack_aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
     saturation_level = 35000,
     kron_factor = 2.5,
@@ -266,6 +269,17 @@ stack_photometriccalibration_kwargs = dict(
 # Define the image processing function
 # 76 images -> 9min 41s
 def imgprocess(target_img):
+    # run the expensive steps here
+    Preprocessor = TIPPreprocess()
+    PlateSolver = TIPPlateSolve()
+    MaskGenerator = TIPMasking()
+    BkgGenerator = TIPBackground()
+    ErrormapGenerator = TIPErrormap()
+    AperturePhotometry = TIPAperturePhotometry()
+    PSFPhotometry = TIPPSFPhotometry()
+    PhotometricCalibration = TIPPhotometricCalibration()
+    Stacking = TIPStacking()
+    helper = Helper()
     #target_img = ScienceImage(path = target_path, telinfo = telinfo, load = True)
     # mbias_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'BIAS', max_days = 60)[0]
     # mdark_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'DARK', max_days = 60)[0]
@@ -280,6 +294,7 @@ def imgprocess(target_img):
     status = dict()
     status['image'] = target_img.path
     status['platesolve'] = None
+
     if do_platesolve:
         try:
             target_img = PlateSolver.solve_astrometry(
@@ -294,7 +309,7 @@ def imgprocess(target_img):
             )[0]
             status['platesolve'] = True
         except Exception as e:
-            status['platesolve'] = e
+                status['platesolve'] = e
 
     status['mask'] = None
     target_srcmask = None
@@ -357,6 +372,8 @@ def imgprocess(target_img):
 
     status['errormap'] = None
     target_bkgrms = None
+    bkg_instance = None
+    target_bkg_tmp = None
     if do_generateerrormap:
         try:
             if errormap_from_propagation:
@@ -376,15 +393,16 @@ def imgprocess(target_img):
                 )
                 status['errormap'] = True
             if errormap_from_sourcemask:
-                target_bkgrms = ErrormapGenerator.calculate_from_sourcemask(
+                target_bkgrms, target_bkg_tmp, bkg_instance = ErrormapGenerator.calculate_from_sourcemask(
                     target_img = target_img,
                     target_mask = target_srcmask,
                     **errormap_mask_kwargs
-                )[0]
+                )
                 status['errormap'] = True
         except Exception as e:
             status['errormap'] = e
 
+    sex_catalog = None
     if do_aperturephotometry:
         try:
             # Perform aperture photometry
@@ -399,6 +417,8 @@ def imgprocess(target_img):
         except Exception as e:
             status['aperture_photometry'] = e
 
+    calib_catalog = None
+    filtered_catalog = None
     if do_photometric_calibration and do_aperturephotometry:
         try:
             target_img, calib_catalog, filtered_catalog = PhotometricCalibration.photometric_calibration(
@@ -410,47 +430,80 @@ def imgprocess(target_img):
         except Exception as e:
             status['photometric_calibration'] = e
 
-    # Clean up memory
-    del target_srcmask, target_objectmask
-    target_img.data = None
-    target_bkg.data = None
-    target_bkgrms.data = None
-    gc.collect()
-    return target_img, target_bkg, target_bkgrms, calib_catalog, status
-#%%
-# Process the images (Masking, Background, Errormap, Aperture Photometry, Photometric Calibration)
-with ProcessPoolExecutor(max_workers=40) as executor:
-    futures = [executor.submit(imgprocess, target_img) for target_img in target_imglist]
+    del target_img
+    del target_bkg
+    del target_bkgrms
+    del target_srcmask
+    del target_objectmask
+    del bkg_instance
+    del target_bkg_tmp
+    del mbias
+    del mdark
+    del mflat
+    del sex_catalog
+    del calib_catalog
+    del filtered_catalog
+    gc.collect()   
 
-    for future in tqdm(as_completed(futures), total=len(futures)):
-        try:
-            result = future.result()
-            if result is not None:
-                target_img, target_bkg, target_bkgrms, target_catalog, status = result
-            else:
-                print(f"[WARNING] Skipped a result due to None")
-        except Exception as e:
-            print(f"[ERROR] {e}")
+    return status
 #%%
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import gc
+from tqdm import tqdm
+
+def chunk_list(lst, chunk_size):
+    """Yield successive chunk_size-sized chunks from lst."""
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]
+
+def process_batch(batch_images, batch_index, max_workers=8):
+    print(f"\nStarting batch {batch_index+1} with {len(batch_images)} images...")
+
+    results = []
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(imgprocess, img) for img in batch_images]
+
+        for future in tqdm(as_completed(futures), total=len(futures), desc=f"Batch {batch_index+1}"):
+            try:
+                result = future.result()
+                if result is not None:
+                    results.append(result)
+            except Exception as e:
+                print(f"[ERROR in batch {batch_index+1}] {e}")
+    
+    # Clean up memory between batches
+    gc.collect()
+    return results
+
+# ? Main loop over batches
+batch_size = 128
+all_results = []
+
+for batch_index, batch in enumerate(chunk_list(target_imglist, batch_size)):
+    batch_results = process_batch(batch, batch_index, max_workers=32)
+    all_results.extend(batch_results)
+
+#%%
+databrowser = TIPDataBrowser('scidata')
 # Stack the images
 imginfo_all = databrowser.search(pattern='Calib*120.fits', return_type='imginfo')
 imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
-#%%
+ #%%
 stack_imglist = []
 stack_bkgrmslist = []
 failed_imglist = []
 for imginfo_group in imginfo_groups:
-    imginfo_group = helper.group_table(imginfo_group, 'mjd', 0.2)
+    imginfo_group = helper.group_table(imginfo_group, 'mjd', 0.1)
     imginfo_subgroups = imginfo_group.group_by('group').groups
+    telinfo = helper.estimate_telinfo(imginfo_subgroups[0][0]['file'])
     for imginfo_subgroup in imginfo_subgroups:
         target_imglist = [ScienceImage(path=row['file'], telinfo=telinfo, load=True) for row in imginfo_subgroup]
-        target_imglist = [target_img for target_img in target_imglist if 'ZP_APER' in target_img.header.keys()]
-        target_bkglist = [Background(path = target_img.savepath.bkgpath, load=True) for target_img in target_imglist]
-        target_bkgrmslist = [Errormap(path = target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load=True) for target_img in target_imglist]
-
+        target_imglist = Stacking.select_quality_images(target_imglist, seeing_limit = 6, depth_limit = 15, ellipticity_limit = 0.6, max_numbers = len(target_imglist), visualize = visualize)
         if len(target_imglist) == 0:
             print(f"[WARNING] No images found. skipping stacking.")
             continue
+        target_bkglist = [Background(path = target_img.savepath.bkgpath, load=True) for target_img in target_imglist]
+        target_bkgrmslist = [Errormap(path = target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load=True) for target_img in target_imglist]
         try:
             stack_img, stack_bkgrms = Stacking.stack_multiprocess(
                 target_imglist = target_imglist,
@@ -476,7 +529,7 @@ for imginfo_group in imginfo_groups:
             print(f"[ERROR] Stacking failed, skipping stacking.")
             failed_imglist.extend(target_imglist)
             continue
-
+#%%
 def stackprocess(stack_path, stack_bkgrmspath, telinfo):
     stack_img = ScienceImage(path=stack_path, telinfo=telinfo, load=True)
     stack_bkgrms = Errormap(path=stack_bkgrmspath, emaptype='bkgrms', load=True)
@@ -511,7 +564,12 @@ def stackprocess(stack_path, stack_bkgrmspath, telinfo):
     stack_bkgrms.data = None
     gc.collect()
     return stack_img, stack_bkgrms, calib_catalog, stacked_status
-
+#%%
+databrowser = TIPDataBrowser('scidata')
+stack_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
+stack_bkgrmslist = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in stack_imglist]
+#%%
+telinfo = stack_imglist[0].telinfo
 arglist = [(stack_img.path, stack_bkgrms.path, telinfo) for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist)]
 with ProcessPoolExecutor(max_workers=10) as executor:
     failed_stacked_path = []
@@ -522,35 +580,178 @@ with ProcessPoolExecutor(max_workers=10) as executor:
         except Exception as e:
             failed_stacked_path.append(args[0])
             print(f"[ERROR] {e}")
-        
-# # %%
-# helper = Helper()
-# data_qurier = SDTData()
-# stack_images = data_qurier.show_scidestdata(
-#     'T01462',
-#     False,
-#     'filter',
-#     'calib*100.com.fits'
-# )
-# stack_pathlist_all = [stack_imgpath for stack_pathlist in stack_images.values() for stack_imgpath in stack_pathlist]
-# stack_imglist = [ScienceImage(path=path, telinfo=telinfo, load=True) for path in stack_pathlist_all]
-# stack_bkgrmslist = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in stack_imglist]
-
-
-# from tippy.photometry import TIPSubtraction
-# DIA = TIPSubtraction()
-
-# for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist):
-#     refinfo_tbl = DIA.get_referenceframe_from_image(stack_img)
-#     if refinfo_tbl is None or len(refinfo_tbl) == 0:
-#         print(f"[WARNING] No reference frame found for {stack_img.path}, skipping DIA.")
-#         if stack_img.filter.startswith('m'):
-#             print('No reference frame is found. Skipping DIA')
-#         else:
-        
-#     reference_img = ReferenceImage(refinfo_tbl['file'], telinfo=stack_img.telinfo, load=True)
-#     reference_img.header.remove('SEEING')
 # %%
 import time
 print('Current time:', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+# %%
+from tippy.dataobjects import LightCurve
+from tippy.catalog import TIPCatalog
+from tippy.catalog import TIPCatalogDataset
+# %%
+catalogdataset = TIPCatalogDataset()
+# %%
+catalogdataset.search_catalogs('NGC1566', 'Calib*120.com.fits.cat', folder = '/home/hhchoi1022/data/scidata/KCT')
+catalogdataset.select_sources(ra = 64.9725, dec= -54.948081)
+# %%
+lc = LightCurve(catalogdataset)
+for catalog in lc.source_catalogs.catalogs:
+    catalog.load_target_img()
+# %%
+lc.plt_params.figure_figsize = (10, 6)
+lc.plt_params.xlim= [59500, 59700]
+lc.plt_params.ylim = [20, 11]
+lc.plot(ra = 64.9725, dec= -54.948081)
+# %% SUBTRACTION
+# Make reference image
+target_imglist_g = [img for img in target_imglist if img.filter.startswith('g')]
+target_imglist_r = [img for img in target_imglist if img.filter.startswith('r')]
+target_imglist_i = [img for img in target_imglist if img.filter.startswith('i')]
+#%%
+single_imglist_g = Stacking.select_quality_images(target_imglist_g, weight_ellipticity = 4, max_obsdate = '2021-11-01', seeing_limit = 4, depth_limit = 18.4, ellipticity_limit = 0.3, max_numbers = 30, visualize = True)
+single_imglist_r = Stacking.select_quality_images(target_imglist_r, weight_ellipticity = 4, max_obsdate = '2021-11-01', seeing_limit = 4, depth_limit = 18.0, ellipticity_limit = 0.2, max_numbers = 30, visualize = True)
+single_imglist_i = Stacking.select_quality_images(target_imglist_i, weight_ellipticity = 4, max_obsdate = '2021-11-11', seeing_limit = 4, depth_limit = 15.5, ellipticity_limit = 0.2, max_numbers = 30, visualize = True)
+single_bkglist_g = [Background(path=img.savepath.bkgpath, load=True) for img in single_imglist_g]
+single_bkglist_r = [Background(path=img.savepath.bkgpath, load=True) for img in single_imglist_r]
+single_bkglist_i = [Background(path=img.savepath.bkgpath, load=True) for img in single_imglist_i]
+single_bkgrmslist_g = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in single_imglist_g]
+single_bkgrmslist_r = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in single_imglist_r]
+single_bkgrmslist_i = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in single_imglist_i]
+# %%
+# g_pathlist = [str(img.path) for img in single_imglist_g]
+# r_pathlist = [str(img.path) for img in single_imglist_r]
+# helper.run_ds9(r_pathlist)
+# %%
+stacked_img_g, stacked_bkgrms_g = Stacking.stack_multiprocess(
+    single_imglist_g, 
+    single_bkglist_g, 
+    single_bkgrmslist_g, 
+    target_outpath=None, 
+    bkgrms_outpath=None, 
+    combine_type='mean',
+    n_proc=8, 
+    clip_type='extrema', 
+    sigma=3.0, 
+    nlow=2, 
+    nhigh=2,
+    resample=True, 
+    resample_type='LANCZOS3',
+    center_ra=None,
+    center_dec=None,
+    pixel_scale=None, 
+    x_size=None, 
+    y_size=None, 
+    scale=True, 
+    scale_type='min',
+    zp_key='ZP_APER_1', 
+    convolve=False, 
+    seeing_key='SEEING',
+    kernel='gaussian', 
+    verbose=True)
+#%%
+stacked_img_r, stacked_bkgrms_r = Stacking.stack_multiprocess(
+    single_imglist_r, 
+    single_bkglist_r, 
+    single_bkgrmslist_r, 
+    target_outpath=None, 
+    bkgrms_outpath=None, 
+    combine_type='mean',
+    n_proc=8, 
+    clip_type='extrema', 
+    sigma=3.0, 
+    nlow=2, 
+    nhigh=2,
+    resample=True, 
+    resample_type='LANCZOS3',
+    center_ra=None,
+    center_dec=None,
+    pixel_scale=None, 
+    x_size=None, 
+    y_size=None, 
+    scale=True, 
+    scale_type='min',
+    zp_key='ZP_APER_1', 
+    convolve=False, 
+    seeing_key='SEEING',
+    kernel='gaussian', 
+    verbose=True)
+# %%
+stacked_img_g, stacked_bkgrms_g, stacked_catalog, _ = stackprocess(stacked_img_g.path, stacked_bkgrms_g.path, telinfo)
+stacked_img_r, stacked_bkgrms_r, stacked_catalog, _ = stackprocess(stacked_img_r.path, stacked_bkgrms_r.path, telinfo)
+# %%
+reference_img_g = stacked_img_g.to_referenceimage()
+reference_img_r = stacked_img_r.to_referenceimage()
+reference_img_g.register()
+reference_img_r.register()
+# %% Start Image subtraction
+DIA_kwargs = dict(
+    detection_sigma = 5,
+    target_transient_number = 5,
+    reject_variable_sources = True,
+    negative_detection = True,
+    reverse_subtraction = False,
+    save = True,
+    verbose = False,
+    visualize = False,
+    show_transient_numbers = 10)
+
+databrowser = TIPDataBrowser('scidata')
+stacked_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
+from tippy.photometry import TIPSubtraction
+DIA = TIPSubtraction()
+# %%
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+
+failed_images = []
+successful_results = []
+
+def subtract_process(target_img):
+    try:
+        reference_img = DIA.get_referenceframe_from_image(target_img)[0]
+        result = DIA.find_transients(
+            target_img=target_img, 
+            reference_imglist=[reference_img],
+            target_bkg=None,
+            **DIA_kwargs
+        )
+        del reference_img
+        del target_img
+        return result
+    except Exception as e:
+        target_img.data = None  # Optional: clear large data
+        target_img._error = str(e)  # Store the error message if needed
+        return target_img  # Return failed image as indicator
+#%%
+failed_images = []
+for img in stacked_imglist:
+    try:
+        result = subtract_process(img)  # Run once to check if it works
+    except:
+        failed_images.append(img)
+#%%
+# Run with multiprocessing
+c = []
+with ProcessPoolExecutor(max_workers=10) as executor:
+    futures = [executor.submit(subtract_process, img) for img in stacked_imglist]
+    for future in tqdm(as_completed(futures), total=len(futures)):
+        result = future.result()
+        if hasattr(result, "_error"):  # failed image
+            failed_images.append(result)
+        else:  # successful
+            c.append(result)
+
+# %%
+catalogdataset = TIPCatalogDataset()
+catalogdataset.search_catalogs('NGC1566', 'sub*.transient', folder = '/home/hhchoi1022/data/scidata/KCT')
+catalogdataset.select_sources(ra = 64.9725, dec= -54.948081)
+# %%
+from tippy.dataobjects import LightCurve
+lc = LightCurve(catalogdataset)
+for catalog in lc.source_catalogs.catalogs:
+    catalog.load_target_img()
+# %%
+lc.plt_params.figure_figsize = (10, 6)
+lc.plt_params.xlim= [59500, 59700]
+lc.plt_params.ylim = [20, 11]
+lc.plot(ra = 64.9725, dec= -54.948081, flux_key = 'MAGSKY_APER_2')
 # %%

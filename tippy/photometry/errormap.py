@@ -117,10 +117,10 @@ class TIPErrormap(Helper): ############## CHECKED ##############
         if save:
             target_errormap.write()
         
-        if visualize:
+        if save_fig or visualize:
             save_path = None
             if save_fig:
-                save_fig = str(target_errormap.savepath.savepath) + '.png'
+                save_path = str(target_errormap.savepath.savepath) + '.png'
             self._visualize(
                 target_img = target_img,
                 target_errormap = target_errormap,
@@ -140,6 +140,7 @@ class TIPErrormap(Helper): ############## CHECKED ##############
 
                            mflaterr_img: Errormap = None,
                            ncombine: Optional[int] = None,
+                           readout_noise : Optional[float] = None,  # Readout noise in ADU
                            
                            # Other parameters
                            save: bool = False,
@@ -172,8 +173,13 @@ class TIPErrormap(Helper): ############## CHECKED ##############
         x1 = 2 * nx // 3
         central_bias = mbias[y0:y1, x0:x1] # Central region of the bias image
         mbias_var = np.var(central_bias)          # in ADU
-        sbias_var = mbias_var * ncombine_bias  # in ADU^2
-        readout_noise = np.sqrt(sbias_var)  # Readout noise in ADU
+        
+        if readout_noise is None:
+            sbias_var = mbias_var * ncombine_bias  # in ADU^2
+            readout_noise = np.sqrt(sbias_var)  # Readout noise in ADU
+        else:
+            RN = readout_noise **2 # in ADU^2
+            pass
         
         # --- Readout noise from master dark ---
         mdark_var = sbias_var / ncombine_dark + mbias_var
@@ -212,10 +218,10 @@ class TIPErrormap(Helper): ############## CHECKED ##############
         if save:
             target_errormap.write()
 
-        if visualize:
+        if save_fig or visualize:
             save_path = None
             if save_fig:
-                save_fig = str(target_errormap.savepath.savepath) + '.png'
+                save_path = str(target_errormap.savepath.savepath) + '.png'
             self._visualize(
                 target_img = None,
                 target_errormap = target_errormap,
@@ -318,10 +324,10 @@ class TIPErrormap(Helper): ############## CHECKED ##############
         if save:
             target_errormap.write()
         
-        if visualize:
+        if save_fig or visualize:
             save_path = None
             if save_fig:
-                save_fig = str(target_errormap.savepath.savepath) + '.png'
+                save_path = str(target_errormap.savepath.savepath) + '.png'
             self._visualize(
                 target_img = target_img,
                 target_errormap = target_errormap,

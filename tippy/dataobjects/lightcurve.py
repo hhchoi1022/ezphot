@@ -338,6 +338,7 @@ class LightCurve(Helper):
                 jname = f'J{ra_str}{dec_str}'
                 obsdates = []
                 fluxes = []
+                depths = []
                 errors = []
                 labels = []
                 groups = []
@@ -367,6 +368,7 @@ class LightCurve(Helper):
                         errors.append(np.nan)
                     else:
                         errors.append(np.sqrt(flux_err**2 + zp_err**2))
+                    depths.append(meta.get('depth', np.nan))
                     
                     filter_name += "+%.1f" %self.FILTER_OFFSET[filter_name]
                     labels.append(filter_name)
@@ -385,6 +387,7 @@ class LightCurve(Helper):
                 # Apply the same ordering to all arrays
                 obsdates = np.array(obsdates)[sorted_indices]
                 fluxes = np.array(fluxes)[sorted_indices]
+                depths = np.array(depths)[sorted_indices]
                 errors = np.array(errors)[sorted_indices]
                 labels = np.array(labels)[sorted_indices]
                 groups = np.array(groups)[sorted_indices]
@@ -392,6 +395,7 @@ class LightCurve(Helper):
                 # Unique groups >>> colors
                 unique_groups = sorted(set(groups))
 
+                # Plot fluxes with error bars
                 for grp in unique_groups:
                     idx_grp = [i for i, g in enumerate(groups) if g == grp]
                     x = np.array([obsdates[i] for i in idx_grp])
@@ -409,7 +413,29 @@ class LightCurve(Helper):
                                 label=grp,
                                 alpha=alpha,
                                 **self.plt_params.get_errorbar_kwargs(color, 's'))
+
+                # Plot depth only for non-detections (NaN flux)
+                for grp in unique_groups:
+                    idx_grp = [i for i, g in enumerate(groups) if g == grp]
+                    x_all = np.array([obsdates[i] for i in idx_grp])
+                    y_all = np.array([fluxes[i] for i in idx_grp])
+                    d_all = np.array([depths[i] for i in idx_grp])
                     
+                    # Select non-detections
+                    nondet_mask = np.isfinite(x_all) & np.isnan(y_all) & np.isfinite(d_all)
+                    x_nondet = x_all[nondet_mask]
+                    d_nondet = d_all[nondet_mask]
+                    
+                    if len(x_nondet) == 0:
+                        continue
+                    
+                    base_filter = grp.split('+')[0]
+                    color = self.FILTER_COLOR.get(base_filter, next(color_cycle))
+
+                    # Plot inverted triangles for depth
+                    ax.scatter(x_nondet, d_nondet, color=color, marker='v',
+                               label=rf'5$\sigma$ limit', alpha=0.7)
+
                 ax.set_xlabel("Obsdate [MJD]")
                 ax.set_ylabel("Magnitude" if "MAG" in flux_key.upper() else "Flux")
                 ax.invert_yaxis() if "MAG" in flux_key.upper() else None
@@ -562,9 +588,9 @@ class LightCurve(Helper):
                 # Convert MJD xticks to UTC dates
                 xticks = ax.get_xticks()
                 xticks_time = Time(xticks, format='mjd')
-                # xtick_labels = xticks_time.to_value('iso', subfmt='date')  # 'YYYY-MM-DD'
+                xtick_labels = xticks_time.to_value('iso', subfmt='date')  # 'YYYY-MM-DD'
                 ax.set_xticks(xticks)
-                # ax.set_xticklabels(xtick_labels, rotation=45)
+                ax.set_xticklabels(xtick_labels, rotation=45)
                 figs.append(fig)
                 axes.append(ax)
                 plt.show()
@@ -575,10 +601,9 @@ class LightCurve(Helper):
 #%%
 if __name__ == "__main__":
     source_catalogs = TIPCatalogDataset()
-    source_catalogs.search_catalogs(
-        target_name = 'T01462',
-        search_key = 'calib*100.com.fits.circ.cat'
-     )    
+    source_catalogs.search_catalogs('NGC1566', 'Calib*60.com.fits.cat', folder = '/home/hhchoi1022/data/scidata/RASA36/RASA36_KL4040_HIGH_1x1')
+    source_catalogs.select_sources(ra = 64.9725, dec= -54.948081, radius = 15)
+        
 # %%
 if __name__ == "__main__":
     ra = 233.857430764 # SN2025fvw
@@ -601,7 +626,15 @@ if __name__ == "__main__":
     # dec = -67.360176
     #ra = 241.62392408
     #dec = -70.327141108
-    source_catalogs.select_catalogs(filter = ['g', 'r', 'i'])
+    # ra = 262.154312
+    # dec = -68.789571
+    ra = 263.916460
+    dec = -70.346012
+    ra = 234.685513
+    dec = -68.794466
+    ra = 232.069681
+    dec = -67.896978
+    source_catalogs.select_catalogs(filter = ['g', 'r', 'i'], obs_start = '2025-01-01', obs_end = '2025-03-01')
     source_catalogs.select_sources(ra, dec, radius =  60)
 #%%
 if __name__ == "__main__":
@@ -611,15 +644,15 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     source =self.data[0]
 
-    flux_key = 'MAGSKY_APER_1'
-    fluxerr_key = 'MAGERR_APER_1'
+    flux_key = 'MAGSKY_APER'
+    fluxerr_key = 'MAGERR_APER'
     matching_radius_arcsec = 5
     color_key: str = 'filter'#'OBSDATE'
     overplot_gaiaxp = False
     overplot_sdss = False
     overplot_ps1 = False
     self.plt_params.figure_figsize = (10,6)
-    self.plt_params.ylim = [25, 17]
+    self.plt_params.ylim = [22, 17]
 #%%
 if __name__ == "__main__":
     figs, axs, matched_sources = self.plot(ra, 
@@ -633,6 +666,6 @@ if __name__ == "__main__":
     axs[0].scatter(Time('2025-02-12T08:04:30').mjd, 19.21, c = 'red', marker='*', s=100, label='KMTNet R band')
     axs[0].legend(loc='upper right')
     
- # %%
-figs[0]
+
+
 # %%

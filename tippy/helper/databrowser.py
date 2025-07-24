@@ -18,10 +18,19 @@ def _get_imginfo(filelist):
 
 def _load_image(cls, path, telinfo=None):
     try:
-        if telinfo is not None:
-            return cls(path, telinfo=telinfo, load=True)
+        estimated_telinfo = None
+        # Estimate telinfo if it's a callable
+        if callable(telinfo):
+            estimated_telinfo = telinfo(path)
+        else:
+            estimated_telinfo = telinfo
+
+        # Construct with or without telinfo
+        if estimated_telinfo is not None:
+            return cls(path, telinfo=estimated_telinfo, load=True)
         else:
             return cls(path, load=True)
+
     except Exception as e:
         print(f"[WARNING] Failed to load {path}: {e}")
         return None
@@ -154,7 +163,7 @@ class TIPDataBrowser(Helper):
         file_groups = list(dir_to_files.values())
 
         # Run multiprocessing
-        with Pool(8) as pool:
+        with Pool(16) as pool:
             results = list(tqdm(pool.imap(_get_imginfo, file_groups), total=len(file_groups), desc="Collecting ImgInfo"))
 
         # Combine results
@@ -165,44 +174,43 @@ class TIPDataBrowser(Helper):
 
     def _to_science_images(self, filepaths: List[Union[str, Path]]):
         from tippy.image import ScienceImage
-        telinfo = self.estimate_telinfo(filepaths[0])
-        with Pool(8) as pool:
-            func = partial(_load_image, ScienceImage, telinfo=telinfo)
+        with Pool(16) as pool:
+            func = partial(_load_image, ScienceImage, telinfo= self.estimate_telinfo)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Science Images"))
         return [img for img in images if img is not None]
 
     def _to_reference_images(self, filepaths: List[Union[str, Path]]):
         from tippy.image import ReferenceImage
         telinfo = self.estimate_telinfo(filepaths[0])
-        with Pool(8) as pool:
-            func = partial(_load_image, ReferenceImage, telinfo=telinfo)
+        with Pool(16) as pool:
+            func = partial(_load_image, ReferenceImage, telinfo=self.estimate_telinfo)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Reference Images"))
         return [img for img in images if img is not None]
 
     def _to_calibration_images(self, filepaths: List[Union[str, Path]]):
         from tippy.image import CalibrationImage
-        with Pool(8) as pool:
+        with Pool(16) as pool:
             func = partial(_load_image, CalibrationImage)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Calibration Images"))
         return [img for img in images if img is not None]
 
     def _to_background(self, filepaths: List[Union[str, Path]]):
         from tippy.image import Background
-        with Pool(8) as pool:
+        with Pool(16) as pool:
             func = partial(_load_image, Background)
             backgrounds = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Backgrounds"))
         return [bg for bg in backgrounds if bg is not None]
     
     def _to_errormap(self, filepaths: List[Union[str, Path]]):
         from tippy.image import Errormap
-        with Pool(8) as pool:
+        with Pool(16) as pool:
             func = partial(_load_image, Errormap)
             errormaps = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Errormaps"))
         return [emap for emap in errormaps if emap is not None]
 
     def _to_mask(self, filepaths: List[Union[str, Path]]):
         from tippy.image import Mask
-        with Pool(8) as pool:
+        with Pool(16) as pool:
             func = partial(_load_image, Mask)
             masks = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Masks"))
         return [mask for mask in masks if mask is not None]

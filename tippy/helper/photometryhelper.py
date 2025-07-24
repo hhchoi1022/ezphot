@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Union, Optional, Tuple
 import inspect
 from pympler import asizeof 
+import gc
 
 # External libraries
 import numpy as np
@@ -388,7 +389,8 @@ class PhotometryHelper(TIPConfig):
 
 
     def estimate_telinfo(self, 
-                         path: Union[str, Path]):
+                         path: Union[str, Path],
+                         update_header: bool = True):
         path = Path(path)
         header = fits.getheader(path)
         # For 7DT
@@ -431,11 +433,27 @@ class PhotometryHelper(TIPConfig):
             telescope = 'RASA36'
             ccd = 'KL4040'
             ############### ADD HERE FOR IDENTIFYING RASA36 RNMODE ###############
-            if 'CAMMODE' in header.keys():
-                if header['CAMMODE'] == 'HIGH':
-                    readoutmode = 'HIGH'
+            with fits.open(path, mode = 'update') as hdul:
+                header = hdul[0].header
+                if 'CAMMODE' in header.keys():
+                    if header['CAMMODE'] == 'HIGH':
+                        readoutmode = 'HIGH'
+                    else:
+                        readoutmode = 'MERGE'
                 else:
-                    readoutmode = 'MERGE'
+                    data = hdul[0].data
+                    print('WARNING: CAMMODE keyword not found in header. Estimate from the data.')
+                    zero = np.mean(np.sort((data[~np.isnan(data)].flatten()))[-10:-5])
+                    if zero > 80000:
+                        readoutmode = 'MERGE'
+                    else:
+                        readoutmode = 'HIGH'
+                    if 'GAIN' in header.keys():
+                        if str(header['GAIN']) == '2750':
+                            readoutmode = 'HIGH'
+                        else:
+                            readoutmode = 'LOW'
+                    header['CAMMODE'] = readoutmode
             binning = 1
                 
         telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
@@ -2164,7 +2182,7 @@ class PhotometryHelper(TIPConfig):
         psfex_config_path = Path(psfex_configfile)
 
         # Run SExtractor
-        sex_result, output_file = self.run_sextractor(
+        sex_result, output_file, _, _ = self.run_sextractor(
             target_path=target_path, 
             sex_configfile=psfex_sexconfigfile, 
             sex_params=psfex_sexparams, 
@@ -2318,6 +2336,10 @@ class PhotometryHelper(TIPConfig):
 
         except subprocess.TimeoutExpired:
             self.print(f"Hotpants process timed out after 900 seconds.", verbose)
+            return ""
+        
+        except Exception as e:
+            self.print(f"An unexpected error occurred: {str(e)}", verbose)
             return ""
 
     def run_astrometry(self,
@@ -2532,25 +2554,28 @@ class PhotometryHelper(TIPConfig):
         try:
             # Run the SExtractor command using subprocess.run
             result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
+            stderr = result.stderr.decode('utf-8', errors='ignore')
+
+            # Pattern to match background and RMS
+            match = re.search(r'Background:\s*([-+eE0-9.]+)\s+RMS:\s*([-+eE0-9.]+)', stderr)
+            global_bkgval = match.group(1) if match else None
+            global_bkgrms = match.group(2) if match else None
+
             result_file = Path(target_outpath)
-            if result_file.is_file():
-                self.print("SExtractor process finished=====================", verbose)
-                self.print(f'Output path: {target_outpath}', verbose)
-                if return_result:
-                    # Read the catalog produced by SExtractor
-                    sexresult = ascii.read(sex_params['CATALOG_NAME'])
-                    os.chdir(current_path)
-                    return True, sexresult
-                else:
-                    return True, sex_params['CATALOG_NAME']
-            else: 
+            self.print("SExtractor process finished=====================", verbose)
+            self.print(f'Output path: {target_outpath}', verbose)
+            if return_result:
+                # Read the catalog produced by SExtractor
+                sexresult = ascii.read(sex_params['CATALOG_NAME'])
                 os.chdir(current_path)
-                return False, None
-        except:
-            self.print(f"Error during SExtractor execution", verbose)
+                return True, sexresult, global_bkgval, global_bkgrms
+            else:
+                os.chdir(current_path)
+                return True, sex_params['CATALOG_NAME'], global_bkgval, global_bkgrms
+        except Exception as e:
+            self.print(f"Error during SExtractor execution: {e}", verbose)
             os.chdir(current_path)
-            return False, None
+            return False, None, None, None
 
     def run_scamp(self, 
                   target_path: Union[str, List[str], Path, List[Path]], 
@@ -2622,7 +2647,7 @@ class PhotometryHelper(TIPConfig):
                 'CATALOG_TYPE': 'FITS_LDAC'
             })
 
-            sex_result, output_file = self.run_sextractor(
+            sex_result, output_file, _, _ = self.run_sextractor(
                 target_path= image, 
                 sex_configfile= scamp_sexconfigfile, 
                 sex_params= scamp_sexparams, 
@@ -2818,11 +2843,15 @@ class PhotometryHelper(TIPConfig):
         weight_outpath = Path(weight_outpath) if weight_outpath else None
 
         # center_ra/dec check
-        target_header = [fits.getheader(img) for img in tqdm(target_path, desc = 'Reading headers...')]
+        iterator = tqdm(target_path, desc='Reading headers...') if verbose else target_path
+        target_header = [fits.getheader(img) for img in iterator]
         if not center_ra or not center_dec:
             if 'OBJCTRA' in target_header[0].keys():
                 center_ra = target_header[0]['OBJCTRA']
                 center_dec = target_header[0]['OBJCTDEC']
+                coord = self.to_skycoord(center_ra, center_dec)
+                center_ra = coord.ra.to_string(unit=u.hourangle, sep=':')
+                center_dec = coord.dec.to_string(unit=u.degree, sep=':', alwayssign=True)
                 self.print(f'Center RA/Dec not provided. Using the mean of OBJCTRA/OBJCTDEC: {center_ra}/{center_dec}', verbose)    
             else:
                 center_ra = np.mean([hdr['CRVAL1'] for hdr in target_header])
@@ -2898,43 +2927,53 @@ class PhotometryHelper(TIPConfig):
             subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.print("SWARP process finished=====================", verbose)
             return output_filelist
-        except:
-            return None
+        except Exception as e:
+            self.print(f"Error during SWARP execution: {e}", verbose)
+            return [None, None]
 
-    def run_ds9(self, filelist, shell: str = '/bin/bash'):
-        import subprocess
-        import numpy as np
+    def run_ds9(self, filelist: Union[str, Path, List[Union[str, Path]], np.ndarray], shell: str = '/bin/bash'):
         '''
-		parameters
-		----------
-		1. filelist : str or list or np.array
-				(str) abspath of the fitsfile for visualization
-				(list or np.array) the list of abspath of the fitsfiles for visualization
-		
-		returns 
-		-------
-		
-		notes 
-		-----
-		-----
-		'''
-        ds9_options = "-scalemode zscale -scale lock yes -frame lock image "
-        names = ""
-        if (type(filelist) == str) | (type(filelist) == np.str_):
-            names = filelist
-        else:
-            for file in filelist:
-                names += file+" "
-        ds9_command = "ds9 "+ds9_options+names+" &"
-        print('Running "'+ds9_command+'" in the terminal...')
-        sp = subprocess.Popen([shell, "-i", "-c", ds9_command])
-        sp.communicate()
-        # os.system(ds9_command)
+        Parameters
+        ----------
+        filelist : str, Path, list, or np.ndarray
+            Path or list of paths to FITS files for visualization.
 
-    def to_regions(self, reg_x, reg_y, reg_size: float = 5.0, unit: str = 'pixel', output_file_path: str = None):
-        import os
+        shell : str
+            Shell to execute the ds9 command.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Opens ds9 with given FITS files using zscale and image/frame locking options.
+        '''
+
+        ds9_options = "-scalemode zscale -scale lock yes -frame lock image "
+        
+        # Normalize input to a list of strings
+        if isinstance(filelist, (str, Path, np.str_)):
+            filelist = [filelist]
+
+        filelist = [str(f) for f in filelist]  # Convert Path or np.str_ to string
+        names = " ".join(filelist)
+
+        ds9_command = f"ds9 {ds9_options}{names} &"
+        print(f'Running "{ds9_command}" in the terminal...')
+
+        subprocess.Popen([shell, "-i", "-c", ds9_command])
+        
+    def to_regions(self, 
+                reg_x, 
+                reg_y, 
+                reg_a=None,
+                reg_b=None,
+                reg_theta=None,
+                reg_size: float = 6.0, 
+                output_file_path: str = None):
         import astropy.units as u
-        from regions import CirclePixelRegion, PixCoord, Regions
+        from regions import CirclePixelRegion, EllipsePixelRegion, PixCoord, Regions
 
         # Normalize input
         if isinstance(reg_x, (int, float)) and isinstance(reg_y, (int, float)):
@@ -2946,23 +2985,40 @@ class PhotometryHelper(TIPConfig):
         else:
             x_list = list(reg_x)
             y_list = list(reg_y)
+            
+        N = len(x_list)
 
-        # Handle radius unit
-        if isinstance(reg_size, (int, float)):
-            if unit == 'pixel':
-                radius = reg_size
-            elif unit == 'arcsec':
-                raise ValueError("Pixel regions require size in pixel units.")
+        # Normalize ellipse parameters
+        def normalize_param(p, default=1.0):
+            if p is None:
+                return [default] * N
+            elif isinstance(p, (int, float)):
+                return [p] * N
+            elif isinstance(p, list):
+                return p
             else:
-                raise ValueError(f"Unsupported unit '{unit}' for pixel region.")
-        else:
-            radius = float(reg_size)
+                return list(p)
+
+        use_ellipse = reg_a is not None and reg_b is not None and reg_theta is not None
+        if use_ellipse:
+            a_list = normalize_param(reg_a)
+            b_list = normalize_param(reg_b)
+            theta_list = normalize_param(reg_theta, default=0.0)
 
         # Create regions
         region_list = []
-        for x, y in zip(x_list, y_list):
+        for i, (x, y) in enumerate(zip(x_list, y_list)):
             center = PixCoord(x=x, y=y)
-            region = CirclePixelRegion(center=center, radius=radius)
+
+            if use_ellipse:
+                a = reg_size * a_list[i]
+                b = reg_size * b_list[i]
+                theta = theta_list[i]
+                region = EllipsePixelRegion(center=center, width=a, height=b, angle=theta * u.deg)
+            else:
+                radius = float(reg_size)
+                region = CirclePixelRegion(center=center, radius=radius)
+
             region_list.append(region)
 
         # Write to file
@@ -2972,6 +3028,7 @@ class PhotometryHelper(TIPConfig):
             return reg
         else:
             return reg
+
 
     
     def visualize_image(self, filename : str):

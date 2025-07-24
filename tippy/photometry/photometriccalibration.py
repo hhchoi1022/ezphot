@@ -47,7 +47,7 @@ class TIPPhotometricCalibration(Helper):
                                 flag_upper: int = 1,
                                 maskflag_upper: int = 1,
                                 inner_fraction: float = 0.7, # Fraction of the images
-                                isolation_radius: float = 5.0,
+                                isolation_radius: float = 10.0,
                                 magnitude_key: str = 'MAG_AUTO',
                                 flux_key: str = 'FLUX_AUTO',
                                 fluxerr_key: str = 'FLUXERR_AUTO',
@@ -128,13 +128,40 @@ class TIPPhotometricCalibration(Helper):
         filtered_catalog_data = filtered_catalog.data
         catalog_coord = SkyCoord(filtered_catalog_data['X_WORLD'], filtered_catalog_data['Y_WORLD'], unit='deg')
         reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
-        obj_indices , ref_indices, unmatched_obj_indices = self.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
+        obj_indices, ref_indices, unmatched_obj_indices = self.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
         matched_obj = filtered_catalog_data[obj_indices]
         matched_ref = all_references[ref_indices]
         filtered_catalog.data = matched_obj
         if save_refcat:
             filtered_catalog.write()
-            
+
+        # Update the target image header
+        update_kwargs = dict()
+        update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
+        update_kwargs['SEEING'] = (target_seeing * np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
+
+        if 'SKYVAL' in filtered_catalog_data.colnames:
+            skyval = float(filtered_catalog_data['SKYVAL'][0])
+        elif 'BACKGROUND' in filtered_catalog_data.colnames:
+            skyval= float(np.mean(filtered_catalog_data['BACKGROUND']))
+        else:
+            skyval = target_img.info.SKYVAL
+        update_kwargs['SKYVAL'] = (skyval, "Global Background level in ADU")
+        
+        skysig = None
+        if 'SKYSIG' in filtered_catalog_data.colnames:
+            skysig = float(filtered_catalog_data['SKYSIG'][0])
+        else:
+            skysig = target_img.info.SKYSIG
+        update_kwargs['SKYSIG'] = (skysig, "Global background noise in ADU")
+        
+        ellip = None
+        if 'ELLIPTICITY' in filtered_catalog_data.colnames:
+            ellip = np.mean(filtered_catalog_data['ELLIPTICITY'])
+        else:
+            ellip = target_img.info.ELLIPTICITY
+        update_kwargs['ELLIP'] = (ellip, "Mean ellipticity of the sources in the catalog")
+
         mag_key_ref = '%s_mag'%(target_img.filter)
         magerr_key_ref = 'e_%s_mag'%(target_img.filter)
         mag_key_all = [
@@ -151,10 +178,10 @@ class TIPPhotometricCalibration(Helper):
             return a * x + b
 
         zp_info = dict()
-        update_kwargs = dict()
         color_term_info = dict()
         mag_term_info = dict()
         target_catalog_data = target_catalog.data
+        # Update magnitude related keys
         for mag_key, magerr_key in zip(mag_key_all, magerr_key_all):
             zp_key = mag_key.replace('MAG_', 'ZP_')
             zperr_key = magerr_key.replace('MAGERR_', 'ZPERR_')
@@ -167,7 +194,7 @@ class TIPPhotometricCalibration(Helper):
             zp = matched_ref[mag_key_ref] - matched_obj[mag_key]
             #if magerr_key_ref in matched_ref.colnames:
             #    zperr = np.sqrt(matched_ref[magerr_key_ref]**2 + matched_objf[magerr_key]**2)
-            sc = SigmaClip(sigma=3.0, maxiters=5)
+            sc = SigmaClip(sigma=5.0, maxiters=3)
             masked = sc(zp)
             zp_cleaned_indices = np.where(~masked.mask)[0]
             masked_zp = zp[~masked.mask]
@@ -184,15 +211,7 @@ class TIPPhotometricCalibration(Helper):
             update_kwargs[zperr_key] = (zp_err, f"Zeropoint error for {mag_key}")
 
             # Calculate Depth
-            if 'BACKGROUND' in target_catalog_data.colnames:
-                update_kwargs['SKYVAL'] = (np.mean(target_catalog_data['BACKGROUND']), "Background level in ADU")
-            
             if (npix_key in target_catalog_data.colnames):
-                skysig = None
-                if 'SKYSIG' in target_catalog_data.colnames:
-                    skysig = np.mean(target_catalog_data['SKYSIG'])
-                else:
-                    skysig = target_img.info.SKYSIG
                 if skysig is not None:
                     npix_aperture = np.mean(target_catalog_data[npix_key])
                     bkg_noise = skysig * np.sqrt(npix_aperture)
@@ -204,7 +223,6 @@ class TIPPhotometricCalibration(Helper):
                     matched_obj[ul5_key] = ul5
                     update_kwargs[ul3_key] = (ul3, f"3-sigma depth for {mag_key}")
                     update_kwargs[ul5_key] = (ul5, f"5-sigma depth for {mag_key}")
-                    update_kwargs['SKYSIG'] = (skysig, "Sky background noise in ADU")
 
             # When calculate_color_terms
             if calculate_color_terms:
@@ -273,9 +291,6 @@ class TIPPhotometricCalibration(Helper):
                 except Exception as e:
                     self.print(f"[WARN] [{mag_key}] Magnitude term fit failed: {e}", verbose)
         
-        # Add seeing information
-        update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
-        update_kwargs['SEEING'] = (target_seeing * np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
         
         # Final: Update the header
         for key, value in update_kwargs.items():
@@ -423,7 +438,7 @@ class TIPPhotometricCalibration(Helper):
         target_catalog_data = target_catalog.data
         skysig = None
         if 'SKYSIG' in target_catalog_data.colnames:
-            skysig = np.mean(target_catalog_data['SKYSIG'])
+            skysig = float(target_catalog_data['SKYSIG'][0])
         else:
             skysig = target_img.info.SKYSIG
         

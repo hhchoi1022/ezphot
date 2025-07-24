@@ -91,7 +91,6 @@ class TIPCatalogDataset(Helper):
 
             if not catalog.is_loaded:
                 load_result = catalog.load_target_img(target_img=None)
-            catalog.data
 
             if catalog.is_loaded:
                 return 'success', str(catalog_file), catalog
@@ -124,14 +123,23 @@ class TIPCatalogDataset(Helper):
         # Step 1: Load and preprocess all catalogs
         for i, catalog in tqdm(enumerate(catalogs), total=len(catalogs), desc="Preparing catalogs"):
             tbl = catalog.target_data.copy()
-            if len(tbl) == 0:
-                continue
-
             ra = tbl[ra_key]
             dec = tbl[dec_key]
             mask = np.isfinite(ra) & np.isfinite(dec)
             tbl = tbl[mask]
-            if len(tbl) == 0:
+            if len(tbl) == 0 or np.sum(np.isfinite(tbl[ra_key]) & np.isfinite(tbl[dec_key])) == 0:
+                # Still create a dummy DataFrame with NaNs
+                n_dummy = 1  # You can make this 1 or 0, depending on downstream needs
+                row = {'ra': [0] * n_dummy, 'dec': [0] * n_dummy}
+                for key in data_keys:
+                    colname = f"{key}_idx{i}"
+                    row[colname] = [np.nan] * n_dummy
+                df = pd.DataFrame(row)
+                df['catalog_id'] = i
+                df['match_id'] = -1
+                dfs.append(df)
+                coords.append(SkyCoord([0]*n_dummy * u.deg, [0]*n_dummy * u.deg))  # dummy coords
+                metadata[i] = catalog.info.to_dict()
                 continue
 
             metadata[i] = catalog.info.to_dict()
@@ -142,7 +150,7 @@ class TIPCatalogDataset(Helper):
                 row[colname] = tbl[key] if key in tbl.colnames else np.full(len(tbl), np.nan)
 
             df = pd.DataFrame(row)
-            df['catalog_idx'] = i
+            df['catalog_id'] = i
             df['match_id'] = -1  # placeholder
             dfs.append(df)
             coords.append(SkyCoord(df['ra'].values * u.deg, df['dec'].values * u.deg))
@@ -185,11 +193,17 @@ class TIPCatalogDataset(Helper):
         main_key = data_keys[0]
         match_cols = [col for col in merged_df.columns if col.startswith(main_key)]
         merged_df['n_detections'] = merged_df[match_cols].notna().sum(axis=1)
+        # Remove columns that are completely NaN (dummy columns)
+        idx_cols = [col for col in merged_df.columns if '_idx' in col]
+        is_dummy_row = merged_df[idx_cols].isna().all(axis=1)
+        merged_df = merged_df[~is_dummy_row].copy()
         merged_tbl = Table.from_pandas(merged_df)
         
         # Add coord column
         coord = SkyCoord(ra=merged_tbl['ra'] * u.deg, dec=merged_tbl['dec'] * u.deg)
         merged_tbl['coord'] = coord
+        
+
 
         return merged_tbl, metadata
 

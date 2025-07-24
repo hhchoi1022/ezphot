@@ -91,7 +91,6 @@ class TIPMasking(Helper): ############## CHECKED ##############
             save_path = None
             if save_fig:
                 save_path = str(target_mask.savepath.savepath) + '.png'
-
             self._visualize(
                 target_img=target_img,
                 final_mask=target_mask,
@@ -115,16 +114,17 @@ class TIPMasking(Helper): ############## CHECKED ##############
                      verbose: bool = True,
                      visualize: bool = True,
                      save_fig: bool = False,
-                     **kwargs):
+                     **kwargs): 
         if target_mask is None:
             target_mask = Mask(target_img.savepath.srcmaskpath, masktype = 'source', load=False)
         else:
             self.print("External mask is loaded.", verbose)
         self.print(f"Masking source... [sigma = {sigma}, mask_radius_factor = {mask_radius_factor}]", verbose)
+        npixels = self.load_config(target_img.config['SEX_CONFIG'])['DETECT_MINAREA']
         image_data, image_header = target_img.data, target_img.header
         sigma_clip = SigmaClip(sigma=sigma)
-        threshold = detect_threshold(data = image_data, nsigma=sigma, mask = target_mask.data, sigma_clip=sigma_clip)
-        segment_img = detect_sources(image_data, threshold, npixels=5)
+        threshold = detect_threshold(data = image_data, nsigma=sigma/np.sqrt(npixels), mask = target_mask.data, sigma_clip=sigma_clip)
+        segment_img = detect_sources(image_data, threshold, npixels=npixels) 
         
         if segment_img:
             S = SourceCatalog(image_data, segment_img)
@@ -338,7 +338,6 @@ class TIPMasking(Helper): ############## CHECKED ##############
         if psffwhm is None:
             psffwhm = 2 / target_img.telinfo['pixelscale']
         
-        
         self.print(f'Detecting cosmic ray... [sigma = {sigclip}, n_iter = {niter}, mode = {fsmode}]', verbose)
         new_mask, clean_image = cr.detect_cosmics(
             target_img.data, gain=gain, readnoise=readnoise, 
@@ -404,8 +403,13 @@ class TIPMasking(Helper): ############## CHECKED ##############
         """
         Visualize the image and mask.
         """
+        from astropy.visualization import ZScaleInterval
+        
+        interval = ZScaleInterval()
+        
         def downsample(data, factor=4):
             return data[::factor, ::factor]
+        
         image_data = target_img.data
         image_data_small = downsample(image_data)
         bkg_value = np.mean(image_data_small)
@@ -420,7 +424,8 @@ class TIPMasking(Helper): ############## CHECKED ##############
         fig, ax = plt.subplots(1, len_figure, figsize=(6 * len_figure, 6))
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes('right', size='5%', pad=0.05)
-        im0 = ax[0].imshow(image_data_small, origin='lower', cmap='Greys_r', vmin=bkg_value, vmax=bkg_value + bkg_rms)
+        vmin, vmax = interval.get_limits(image_data_small)
+        im0 = ax[0].imshow(image_data_small, origin='lower', cmap='Greys_r', vmin=vmin, vmax=vmax)
         ax[0].set_title('Original Image')
         fig.colorbar(im0, cax=cax, orientation='vertical')
         

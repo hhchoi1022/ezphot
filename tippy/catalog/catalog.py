@@ -444,6 +444,31 @@ class TIPCatalog(Helper):
                 f.write(f"{round(x,3)} {round(y,3)} \n")
         return self.savepath.stamppath
     
+    def to_region(self, reg_size: float = 6.0, shape : str = 'circle'):
+
+        reg_x = self.data['X_IMAGE']
+        reg_y = self.data['Y_IMAGE']
+        
+        reg_a = None
+        reg_b = None
+        reg_theta = None
+        if shape != 'circle':
+            if 'A_IMAGE' not in self.data.colnames or 'B_IMAGE' not in self.data.colnames or 'THETA_IMAGE' not in self.data.colnames:
+                raise ValueError("For non-circle shapes, A_IMAGE, B_IMAGE, and THETA_IMAGE must be present in the catalog data.")
+            reg_a = self.data['A_IMAGE']
+            reg_b = self.data['B_IMAGE']
+            reg_theta = self.data['THETA_IMAGE']
+        
+        region_path =  str(self.savepath.savepath) + '.reg'
+        self.to_regions(reg_x = reg_x, 
+                        reg_y = reg_y, 
+                        reg_a = reg_a,
+                        reg_b = reg_b,
+                        reg_theta = reg_theta,
+                        reg_size = reg_size,
+                        output_file_path = region_path)
+        return region_path
+    
     def write(self, format = 'ascii'):
         """Write MaskImage data to FITS file."""
         if self.data is None:
