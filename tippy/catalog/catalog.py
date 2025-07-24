@@ -18,7 +18,7 @@ from astropy.wcs.utils import skycoord_to_pixel
 import matplotlib.pyplot as plt
 
 from types import SimpleNamespace
-from tippy.image import ScienceImage, ReferenceImage, Mask
+from tippy.imageojbects import ScienceImage, ReferenceImage, Mask
 from tippy.helper import Helper
 
 

@@ -1,5 +1,5 @@
 #%%
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.catalog import *
 from tippy.photometry import *
 from tippy.routine import *

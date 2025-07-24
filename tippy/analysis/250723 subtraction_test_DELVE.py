@@ -3,7 +3,7 @@
 
 
 #%%
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.photometry import TIPSubtraction, TIPStacking, TIPAperturePhotometry, TIPProjection
 from tippy.utils import *
 from tippy.helper import Helper, TIPDataBrowser

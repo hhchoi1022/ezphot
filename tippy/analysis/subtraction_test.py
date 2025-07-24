@@ -3,7 +3,7 @@
 
 
 #%%
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.photometry import TIPSubtraction, TIPStacking
 from tippy.utils import *
 from tippy.helper import Helper

@@ -1,16 +1,17 @@
 
 #%%
-from tippy.catalog import SourceCatalogDataset
-from tippy.dataobjects import PhotometricSpectrum
-from tippy.catalog import ReferenceCatalog
-from tippy.image import ScienceImage
-from tippy.helper import Helper
+
 import numpy as np
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
+
+from tippy.catalog import SourceCatalogDataset, ReferenceCatalog
+from tippy.dataobjects import PhotometricSpectrum
+from tippy.imageojbects import ScienceImage
+from tippy.helper import Helper
 #%% Load Dataset
 dataset = SourceCatalogDataset()
 succeeded_catalogs, failed_catalogs, skipped_catalogs = dataset.search_catalogs(target_name='NGC6121', search_key = '100.com.fits.cat')

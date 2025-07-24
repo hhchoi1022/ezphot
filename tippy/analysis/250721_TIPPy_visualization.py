@@ -9,7 +9,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import matplotlib
 
 from tippy.photometry import *
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tippy.helper import TIPDataBrowser

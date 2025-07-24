@@ -1,11 +1,16 @@
 #%%
+import time
+import requests
+import os
+import re
+import io
+from astropy.table import Table
+import pandas as pd
+
+#%%
 
 class Queryhelper():
     def query_ztf_lightcurve(self, ra, dec, radius, tname = None, return_output=False):
-        import requests
-        import os
-        import re
-        from astropy.table import Table
         
         base_url = f'https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves?POS=CIRCLE {ra} {dec} {radius}&BAD_CATFLAGS_MASK=32768'
         # Sending the GET request
@@ -26,7 +31,7 @@ class Queryhelper():
             os.makedirs(folder, exist_ok=True)
             tbl.write(fname, format="ascii.csv", overwrite=True)
             if return_output:
-               `print('Table: ', tbl)`
+                print('Table: ', tbl)
                 return tbl
             else:
                 return fname
@@ -35,9 +40,7 @@ class Queryhelper():
             return
         
     def _request_atlas_token(self, username = 'hhchoi1022', password = 'lksdf1020!'):
-        import requests
-        import os
-        import re
+
         
         BASEURL = "https://fallingstar-data.com/forcedphot"
         resp = requests.post(url=f"{BASEURL}/api-token-auth/", data={'username': f"{username}", 'password': f"{password}"})
@@ -56,12 +59,7 @@ class Queryhelper():
                                mjd_max : float = None,
                                return_output = False, 
                                token = '810625b718b73b9ebac070be6c61a353d6d9eaa7'):
-        import requests
-        import pandas as pd
-        import io
-        from astropy.table import Table
-        import os
-        
+
         BASEURL = "https://fallingstar-data.com/forcedphot"
         headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
         task_url = None
@@ -132,10 +130,6 @@ class Queryhelper():
         else:
             return fname
 
-# %%
-self = Queryhelper()
-# %%
-tbl =self.query_atlas_lightcurve(41.575542, -30.239489, 0.0028, mjd_min=60180.0, mjd_max=60300.0, return_output=True)
-# %%
-tbl
-# %%
+# %% Example
+# self = Queryhelper()
+# tbl =self.query_atlas_lightcurve(41.575542, -30.239489, 0.0028, mjd_min=60180.0, mjd_max=60300.0, return_output=True)

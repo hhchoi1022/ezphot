@@ -2,7 +2,7 @@
 
 #%%
 from tippy.photometry import *
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tqdm import tqdm

@@ -4,7 +4,7 @@
 # In[ ]:
 
 
-from tippy.image import *
+from tippy.imageojbects import *
 from tippy.catalog import *
 from tippy.photometry import *
 from tippy.routine import *
@@ -24,7 +24,7 @@ target_name = 'NGC6121'
 targetdata = sdtdata.show_scidestdata(targetname=target_name, pattern = '*.fits')
 targetdata.pop('tmp')
 def get_imginfo_process(key):
-    from tippy.image import ScienceImage
+    from tippy.imageojbects import ScienceImage
     helper = Helper()
     imginfo = helper.get_imginfo(targetdata[key])
     calib_indices = np.isin(imginfo['imgtype'], ['BIAS', 'ZERO', 'DARK', 'FLAT'])

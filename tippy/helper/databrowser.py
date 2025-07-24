@@ -173,14 +173,14 @@ class TIPDataBrowser(Helper):
         return vstack(tables, metadata_conflicts='silent')
 
     def _to_science_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import ScienceImage
+        from tippy.imageojbects import ScienceImage
         with Pool(16) as pool:
             func = partial(_load_image, ScienceImage, telinfo= self.estimate_telinfo)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Science Images"))
         return [img for img in images if img is not None]
 
     def _to_reference_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import ReferenceImage
+        from tippy.imageojbects import ReferenceImage
         telinfo = self.estimate_telinfo(filepaths[0])
         with Pool(16) as pool:
             func = partial(_load_image, ReferenceImage, telinfo=self.estimate_telinfo)
@@ -188,28 +188,28 @@ class TIPDataBrowser(Helper):
         return [img for img in images if img is not None]
 
     def _to_calibration_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import CalibrationImage
+        from tippy.imageojbects import CalibrationImage
         with Pool(16) as pool:
             func = partial(_load_image, CalibrationImage)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Calibration Images"))
         return [img for img in images if img is not None]
 
     def _to_background(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import Background
+        from tippy.imageojbects import Background
         with Pool(16) as pool:
             func = partial(_load_image, Background)
             backgrounds = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Backgrounds"))
         return [bg for bg in backgrounds if bg is not None]
     
     def _to_errormap(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import Errormap
+        from tippy.imageojbects import Errormap
         with Pool(16) as pool:
             func = partial(_load_image, Errormap)
             errormaps = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Errormaps"))
         return [emap for emap in errormaps if emap is not None]
 
     def _to_mask(self, filepaths: List[Union[str, Path]]):
-        from tippy.image import Mask
+        from tippy.imageojbects import Mask
         with Pool(16) as pool:
             func = partial(_load_image, Mask)
             masks = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Masks"))

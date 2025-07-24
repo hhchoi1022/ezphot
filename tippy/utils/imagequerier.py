@@ -14,7 +14,7 @@ from multiprocessing import Pool
 from astropy.time import Time
 
 from tippy.helper import Helper
-from tippy.image import ScienceImage, ReferenceImage
+from tippy.imageojbects import ScienceImage, ReferenceImage
 
 #%%
 hips2fits.timeout = 300
@@ -442,7 +442,7 @@ class ImageQuerier(HIPS2FITS):
             tasks = [(param, output_path, verbose) for param in tile_params]
             results = pool.map(self._query_tile_worker, tasks)
         
-        from tippy.photometry import TIPStacking
+        from tippy.methods import TIPStacking
         from tippy.photometry import TIPPlateSolve
         from tippy.helper import Helper
         self.helper = Helper()
@@ -517,7 +517,7 @@ if __name__ == "__main__":
 
     
     from astropy.io import fits
-    from tippy.image import ScienceImage
+    from tippy.imageojbects import ScienceImage
     from tippy.helper import Helper, TIPDataBrowser
     from tippy.utils import SDTData
     tile_id = 'T22956'
