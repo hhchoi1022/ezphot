@@ -15,8 +15,8 @@ DETECT_MINAREA   4             # min. # of pixels above threshold
 DETECT_MAXAREA   0              # max. # of pixels above threshold (0=unlimited)
 THRESH_TYPE      RELATIVE       # threshold type: RELATIVE (in sigmas)
                                 # or ABSOLUTE (in ADUs)
-DETECT_THRESH    1.5              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
-ANALYSIS_THRESH  1.5              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+DETECT_THRESH    2.5              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+ANALYSIS_THRESH  2.5              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
  
 FILTER           Y              # apply filter for detection (Y or N)?
 FILTER_NAME      default.conv   # name of the file containing the filter
@@ -48,7 +48,7 @@ FLAG_TYPE        OR             # flag pixel combination: OR, AND, MIN, MAX
 
 #------------------------------ Photometry -----------------------------------
  
-PHOT_APERTURES   3.0,5.0,10.0   # MAG_APER aperture diameter(s) in pixels
+PHOT_APERTURES   5,7,10   # MAG_APER aperture diameter(s) in pixels
 PHOT_AUTOPARAMS  2.5,3.5        # MAG_AUTO parameters: <Kron_fact>,<min_radius>
 PHOT_PETROPARAMS 2.0,3.5        # MAG_PETRO parameters: <Petrosian_fact>,
                                 # <min_radius>

@@ -103,6 +103,19 @@ class DummyImage(TIPConfig):
     def is_exists(self):
         return self.path.exists()
     
+    def rename(self, new_name: str):
+        """Rename the image file (with overwrite support)."""
+        old_path = self.path
+        new_path = self.path.parent / new_name
+
+        # If the target exists, remove it (overwrite)
+        if new_path.exists():
+            new_path.unlink()  # remove the existing file
+
+        old_path.rename(new_path)
+        self.path = new_path
+        print(f"Renamed {old_path} to {new_path}")
+    
     def clear(self):
         """Clear the image data and header"""
         self._data = None

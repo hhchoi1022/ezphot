@@ -3,7 +3,7 @@
 
 
 #%%
-from tippy.imageojbects import *
+from tippy.image import *
 from tippy.photometry import TIPSubtraction, TIPStacking, TIPAperturePhotometry, TIPProjection
 from tippy.utils import *
 from tippy.helper import Helper, TIPDataBrowser
@@ -29,6 +29,7 @@ result = DIA.find_transients(target_img,
                             show_transient_numbers = 1,
                             reject_variable_sources = True
                             )
+
 #%%
 all_catalog = result[0][0]
 candidate_catalog = result[1][0]

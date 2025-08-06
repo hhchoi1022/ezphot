@@ -29,8 +29,8 @@ from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 
 from tippy.methods import TIPBackground, TIPMasking, TIPErrormap
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage
-from tippy.imageojbects import Background, Mask, Errormap
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
+from tippy.imageobjects import Background, Mask, Errormap
 from tippy.catalog.utils import *
 from tippy.catalog import TIPCatalog
 from astropy.modeling import models, fitting
@@ -50,7 +50,8 @@ class TIPAperturePhotometry(Helper):
                        target_mask: Optional[Mask] = None, # For masking certain source (such as hot pixels)
                        sex_params: dict = None,
                        detection_sigma: float = 5,
-                       aperture_diameter_arcsec: Union[float, list] = [5,7,10],
+                       aperture_diameter_arcsec: Union[float, list] = [5, 7, 10],
+                       aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
                        
@@ -61,6 +62,48 @@ class TIPAperturePhotometry(Helper):
                        save_fig: bool = False,
                        **kwargs
                        ):
+        """
+        Perform aperture photometry using SExtractor.
+
+        Args:
+            target_img (Union[ScienceImage, ReferenceImage, CalibrationImage]): _description_
+            target_bkg (Optional[Background], optional): _description_. Defaults to None.
+            subtractbackgroundbeforesextractortarget_bkgrms (Optional[Errormap], optional): _description_. Defaults to None.
+            detection_sigma (float, optional): _description_. Defaults to 5.
+            aperture_diameter_arcsec (Union[float, list], optional): _description_. Defaults to [5, 7, 10].
+            aperture_diameter_seeing (Union[float, list], optional): _description_. Defaults to [3.5, 4.5].
+            useseeingtocalculateaperturesizesaturation_level (float, optional): _description_. Defaults to 60000.
+            kron_factor (float, optional): _description_. Defaults to 2.5.
+            save (bool, optional): _description_. Defaults to True.
+            verbose (bool, optional): _description_. Defaults to True.
+            visualize (bool, optional): _description_. Defaults to True.
+            save_fig (bool, optional): _description_. Defaults to False.
+
+        Raises:
+            ValueError: _description_
+            RuntimeError: _description_
+            RuntimeError: _description_
+
+        Returns:
+            _type_: _description_
+            
+
+        target_mask: Optional[Mask] = None # For masking certain source (such as hot pixels)
+        sex_params: dict = None
+        detection_sigma: float = 5
+        aperture_diameter_arcsec: Union[float, list] = [5, 7, 10]
+        aperture_diameter_seeing: Union[float, list] = [3.5, 4.5] # If given, use seeing to calculate aperture size
+        saturation_level: float = 60000
+        kron_factor: float = 2.5
+        
+        # Others
+        save: bool = True
+        verbose: bool = True
+        visualize: bool = True
+        save_fig: bool = False
+            
+            
+        """
           
         if not isinstance(target_img, (ScienceImage, ReferenceImage)):
             raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
@@ -147,7 +190,7 @@ class TIPAperturePhotometry(Helper):
             if 'ELONGATION' in catalog_first.colnames:
                 rough_flags &= (catalog_first['ELONGATION'] < 1.3)
             if 'CLASS_STAR' in catalog_first.colnames:
-                rough_flags &= (catalog_first['CLASS_STAR'] > 0.1)
+                rough_flags &= (catalog_first['CLASS_STAR'] > 0.2)
             seeing_arcsec = catalog_first['FWHM_WORLD'] * 3600
             rough_flags &= (seeing_arcsec < 10)
             rough_flags &= (seeing_arcsec > 0.5)
@@ -159,21 +202,34 @@ class TIPAperturePhotometry(Helper):
         if "SEEING_FWHM" not in sex_params.keys():
             sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate            
         sex_params['PIXEL_SCALE'] = np.mean(target_img.pixelscale)
-        if isinstance(aperture_diameter_arcsec, (float, int)):
-            aperture_diameter_arcsec = [aperture_diameter_arcsec]
-        aperture_diameter_pixel = ','.join(["%.2f"%(float(size / target_img.telinfo['pixelscale'])) for size in aperture_diameter_arcsec])
+        
+        all_apertures = []
+        aperture_diameter_arcsec = np.atleast_1d(aperture_diameter_arcsec)
+        for aperture_size in aperture_diameter_arcsec:
+            all_apertures.append(aperture_size)
+        if aperture_diameter_seeing is not None:
+            aperture_diameter_seeing = np.atleast_1d(aperture_diameter_seeing)
+            for aperture_seeing_ratio in aperture_diameter_seeing:
+                all_apertures.append(seeing_estimate * aperture_seeing_ratio)
+        
+        aperture_diameter_pixel = ','.join(["%.2f"%(float(size / target_img.telinfo['pixelscale'])) for size in all_apertures])
         sex_params['PHOT_APERTURES'] = aperture_diameter_pixel # This is aperture size in pixel
         sex_params['SATUR_LEVEL'] = saturation_level
         sex_params['PHOT_AUTOPARAMS'] = f"{kron_factor},3.5"
-        sex_params['DETECT_THRESH'] = detection_sigma
-        sex_params['ANALYSIS_THRESH'] = detection_sigma
-        sex_params['DETECT_MINAREA'] = np.pi* (float(sex_params['SEEING_FWHM']) *0.8 / np.mean(target_img.pixelscale) / 2)**2
-        
+        if 'DETECT_MINAREA' in sex_params.keys():
+            if sex_params['DETECT_MINAREA'] < 3:
+                sex_params['DETECT_MINAREA'] = 3
+                self.print(f"[WARNING] DETECT_MINAREA is less than 3. It is set to 3.", verbose)
+
         for key, value in sex_params.items():
             all_sexconfig[key] = value
-        
-        sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(all_sexconfig['DETECT_MINAREA'])
-        sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
+
+        if 'DETECT_THRESH' not in sex_params.keys():
+            sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(all_sexconfig['DETECT_MINAREA'])
+        if 'ANALYSIS_THRESH' not in sex_params.keys():
+            sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
+        if 'DETECT_MINAREA' not in sex_params.keys():
+            sex_params['DETECT_MINAREA'] = all_sexconfig['DETECT_MINAREA']
         
         # Second Sextractor run with the estimated parameters
         result, catalog, global_bkgval, global_bkgrms = self.run_sextractor(
@@ -204,13 +260,15 @@ class TIPAperturePhotometry(Helper):
         catalog['NPIX_AUTO'] = np.pi * a * b
 
         # Circular aperture areas
-        aperture_diameter_arcsec = np.atleast_1d(aperture_diameter_arcsec)
+
         pixelscale = np.mean(target_img.pixelscale)
-        for i, ap_size_arcsec in enumerate(aperture_diameter_arcsec):
+        for i, ap_size_arcsec in enumerate(all_apertures):
             radius_pixel = ap_size_arcsec / pixelscale / 2
             area_pixel = np.pi * (radius_pixel)**2
-            colname = 'NPIX_APER' if i == 0 else f'NPIX_APER_{i}'
-            catalog[colname] = np.full(len(catalog), area_pixel)
+            npix_colname = 'NPIX_APER' if i == 0 else f'NPIX_APER_{i}'
+            catalog[npix_colname] = np.full(len(catalog), area_pixel)
+            pixsize_colname = 'PIXSIZE_APER' if i == 0 else f'PIXSIZE_APER_{i}'
+            catalog[pixsize_colname] = np.full(len(catalog), ap_size_arcsec / pixelscale)
 
         target_catalog = TIPCatalog(path = cat_path, catalog_type = 'all', load = False) 
         target_catalog.data = catalog
@@ -235,9 +293,9 @@ class TIPAperturePhotometry(Helper):
             [remove_subbkg, remove_bkgrms, remove_mask],
             [target_img_sub, target_bkgrms, target_mask]):
             if remove_trigger:
+                print('Removing', remove_object)
                 remove_object.remove()
         
-            
         return target_catalog
     
     def photutils_photometry(self,
@@ -842,392 +900,4 @@ class TIPAperturePhotometry(Helper):
         plt.close()
     
 
-
 # %%
-
-#%%
-if __name__ == '__main__':
-    from tippy.helper import TIPDataBrowser
-    dbrowser = TIPDataBrowser('scidata')
-    dbrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
-    target_imglist = dbrowser.search('Calib*60.fits', 'science')
-#%%
-    target_img  = target_imglist[0]
-    target_bkg = Background(path = target_img.savepath.bkgpath, load = True)
-    target_bkgrms = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
-    target_mask: Optional[Mask] = None # For masking certain source (such as hot pixels)
-    mode: str = 'sep'
-    detection_sigma: float = 1.5
-    fwhm_estimate_pixel: float = 5.0
-    minarea_pixels: int = 5
-    
-    # Save options
-    save: bool = True
-    save_region = True
-    
-    # Others
-    visualize: bool = True
-    verbose = True
-    aperture_diameter_arcsec = [5,7,10]
-    saturation_level = 60000
-    kron_factor = 2.5
-    x_key: str = 'X_IMAGE'
-    y_key: str = 'Y_IMAGE'
-    semimajor_key: str = 'A_IMAGE'
-    semiminor_key: str = 'B_IMAGE'
-    theta_key: str = 'THETA_IMAGE'
-    kron_key: str = 'KRON_RADIUS'
-    ra = 41.57941250
-    dec = -30.2749
-    fov_ra = 1
-    fov_dec = 0.5
-
-    # cat =  get_catalogs_coord(
-    #     ra = ra,
-    #     dec = dec,
-    #     fov_ra = fov_ra,
-    #     fov_dec = fov_dec,
-    #     catalog_type = 'GAIAXP')
-#%%
-if __name__ == '__main__':
-    cat = self.sex_photometry(
-        target_img = target_img,
-        target_bkg = target_bkg,
-        target_bkgrms = target_bkgrms,
-        target_mask = target_mask,
-        detection_sigma = detection_sigma,
-        aperture_diameter_arcsec = aperture_diameter_arcsec,
-        saturation_level = saturation_level,
-        kron_factor= kron_factor,
-        save = save,
-        visualize = visualize
-    )
-#%%
-if __name__ == '__main__':
-    img, cat = self.photutils_photometry(
-        target_img = target_img,
-        target_bkg = target_bkg,
-        target_bkgrms = target_bkgrms,
-        target_mask = target_mask,
-        detection_sigma = detection_sigma,
-        aperture_diameter_arcsec=aperture_diameter_arcsec,
-        kron_factor = kron_factor,
-        minarea_pixels = minarea_pixels,
-        save = save,
-        visualize = visualize
-    )
-#%%
-if __name__ == '__main__':
-    x_arr = cat.data['X_WORLD'][5000:5100]
-    y_arr = cat.data['Y_WORLD'][5000:5100]
-    aperture_diameter_arcsec = [5,7,10]
-
-    circ_result = self.circular_photometry(
-        target_img = target_img,
-        x_arr = np.atleast_1d(x_arr),
-        y_arr = np.atleast_1d(y_arr),
-        aperture_diameter_arcsec = aperture_diameter_arcsec,
-        annulus_diameter_arcsec= None,
-        unit = 'coord',
-        #annulus_size_arcsec= aperture_diameter_arcsec + 1,
-        target_bkg = target_bkg,
-        target_mask = None,
-        target_bkgrms = target_bkgrms,
-        visualize = visualize
-    )
-
-    # aperture_diameter_arcsec = [3,6,9]
-    # circ_result = self.circular_photometry(
-    #     target_img = target_img,
-    #     x_arr = x_arr,
-    #     y_arr = y_arr,
-    #     aperture_diameter_arcsec = aperture_diameter_arcsec,
-    #     annulus_diameter_arcsec = None,
-    #     unit = 'pixel',
-    #     #annulus_size_arcsec= aperture_diameter_arcsec + 1,
-    #     target_bkg = target_bkg,
-    #     target_mask = target_mask,
-    #     target_bkgrms = target_bkgrms,
-    #     visualize = visualize
-
-    # )
-#%%
-if __name__ == '__main__':
-    tbl = cat.data[5000:5100]    
-    plt.scatter(tbl['MAG_APER_1'], circ_result['MAG_APER_1'])
-
-#%%
-if __name__ == '__main__':
-    plt.scatter(cata.data['SKYSIG'], circ_result['SKYSIG'])
-#%%
-if __name__ == '__main__':
-    x_arr = objects_sex['X_IMAGE']
-    y_arr = objects_sex['Y_IMAGE']
-    sma_arr = objects_sex['A_IMAGE'] * objects_sex['KRON_RADIUS'] 
-    smi_arr = objects_sex['B_IMAGE'] * objects_sex['KRON_RADIUS'] 
-    theta_arr = objects_sex['THETA_IMAGE']
-    # #%%
-    ellip_result = self.elliptical_photometry(
-        target_img = target_img,
-        x_arr = x_arr,
-        y_arr = y_arr,
-        sma_arr = sma_arr,
-        smi_arr = smi_arr,
-        theta_arr = theta_arr,
-        unit = 'pixel',
-        annulus_ratio = None,
-        target_bkg = target_bkg,
-        target_mask = target_mask,
-        target_bkgrms = target_bkgrms
-    )
-#%%
-if __name__ == '__main__':
-    self.photometric_calibration(
-        target_img = target_img,
-        target_catalog = objects_sex[0],
-    )
-#%%
-# for i in range(len(aperture_diameter_arcsec)):
-#     if i == 0:
-#         sex_key = 'FLUX_APER'
-#     else:
-#         sex_key = 'FLUX_APER_%s' %i
-#     circ_key = 'FLUX_APER_%.1f' % aperture_diameter_arcsec[i]
-#     plt.scatter(objects_sex[sex_key], circ_result[circ_key])
-# # Outlier comes from the blending of two sources
-# #%%
-# #%%
-# #plt.scatter(objects_sex['MAGERR_APER'], circ_result['MAGERR_APER_6.0'])
-# #plt.scatter(objects_sex['MAGERR_APER_1'], circ_result['MAGERR_APER_9.0'])
-# plt.scatter(objects_sex['MAGERR_APER_2'], circ_result['MAGERR_APER_12.0'])
-# #%%
-# x_arr = objects_sex['X_IMAGE']
-# y_arr = objects_sex['Y_IMAGE']
-# sma_arr = objects_sex['A_IMAGE'] * objects_sex['KRON_RADIUS']
-# smi_arr = objects_sex['B_IMAGE'] * objects_sex['KRON_RADIUS']
-# theta_arr = objects_sex['THETA_IMAGE']
-
-# ellip_result = self.elliptical_photometry(
-#     target_img = target_img,
-#     x_arr = x_arr,
-#     y_arr = y_arr,
-#     sma_arr = sma_arr,
-#     smi_arr = smi_arr,
-#     theta_arr = theta_arr,
-#     unit = 'pixel',
-#     annulus_ratio = None,
-#     target_bkg = target_bkg,
-#     target_mask = target_mask,
-#     target_bkgrms = target_bkgrms
-# )
-# #%%
-# plt.scatter(objects_sex['MAG_AUTO'], ellip_result['MAG_ELIP'])
-# #%%
-# plt.scatter(objects_sex['FLUXERR_AUTO'], ellip_result['FLUXERR_ELIP'], c = objects_sex['FLUX_AUTO'])
-# plt.plot([0, 10000], [0, 10000], 'r--')
-# #%%
-# #%%
-# #%% objects_phot
-# x_arr = objects_photutils['X_WORLD']
-# y_arr = objects_photutils['Y_WORLD']
-
-# #%%
-# aperture_diameter_arcsec = aperture_diameter_arcsec
-# circ_result = self.circular_photometry(
-#     target_img = target_img,
-#     x_arr = x_arr,
-#     y_arr = y_arr,
-#     aperture_diameter_arcsec = aperture_diameter_arcsec,
-#     annulus_size = None,
-#     unit = 'coord',
-#     #annulus_size_arcsec= aperture_diameter_arcsec + 1,
-#     target_bkg = target_bkg,
-#     target_mask = target_mask,
-#     target_bkgrms = target_bkgrms
-# )
-# #%%
-# for i in range(len(aperture_diameter_arcsec)):
-#     photutils_key = 'FLUX_APER_%.1f' %aperture_diameter_arcsec[i]
-#     circ_key = 'FLUX_APER_%.1f' % aperture_diameter_arcsec[i]
-#     plt.scatter(objects_photutils[photutils_key], circ_result[circ_key])
-# #%%
-# #plt.scatter(objects_photutils['MAGERR_APER_6.0'], circ_result['MAGERR_APER_6.0'])
-# #plt.scatter(objects_photutils['MAGERR_APER_9.0'], circ_result['MAGERR_APER_9.0'])
-# plt.scatter(objects_photutils['MAGERR_APER_12.0'], circ_result['MAGERR_APER_12.0'])
-# # Outlier comes from the blending of two sources
-# #%%
-# #%%
-# for i in range(len(aperture_diameter_arcsec)):
-#     photutils_key = 'FLUX_APER_%d' %aperture_diameter_arcsec[i]
-#     circ_key = 'FLUX_APER_%.1f' % aperture_diameter_arcsec[i]
-#     plt.scatter(objects_photutils[photutils_key], circ_result[circ_key])
-
-# #%%
-# x_arr = objects_sex['X_IMAGE']
-# y_arr = objects_sex['Y_IMAGE']
-# sma_arr = objects_sex['A_IMAGE'] * objects_sex['KRON_RADIUS'] 
-# smi_arr = objects_sex['B_IMAGE'] * objects_sex['KRON_RADIUS'] 
-# theta_arr = objects_sex['THETA_IMAGE']
-# # #%%
-# ellip_result = self.elliptical_photometry(
-#     target_img = target_img,
-#     x_arr = x_arr,
-#     y_arr = y_arr,
-#     sma_arr = sma_arr,
-#     smi_arr = smi_arr,
-#     theta_arr = theta_arr,
-#     unit = 'pixel',
-#     annulus_ratio = None,
-#     target_bkg = target_bkg,
-#     target_mask = target_mask,
-#     target_bkgrms = target_bkgrms
-# )
-# # #%%
-# plt.scatter(objects_sex['FLUX_AUTO'], ellip_result['FLUX_ELIP'])
-# plt.plot([0, 2e7], [0, 2e7], 'r--')
-#plt.xlim(0, 2e5)
-#plt.ylim(0, 2e5)
-# #%%
-# plt.scatter(objects_photutils['FLUXERR_KRON'], ellip_result['FLUXERR_ELIP'], c = objects_photutils['FLUX_KRON'])
-# plt.plot([0, 10000], [0, 10000], 'r--')
-
-# #%%
-# # %%
-# from astropy.table import Table
-# import numpy as np
-# from scipy.spatial import cKDTree
-# from typing import List, Tuple
-
-# def match_sources(tbl_1: Table, tbl_2: Table,
-#                   keys_1: List[str], keys_2: List[str],
-#                   max_distance: float = 0.5
-#                  ):
-#     """
-#     Match sources from table1 to table2 using 2D Cartesian nearest-neighbor search.
-
-#     Parameters
-#     ----------
-#     tbl_1, tbl_2 : QTable
-#         Astropy tables containing source positions.
-#     keys_1 : list of str
-#         Column names in table1 for 2D coordinates, e.g., ['x', 'y'].
-#     keys_2 : list of str
-#         Column names in table2 for 2D coordinates, e.g., ['x', 'y'].
-#     max_distance : float
-#         Maximum matching distance (in same units as coordinate values).
-
-#     Returns
-#     -------
-#     matched : QTable
-#         Table with columns from both inputs and distance of matched pairs.
-#     unmatched1 : QTable
-#         Rows from table1 with no match in table2.
-#     unmatched2 : QTable
-#         Rows from table2 not matched by any in table1.
-#     """
-#     coords1 = np.vstack([tbl_1[keys_1[0]], tbl_1[keys_1[1]]]).T
-#     coords2 = np.vstack([tbl_2[keys_2[0]], tbl_2[keys_2[1]]]).T
-
-#     tree = cKDTree(coords2)
-#     distances, indices = tree.query(coords1, distance_upper_bound=max_distance)
-
-#     matched_mask = distances != np.inf
-#     matched1 = tbl_1[matched_mask]
-#     matched2 = tbl_2[indices[matched_mask]]
-
-#     # Combine matched rows
-#     matched = Table()
-#     for col in matched1.colnames:
-#         matched[f"{col}_1"] = matched1[col]
-#     for col in matched2.colnames:
-#         matched[f"{col}_2"] = matched2[col]
-#     matched['distance'] = distances[matched_mask]
-
-#     # Unmatched rows
-#     unmatched1 = tbl_1[~matched_mask]
-#     matched_indices2 = set(indices[matched_mask])
-#     unmatched_indices2 = list(set(range(len(tbl_2))) - matched_indices2)
-#     unmatched2 = tbl_2[unmatched_indices2]
-
-#     return matched, unmatched1, unmatched2
-# #%%
-# from astropy.io import ascii
-# objects_psf = ascii.read(target_img.savepath.catalogpath)
-
-# matched, unmatched_1, unmatched_2 = match_sources(tbl_1 = objects_psf, tbl_2 = objects_sex, keys_1 = ['x_fit', 'y_fit'], keys_2 = ['X_IMAGE', 'Y_IMAGE'], max_distance = 0.5)
-
-# plt.figure(figsize=(10, 10))
-# plt.scatter(-2.5*np.log10(matched['flux_fit_1']), matched['MAG_AUTO_2'], alpha = 0.7, c = matched['FLUX_AUTO_2'])
-# plt.colorbar()
-# plt.plot([-16, -11], [-16, -11], 'r--')
-# tbl = matched[((-2.5*np.log10(matched['flux_fit_1']) - matched['MAG_AUTO_2']) > 0.35) & (matched['MAG_AUTO_2'] > -14)]
-# tbl2 = matched[((-2.5*np.log10(matched['flux_fit_1']) - matched['MAG_AUTO_2']) > 0.2) & (matched['MAG_AUTO_2'] > -14)]
-# tbl3 = matched[((-2.5*np.log10(matched['flux_fit_1']) - matched['MAG_AUTO_2']) < 0.1) & (matched['MAG_AUTO_2'] > -14)]
-
-# plt.scatter(-2.5*np.log10(tbl['flux_fit_1']), tbl['MAG_AUTO_2'], alpha = 0.7, c = 'r')
-# plt.scatter(-2.5*np.log10(tbl2['flux_fit_1']), tbl2['MAG_AUTO_2'], alpha = 0.7, c = 'b')
-# # #plt.xlim(0, 15e5)
-# # #plt.ylim(0, 15e5)
-# # A = PhotometryHelper()
-# # reg = to_regions(reg_x = tbl['X_IMAGE_2'], reg_y = tbl['Y_IMAGE_2'], reg_size = 5, unit = 'pixel', output_file_path = target_img.savepath.savepath.with_suffix('.reg'))
-# from tippy.helper import PhotometryHelper
-# helper = PhotometryHelper()
-# reg = helper.to_regions(reg_x = tbl2['X_IMAGE_2'], reg_y = tbl2['Y_IMAGE_2'], reg_size = 5, unit = 'pixel', output_file_path = target_img.savepath.savepath.with_suffix('.reg'))
-# # reg = to_regions(reg_x = tbl3['X_IMAGE_2'], reg_y = tbl3['Y_IMAGE_2'], reg_size = 5, unit = 'pixel', output_file_path = target_img.savepath.savepath.with_suffix('.reg'))
-
-# #%%
-
-# #%%
-
-# matched, unmatched_1, unmatched_2 = match_sources(tbl_1 = objects_photutils, tbl_2 = objects_sex, keys_1 = ['X_IMAGE', 'Y_IMAGE'], keys_2 = ['X_IMAGE', 'Y_IMAGE'], max_distance = 0.5)
-# common_colnames = list(set(objects_photutils.colnames) & set(objects_sex.colnames))
-
-# for colname in common_colnames:
-#     plt.title(colname)
-#     plt.scatter(matched[f'{colname}_1'], matched[f'{colname}_2'], alpha = 0.3)
-#     val_min, vam_max = min(matched[f'{colname}_1'].min(), matched[f'{colname}_2'].min()), max(matched[f'{colname}_1'].max(), matched[f'{colname}_2'].max())
-#     plt.plot([0, vam_max], [0, vam_max], 'r--')
-#     plt.title(colname)
-#     plt.show()
-# #%%
-
-# for colname in common_colnames:
-#     plt.title(colname)
-#     plt.hist(unmatched_1[colname], bins = 100, color = 'r', label = 'unmatched') # 대부분 Signal 아닌 것이 잡힌듯. PSF 사이즈보다 작음.
-#     plt.hist(matched[f'{colname}_1'], bins = 100, color = 'k', label = 'sep', histtype = 'step')
-#     plt.hist(matched[f'{colname}_2'], bins = 100, color = 'b', label = 'phot', histtype = 'step', linestyle = '--', linewidth = 2)
-#     plt.show()
-
-# # %%
-# plt.scatter(matched['FLUX_KRON_1'], matched['FLUX_AUTO_2'])
-# #plt.scatter(matched['FLUX_APER_12_1'], matched['FLUX_APER_2_2'])
-# val_min, vam_max = min(matched['FLUX_KRON_1'].min(), matched['FLUX_AUTO_2'].min()), max(matched['FLUX_KRON_1'].max(), matched['FLUX_AUTO_2'].max())
-# plt.plot([0, vam_max], [0, vam_max], 'r--')
-# # %%
-# plt.scatter(matched['FLUXERR_APER_2'], matched['FLUXERR_APER_6_1'])
-# # %%
-# plt.scatter(objects_photutils['FLUX_APER_6'], objects_photutils['FLUXERR_APER_6'], alpha =0.1)
-# plt.scatter(objects_sex['FLUX_APER'], objects_sex['FLUXERR_APER'], alpha = 0.1)
-# # %%
-
-# #%%
-# matched, unmatched_1, unmatched_2 = match_sources(tbl_1 = objects_photutils, tbl_2 = ellip_result, keys_1 = ['X_IMAGE', 'Y_IMAGE'], keys_2 = ['X_IMAGE', 'Y_IMAGE'], max_distance = 0.5)
-# common_colnames = list(set(objects_photutils.colnames) & set(ellip_result.colnames))
-# for colname in common_colnames:
-#     plt.title(colname)
-#     plt.scatter(matched[f'{colname}_1'], matched[f'{colname}_2'], alpha = 0.3)
-#     val_min, vam_max = min(matched[f'{colname}_1'].min(), matched[f'{colname}_2'].min()), max(matched[f'{colname}_1'].max(), matched[f'{colname}_2'].max())
-#     plt.plot([0, vam_max], [0, vam_max], 'r--')
-#     plt.title(colname)
-#     plt.show()
-
-# for colname in common_colnames:
-#     plt.title(colname)
-#     plt.hist(unmatched_1[colname], bins = 100, color = 'r', label = 'unmatched') # 대부분 Signal 아닌 것이 잡힌듯. PSF 사이즈보다 작음.
-#     plt.hist(matched[f'{colname}_1'], bins = 100, color = 'k', label = 'sep', histtype = 'step')
-#     plt.hist(matched[f'{colname}_2'], bins = 100, color = 'b', label = 'phot', histtype = 'step', linestyle = '--', linewidth = 2)
-#     plt.show()
-
-# # %%
-# plt.scatter(matched['FLUXERR_KRON_1'], matched['FLUXERR_ELIP_2'])
-# # %%

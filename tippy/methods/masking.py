@@ -14,8 +14,8 @@ import astroscrappy as cr
 from skimage.draw import disk
 from tqdm import tqdm
 
-from tippy.imageojbects import Mask
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage
+from tippy.imageobjects import Mask
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from tippy.helper import Helper
 #%%
 class TIPMasking(Helper): ############## CHECKED ##############
@@ -49,7 +49,7 @@ class TIPMasking(Helper): ############## CHECKED ##############
             self.print(f"Masked {np.sum(nan_mask)} NaN pixels.", verbose)
 
         # Mask large connected regions of 0s
-        zero_mask = (image_data == 0)
+        zero_mask = (np.abs(image_data) == 0)
         labeled_array, num_features = label(zero_mask)
         self.print(f"Found {num_features} connected regions", verbose)
 
@@ -451,54 +451,3 @@ class TIPMasking(Helper): ############## CHECKED ##############
             
         plt.close(fig)
 
-
-# %%
-if __name__ == '__main__':
-    path = Path('/home/hhchoi1022/data/refdata/main/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/calib_7DT14_T22956_20250329_044114_m600_600.com.fits')
-    S = ScienceImage(path=path, telinfo=Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1))
-    self = TIPMasking()
-    
-    target_img: Union[ScienceImage, ReferenceImage, CalibrationImage] = S
-    target_mask = None
-    sigma: float = 5.0
-    mask_radius_factor: int = 3
-    verbose: bool = True
-    visualize: bool = True
-    save: bool = True
-    #M = self.mask_sources(S, save = save, mask_radius_factor = mask_radius_factor)
-    #M = T.mask_circle(S, M, x_position = 1000, y_position = 1000, radius = 500, unit = 'pixel', save = save)
-    #M = T.mask_cosmicray(S, save = save)
-# %%
-if __name__ == "__main__":
-    from numba import jit
-
-    mask_A = new_mask
-    mask_B = new_mask
-
-    
-    @jit(nopython=False)
-    def myfunc(mask_A, mask_B):
-        return np.logical_or(mask_A, mask_B)
-    
-    start = time.time()
-    mask_C = myfunc(mask_A, mask_B)
-    print(time.time() - start)
-    
-    import time
-    start = time.time()
-    mask_C = np.logical_or(mask_A, mask_B)
-    print(time.time() - start)
-
-    from numba import njit
-
-    @njit
-    def mask_or(mask_A, mask_B):
-        result = np.empty_like(mask_A)
-        for i in range(mask_A.shape[0]):
-            for j in range(mask_A.shape[1]):
-                result[i, j] = mask_A[i, j] | mask_B[i, j]
-        return result
-    start = time.time()
-    mask_C = mask_or(mask_A, mask_B)
-    print(time.time() - start)
-# %%

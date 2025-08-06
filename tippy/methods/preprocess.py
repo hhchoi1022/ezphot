@@ -20,8 +20,8 @@ import tracemalloc
 
 
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage
-from tippy.imageojbects import CalibrationImage
+from tippy.imageobjects import ScienceImage
+from tippy.imageobjects import CalibrationImage
 from tippy.methods import TIPStacking
 
 #%%
@@ -204,17 +204,18 @@ class TIPPreprocess(Helper):
 
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
         calib_image.update_status(process_name = 'DARKCOR')
         calib_image.update_status(process_name = 'FLATCOR')
-        calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
-        calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
-        calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
-        bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
-        dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
-        flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
+        # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
+        # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
+        # calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
+        # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
+        # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
+        # flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
             calib_image.write()
         return calib_image
@@ -278,10 +279,10 @@ class TIPPreprocess(Helper):
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
         calib_image.update_status(process_name = 'DARKCOR')
-        calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
-        calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
-        bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
-        dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
+        # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
+        # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
+        # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
+        # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
             calib_image.write()
         
@@ -333,8 +334,8 @@ class TIPPreprocess(Helper):
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
-        calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
-        bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
+        # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
+        # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
             calib_image.write()
         return calib_image
@@ -385,8 +386,8 @@ class TIPPreprocess(Helper):
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'DARKCOR')
-        calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
-        dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
+        # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
+        # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
             calib_image.write()
         return calib_image
@@ -434,8 +435,8 @@ class TIPPreprocess(Helper):
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'FLATCOR')
-        calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
-        flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
+        # calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
+        # flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
             calib_image.write()
         return calib_image
@@ -803,23 +804,3 @@ class TIPPreprocess(Helper):
             result[ys, xs] = interp_vals
             return result  
 
-
-#%%
-if __name__ == '__main__':
-    import glob
-    from tippy.utils import SDTData
-    S = SDTData()
-    obsdata = S.show_obssourcedata(foldername = '2025-06-30_gain2750')
-
-    filelist = obsdata['7DT10']
-    self = TIPPreprocess()
-    fileinfo = self.get_imginfo(filelist)
-    calib_info = fileinfo[fileinfo['imgtype'] != 'LIGHT']
-    telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1)
-    
-#%%
-if __name__ == '__main__':
-    target_img = ScienceImage(filelist[0], telinfo = telinfo, load = True)
-    A = self.get_masterframe_from_image(target_img = target_img, imagetyp = 'DARK')
-
-# %%

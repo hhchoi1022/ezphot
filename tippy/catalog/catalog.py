@@ -18,7 +18,7 @@ from astropy.wcs.utils import skycoord_to_pixel
 import matplotlib.pyplot as plt
 
 from types import SimpleNamespace
-from tippy.imageojbects import ScienceImage, ReferenceImage, Mask
+from tippy.imageobjects import ScienceImage, ReferenceImage, Mask
 from tippy.helper import Helper
 
 
@@ -71,7 +71,7 @@ class Info:
 
 class TIPCatalog(Helper):
     
-    def __init__(self, path: Union[Path, str], catalog_type: str, info: Info = None, load: bool = True):
+    def __init__(self, path: Union[Path, str], catalog_type: str = 'all', info: Info = None, load: bool = True):
         path = Path(path)
         super().__init__()
         
@@ -290,58 +290,58 @@ class TIPCatalog(Helper):
             self.is_loaded = True
         self.print(f"Loaded: {self.savepath.infopath}", verbose)
     
-    def search_sources(self, 
-                       x: Union[float, list, np.ndarray],
-                       y: Union[float, list, np.ndarray],
-                       unit='coord',
-                       matching_radius: float = 5.0):
-        """
-        Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
-        Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
-        """
-        x = np.atleast_1d(x)
-        y = np.atleast_1d(y)
-        target_catalog = self.data
+    # def search_sources(self, 
+    #                    x: Union[float, list, np.ndarray],
+    #                    y: Union[float, list, np.ndarray],
+    #                    unit='coord',
+    #                    matching_radius: float = 5.0):
+    #     """
+    #     Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
+    #     Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
+    #     """
+    #     x = np.atleast_1d(x)
+    #     y = np.atleast_1d(y)
+    #     target_catalog = self.data
 
-        if unit == 'pixel':
-            catalog_coords = np.vstack((target_catalog['X_IMAGE'], target_catalog['Y_IMAGE'])).T
-            input_coords = np.vstack((x, y)).T
+    #     if unit == 'pixel':
+    #         catalog_coords = np.vstack((target_catalog['X_IMAGE'], target_catalog['Y_IMAGE'])).T
+    #         input_coords = np.vstack((x, y)).T
 
-            tree = cKDTree(catalog_coords)
-            sep, idx = tree.query(input_coords, distance_upper_bound=matching_radius)
+    #         tree = cKDTree(catalog_coords)
+    #         sep, idx = tree.query(input_coords, distance_upper_bound=matching_radius)
 
-            valid = sep != np.inf
-            sep = sep[valid]
-            idx = idx[valid]
-            matched_catalog = target_catalog[idx]
+    #         valid = sep != np.inf
+    #         sep = sep[valid]
+    #         idx = idx[valid]
+    #         matched_catalog = target_catalog[idx]
 
-            # Sort by separation
-            sort_idx = np.argsort(sep)
-            return matched_catalog[sort_idx], sep[sort_idx], idx[sort_idx]
+    #         # Sort by separation
+    #         sort_idx = np.argsort(sep)
+    #         return matched_catalog[sort_idx], sep[sort_idx], idx[sort_idx]
 
-        elif unit == 'coord':
-            cat_sky = SkyCoord(ra=target_catalog['X_WORLD'], dec=target_catalog['Y_WORLD'], unit='deg')
-            input_sky = SkyCoord(ra=x, dec=y, unit='deg')
+    #     elif unit == 'coord':
+    #         cat_sky = SkyCoord(ra=target_catalog['X_WORLD'], dec=target_catalog['Y_WORLD'], unit='deg')
+    #         input_sky = SkyCoord(ra=x, dec=y, unit='deg')
 
-            cat_xyz = np.vstack(cat_sky.cartesian.xyz).T
-            input_xyz = np.vstack(input_sky.cartesian.xyz).T
+    #         cat_xyz = np.vstack(cat_sky.cartesian.xyz).T
+    #         input_xyz = np.vstack(input_sky.cartesian.xyz).T
 
-            tree = cKDTree(cat_xyz)
-            matching_radius_rad = (matching_radius / 3600.0) * (np.pi / 180)
-            sep, idx = tree.query(input_xyz, distance_upper_bound=matching_radius_rad)
+    #         tree = cKDTree(cat_xyz)
+    #         matching_radius_rad = (matching_radius / 3600.0) * (np.pi / 180)
+    #         sep, idx = tree.query(input_xyz, distance_upper_bound=matching_radius_rad)
 
-            valid = sep != np.inf
-            sep = sep[valid]
-            idx = idx[valid]
-            matched_catalog = target_catalog[idx]
-            sep_arcsec = np.rad2deg(sep) * 3600
+    #         valid = sep != np.inf
+    #         sep = sep[valid]
+    #         idx = idx[valid]
+    #         matched_catalog = target_catalog[idx]
+    #         sep_arcsec = np.rad2deg(sep) * 3600
 
-            # Sort by separation
-            sort_idx = np.argsort(sep_arcsec)
-            return matched_catalog[sort_idx], sep_arcsec[sort_idx], idx[sort_idx]
+    #         # Sort by separation
+    #         sort_idx = np.argsort(sep_arcsec)
+    #         return matched_catalog[sort_idx], sep_arcsec[sort_idx], idx[sort_idx]
 
-        else:
-            raise ValueError("unit must be either 'pixel' or 'coord'")
+    #     else:
+    #         raise ValueError("unit must be either 'pixel' or 'coord'")
         
     def select_sources(self,
                        x: Union[float, list, np.ndarray],
@@ -549,9 +549,10 @@ class TIPCatalog(Helper):
         x, y = self.target_img.wcs.world_to_pixel(coord)
 
         # Match source in catalog
-        matched_catalog, seps, _ = self.search_sources(
+        self.select_sources(
             x=[target_ra], y=[target_dec], unit='coord',
             matching_radius=matching_radius_arcsec)
+        matched_catalog = self.target_data
 
         # If matched, get pixel coords of catalog source
         matched_xy = None

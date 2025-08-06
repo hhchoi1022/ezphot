@@ -14,7 +14,7 @@ from multiprocessing import Pool
 from astropy.time import Time
 
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage
+from tippy.imageobjects import ScienceImage, ReferenceImage
 
 #%%
 hips2fits.timeout = 300
@@ -183,6 +183,75 @@ class HIPS2FITS:
         for catalog_name, catalog_id in self.catalog_ids.items():
             print(f"{catalog_name}: {catalog_id}")
     
+    def check_catalog_coverages(self, 
+                                ra: float,
+                                dec: float, 
+                                radius_deg: float = 0.1, 
+                                verbose: bool = True,
+                                search_all: bool = False) -> dict:
+        """
+        Check which HiPS catalogs have coverage at the given sky position.
+
+        Parameters
+        ----------
+        ra : float
+            Right Ascension in degrees.
+        dec : float
+            Declination in degrees.
+        radius_deg : float
+            Radius of the region to check, in degrees.
+        verbose : bool
+            If True, print results.
+
+        Returns
+        -------
+        dict
+            Dictionary of catalog_key -> bool (True if covered).
+        """
+        from regions import CircleSkyRegion
+
+        coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg)
+        region = CircleSkyRegion(center=coord, radius=radius_deg * u.deg)
+        results = {}
+
+        if not search_all:
+            try:
+                catalog_key = self.current_catalog_key
+                hips_id = self.catalog_ids[catalog_key]
+                query = MOCServer.query_region(
+                    region=region,
+                    criteria=f"ID={hips_id}",
+                    intersect="overlaps",
+                    max_rec=1
+                )
+                has_coverage = len(query) > 0
+            except Exception as e:
+                has_coverage = False
+                if verbose:
+                    print(f"[ERROR] Failed to check {catalog_key}: {e}")
+            results[catalog_key] = has_coverage
+            if verbose:
+                print(f"[{catalog_key}] {'✓' if has_coverage else '✗'}")
+        else:
+            for catalog_key, hips_id in self.catalog_ids.items():
+                try:
+                    query = MOCServer.query_region(
+                        region=region,
+                        criteria=f"ID={hips_id}",
+                        intersect="overlaps",
+                        max_rec=1
+                    )
+                    has_coverage = len(query) > 0
+                except Exception as e:
+                    has_coverage = False
+                    if verbose:
+                        print(f"[ERROR] Failed to check {catalog_key}: {e}")
+                results[catalog_key] = has_coverage
+                if verbose:
+                    print(f"[{catalog_key}] {'✓' if has_coverage else '✗'}")
+
+        return results
+
     def _query(self,
                wcs: WCS = None, # If wcs inputted, overrides ra, dec, fov, rotation_angle
                width: int = 2000,
@@ -237,7 +306,11 @@ class HIPS2FITS:
         return save_path
 
     
-    def check_coverage(self, ra: float, dec: float, radius_deg: float = 1.0, verbose=True):
+    def check_coverage(self, 
+                       ra: float, 
+                       dec: float, 
+                       radius_deg: float = 1.0, 
+                       verbose=True):
         """
         Check if the current HiPS catalog has coverage at the given RA/Dec.
 
@@ -443,7 +516,7 @@ class ImageQuerier(HIPS2FITS):
             results = pool.map(self._query_tile_worker, tasks)
         
         from tippy.methods import TIPStacking
-        from tippy.photometry import TIPPlateSolve
+        from tippy.methods import TIPPlateSolve
         from tippy.helper import Helper
         self.helper = Helper()
         self.stacking = TIPStacking()
@@ -513,28 +586,32 @@ class ImageQuerier(HIPS2FITS):
 # Example usage:
 if __name__ == "__main__":
     import glob
-    self = ImageQuerier(catalog_key='DECALS/DEC5/g')
+    self = ImageQuerier(catalog_key='SkyMapper/SMSS4/i')
 
     
     from astropy.io import fits
-    from tippy.imageojbects import ScienceImage
+    from tippy.imageobjects import ScienceImage
     from tippy.helper import Helper, TIPDataBrowser
     from tippy.utils import SDTData
-    tile_id = 'T22956'
+    tile_id = 'NGC1566'
     databrowser = TIPDataBrowser('scidata')
-    databrowser.observatory = '7DT'
-    databrowser.objname = 'T22956'
-    target_img = databrowser.search(f'calib*_g_*100.fits', 'science')[0]
+    databrowser.observatory = 'KCT'
+    databrowser.objname = 'NGC1566'
+    databrowser.filter = 'i'
+    target_imgset = databrowser.search(f'Calib*.fits', 'science')
+    target_img = target_imgset.target_images[0]
     telinfo = target_img.telinfo
     width = target_img.naxis1
     height = target_img.naxis2
     fov = max(width,height) * np.mean(target_img.pixelscale) /3600
-    ra = target_img.ra
-    dec = target_img.dec
+    ra = target_img.center['ra']
+    dec = target_img.center['dec']
     pixelscale= np.mean(target_img.pixelscale) 
     rotation_angle = 0
     verbose=True
     objname = target_img.objname
+    #self.check_catalog_coverages(ra = ra, dec = dec, radius_deg = fov/2, search_all = True)
+#%%
     # Run the query
     stack_image = self.query(
         width=width,

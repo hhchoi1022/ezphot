@@ -12,8 +12,8 @@ from astropy.table import Table, vstack
 
 from tippy.configuration import TIPConfig
 from tippy.helper import Helper
-from tippy.imageojbects import Logger
-from tippy.imageojbects import BaseImage
+from tippy.imageobjects import Logger
+from tippy.imageobjects import BaseImage
 
 
 @dataclass
@@ -137,13 +137,21 @@ class Info:
 class ReferenceImage(BaseImage):
     """ Handles FITS image processing and tracks its status """
 
-    def __init__(self, path: Union[Path, str], telinfo : dict, status: Status = None, load: bool = True):
+    def __init__(self, path: Union[Path, str], telinfo : dict = None, status: Status = None, load: bool = True):
         path = Path(path)
         super().__init__(path = path, telinfo = telinfo)
 
         # Initialize Status and Info
         self.status = Status()
         self._logger = None
+        self._bkgmap = None
+        self._bkgrms = None
+        self._sourcerms = None
+        self._bkgweight = None
+        self._srcweight = None
+        self._srcmask = None
+        self._cat = None
+        self._refcat = None
         
         # Initialize or load status
         if load:
@@ -309,6 +317,43 @@ class ReferenceImage(BaseImage):
         #         connected.add(p)
 
         return connected
+    
+    # === Lazy-loaded auxiliary objects ===
+    @property
+    def bkgmap(self):
+        if self._bkgmap is None and self.savepath.bkgpath.exists():
+            from tippy.imageobjects import Background
+            self._bkgmap = Background(self.savepath.bkgpath, load=True)
+        return self._bkgmap
+
+    @property
+    def bkgrms(self):
+        if self._bkgrms is None and self.savepath.bkgrmspath.exists():
+            from tippy.imageobjects import Errormap
+            self._bkgrms = Errormap(self.savepath.bkgrmspath, emaptype='bkgrms', load=True)
+        return self._bkgrms
+
+    @property
+    def sourcemask(self):
+        if self._srcmask is None and self.savepath.srcmaskpath.exists():
+            from tippy.imageobjects import Mask
+            self._srcmask = Mask(self.savepath.srcmaskpath, masktype='source', load=True)
+        return self._srcmask
+
+    @property
+    def catalog(self):
+        if self._cat is None and self.savepath.catalogpath.exists():
+            from tippy.catalog import TIPCatalog
+            self._cat = TIPCatalog(self.savepath.catalogpath, catalog_type='all', load=True)
+        return self._cat
+
+    @property
+    def refcatalog(self):
+        if self._refcat is None and self.savepath.refcatalogpath.exists():
+            from tippy.catalog import TIPCatalog
+            self._refcat = TIPCatalog(self.savepath.refcatalogpath, catalog_type='reference', load=True)
+        return self._refcat
+
 
     def copy(self) -> "ReferenceImage":
         """
@@ -403,7 +448,7 @@ class ReferenceImage(BaseImage):
         return removed
     
     def to_scienceimage(self):
-        from tippy.imageojbects import ScienceImage
+        from tippy.imageobjects import ScienceImage
         scienceimage = ScienceImage(self.path, telinfo=self.telinfo, load=False)
         scienceimage.data = self.data.copy() if self.data is not None else None
         scienceimage.header = self.header.copy() if self.header is not None else None

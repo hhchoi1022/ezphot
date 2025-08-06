@@ -12,8 +12,8 @@ from astropy.time import Time
 
 from types import SimpleNamespace
 
-from tippy.imageojbects import DummyImage
-from tippy.imageojbects import Logger
+from tippy.imageobjects import DummyImage
+from tippy.imageobjects import Logger
 from tippy.helper import Helper
 #%%
 class Status:
@@ -101,6 +101,7 @@ class Background(DummyImage):
         self.status = Status()
         self.loaded = False
         self._logger = None
+        self._target_img = None
 
         if load:
             # Load status and info if paths exist
@@ -180,6 +181,7 @@ class Background(DummyImage):
         return SimpleNamespace(
             savedir=savedir,
             savepath=savedir / filename,
+            targetpath=(savedir / filename).with_suffix(''),
             statuspath=savedir / (filename + '.status'),
             infopath=savedir / (filename + '.info'),
             maskpath= savedir / (filename + '.mask'),
@@ -220,6 +222,13 @@ class Background(DummyImage):
                 connected.add(p)
 
         return connected
+    
+    @property
+    def target_img(self):
+        if self._target_img is None and self.savepath.targetpath.exists():
+            from tippy.imageobjects import ScienceImage
+            self._target_img = ScienceImage(self.savepath.targetpath, load = True)
+        return self._target_img
 
     def copy(self) -> "Background":
         """

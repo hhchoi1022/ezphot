@@ -1,8 +1,8 @@
 
 
 #%%
-from tippy.photometry import *
-from tippy.imageojbects import *
+from tippy.methods import *
+from tippy.imageobjectsobjects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tqdm import tqdm

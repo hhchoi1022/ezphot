@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 from tippy.configuration import TIPConfig
 from tippy.helper import Helper
-from tippy.imageojbects import Logger
-from tippy.imageojbects import BaseImage
+from tippy.imageobjects import Logger
+from tippy.imageobjects import BaseImage
 #%%
 
 from dataclasses import dataclass, asdict
@@ -130,7 +130,7 @@ class Info:
 class MasterImage(BaseImage):
     """ Handles FITS image processing and tracks its status """
 
-    def __init__(self, path: Union[Path, str], telinfo : dict, status: Status = None, load: bool = True):
+    def __init__(self, path: Union[Path, str], telinfo : dict = None, status: Status = None, load: bool = True):
         path = Path(path)  
         super().__init__(path = path, telinfo = telinfo)
         

@@ -19,7 +19,7 @@ from matplotlib.colors import Normalize
 from tippy.utils import SDTData
 from tippy.catalog import TIPCatalog, TIPCatalogDataset
 from tippy.helper import Helper
-from tippy.image import ScienceImage
+from tippy.imageobjects import ScienceImage
 from tippy.utils import ExternalData
 
 #%%
@@ -30,9 +30,11 @@ class PhotometricSpectrum(Helper):
         if not isinstance(source_catalogs, TIPCatalogDataset):
             raise TypeError("source_catalogs must be an instance of TIPCatalogDataset")
         self.source_catalogs = source_catalogs
-        self.data = None
+        self.catalogs_tbl = None
         self.plt_params = self._plt_params()
         self.externaldata = ExternalData(catalog_key = None)
+        
+    OFFSET = 2
         
     EFFECTIVE_WAVELENGTHS_NM = {
         'm400': 400.0,
@@ -146,6 +148,10 @@ class PhotometricSpectrum(Helper):
                 self.xticks = np.arange(400, 901, 50)
                 self.yticks = None
                 
+                # Label parameters
+                self.label_position = 'best'  # 'best', 'upper right', 'lower left', etc.
+                self.ncols = 2
+                
                 # Error bar parameters
                 self.errorbar_enabled = True  # Optional switch
                 self.errorbar_markersize = 7
@@ -161,7 +167,7 @@ class PhotometricSpectrum(Helper):
                 raise AttributeError(f"'PlotParams' object has no attribute '{name}'")
 
             def __setattr__(self, name, value):
-                if name.startswith('_') or name in ('xlim', 'ylim', 'xticks', 'yticks', 'errorbar_capsize', 'errorbar_elinewidth', 'errorbar_markersize', 'errorbar_enabled', 'errorbar_hollow_marker'):
+                if name.startswith('_') or name in ('xlim', 'ylim', 'xticks', 'yticks', 'errorbar_capsize', 'errorbar_elinewidth', 'errorbar_markersize', 'errorbar_enabled', 'errorbar_hollow_marker', 'label_position', 'ncols'):
                     super().__setattr__(name, value)
                 else:
                     rc_name = name.replace('_', '.')
@@ -250,13 +256,13 @@ class PhotometricSpectrum(Helper):
             self.source_catalogs = TIPCatalogDataset(catalogs=updated_catalogs)
         print(f"Total {len(succeeded_catalogs)} catalogs loaded successfully.")
     
-    def update_data(self,
-                    ra_key: str = 'X_WORLD',
-                    dec_key: str = 'Y_WORLD',
-                    max_distance_arcsec: float = 2,
-                    join_type: str = 'outer',
-                    data_keys: list = ['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MASERR_APER', 'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2', 'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC']):
-        self.data, self.metadata = self.source_catalogs.merge_catalogs(
+    def merge_catalogs(self,
+                       ra_key: str = 'X_WORLD',
+                       dec_key: str = 'Y_WORLD',
+                       max_distance_arcsec: float = 2,
+                       join_type: str = 'outer',
+                       data_keys: list = ['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MAGERR_APER', 'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2', 'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC']):
+        self.catalogs_tbl, self.metadata = self.source_catalogs.merge_catalogs(
             max_distance_arcsec=max_distance_arcsec,
             ra_key=ra_key,
             dec_key=dec_key,
@@ -264,27 +270,86 @@ class PhotometricSpectrum(Helper):
             data_keys=data_keys
         )
         
-    def search_sources(self, 
-                       ra: Union[float, list, np.ndarray],
-                       dec: Union[float, list, np.ndarray],
-                       matching_radius_arcsec: float = 5.0):
+    def search_source(self, 
+                      ra: Union[float, list, np.ndarray],
+                      dec: Union[float, list, np.ndarray],
+                      matching_radius_arcsec: float = 5.0):
         """
         Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
         Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
         """
-        if self.data is None:
-            self.update_data(max_distance_arcsec=matching_radius_arcsec)
+        if self.catalogs_tbl is None:
+            self.merge_catalogs(max_distance_arcsec=matching_radius_arcsec)
 
         ra = np.atleast_1d(ra)
         dec = np.atleast_1d(dec)
         input_coords = SkyCoord(ra=ra, dec=dec, unit='deg')
         
-        target_catalog = self.data
+        target_catalog = self.catalogs_tbl
         catalog_coords = target_catalog['coord']
         
         matched_catalog, matched_input, unmatched_catalog = self.cross_match(catalog_coords, input_coords, matching_radius_arcsec)
         print(f"Matched {len(matched_catalog)} sources out of {len(input_coords)} input positions.")
         return target_catalog[matched_catalog]
+
+
+    def extract_source_info(self, ra, dec, 
+                            flux_keys=['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4'], 
+                            fluxerr_keys=['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4'], 
+                            matching_radius_arcsec=5.0, 
+                            fit_filter_key=None):
+        """
+        Extract photometry + metadata table for a given position.
+        """
+        if len(flux_keys) != len(fluxerr_keys):
+            raise ValueError("flux_keys and fluxerr_keys must be the same length.")
+
+        selected_source = self.search_source(ra, dec, matching_radius_arcsec)
+        if selected_source is None or len(selected_source) == 0:
+            return None
+
+        # Only take the first row (closest match)
+        target = selected_source[0]
+        records = {
+            key: {k: v for k, v in value.items() if k not in ('ra', 'dec')}
+            for key, value in self.metadata.items()
+        }        
+        skip_cols = []
+
+        for colname in selected_source.colnames:
+            if '_idx' not in colname:
+                skip_cols.append(colname)
+                continue
+            try:
+                key, idx_str = colname.rsplit('_idx', 1)
+                idx = int(idx_str)
+            except:
+                continue
+
+            value = target[colname]
+            records[idx][key] = value
+
+        result_tbl = Table(rows = list(records.values()))
+        for skip_col in skip_cols:
+            result_tbl[skip_col] = target[skip_col]
+        obsdate_object = Time(result_tbl['obsdate'])
+        result_tbl['mjd'] = obsdate_object.mjd
+        result_tbl['jd'] = obsdate_object.jd
+        
+        # Define preferred column groups
+        first_cols = ['ra', 'dec', 'filter', 'exptime', 'obsdate', 'seeing', 'depth']
+        photometry_cols = [col for col in result_tbl.colnames if col.startswith('MAG')]
+        remaining_cols = [col for col in result_tbl.colnames 
+                        if col not in first_cols and col not in photometry_cols]
+
+        # Concatenate in desired order
+        sorted_cols = first_cols + photometry_cols + remaining_cols
+
+        # Reorder the table
+        result_tbl = result_tbl[sorted_cols]
+        self.data = result_tbl
+        
+        return result_tbl
 
     def plot(self, 
              ra: float,
@@ -295,15 +360,16 @@ class PhotometricSpectrum(Helper):
              color_key: str = 'OBSERVATORY',
              overplot_gaiaxp: bool = False,
              overplot_sdss: bool = False,
-             overplot_ps1: bool = False
+             overplot_ps1: bool = False,
+             objname: str = None,
              ):
         """
         Plot photometric spectrum for the given match_id.
         """
-        matched_sources = self.search_sources(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
+        matched_sources = self.search_source(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
         if flux_key + f'_idx0' not in matched_sources.colnames:
-            self.update_data(data_keys=[flux_key, fluxerr_key])
-            matched_sources = self.search_sources(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
+            self.merge_catalogs(data_keys=[flux_key, fluxerr_key])
+            matched_sources = self.search_source(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
             
         if len(matched_sources) == 0:
             print(f"[WARNING] No sources found within {matching_radius_arcsec}\" of RA={ra}, Dec={dec}")
@@ -314,11 +380,12 @@ class PhotometricSpectrum(Helper):
             with self.plt_params.apply():
                 color_cycle = cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 
-                fig, ax = plt.subplots(figsize=(8,6))
                 coord = source['coord']
                 ra_str = coord.ra.to_string(unit=u.hourangle, sep='', pad=True, precision=2)   # HHMMSS.ss
                 dec_str = coord.dec.to_string(sep='', alwayssign=True, pad=True, precision=1)  # ±DDMMSS.s
                 jname = f'J{ra_str}{dec_str}'
+                if objname is None:
+                    objname = jname
                 wavelengths = []
                 fluxes = []
                 errors = []
@@ -366,9 +433,12 @@ class PhotometricSpectrum(Helper):
                 unique_groups = sorted(set(groups))
                 obs_mjds = np.array([Time(g).mjd for g in unique_groups])
                 norm = Normalize(vmin=obs_mjds.min(), vmax=obs_mjds.max())
-                cmap = plt.cm.plasma
+                cmap = plt.cm.jet
                 scalar_map = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
                 group_colors = cmap(norm(obs_mjds))
+                
+                fig_height = 3 + len(unique_groups) * 0.35* self.OFFSET
+                fig, ax = plt.subplots(figsize=(8, fig_height))
                 
                 offset = 0
                 for grp_idx, grp in enumerate(unique_groups):
@@ -381,20 +451,19 @@ class PhotometricSpectrum(Helper):
                     x, y, yerr = x[valid], y[valid], yerr[valid]
                     print(f"[{grp}] valid points: {np.sum(valid)}")
 
-
                     color = group_colors[grp_idx]
-                    ax.plot(x,y, c = 'k', alpha = 0.3)
+                    ax.plot(x,y, c = color, alpha = 0.5)
                     ax.errorbar(x, y, yerr=yerr,
                                 label=grp + f"(+{offset})" if offset !=0 else grp,
                                 **self.plt_params.get_errorbar_kwargs(color=color, shape='s'))
-                    offset += 2
+                    offset += self.OFFSET
                     
                 ax.set_xlabel("Effective Wavelength [nm]")
                 ax.set_ylabel("Magnitude (+ offset)" if "MAG" in flux_key.upper() else "Flux")
                 ax.invert_yaxis() if "MAG" in flux_key.upper() else None
                 ax.grid(True, which='major', alpha=0.3)
                 
-                ax.set_title(f"{jname}")
+                ax.set_title(f"Photometric spectrum for {objname}")
                 if self.plt_params.xlim:
                     ax.set_xlim(*self.plt_params.xlim)
                 if self.plt_params.ylim:
@@ -410,7 +479,7 @@ class PhotometricSpectrum(Helper):
                         print('Only AB magnitudes can be plotted with GAIAXP spectra')
                     else:
                         self.externaldata.change_catalog('GAIAXP')
-                        gaiaxp_data = self.externaldata.query_catalog(coord = coord, radius_arcsec=matching_radius_arcsec)
+                        gaiaxp_data = self.externaldata.query(coord = coord, radius_arcsec=matching_radius_arcsec)
                         if len(gaiaxp_data) > 0:
                             gaiaxp_spec_tbl = gaiaxp_data[0]
                             closest_source_id = gaiaxp_spec_tbl['Source'][0]
@@ -429,7 +498,7 @@ class PhotometricSpectrum(Helper):
                             ax.legend(loc = 'best')
                         else:
                             ax.plot([], [], ' ', label='GaiaXP (No data)')  # Invisible point with label
-                            print(f"[WARNING] No GAIAXP data found for {jname} within {matching_radius_arcsec}\"")
+                            print(f"[WARNING] No GAIAXP data found for {objname} within {matching_radius_arcsec}\"")
                             overplot_gaiaxp = False
                             
                 if overplot_sdss:
@@ -437,7 +506,7 @@ class PhotometricSpectrum(Helper):
                         print('Only AB magnitudes can be plotted with SDSS spectra')
                     else:
                         self.externaldata.change_catalog('SDSS')
-                        sdss_data = self.externaldata.query_catalog(coord = coord, radius_arcsec=matching_radius_arcsec)
+                        sdss_data = self.externaldata.query(coord = coord, radius_arcsec=matching_radius_arcsec)
                         if len(sdss_data) > 0:
                             sdss_source = sdss_data[0][0]
                             sdss_bands = ['u', 'g', 'r', 'i', 'z']
@@ -464,7 +533,7 @@ class PhotometricSpectrum(Helper):
 
                         else:
                             ax.plot([], [], ' ', label='SDSS (No data)')  # Invisible point with label
-                            print(f"[WARNING] No SDSS data found for {jname} within {matching_radius_arcsec}\"")
+                            print(f"[WARNING] No SDSS data found for {objname} within {matching_radius_arcsec}\"")
                             overplot_sdss = False
 
                 if overplot_ps1:
@@ -472,7 +541,7 @@ class PhotometricSpectrum(Helper):
                         print('Only AB magnitudes can be plotted with SDSS spectra')
                     else:
                         self.externaldata.change_catalog('PS1')
-                        ps1_data = self.externaldata.query_catalog(coord = coord, radius_arcsec=matching_radius_arcsec)
+                        ps1_data = self.externaldata.query(coord = coord, radius_arcsec=matching_radius_arcsec)
                         if len(ps1_data) > 0:
                             ps1_source = ps1_data[0][0]
                             sdss_bands = ['u', 'g', 'r', 'i', 'z', 'y']
@@ -500,11 +569,11 @@ class PhotometricSpectrum(Helper):
 
                         else:
                             ax.plot([], [], ' ', label='PS1 (No data)')  # Invisible point with label
-                            print(f"[WARNING] No SDSS data found for {jname} within {matching_radius_arcsec}\"")
+                            print(f"[WARNING] No SDSS data found for {objname} within {matching_radius_arcsec}\"")
                             overplot_ps1 = False
 
                 if (len(unique_groups) > 1) or (overplot_gaiaxp or overplot_sdss, overplot_ps1):
-                    ax.legend(loc='best', ncol = 2)
+                    ax.legend(loc= self.plt_params.label_position, ncol=self.plt_params.ncols, fontsize=self.plt_params.legend_fontsize)
                 figs.append(fig)
                 axes.append(ax)
                 plt.show()
@@ -516,31 +585,54 @@ class PhotometricSpectrum(Helper):
 if __name__ == "__main__":
     source_catalogs = TIPCatalogDataset()
     source_catalogs.search_catalogs(
-        target_name = 'T01462',
-        search_key = 'calib*100.com.fits.circ.cat'
+        target_name = 'T22956',
+        search_key = 'calib*com.fits.cat'
      )    
-# %%
-if __name__ == "__main__":
     ra = 233.857430764 
     dec = 12.0577222937
-    ra = 233.7658333
-    dec = 11.9574303
-    ra = 233.322342 # S250206dm for T01462
-    dec = -68.007909
-    source_catalogs.select_catalogs(obs_start = '2025-02-12', obs_end = '2025-02-13')
-    #source_catalogs.select_sources(ra, dec, radius = 10)
+    source_catalogs.select_sources(ra, dec, radius = 10)
+# %%
+if __name__ == "__main__":
+    # source_catalogs.exclude_catalogs(
+    #        telname = '7DT10'
+    # )
+    # source_catalogs.select_catalogs(obs_start = '2025-03-28', obs_end = '2025-06-14', 
+    #                                 filter = list(PhotometricSpectrum.EFFECTIVE_WAVELENGTHS_NM.keys())[:40])
+    from astropy.table import Table
+    target = self.catalogs_tbl[0]
+    # Initialize empty lists to store combined values
+    obsdates = []
+    mags = []
+    magerrs = []
+    filters = []
 
+    target = self.catalogs_tbl[0]
+
+    # Iterate over all columns to gather data by filter
+    for colname in target.colnames:
+        if flux_key in colname:
+            idx = int(colname.split('_idx')[1])
+            meta = self.metadata[idx]
+            filt = meta['filter']
+            if filt not in fit_filter_key:
+                continue
+            # Append data
+            obsdates.append(Time(meta['obsdate']).mjd)
+            mags.append(target[colname])
+            magerrs.append(target[colname.replace(flux_key, fluxerr_key)])
+            filters.append(filt)
 #%%
 if __name__ == "__main__":
     self = PhotometricSpectrum(source_catalogs)
+    self.OFFSET = 1.5
 #%%
-    self.update_data()
-    self.plt_params.ylim = [25, 17]
+    self.merge_catalogs()
+    #self.plt_params.ylim = [22, 10]
 # %%
 if __name__ == "__main__":
 
-    flux_key = 'MAGSKY_APER_1'
-    fluxerr_key = 'MAGERR_APER_1'
+    flux_key = 'MAGSKY_AUTO'
+    fluxerr_key = 'MAGERR_AUTO'
     matching_radius_arcsec = 10
     color_key: str = 'OBSDATE'
     overplot_gaiaxp = False
@@ -554,5 +646,6 @@ if __name__ == "__main__":
                           matching_radius_arcsec=matching_radius_arcsec,
                           overplot_gaiaxp=overplot_gaiaxp,
                           overplot_sdss = overplot_sdss,
-                          overplot_ps1 = overplot_ps1)
+                          overplot_ps1 = overplot_ps1,
+                          objname = 'SN 2025fvw')
 # %%

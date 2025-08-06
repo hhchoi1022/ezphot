@@ -1,8 +1,8 @@
 
 
 #%%
-from tippy.photometry import *
-from tippy.imageojbects import *
+from tippy.methods import *
+from tippy.imageobjects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tippy.helper import TIPDataBrowser
@@ -42,7 +42,6 @@ databrowser.objname = 'NGC1566'
 databrowser.keys
 
 #%% Load the data
-
 target_imglist = databrowser.search(pattern='Calib*60.fits', return_type='science')
 #%%
 ### CONFIOGURATION FOR SINGLE IMAGE PROCESSING
@@ -134,8 +133,9 @@ errormap_mask_kwargs = dict(
 do_aperturephotometry = True
 aperturephotometry_kwargs = dict(
     sex_params = None,
-    detection_sigma = 1.5,
+    detection_sigma = 5,
     aperture_diameter_arcsec = [7,12,15],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     saturation_level = 35000,
     kron_factor = 2.5,
     save = save,
@@ -150,10 +150,6 @@ photometriccalibration_kwargs = dict(
     max_distance_second = 7,
     calculate_color_terms = True,
     calculate_mag_terms = True,
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 10,
-    snr_upper = 500,
     classstar_lower = 0.5,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -164,9 +160,9 @@ photometriccalibration_kwargs = dict(
     maskflag_upper = 1,
     inner_fraction = 0.8, # Fraction of the images
     isolation_radius = 15.0,
-    magnitude_key = 'MAG_APER_1',
-    flux_key = 'FLUX_APER_1',
-    fluxerr_key = 'FLUXERR_APER_1',
+    magnitude_key = 'MAG_AUTO',
+    flux_key = 'FLUX_AUTO',
+    fluxerr_key = 'FLUXERR_AUTO',
     fwhm_key = 'FWHM_IMAGE',
     x_key = 'X_IMAGE',
     y_key = 'Y_IMAGE',
@@ -202,7 +198,7 @@ stacking_kwargs = dict(
     # Scale parameters
     scale = True,
     scale_type = 'min',
-    zp_key = 'ZP_APER_1',
+    zp_key = 'ZP_APER_4',
     # Convolution parameters
     convolve = False,
     seeing_key = 'SEEING',
@@ -210,60 +206,7 @@ stacking_kwargs = dict(
     # Other parameters
     verbose = verbose,
     save = save
-    )
-#%%
-### CONFIGURATION FOR STACKED IMAGE PROCESSING
-
-stack_aperturephotometry_kwargs = dict(
-    sex_params = None,
-    detection_sigma = 5,
-    aperture_diameter_arcsec = [7,12,15],
-    saturation_level = 35000,
-    kron_factor = 2.5,
-    save = save,
-    verbose = verbose,
-    visualize = visualize,
-    save_fig = save_fig,
 )
-
-stack_photometriccalibration_kwargs = dict(
-    catalog_type = 'APASS',
-    max_distance_second = 7.0,
-    calculate_color_terms = True,
-    calculate_mag_terms = True,
-
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 20,
-    snr_upper = 500,
-    classstar_lower = 0.5,
-    elongation_upper = 3,
-    elongation_sigma = 5,
-    fwhm_lower = 1,
-    fwhm_upper = 15,
-    fwhm_sigma = 5,
-    flag_upper = 1,
-    maskflag_upper = 1,
-    inner_fraction = 0.8, # Fraction of the images
-    isolation_radius = 10.0,
-    magnitude_key = 'MAG_APER_1',
-    flux_key = 'FLUX_APER_1',
-    fluxerr_key = 'FLUXERR_APER_1',
-    fwhm_key = 'FWHM_IMAGE',
-    x_key = 'X_IMAGE',
-    y_key = 'Y_IMAGE',
-    classstar_key = 'CLASS_STAR',
-    elongation_key = 'ELONGATION',
-    flag_key = 'FLAGS',
-    maskflag_key = 'IMAFLAGS_ISO',
-    save = save,
-    verbose = verbose,
-    visualize = visualize,
-    save_fig = save_fig,
-    save_starcat = False,
-    save_refcat = True,
-)
-
 #%%
 # Set telescope information
 # Define the image processing function
@@ -406,6 +349,7 @@ def imgprocess(target_img):
     if do_aperturephotometry:
         try:
             # Perform aperture photometry
+
             sex_catalog = AperturePhotometry.sex_photometry(
                 target_img = target_img,
                 target_bkg = target_bkg,
@@ -476,22 +420,68 @@ def process_batch(batch_images, batch_index, max_workers=16):
     return results
 
 # ? Main loop over batches
-batch_size = 96
+batch_size = 16
 all_results = []
 
 for batch_index, batch in enumerate(chunk_list(target_imglist, batch_size)):
-    batch_results = process_batch(batch, batch_index, max_workers=24)
+    batch_results = process_batch(batch, batch_index, max_workers=17)
     all_results.extend(batch_results)
 
+#%%
+### CONFIGURATION FOR STACKED IMAGE PROCESSING
+
+stack_aperturephotometry_kwargs = dict(
+    sex_params = None,
+    detection_sigma = 5,
+    aperture_diameter_arcsec = [7,12,15],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
+    saturation_level = 35000,
+    kron_factor = 2.5,
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
+)
+
+stack_photometriccalibration_kwargs = dict(
+    catalog_type = 'APASS',
+    max_distance_second = 5,
+    calculate_color_terms = True,
+    calculate_mag_terms = True,
+    classstar_lower = 0.5,
+    elongation_upper = 3,
+    elongation_sigma = 5,
+    fwhm_lower = 1,
+    fwhm_upper = 15,
+    fwhm_sigma = 5,
+    flag_upper = 1,
+    maskflag_upper = 1,
+    inner_fraction = 0.8, # Fraction of the images
+    isolation_radius = 15.0,
+    magnitude_key = 'MAG_AUTO',
+    flux_key = 'FLUX_AUTO',
+    fluxerr_key = 'FLUXERR_AUTO',
+    fwhm_key = 'FWHM_IMAGE',
+    x_key = 'X_IMAGE',
+    y_key = 'Y_IMAGE',
+    classstar_key = 'CLASS_STAR',
+    elongation_key = 'ELONGATION',
+    flag_key = 'FLAGS',
+    maskflag_key = 'IMAFLAGS_ISO',
+    save = save,
+    verbose = verbose,
+    visualize = visualize,
+    save_fig = save_fig,
+    save_refcat = True,
+)
 #%%
 databrowser = TIPDataBrowser('scidata')
 databrowser.observatory = 'RASA36'
 databrowser.objname = 'NGC1566'
-databrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
+databrowser.telkey = 'RASA36_KL4040_MERGE_1x1'
 # Stack the images
 imginfo_all = databrowser.search(pattern='Calib*60.fits', return_type='imginfo')
 imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
-#target_imglist = databrowser.search(pattern='Calib*60.fits', return_type='science')
  #%%
 stack_imglist = []
 stack_bkgrmslist = []
@@ -534,14 +524,11 @@ for imginfo_group in imginfo_groups:
             failed_imglist.extend(target_imglist)
             continue
 #%%
-def stackprocess(stack_path, stack_bkgrmspath, telinfo):
-    stack_img = ScienceImage(path=stack_path, telinfo=telinfo, load=True)
-    stack_bkgrms = Errormap(path=stack_bkgrmspath, emaptype='bkgrms', load=True)
+def stackprocess(stack_img):
+    stack_bkgrms = Errormap(path = stack_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
     stacked_status = dict()
     try:
         # Perform aperture photometry
-        aperturephotometry_kwargs = stack_aperturephotometry_kwargs.copy()
-        aperturephotometry_kwargs['aperture_diameter_arcsec'].extend([2.5* stack_img.seeing, 3.5*stack_img.seeing])
         sex_catalog = AperturePhotometry.sex_photometry(
             target_img = stack_img,
             target_bkg = None,
@@ -567,19 +554,25 @@ def stackprocess(stack_path, stack_bkgrmspath, telinfo):
     stack_img.data = None
     stack_bkgrms.data = None
     gc.collect()
-    return stack_img, stack_bkgrms, calib_catalog, stacked_status
+    return stacked_status
 #%%
-stack_imglist = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
-stack_bkgrmslist = [Errormap(path=stack_img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for stack_img in stack_imglist]
-telinfo = helper.estimate_telinfo(stack_imglist[0].path)
+databrowser = TIPDataBrowser('scidata')
+databrowser.observatory = 'RASA36'
+databrowser.objname = 'NGC1566'
+databrowser.telkey = 'RASA36_KL4040_MERGE_1x1'
+stack_imgset = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
+stack_imglist = stack_imgset.target_images
+stack_bkgrmslist = stack_imgset.bkgrms
 #%%
-arglist = [(stack_img.path, stack_bkgrms.path, helper.estimate_telinfo(stack_img.path)) for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist)]
-with ProcessPoolExecutor(max_workers=10) as executor:
+arglist = stack_imglist
+all_results = []
+with ProcessPoolExecutor(max_workers=16) as executor:
     failed_stacked_path = []
-    futures = [executor.submit(stackprocess, *args) for args in arglist]
+    futures = [executor.submit(stackprocess, args) for args in arglist]
     for future in tqdm(as_completed(futures), total=len(futures)):
         try:
             result = future.result()
+            all_results.append(result)
         except Exception as e:
             print(f"[ERROR] {e}")
 # %%
@@ -590,11 +583,13 @@ from tippy.dataobjects import LightCurve
 from tippy.catalog import TIPCatalog
 from tippy.catalog import TIPCatalogDataset
 # %%
+
 catalogdataset = TIPCatalogDataset()
 catalogdataset.search_catalogs('NGC1566', 'Calib*60.com.fits.cat', folder = '/home/hhchoi1022/data/scidata/RASA36/RASA36_KL4040_HIGH_1x1')
 catalogdataset.select_sources(ra = 64.9725, dec= -54.948081)
 # %%
 lc = LightCurve(catalogdataset)
+lc.merge_catalogs()
 #%%
 for catalog in lc.source_catalogs.catalogs:
     catalog.load_target_img()
@@ -603,6 +598,136 @@ lc.plt_params.figure_figsize = (10, 6)
 lc.plt_params.xlim= [59500, 59700]
 lc.plt_params.ylim = [20, 11]
 lc.plot(ra = 64.9729, dec= -54.948381, matching_radius_arcsec = 10,)
+# %% Reference image
+databrowser.observatory = 'RASA36'
+databrowser.objname = 'NGC1566'
+databrowser.telkey = 'RASA36_KL4040_MERGE_1x1'
+reference_singleimgset = databrowser.search(pattern='Calib*60.fits', return_type='science')
+reference_singleimglist = reference_singleimgset.target_images
 # %%
+reference_singleimglist_selected = Stacking.select_quality_images(
+    reference_singleimglist, 
+    max_obsdate = '2021-10-20',
+    max_numbers = 60,
+    visualize = True,
+    weight_ellipticity = 1,
+    weight_seeing= 1,
+    weight_depth = 1,
+    seeing_limit = 4,
+    depth_limit = 18.0
+)
+reference_singlepathlist = [img.path for img in reference_singleimglist_selected]
+# %%
+reference_singlebkglist_selected = [Background(path = img.savepath.bkgpath, load = True) for img in reference_singleimglist_selected]
+reference_singlebkgrmslist_selected = [Errormap(path = img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True) for img in reference_singleimglist_selected] 
+reference_img, reference_bkgrms = Stacking.stack_multiprocess(
+    target_imglist = reference_singleimglist_selected,
+    target_bkglist = reference_singlebkglist_selected,
+    target_bkgrmslist = reference_singlebkgrmslist_selected,
+    **stacking_kwargs
+)
+# %%
+telinfo = helper.estimate_telinfo(reference_img.path)
+reference_img, reference_bkgrms, _, _ = stackprocess(reference_img, reference_bkgrms, telinfo)
+# %%
+reference_img = reference_img.to_referenceimage()
+#%%
+reference_img.register()
+# %%
+DIA_kwargs = dict(
+    detection_sigma = 5,
+    aperture_diameter_arcsec = [7,12,15],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
+    target_transient_number = 5,
+    reject_variable_sources = True,
+    negative_detection = True,
+    reverse_subtraction = False,
+    save = True,
+    verbose = False,
+    visualize = False, #False
+    save_transient_figure = True,
+    save_candidate_figure = True,
+    show_transient_numbers = 100,
+    show_candidate_numbers = 100,
+    iu = 60000,
+    il = -10000,
+    tu = 60000,
+    tl = -10000,
+    )
 
+databrowser = TIPDataBrowser('scidata')
+databrowser.observatory = 'RASA36'
+databrowser.telkey = 'RASA36_KL4040_MERGE_1x1'
+databrowser.objname = 'NGC1566'
+stacked_imgset = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
+stacked_imglist = stacked_imgset.target_images
+from tippy.methods import TIPSubtraction
+DIA = TIPSubtraction()
+#%%
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+
+failed_images = []
+successful_results = []
+
+def subtract_process(target_img):
+    try:
+        reference_img = DIA.get_referenceframe_from_image(target_img)[0]
+        result = DIA.find_transients(
+            target_img=target_img, 
+            reference_imglist=[reference_img],
+            target_bkg=None,
+            **DIA_kwargs
+        )
+        del reference_img
+        del target_img
+        return result
+    except Exception as e:
+        target_img.data = None  # Optional: clear large data
+        target_img._error = str(e)  # Store the error message if needed
+        return target_img  # Return failed image as indicator
+
+#%%
+# Run with multiprocessing
+c = []
+with ProcessPoolExecutor(max_workers=8) as executor:
+    futures = [executor.submit(subtract_process, img) for img in stacked_imglist]
+    for future in tqdm(as_completed(futures), total=len(futures)):
+        result = future.result()
+        if hasattr(result, "_error"):  # failed image
+            failed_images.append(result)
+        else:  # successful
+            c.append(result)
+# %%
+from tippy.dataobjects import LightCurve
+from tippy.catalog import TIPCatalog
+from tippy.catalog import TIPCatalogDataset
+catalogdataset_high = TIPCatalogDataset()
+catalogdataset_merge = TIPCatalogDataset()
+catalogdataset_high.search_catalogs('NGC1566', 'sub*transient', folder = '/home/hhchoi1022/data/scidata/RASA36/RASA36_KL4040_HIGH_1x1')
+catalogdataset_merge.search_catalogs('NGC1566', 'sub*transient', folder = '/home/hhchoi1022/data/scidata/RASA36/RASA36_KL4040_MERGE_1x1')
+
+catalogdataset_high.select_sources(ra = 64.9725, dec= -54.948081)
+catalogdataset_merge.select_sources(ra = 64.9725, dec= -54.948081)
+catalogdataset_all = TIPCatalogDataset(catalogdataset_high.catalogs + catalogdataset_merge.catalogs)
+#%%
+catalogdataset_kct = TIPCatalogDataset()
+catalogdataset_kct.search_catalogs('NGC1566', 'sub*transient', folder = '/home/hhchoi1022/data/scidata/KCT/KCT_STX16803_1x1')
+catalogdataset_kct.select_sources(ra = 64.9725, dec= -54.948081)
+catalogdataset_all = TIPCatalogDataset(catalogdataset_all.catalogs + catalogdataset_kct.catalogs)
+# %%
+catalogdataset_all.select_catalogs(filter = 'r')
+lc = LightCurve(catalogdataset_all)
+lc.merge_catalogs()
+
+# %%
+lc.plt_params.figure_figsize = (10, 6)
+lc.plt_params.xlim= [59600, 59700]
+lc.plt_params.ylim = [16.5, 14.5]
+lc.plot(ra = 64.9729, dec= -54.948381, matching_radius_arcsec = 10, color_key = 'OBSERVATORY')
+# %%
+lc.plt_params.figure_figsize = (10, 6)
+lc.plt_params.xlim= [59500, 59750]
+lc.plt_params.ylim = [20, 11]
+lc.plot(ra = 64.9729, dec= -54.948381, matching_radius_arcsec = 10, color_key = 'OBSERVATORY')
 # %%

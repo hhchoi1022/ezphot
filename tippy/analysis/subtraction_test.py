@@ -4,7 +4,7 @@
 
 #%%
 from tippy.imageojbects import *
-from tippy.photometry import TIPSubtraction, TIPStacking
+from tippy.methods import TIPSubtraction, TIPStacking
 from tippy.utils import *
 from tippy.helper import Helper
 import numpy as np
@@ -103,7 +103,7 @@ DIA.show_transient_positions(
 C = transient_catalog.search_sources(241.624307, -70.3271458)[0]
 #%%
 #subframe_subtracted_img = ScienceImage('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01158/7DT03/r/sub_coadd_calib_7DT03_T01158_20250208_044740_r_100.com_subframe_0.fits', telinfo = telinfo, load = True)
-from tippy.photometry import TIPAperturePhotometry
+from tippy.methods import TIPAperturePhotometry
 TIPAperturePhotometry = TIPAperturePhotometry()
 A = TIPAperturePhotometry.circular_photometry(
     target_img = subframe_subtracted_img,
@@ -117,7 +117,7 @@ A = TIPAperturePhotometry.circular_photometry(
     save_fig = True
 )
 #%%
-from tippy.photometry import TIPPhotometricCalibration
+from tippy.methods import TIPPhotometricCalibration
 TIPPhotometricCalibration = TIPPhotometricCalibration()
 B = TIPPhotometricCalibration.apply_zp(
     target_img = subframe_subtracted_img,

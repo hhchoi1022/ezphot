@@ -43,8 +43,8 @@ from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
 from tippy.methods import TIPBackground, TIPMasking, TIPErrormap
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage
-from tippy.imageojbects import Background, Mask, Errormap
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
+from tippy.imageobjects import Background, Mask, Errormap
 from tippy.catalog.utils import *
 
 class TIPPSFPhotometry(Helper):
@@ -74,7 +74,7 @@ class TIPPSFPhotometry(Helper):
                         verbose: bool = True,
                         visualize: bool = True,
                         
-                        mag_key: str = 'MAG_APER',
+                        mag_key: str = 'MAG_AUTO',
                         flux_key: str = 'FLUX_APER',
                         fluxerr_key: str = 'FLUXERR_APER',
                         fwhm_key: str = 'FWHM_IMAGE',
@@ -114,7 +114,7 @@ class TIPPSFPhotometry(Helper):
         verbose: bool = True
         visualize: bool = True
         
-        mag_key: str = 'MAG_APER'
+        mag_key: str = 'MAG_AUTO'
         fwhm_key: str = 'FWHM_IMAGE'
         x_key: str = 'X_IMAGE'
         y_key: str = 'Y_IMAGE'
@@ -431,7 +431,7 @@ class TIPPSFPhotometry(Helper):
         aperture_diameter_pixel = aperture_diameter_arcsec / pixelscale
         aper_phot = cat.circular_photometry(radius=aperture_diameter_pixel/2)
         new_objects['FLUX_APER'] = aper_phot[0]
-        new_objects['MAG_APER'] = -2.5 * np.log10(new_objects['FLUX_APER'])
+        new_objects['MAG_AUTO'] = -2.5 * np.log10(new_objects['FLUX_APER'])
         new_objects['MAG_AUTO'] = -2.5 * np.log10(new_objects['FLUX_AUTO'])
         if error is not None:
             new_objects['FLUXERR_APER'] = aper_phot[1]
@@ -1392,113 +1392,3 @@ class TIPPSFPhotometry(Helper):
                     catalog[new_key] = np.full(len(catalog), np.nan)
         catalog = Table({name: catalog[name].value for name in catalog.colnames})
         return catalog
-
-# %%
-if __name__ == "__main__":
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/NGC6121/7DT05/m550/calib_7DT05_NGC6121_20240722_010054_m550_100.com.fits'
-    target_bkgrmspath = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/NGC6121/7DT05/m550/calib_7DT05_NGC6121_20240722_010054_m550_100.com.fits.bkgrms'
-
-    #target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/NGC6121/7DT06/m600/calib_7DT06_NGC6121_20240722_010055_m600_100.fits'
-    self = TIPPSFPhotometry()
-    target_img  = ScienceImage(target_path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    target_sourcemask = Mask(path = target_img.savepath.maskpath, masktype = 'source', load = True)
-    #target_bkg = Background(path = target_img.savepath.bkgpath, load = True)    
-    target_bkgrms =  Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
-    target_mask: Optional[Mask] = None # For masking certain source (such as hot pixels)
-    sources = None
-    
-    # Make EPSF Model
-    epsf_model = self.build_epsf_model_psfex(
-        target_img = target_img,
-        target_bkg = None,
-        target_bkgrms = target_bkgrms,
-        target_mask = None,
-        detection_sigma = 5.0,
-        minarea_pixels = 5,
-        fwhm_estimate_pixel = 5.0,
-        saturation_level = 40000,
-        psf_size = 25,
-        num_grids = 1,
-        oversampling = 1,
-        eccentricity_upper = 0.4,
-        visualize = True
-    )
-    # sources, target_img_subbkg = self.extract_sources(
-    #     target_img = target_img,
-    #     target_bkg = target_bkg,
-    #     target_bkgrms = target_bkgrms,
-    #     target_mask = target_mask,
-    #     detection_sigma = 5.0,
-    #     minarea_pixels = 5,
-    #     fwhm_estimate_pixel = 5.0,
-    #     visualize = True
-    # )
-    
-    # stars = self.select_psfstars(
-    #     target_catalog = sources,
-    #     image_shape = target_img_subbkg.data.shape,
-    #     num_grids = 1,
-    #     max_per_grid = 30,
-    #     mag_upper = -12,
-    #     mag_lower = -15,
-    #     eccentricity_upper = None,
-    #     eccentricity_sigma = 5,
-    #     fwhm_lower = 2,
-    #     fwhm_sigma = 5,
-    #     inner_fraction=0.9,
-    #     isolation_radius = 30.0,
-    #     verbose = True,
-    #     visualize = True)
-
-    
-    # epsf_model = self.build_epsf_model(
-    #     image_data = target_img_subbkg.data,
-    #     sources = stars,
-    #     num_grids = 4,
-    #     fwhm_estimate_pixel = 5.0,
-    #     oversampling = 4,
-    #     min_stars_per_grid = 10,
-    #     verbose = True,
-    #     visualize = True
-    # )
-    
-    # psf_cat = self.psf_photometry(
-    #     target_img = target_img,
-    #     epsf_model_dict = epsf_model,
-    #     sources = sources,
-    #     target_bkg = None,
-    #     target_bkgrms = target_bkgrms,
-    #     target_mask = target_mask,
-    #     detection_sigma = 5.0,
-    #     minarea_pixels = 5,
-    #     fwhm_estimate_pixel = 5.0,
-    #     oversampling = 4,
-    #     visualize = True,
-    #     verbose = True,
-    #     save = True,        
-    #     apply_aperture_correction = True
-    # )
-        
-    """
-        target_img = target_img
-        epsf_model_dict = epsf_model
-        sources = None
-        target_bkg = None
-        target_bkgrms = target_bkgrms
-        target_mask = None
-        detection_sigma = 5.0
-        minarea_pixels = 5
-        deblend_nlevels = 32
-        deblend_contrast = 0.003
-        fwhm_estimate_pixel = 5.0
-        oversampling = 1
-        visualize = True
-        verbose = True
-        save = True,       
-        apply_aperture_correction = True
-            
-            """
-    
-    
-# %%
-# Test EPSFModel

@@ -19,8 +19,8 @@ import numexpr as ne
 from tippy.helper import Helper
 from tippy.methods import TIPBackground
 from tippy.methods import TIPMasking
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage 
-from tippy.imageojbects import Mask, Errormap, Background
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage 
+from tippy.imageobjects import Mask, Errormap, Background
 #%%
 class TIPErrormap(Helper): ############## CHECKED ##############
     def __init__(self):
@@ -178,7 +178,7 @@ class TIPErrormap(Helper): ############## CHECKED ##############
             sbias_var = mbias_var * ncombine_bias  # in ADU^2
             readout_noise = np.sqrt(sbias_var)  # Readout noise in ADU
         else:
-            RN = readout_noise **2 # in ADU^2
+            sbias_var = readout_noise **2 # in ADU^2
             pass
         
         # --- Readout noise from master dark ---
@@ -547,42 +547,3 @@ if __name__ == '__main__':
         save = True,
         visualize = True
     )
-
-#%%
-if __name__ == '__main__':
-    from tippy.utils import SDTData
-    filelist_dict = SDTData().show_scisourcedata('T00176')
-    target_path = Path(filelist_dict['g'][0])
-    self = TIPErrormap()
-    target_mask = None#Mask(str(target_path) + '.mask', load = True)
-    target_img =  ScienceImage(
-        path = target_path,
-        telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', '1'),
-        load = True)
-    box_size: int = 128
-    filter_size: int = 3
-    errormap_type = 'total'
-
-    # Iterative background estimation
-    n_iterations: int = 0
-    mask_sigma: float = 3.0
-    mask_radius_factor: float = 3
-    mask_saturation_level: float = 50000
-    
-    # Others
-    verbose: bool = True
-    visualize: bool = True
-    save: bool = True
-    self.calculate_from_sourcemask(target_img = target_img,
-                                target_mask = target_mask,
-                                box_size = box_size,
-                                filter_size = filter_size,
-                                errormap_type = 'total',
-                                n_iterations = n_iterations,
-                                mask_sigma = mask_sigma,
-                                mask_radius_factor = mask_radius_factor,
-                                mask_saturation_level = mask_saturation_level,
-                                verbose = verbose,
-                                visualize = visualize,
-                                save = save)
-#%%

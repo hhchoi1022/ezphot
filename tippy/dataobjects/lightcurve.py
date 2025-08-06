@@ -17,7 +17,7 @@ from itertools import cycle
 from tippy.utils import SDTData
 from tippy.catalog import TIPCatalog, TIPCatalogDataset
 from tippy.helper import Helper
-from tippy.image import ScienceImage
+from tippy.imageobjects import ScienceImage
 from tippy.utils import ExternalData
 
 import matplotlib.pyplot as plt
@@ -34,7 +34,7 @@ class LightCurve(Helper):
         if not isinstance(source_catalogs, TIPCatalogDataset):
             raise TypeError("source_catalogs must be an instance of TIPCatalogDataset")
         self.source_catalogs = source_catalogs
-        self.data = None
+        self.catalogs_tbl = None
         self.plt_params = self._plt_params()
         self.externaldata = ExternalData(catalog_key = None)
         
@@ -165,6 +165,10 @@ class LightCurve(Helper):
                 self.xticks = None
                 self.yticks = None
                 
+                # label parameters
+                self.label_position = 'best'
+                self.ncols = 2
+                
                 # Error bar parameters
                 self.errorbar_enabled = True  # Optional switch
                 self.errorbar_markersize = 7
@@ -180,7 +184,7 @@ class LightCurve(Helper):
                 raise AttributeError(f"'PlotParams' object has no attribute '{name}'")
 
             def __setattr__(self, name, value):
-                if name.startswith('_') or name in ('xlim', 'ylim', 'xticks', 'yticks', 'errorbar_capsize', 'errorbar_elinewidth', 'errorbar_markersize', 'errorbar_enabled', 'errorbar_hollow_marker'):
+                if name.startswith('_') or name in ('xlim', 'ylim', 'xticks', 'yticks', 'errorbar_capsize', 'errorbar_elinewidth', 'errorbar_markersize', 'errorbar_enabled', 'errorbar_hollow_marker', 'label_position', 'ncols'):
                     super().__setattr__(name, value)
                 else:
                     rc_name = name.replace('_', '.')
@@ -268,41 +272,99 @@ class LightCurve(Helper):
             self.source_catalogs = TIPCatalogDataset(catalogs=updated_catalogs)
         print(f"Total {len(succeeded_catalogs)} catalogs loaded successfully.")
     
-    def update_data(self,
-                    ra_key: str = 'X_WORLD',
-                    dec_key: str = 'Y_WORLD',
-                    max_distance_arcsec: float = 2,
-                    join_type: str = 'outer',
-                    data_keys: list = ['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MASERR_APER', 'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2', 'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC']):
-        self.data, self.metadata = self.source_catalogs.merge_catalogs(
+    def merge_catalogs(self,
+                       ra_key: str = 'X_WORLD',
+                       dec_key: str = 'Y_WORLD',
+                       max_distance_arcsec: float = 2,
+                       join_type: str = 'outer',
+                       data_keys: list = ['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MASERR_APER', 'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2', 'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC']):
+        self.catalogs_tbl, self.metadata = self.source_catalogs.merge_catalogs(
             max_distance_arcsec=max_distance_arcsec,
             ra_key=ra_key,
             dec_key=dec_key,
             join_type=join_type,
             data_keys=data_keys)
         
-    def search_sources(self, 
-                       ra: Union[float, list, np.ndarray],
-                       dec: Union[float, list, np.ndarray],
-                       matching_radius_arcsec: float = 5.0):
+    def search_source(self, 
+                      ra: Union[float, list, np.ndarray],
+                      dec: Union[float, list, np.ndarray],
+                      matching_radius_arcsec: float = 5.0):
         """
         Match input positions to a catalog using cKDTree (fast) for both pixel and sky coordinates.
         Returns matched catalog sorted by separation, along with separations (arcsec) and indices.
         """
-        if self.data is None:
-            self.update_data(max_distance_arcsec=matching_radius_arcsec)
+        if self.catalogs_tbl is None:
+            self.merge_catalogs(max_distance_arcsec=matching_radius_arcsec)
 
         ra = np.atleast_1d(ra)
         dec = np.atleast_1d(dec)
         input_coords = SkyCoord(ra=ra, dec=dec, unit='deg')
         
-        target_catalog = self.data
+        target_catalog = self.catalogs_tbl
         catalog_coords = target_catalog['coord']
         
         matched_catalog, matched_input, unmatched_catalog = self.cross_match(catalog_coords, input_coords, matching_radius_arcsec)
         print(f"Matched {len(matched_catalog)} sources out of {len(input_coords)} input positions.")
         return target_catalog[matched_catalog]
 
+    def extract_source_info(self, ra, dec, 
+                            flux_keys=['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4'], 
+                            fluxerr_keys=['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4'], 
+                            matching_radius_arcsec=5.0, 
+                            fit_filter_key=None):
+        """
+        Extract photometry + metadata table for a given position.
+        """
+        if len(flux_keys) != len(fluxerr_keys):
+            raise ValueError("flux_keys and fluxerr_keys must be the same length.")
+
+        selected_source = self.search_source(ra, dec, matching_radius_arcsec)
+        if selected_source is None or len(selected_source) == 0:
+            return None
+
+        # Only take the first row (closest match)
+        target = selected_source[0]
+        records = {
+            key: {k: v for k, v in value.items() if k not in ('ra', 'dec')}
+            for key, value in self.metadata.items()
+        }        
+        skip_cols = []
+
+        for colname in selected_source.colnames:
+            if '_idx' not in colname:
+                skip_cols.append(colname)
+                continue
+            try:
+                key, idx_str = colname.rsplit('_idx', 1)
+                idx = int(idx_str)
+            except:
+                continue
+
+            value = target[colname]
+            records[idx][key] = value
+
+        result_tbl = Table(rows = list(records.values()))
+        for skip_col in skip_cols:
+            result_tbl[skip_col] = target[skip_col]
+        obsdate_object = Time(result_tbl['obsdate'])
+        result_tbl['mjd'] = obsdate_object.mjd
+        result_tbl['jd'] = obsdate_object.jd
+        
+        # Define preferred column groups
+        first_cols = ['ra', 'dec', 'filter', 'exptime', 'obsdate', 'seeing', 'depth']
+        photometry_cols = [col for col in result_tbl.colnames if col.startswith('MAG')]
+        remaining_cols = [col for col in result_tbl.colnames 
+                        if col not in first_cols and col not in photometry_cols]
+
+        # Concatenate in desired order
+        sorted_cols = first_cols + photometry_cols + remaining_cols
+
+        # Reorder the table
+        result_tbl = result_tbl[sorted_cols]
+        self.data = result_tbl
+        
+        return result_tbl
+    
     def plot(self, 
              ra: float,
              dec: float,
@@ -317,10 +379,10 @@ class LightCurve(Helper):
         """
         Plot photometric spectrum for the given match_id.
         """
-        matched_sources = self.search_sources(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
+        matched_sources = self.search_source(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
         if flux_key + f'_idx0' not in matched_sources.colnames:
-            self.update_data(data_keys=[flux_key, fluxerr_key])
-            matched_sources = self.search_sources(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
+            self.merge_catalogs(data_keys=[flux_key, fluxerr_key])
+            matched_sources = self.search_source(ra, dec, matching_radius_arcsec=matching_radius_arcsec)
             
         if len(matched_sources) == 0:
             print(f"[WARNING] No sources found within {matching_radius_arcsec}\" of RA={ra}, Dec={dec}")
@@ -352,6 +414,7 @@ class LightCurve(Helper):
                     obsdate_name = Time(obsdate_name).mjd
 
                     flux_val = source.get(flux_key + f'_idx{key}')
+                    depth_val = meta.get('depth')
                     flux_err = source.get(fluxerr_key + f'_idx{key}')
                     if fluxerr_key.replace('MAGERR', 'ZPERR') in target_img.header:
                         zp_err = target_img.header[fluxerr_key.replace('MAGERR', 'ZPERR')]
@@ -368,7 +431,11 @@ class LightCurve(Helper):
                         errors.append(np.nan)
                     else:
                         errors.append(np.sqrt(flux_err**2 + zp_err**2))
-                    depths.append(meta.get('depth', np.nan))
+                    if depth_val is None:
+                        depth_val = np.nan
+                    else:
+                        depth_val += self.FILTER_OFFSET[filter_name]
+                    depths.append(depth_val)
                     
                     filter_name += "+%.1f" %self.FILTER_OFFSET[filter_name]
                     labels.append(filter_name)
@@ -433,8 +500,7 @@ class LightCurve(Helper):
                     color = self.FILTER_COLOR.get(base_filter, next(color_cycle))
 
                     # Plot inverted triangles for depth
-                    ax.scatter(x_nondet, d_nondet, color=color, marker='v',
-                               label=rf'5$\sigma$ limit', alpha=0.7)
+                    ax.scatter(x_nondet, d_nondet, color=color, marker='v', alpha=0.7)
 
                 ax.set_xlabel("Obsdate [MJD]")
                 ax.set_ylabel("Magnitude" if "MAG" in flux_key.upper() else "Flux")
@@ -583,7 +649,7 @@ class LightCurve(Helper):
                 sorted_handles = [p[2] for p in broadband_pairs + mediumband_pairs]
 
                 # Show sorted legend
-                ax.legend(sorted_handles, sorted_labels, loc='best', ncol=2)
+                ax.legend(sorted_handles, sorted_labels, loc=self.plt_params.label_position, ncol=self.plt_params.ncols)
 
                 # Convert MJD xticks to UTC dates
                 xticks = ax.get_xticks()
@@ -642,7 +708,7 @@ if __name__ == "__main__":
     self.update_data(max_distance_arcsec = 5)
 # %%
 if __name__ == "__main__":
-    source =self.data[0]
+    source =self.catalogs_tbl[0]
 
     flux_key = 'MAGSKY_APER'
     fluxerr_key = 'MAGERR_APER'

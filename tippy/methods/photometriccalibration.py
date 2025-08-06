@@ -12,10 +12,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
 from scipy.optimize import curve_fit
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from astropy.modeling import models, fitting        
+from itertools import cycle
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy.stats import sigma_clipped_stats
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from astropy.stats import SigmaClip
 
+from tippy.catalog import TIPCatalogDataset
 from tippy.configuration import TIPConfig
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from tippy.catalog import TIPCatalog
 from tippy.catalog.utils import *
 #%%
@@ -36,12 +45,10 @@ class TIPPhotometricCalibration(Helper):
                                 # Selection parameters
                                 mag_lower: float = None,
                                 mag_upper: float = None,
-                                snr_lower: float = 20,
-                                snr_upper: float = 300,
                                 classstar_lower: float = 0.8,
                                 elongation_upper: float = 1.7,
                                 elongation_sigma: float = 5,
-                                fwhm_lower: float = 2,
+                                fwhm_lower: float = 1,
                                 fwhm_upper: float = 15,
                                 fwhm_sigma: float = 5,
                                 flag_upper: int = 1,
@@ -49,8 +56,7 @@ class TIPPhotometricCalibration(Helper):
                                 inner_fraction: float = 0.7, # Fraction of the images
                                 isolation_radius: float = 10.0,
                                 magnitude_key: str = 'MAG_AUTO',
-                                flux_key: str = 'FLUX_AUTO',
-                                fluxerr_key: str = 'FLUXERR_AUTO',
+                                magnitude_err_key: str = 'MAGERR_AUTO',
                                 fwhm_key: str = 'FWHM_IMAGE',
                                 x_key: str = 'X_IMAGE',
                                 y_key: str = 'Y_IMAGE',
@@ -77,6 +83,7 @@ class TIPPhotometricCalibration(Helper):
         visualize: bool = True
         save: bool = True
         """
+        update_kwargs = dict()
         catalogs = get_catalogs_coord(
             ra = target_img.ra,
             dec = target_img.dec,
@@ -89,10 +96,90 @@ class TIPPhotometricCalibration(Helper):
         else:
             all_references = Table()
             for catalog in catalogs:
-                data = select_reference_sources(catalog = catalog)[0]
+                data = select_reference_sources(catalog = catalog, mag_lower = 10, mag_upper = 20)[0]
                 #data = catalog.data
                 all_references = vstack([all_references, data])
+                
+        # Calculate Zero Point for AUTO magnitude
+        mag_key_ref = '%s_mag'%(target_img.filter)        
+        zp_key_ref = magnitude_key.replace('MAG_', 'ZP_')
+        all_catalog_data = target_catalog.data
+        catalog_coord = SkyCoord(all_catalog_data['X_WORLD'], all_catalog_data['Y_WORLD'], unit='deg')
+        reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
+        obj_indices, ref_indices, unmatched_obj_indices = self.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
+        matched_obj_all = all_catalog_data[obj_indices]
+        matched_ref_all = all_references[ref_indices]
+        matched_catalog = target_catalog.copy()
+        matched_catalog.data = matched_obj_all
+
+        zp_all = matched_ref_all[mag_key_ref] - matched_obj_all[magnitude_key]
+        zp_median_all = np.ma.median(zp_all)
+        zp_err_all = np.ma.std(zp_all)
+        matched_catalog.data[zp_key_ref] = zp_all
         
+        # Configuration sets for retries
+        bin_width_options = [0.3, 0.4, 0.5]
+        sigma_clip_options = [3, 5, 7]
+
+        result = None
+        closest_result = None
+        closest_diff = float("inf")  # Track the difference closest to 1.7
+
+        # Loop through combinations of bin_width and sigma_clip
+        if mag_lower is None or mag_upper is None:
+            for bw in bin_width_options:
+                for sc in sigma_clip_options:
+                    try:
+                        self.print(f"[INFO] bin_width={bw}, sigma_clip={sc}", verbose)
+                        mag_min, mag_max, zp_rough, zp_err_rough, saturation_level = self.determine_reference_mag_range(
+                            target_catalog=matched_catalog,
+                            bin_width=bw,
+                            sigma_clip=sc,
+                            magnitude_key=magnitude_key,
+                            zp_key=zp_key_ref,
+                            fwhm_key='FWHM_IMAGE',
+                            verbose=verbose,
+                            visualize=visualize,
+                            save_fig=save_fig
+                        )
+
+                        # Save current try
+                        try_set = dict(
+                            bin_width=bw,
+                            sigma_clip=sc,
+                            mag_min=mag_min,
+                            mag_max=mag_max,
+                            zp_rough=zp_rough,
+                            zp_err_rough=zp_err_rough,
+                            saturation_level=saturation_level
+                        )
+
+                        diff = abs(mag_max - mag_min)
+
+                        # Check valid range
+                        if (diff >= 0.9) and (diff <= 1.5):
+                            result = try_set
+                            print(f"[SUCCESS] bin_width={bw}, sigma_clip={sc} -> mag_min={mag_min:.2f}, mag_max={mag_max:.2f} (?={diff:.2f})")
+                            break  # Stop inner loop
+
+                        # Track closest to 1.7 if no valid result
+                        if (abs(diff - 1.2) < closest_diff) & (diff > 0.7):
+                            closest_diff = abs(diff - 1.2)
+                            closest_result = try_set
+                    except Exception as e:
+                        pass
+                if result is not None:
+                    break  # Stop outer loop
+            # Finalize result
+            if result is None:
+                result = closest_result
+                print(f"[FALLBACK] No valid result found. Choosing closest ?mag to 1.7 -> ?={abs(result['mag_max'] - result['mag_min']):.2f}")
+                print(f"bin_width={result['bin_width']}, sigma_clip={result['sigma_clip']}, mag_min={result['mag_min']:.2f}, mag_max={result['mag_max']:.2f}")
+            update_kwargs['SATURATE'] = (saturation_level, "Saturation level in ADU")
+        else:
+            mag_min = mag_lower
+            mag_max = mag_upper
+
         # Filter out reference sources
         filtered_catalog, _, target_seeing = self.select_stars(
             target_catalog = target_catalog,
@@ -100,10 +187,8 @@ class TIPPhotometricCalibration(Helper):
             visualize = visualize,
             save = False,
             save_fig = save_fig, 
-            mag_lower = mag_lower,
-            mag_upper = mag_upper,
-            snr_lower = snr_lower,
-            snr_upper = snr_upper,
+            mag_lower = mag_min,
+            mag_upper = mag_max,
             classstar_lower = classstar_lower,
             elongation_upper = elongation_upper,
             elongation_sigma = elongation_sigma,
@@ -112,8 +197,6 @@ class TIPPhotometricCalibration(Helper):
             flag_upper = flag_upper,
             maskflag_upper = maskflag_upper,
             magnitude_key = magnitude_key,
-            flux_key = flux_key,
-            fluxerr_key = fluxerr_key,
             fwhm_key = fwhm_key,
             x_key = x_key,
             y_key = y_key,
@@ -136,7 +219,6 @@ class TIPPhotometricCalibration(Helper):
             filtered_catalog.write()
 
         # Update the target image header
-        update_kwargs = dict()
         update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
         update_kwargs['SEEING'] = (target_seeing * np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
 
@@ -168,12 +250,7 @@ class TIPPhotometricCalibration(Helper):
             col for col in matched_obj.colnames
             if col.startswith('MAG_') and not np.all(matched_obj[col] == 0)
         ]
-
-        magerr_key_all = [
-            col for col in matched_obj.colnames
-            if col.startswith('MAGERR_') and not np.all(matched_obj[col] == 0)
-        ]
-
+        
         def linear(x, a, b):
             return a * x + b
 
@@ -182,7 +259,8 @@ class TIPPhotometricCalibration(Helper):
         mag_term_info = dict()
         target_catalog_data = target_catalog.data
         # Update magnitude related keys
-        for mag_key, magerr_key in zip(mag_key_all, magerr_key_all):
+        for mag_key in mag_key_all:
+            magerr_key = mag_key.replace('MAG_', 'MAGERR_')
             zp_key = mag_key.replace('MAG_', 'ZP_')
             zperr_key = magerr_key.replace('MAGERR_', 'ZPERR_')
             mag_key_sky = mag_key.replace('MAG_', 'MAGSKY_')
@@ -209,7 +287,7 @@ class TIPPhotometricCalibration(Helper):
             zp_info[mag_key] = dict(ZP_all = masked_zp, ZP_median = zp_median, ZP_err = zp_err, ZP_target = matched_obj[zp_cleaned_indices], ZP_reference = matched_ref[zp_cleaned_indices])
             update_kwargs[zp_key] = (zp_median, f"Zeropoint for {mag_key}")
             update_kwargs[zperr_key] = (zp_err, f"Zeropoint error for {mag_key}")
-
+            
             # Calculate Depth
             if (npix_key in target_catalog_data.colnames):
                 if skysig is not None:
@@ -290,8 +368,62 @@ class TIPPhotometricCalibration(Helper):
                     
                 except Exception as e:
                     self.print(f"[WARN] [{mag_key}] Magnitude term fit failed: {e}", verbose)
-        
-        
+
+            # Draw spatial variation of the zeropoint (density map)
+            if visualize or save_fig:
+                zp_residual = zp - zp_median
+                x_key = 'X_IMAGE'
+                y_key = 'Y_IMAGE'
+                x = matched_obj[x_key]
+                y = matched_obj[y_key]
+                c = zp_residual
+
+                # Data
+                zp_residual = zp - zp_median
+                x_key = 'X_IMAGE'
+                y_key = 'Y_IMAGE'
+                x = matched_obj[x_key]
+                y = matched_obj[y_key]
+                c = zp_residual
+                bins = 100
+
+                # Create meshgrid
+                X, Y = np.meshgrid(np.linspace(x.min(), x.max(), bins),
+                                np.linspace(y.min(), y.max(), bins))
+
+                # Fit 2D polynomial
+                poly2d = models.Polynomial2D(degree=15)
+                fitter = fitting.LinearLSQFitter()
+                zp_model = fitter(poly2d, x, y, c)  # fit to residuals
+                Z = zp_model(X, Y)
+
+                # Plot density map
+                plt.figure(figsize=(10, 8))
+                plt.imshow(Z, origin='lower', extent=[x.min(), x.max(), y.min(), y.max()], cmap='viridis')
+                cbar = plt.colorbar(label='Modeled ZP Variation')
+                cbar.ax.tick_params(labelsize=12)
+
+                # Add contour lines at ±zp_err
+                contours = plt.contour(X, Y, Z, levels=[-zp_err, zp_err], colors='white', linewidths=1.5)
+                plt.clabel(contours, inline=True, fontsize=14, fmt="%.3f")  # Increased font size
+
+                # Overlay points
+                plt.scatter(x, y, c='k', s=5, alpha=0.3)
+
+                # Labels and title with larger fonts
+                plt.title(r'[%s] 2D Zeropoint Gradient (± $1σ_{ZP}(%.3f)$ contour)'%(zp_key, zp_err), fontsize=16)
+                plt.xlabel(x_key, fontsize=14)
+                plt.ylabel(y_key, fontsize=14)
+                plt.tick_params(axis='both', which='major', labelsize=12)
+
+                if save_fig:
+                    fig_path = str(target_img.savepath.catalogpath) + f'.{zp_key}.2D.png'
+                    plt.savefig(fig_path, dpi=300)
+                    self.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
+                if visualize:
+                    plt.show()
+                plt.close()
+
         # Final: Update the header
         for key, value in update_kwargs.items():
             if isinstance(value, tuple):
@@ -300,32 +432,34 @@ class TIPPhotometricCalibration(Helper):
                 target_img.header[key] = (value, "")
         
         # Update the target image status
-        target_img.update_status('ZPCALC')       
+        target_img.update_status('ZPCALC')
         
         # Write the target image 
         target_img.write() 
         
-        if visualize or save_fig:
-            catalog_coord_all = SkyCoord(target_catalog_data['X_WORLD'], target_catalog_data['Y_WORLD'], unit='deg')
-            reference_coord_all = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
-            obj_indices , ref_indices, unmatched_obj_indices = self.cross_match(catalog_coord_all, reference_coord_all, max_distance_second = max_distance_second)
-            matched_obj_all = target_catalog_data[obj_indices]
-            matched_ref_all = all_references[ref_indices]
-            
-            magerr_key = magnitude_key.replace('MAG_','MAGERR_')#'MAGERR_AUTO'
-            zp_key = magnitude_key.replace('MAG_', 'ZP_')
-            zp_all = matched_ref_all[mag_key_ref] - matched_obj_all[magnitude_key]
+        if visualize or save_fig:            
             zp_median = zp_info[magnitude_key]['ZP_median']
             
             plt.figure(dpi = 300)
-            plt.title(f'{zp_key} calculation for {target_img.filter} band')
+            plt.title(f'{zp_key_ref} calculation for {target_img.filter} band')
             plt.xlabel(f'Photometric reference ({target_img.filter})')
-            plt.ylabel(f'{zp_key}')
+            plt.ylabel(f'{zp_key_ref}')
             
-            plt.scatter(matched_ref_all[mag_key_ref], zp_all, c = 'k', alpha = 0.15, label = 'All targets')
-            plt.scatter(zp_info[magnitude_key]['ZP_reference'][mag_key_ref], zp_info[magnitude_key]['ZP_all'], c = 'r', alpha = 0.5, label = 'Selected targets')
+            # Plot scatter with FWHM_IMAGE as color
+            # Set custom color limits for FWHM
+            sc = plt.scatter(
+                matched_ref_all[mag_key_ref], zp_all,
+                c=matched_obj_all['FWHM_IMAGE'],
+                vmin=target_seeing,
+                vmax=target_seeing + 2,
+                alpha=0.15,
+                label=f'All targets [{len(matched_ref_all)}]'
+            )
+            plt.scatter(zp_info[magnitude_key]['ZP_reference'][mag_key_ref], zp_info[magnitude_key]['ZP_all'], c = 'r', alpha = 0.5, label = f'Selected targets [{len(zp_info[magnitude_key]["ZP_target"])}]')
             plt.errorbar(zp_info[magnitude_key]['ZP_reference'][mag_key_ref], zp_info[magnitude_key]['ZP_all'], yerr = np.sqrt(zp_info[magnitude_key]['ZP_target'][magerr_key]**2 + zp_info[magnitude_key]['ZP_err']**2), fmt='None', c = 'r', alpha=0.5)
-            plt.axhline(zp_median, color='k', linestyle='--', label = 'ZP = %.3f +/- %.3f'%(zp_median, zp_info[mag_key]['ZP_err']))
+            plt.axhline(zp_median, color='k', linestyle='--', label = 'ZP = %.3f +/- %.3f'%(zp_median, zp_info[magnitude_key]['ZP_err']))
+            # Explicitly attach colorbar to the first scatter
+            plt.colorbar(sc, label='FWHM (pixel)')
             
             xmin = max(np.min(matched_ref_all[mag_key_ref]) -1, 9)
             xmax = min(np.max(matched_ref_all[mag_key_ref]) + 1, 20)
@@ -343,7 +477,6 @@ class TIPPhotometricCalibration(Helper):
                 fig_path = str(target_img.savepath.catalogpath) + '.zp.png'
                 plt.savefig(fig_path, dpi=300)
                 self.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
-            
             if visualize:
                 plt.show()
             plt.close()
@@ -361,23 +494,22 @@ class TIPPhotometricCalibration(Helper):
                 markers = ['o', 's', '^', 'd', 'P', '*', 'v']
 
                 # Setup cycling through colors and markers if many keys
-                from itertools import cycle
                 color_cycle = cycle(colors)
                 marker_cycle = cycle(markers)
 
                 for mag_key in photometry_keys:
-                    ref = zp_info[mag_key]['ZP_reference']
-                    target = zp_info[mag_key]['ZP_target']
-                    zp_all = zp_info[mag_key]['ZP_all']
-                    zp_median = zp_info[mag_key]['ZP_median']
-                    zp_err = zp_info[mag_key]['ZP_err']
+                    ref_magkey = zp_info[mag_key]['ZP_reference']
+                    target_magkey = zp_info[mag_key]['ZP_target']
+                    zp_all_magkey = zp_info[mag_key]['ZP_all']
+                    zp_median_magkey = zp_info[mag_key]['ZP_median']
+                    zp_err_magkey = zp_info[mag_key]['ZP_err']
 
                     # g - r color
-                    color = ref['g_mag'] - ref['r_mag']
+                    color = ref_magkey['g_mag'] - ref_magkey['r_mag']
 
                     # Fit linear model
                     try:
-                        popt, pcov = curve_fit(linear, color, zp_all)
+                        popt, pcov = curve_fit(linear, color, zp_all_magkey)
                     except Exception as e:
                         self.print(f"[WARN] Fitting failed for {mag_key}: {e}", verbose)
                         continue
@@ -385,7 +517,7 @@ class TIPPhotometricCalibration(Helper):
                     # Plot scatter
                     color_ = next(color_cycle)
                     marker_ = next(marker_cycle)
-                    plt.scatter(color, zp_all, color=color_, alpha=0.5, marker=marker_, label=f'{mag_key} ({zp_median:.3f} +/- {zp_err:.3f})')
+                    plt.scatter(color, zp_all_magkey, color=color_, alpha=0.5, marker=marker_, label=f'{mag_key} ({zp_median_magkey:.3f} +/- {zp_err_magkey:.3f})')
 
                     # Plot fit line
                     x_fit = np.linspace(np.min(color), np.max(color), 100)
@@ -415,7 +547,6 @@ class TIPPhotometricCalibration(Helper):
                     fig_path = str(target_img.savepath.catalogpath) + '.zp_color.png'
                     plt.savefig(fig_path, dpi=300)
                     self.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
-                
                 if visualize:
                     plt.show()
                 
@@ -495,7 +626,6 @@ class TIPPhotometricCalibration(Helper):
             return a * x + b
         
         # 0. Cross-match catalogs
-        from tippy.catalog import TIPCatalogDataset
         catalog_dataset = TIPCatalogDataset([target_catalog, comparison_catalog])
         magsky_key_all = [col for col in target_catalog.data.colnames if col.startswith('MAGSKY_')]
         mag_key_all = [col.replace('MAGSKY_','MAG_') for col in magsky_key_all]
@@ -584,12 +714,12 @@ class TIPPhotometricCalibration(Helper):
                      target_catalog: TIPCatalog,
                      mag_lower: float = None,
                      mag_upper: float = None,
-                     snr_lower: float = 10,
-                     snr_upper: float = 300,
+                     #snr_lower: float = 10,
+                     #snr_upper: float = 300,
                      classstar_lower: float = 0.8,
                      elongation_upper: float = 1.5,
                      elongation_sigma: float = 5,
-                     fwhm_lower: float = 2,
+                     fwhm_lower: float = 1,
                      fwhm_upper: float = 15,
                      fwhm_sigma: float = 5,
                      flag_upper: int = 1,
@@ -603,8 +733,6 @@ class TIPPhotometricCalibration(Helper):
                      save_fig: bool = False,
                      
                      magnitude_key: str = 'MAG_AUTO',
-                     flux_key: str = 'FLUX_AUTO',
-                     fluxerr_key: str = 'FLUXERR_AUTO',
                      fwhm_key: str = 'FWHM_IMAGE',
                      x_key: str = 'X_IMAGE',
                      y_key: str = 'Y_IMAGE',
@@ -708,22 +836,6 @@ class TIPPhotometricCalibration(Helper):
         filter_info['after_isolation'] = len(filtered_catalog_data)
 
         _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'g', label = 'Isolation cut', alpha = 0.3)
-
-        # Step 3: SNR cut
-        if flux_key not in filtered_catalog_data.keys():
-            self.print(f"Warning: '{flux_key}' not found in sources.", verbose)
-        else:
-            snr_key = flux_key.replace('FLUX_', 'SNR_')
-            filtered_catalog_data[snr_key] = filtered_catalog_data[flux_key] / filtered_catalog_data[fluxerr_key]
-            if snr_lower is not None:
-                filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[snr_key] > snr_lower)]
-            if snr_upper is not None:
-                filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[snr_key] < snr_upper)]
-            if snr_lower is not None and snr_upper is not None:
-                self.print(f"[SNR CUT]: {len(filtered_catalog_data)} sources passed {snr_lower} < SNR < {snr_upper}", verbose)
-        filter_info['after_snrcut'] = len(filtered_catalog_data)
-            
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'b', label = 'SNR cut', alpha = 0.3)
 
         # Step 3: MAG cut
         if magnitude_key not in filtered_catalog_data.keys():
@@ -833,7 +945,6 @@ class TIPPhotometricCalibration(Helper):
             if save_fig:
                 plt.savefig(str(filtered_catalog.savepath.savepath) + '.png', dpi=300)
                 self.print(f"[INFO] Star selection plot saved to {str(filtered_catalog.savepath.savepath) }", verbose)
-
             if visualize:
                 plt.show()
             plt.close()
@@ -843,67 +954,282 @@ class TIPPhotometricCalibration(Helper):
             self.print(f"[INFO] Filtered catalog saved to {filtered_catalog.savepath.savepath}", verbose)
     
         return filtered_catalog, filter_info, seeing
+
+
+    def determine_reference_mag_range(self,
+                                    target_catalog: TIPCatalog,
+                                    bin_width=0.5,
+                                    sigma_clip=5,
+                                    magnitude_key='MAG_AUTO',
+                                    zp_key='ZP_AUTO',
+                                    fwhm_key='FWHM_IMAGE',
+                                    verbose=True,
+                                    visualize=False,
+                                    save_fig=False):
+        """
+        mag_min: ZP ???? ??? ?? ???? ?? ??
+        mag_max: ZP_err ?? ?? ???? faint-end ??
+        bin_width=0.5
+        sigma_clip=2
+        magnitude_key='MAG_AUTO'
+        zp_key='ZP_AUTO'
+        fwhm_key='FWHM_IMAGE'
+        verbose=True
+        visualize=True
+        save_fig=False
+        """
+        from astropy.stats import sigma_clipped_stats, SigmaClip
+        
+        # === ??? ?? ===
+        catalog_data = target_catalog.data
+        mags = np.array(catalog_data[magnitude_key])
+        zps = np.array(catalog_data[zp_key])
+        fwhms = np.array(catalog_data[fwhm_key])
+
+        # === Bin data ===
+        mag_bins = np.arange(np.floor(mags.min()), np.ceil(mags.max()) + bin_width, bin_width)
+        bin_centers, med_zp, std_zp = [], [], []
+
+        for i in range(len(mag_bins)-1):
+            mask = (mags >= mag_bins[i]) & (mags < mag_bins[i+1])
+            if np.sum(mask) > 2:
+                clip_mean, clip_median, clip_std = sigma_clipped_stats(zps[mask], sigma=sigma_clip, maxiters=5)
+                bin_centers.append((mag_bins[i] + mag_bins[i+1]) / 2)
+                med_zp.append(clip_median)
+                std_zp.append(clip_std)
+
+        bin_centers = np.array(bin_centers)
+        med_zp = np.array(med_zp)
+        std_zp = np.array(std_zp)
+
+        if len(bin_centers) < 5:
+            raise ValueError("Not enough binned data to determine reference magnitude range.")
+
+        # === LOWESS smoothing ===
+        smooth_zp = med_zp#lowess(med_zp, bin_centers, frac=0.1, return_sorted=False)
+        smooth_zp_err = std_zp#lowess(std_zp, bin_centers, frac=0.3, return_sorted=False)
+        zp_slope = np.gradient(smooth_zp, bin_centers)
+
+        # ???? ?? ?? ?? ?? (??? ??? ??)
+        mid_mask = (bin_centers > np.percentile(bin_centers, 30)) & (bin_centers < np.percentile(bin_centers, 70))
+        stable_slopes = zp_slope[mid_mask]
+
+        # sigma-clipped stats? ??? ?? ??
+        _, _, slope_std = sigma_clipped_stats(stable_slopes, sigma=2, maxiters=5)
+
+        # slope_threshold ?? ?? (?: 3? ??)
+        slope_threshold = 3 * slope_std
+        
+        _, zp_value_first, _ = sigma_clipped_stats(med_zp, sigma=1, maxiters=5)
+        start_idx = np.argmin(np.abs(smooth_zp - zp_value_first))
+        
+        # === mag_min ??: ZP slope ===
+        mag_min = bin_centers[0]
+        consecutive = 0
+        first_idx = None
+
+        # faint ? bright ???? ??
+        saturation_level = 60000
+        for i in range(start_idx, -1, -1):  # start_idx?? ?? ??? ??
+            if abs(zp_slope[i]) > slope_threshold:
+                consecutive += 1
+                if first_idx is None:  
+                    first_idx = i  # ? ??? ??? ?? ?? ??
+                if consecutive >= 3:
+                    mag_min = bin_centers[first_idx]  # ?? ??? ? ?? idx? mag_min ??
+                    saturated_sources = catalog_data[catalog_data[magnitude_key] <= mag_min]
+                    saturated_sources_count = len(saturated_sources)
+                    if saturated_sources_count > 0:
+                        saturation_level = np.median(saturated_sources['FLUX_MAX'])
+                        self.print(f"Saturation level: {saturation_level:.2f}", verbose)
+                    self.print(f"Saturation detected (stable): mag_min = {mag_min:.2f}", verbose)
+                    break
+            else:
+                consecutive = 0
+                first_idx = None  # ?? ?? ???
+
+        # === mag_max ??: ZP_err ? ?? ===
+        # ?? ???? baseline? ???? ??
+        mid_mask = (bin_centers < np.percentile(bin_centers, 50)) & (bin_centers > mag_min)
+        from astropy.stats import sigma_clipped_stats, SigmaClip
+
+        # Sigma clipping to reject outliers
+        sigmaclip = SigmaClip(sigma=2, maxiters=5)
+        clipped_zp_err = sigmaclip(smooth_zp_err[mid_mask])  # Masked array after sigma clipping
+
+        # Remove masked (outlier) values
+        valid_zp_err = clipped_zp_err[~clipped_zp_err.mask]
+        zp_err = np.percentile(valid_zp_err, 10)
+        err_threshold = zp_err + 1 * np.std(valid_zp_err)
+
+        # ?? ????? faint ???? ??
+        start_idx = np.argmax(mid_mask)  # mid_mask?? ? True ??? (?? ???)
+        mag_max = bin_centers[-1]  # ???: ?? faint
+        consecutive = 0
+        first_idx = None
+
+        for i in range(start_idx, len(bin_centers)):  # mid ? faint
+            if smooth_zp_err[i] > err_threshold:
+                consecutive += 1
+                if first_idx is None:
+                    first_idx = i
+                if consecutive >= 2:  # ?? 2? ?? ? mag_max ??
+                    mag_max = bin_centers[first_idx]
+                    break
+            else:
+                consecutive = 0
+                first_idx = None
+
+
+        # === ZP, ZP_err ?? ===
+        valid_mask = (bin_centers >= mag_min) & (bin_centers <= mag_max)
+        zp = np.median(med_zp[valid_mask])
+        zp_err = np.median(std_zp[valid_mask])
+
+        if verbose:
+            self.print(f"[INFO] mag_min={mag_min:.2f}, mag_max={mag_max:.2f}, ZP={zp:.3f} ± {zp_err:.3f}", verbose)
+
+        # === Visualization ===
+        if visualize or save_fig:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+
+            # ZP plot
+            ax1.scatter(mags, zps, c=fwhms, cmap='plasma', alpha=0.5, s=8)
+            ax1.plot(bin_centers, smooth_zp, 'o-', color='orange', label="Smoothed ZP")
+            ax1.axvline(mag_min, color='red', ls='--', label=f"mag_min={mag_min:.2f}")
+            ax1.axvline(mag_max, color='blue', ls='--', label=f"mag_max={mag_max:.2f}")
+            ax1.set_ylabel("Zeropoint")
+            ax1.set_ylim(zp - 2, zp + 1)
+            ax1.legend()
+            ax1.invert_xaxis()
+
+            # ZP_err plot
+            ax2.plot(bin_centers, smooth_zp_err, 'o-', color='purple', label="ZP Std (Err)")
+            ax2.axhline(err_threshold, color='gray', ls='--', label="ZP_err Threshold")
+            ax2.axvline(mag_min, color='red', ls='--')
+            ax2.axvline(mag_max, color='blue', ls='--')
+            ax2.set_xlabel("Magnitude")
+            ax2.set_ylabel("ZP Error")
+            ax2.set_ylim(zp_err-0.1, zp_err+ 0.2)
+            ax2.legend()
+
+            if save_fig:
+                plt.savefig(str(target_catalog.savepath.savepath) + '.reference_mag.png', dpi=300)
+            if visualize:
+                plt.show()
+            plt.close()
+
+        return mag_min, mag_max, zp, zp_err, saturation_level
         
 # %%
-if __name__ == "__main__":
-    from tippy.configuration import TIPConfig
-    from tippy.imageojbects import ScienceImage, Mask, Background, Errormap
-    target_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01462/7DT02/g/calib_7DT02_T01462_20250211_041624_g_100.fits'
+if __name__ == '__main__':
+    from tippy.helper import TIPDataBrowser
+    # from tippy.utils import SDTData
+    # sdtdata = SDTData()
+    # sdtdata.sync_scidata(targetname = 'T08803')
+    
+    databrowser.observatory = '7DT'
+    databrowser.filter = 'g'
+    databrowser.objname = 'T22956'
+    databrowser.telname = '7DT16'
+    target_imgset = databrowser.search('calib*100.fits', return_type = 'science')
+    target_imglist = target_imgset.target_images
+    target_img = target_imglist[0]
+    target_bkg = target_img.bkgmap
+    target_bkgrms = target_img.bkgrms
+    sex_params = None
+    detection_sigma = 5
+    aperture_diameter_arcsec = [3, 5, 7, 9, 11]
+    aperture_diameter_seeing = []
+    saturation_level = 60000
+    kron_factor = 2.5
+    save = True
+    verbose = True
+    visualize = True
+    save_fig = False
+    from tippy.methods import TIPAperturePhotometry
+    aperphot = TIPAperturePhotometry()
+    apercorr_catalog = aperphot.sex_photometry(
+        target_img = target_img,
+        target_bkg = target_bkg,
+        target_bkgrms = target_bkgrms,
+        sex_params = sex_params,
+        detection_sigma = detection_sigma,
+        aperture_diameter_arcsec = aperture_diameter_arcsec,
+        aperture_diameter_seeing = aperture_diameter_seeing,
+        saturation_level = saturation_level,
+        kron_factor = kron_factor,
+        save = False, 
+        verbose = False,
+        visualize = True,
+        save_fig = False
+    )
+
+    catalog_type = 'GAIAXP'  # str - Reference catalog type ('GAIAXP', 'GAIA', 'PS1')
+    max_distance_second = 1.0  # float - Maximum matching distance in arcseconds
+    calculate_color_terms = True  # bool - Whether to calculate color terms
+    calculate_mag_terms = True  # bool - Whether to calculate magnitude terms
+
+    # Star Selection Parameters
+    mag_lower = None  # float - Lower magnitude limit
+    mag_upper = None  # float - Upper magnitude limit
+    snr_lower = 20  # float - Lower SNR limit
+    snr_upper = 300  # float - Upper SNR limit
+    classstar_lower = 0.8  # float - Minimum CLASS_STAR value
+    elongation_upper = 1.7  # float - Maximum elongation
+    elongation_sigma = 5  # float - Sigma clipping for elongation
+    fwhm_lower = 1  # float - Lower FWHM limit in pixels
+    fwhm_upper = 15  # float - Upper FWHM limit in pixels
+    fwhm_sigma = 5  # float - Sigma clipping for FWHM
+    flag_upper = 1  # int - Maximum FLAGS value
+    maskflag_upper = 1  # int - Maximum IMAFLAGS_ISO value
+    inner_fraction = 0.7  # float - Fraction of image to use (inner region)
+    isolation_radius = 10.0  # float - Isolation radius in pixels
+
+    # Column Name Parameters
+    magnitude_key = 'MAG_AUTO'  # str - Magnitude column name
+    fwhm_key = 'FWHM_IMAGE'  # str - FWHM column name
+    x_key = 'X_IMAGE'  # str - X coordinate column name
+    y_key = 'Y_IMAGE'  # str - Y coordinate column name
+    classstar_key = 'CLASS_STAR'  # str - CLASS_STAR column name
+    elongation_key = 'ELONGATION'  # str - Elongation column name
+    flag_key = 'FLAGS'  # str - FLAGS column name
+    maskflag_key = 'IMAFLAGS_ISO'  # str - Mask flags column name
+
+    # Output Control Parameters
+    save = False  # bool - Whether to save results
+    verbose = True  # bool - Whether to print verbose output
+    visualize = True  # bool - Whether to show plots
+    save_fig = False  # bool - Whether to save plots
+    save_refcat = False  # bool - Whether to save reference catalog
     self = TIPPhotometricCalibration()
-    target_img  = ScienceImage(target_path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    target_path = '/data/data1/factory_hhchoi/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01462/7DT15/i/calib_7DT15_T01462_20250212_051656_i_100.com.fits'
-    target_img  = ScienceImage(target_path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-    target_catalog = TIPCatalog(target_img.savepath.catalogpath, catalog_type = 'all', load = True)
-    catalog_type: str = 'GAIAXP'
-    max_distance_second: float = 1.0
-    calculate_color_terms: bool = True
-    calculate_mag_terms: bool = True
-    target_catalog = TIPCatalog(target_img.savepath.catalogpath, catalog_type = 'all', load = True)
-    #target_img = ScienceImage('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01462/7DT02/g/calib_7DT02_T01462_20250211_041624_g_100.com.fits', telinfo = target_img.telinfo, load = True)
-    comparison_catalog = TIPCatalog('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01462/7DT02/g/calib_7DT02_T01462_20250211_041624_g_100.com.fits.cat', catalog_type = 'reference', load = True)
-    # Selection parameters
-    mag_lower: float = None
-    mag_upper: float = None
-    snr_lower: float = 20
-    snr_upper: float = 300
-    classstar_lower: float = 0.8
-    elongation_upper: float = 30
-    elongation_sigma: float = 5
-    fwhm_lower: float = 2
-    fwhm_upper: float = 15
-    fwhm_sigma: float = 5
-    flag_upper: int = 1
-    maskflag_upper: int = 1
-    inner_fraction: float = 0.7  # Fraction of the images
-    isolation_radius: float = 5.0
-    magnitude_key: str = 'MAG_AUTO'
-    flux_key: str = 'FLUX_AUTO'
-    fluxerr_key: str = 'FLUXERR_AUTO'
-    fwhm_key: str = 'FWHM_IMAGE'
-    x_key: str = 'X_IMAGE'
-    y_key: str = 'Y_IMAGE'
-    classstar_key: str = 'CLASS_STAR'
-    elongation_key: str = 'ELONGATION'
-    flag_key: str = 'FLAGS'
-    maskflag_key: str = 'IMAFLAGS_ISO'
+    # self.photometric_calibration(target_img = target_img,
+    #                              target_catalog = target_catalog,
+    #                              catalog_type = catalog_type,
+    #                              max_distance_second = max_distance_second,
+    #                              calculate_color_terms = calculate_color_terms,
+    #                              calculate_mag_terms = calculate_mag_terms,
+    #                              mag_lower = mag_lower,
+    #                              mag_upper = mag_upper,
+    #                              snr_lower = snr_lower,
+    #                              snr_upper = snr_upper,
+    #                              classstar_lower = classstar_lower,
+    #                              elongation_upper = elongation_upper,
+    #                              elongation_sigma = elongation_sigma,
+    #                              fwhm_lower = fwhm_lower,
+    #                              fwhm_upper = fwhm_upper,
+    #                              fwhm_sigma = fwhm_sigma,
+    #                              flag_upper = flag_upper,
+    #                              maskflag_upper = maskflag_upper,
+    #                              inner_fraction = inner_fraction,
+    #                              save = save,
+    #                              verbose = verbose,
+    #                              visualize = visualize,
+    #                              save_fig = save_fig,
+    #                              save_refcat = save_refcat,
+    #                              magnitude_key = magnitude_key,
+    #                              fwhm_key = fwhm_key,
+    #                              )
+    
 
-    # Other parameters
-    save: bool = True
-    verbose: bool = True
-    visualize: bool = True
-    save_fig: bool = False
-    save_refcat: bool = True
-
-    #target_sourcemask = Mask(path = target_img.savepath.maskpath, load = True)
-    #target_bkg = Background(path = target_img.savepath.bkgpath, load = True)    
-    #target_bkgrms =  Errormap(target_img.savepath.errormappath, load = True)
-    #target_mask: Optional[Mask] = None # For masking certain source (such as hot pixels)
-    #catalog = Table.read(target_img.savepath.catalogpath, format = 'ascii')
-    # cat = self.photometric_calibration(
-    #     target_img = target_img,
-    #     target_catalog = target_catalog,
-    #     max_distance_second = 1.0, 
-    #     calculate_color_terms = True,
-    #     calculate_mag_terms = True,
-    #     visualize_mag_key = 'MAG_APER')
-# %%
+                     # %%

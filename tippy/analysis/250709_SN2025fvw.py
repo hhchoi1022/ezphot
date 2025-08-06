@@ -1,8 +1,7 @@
-
-
 #%%
-from tippy.photometry import *
-from tippy.imageojbects import *
+
+from tippy.methods import *
+from tippy.imageobjects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tqdm import tqdm
@@ -107,6 +106,7 @@ aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
+    aperture_diameter_seeing = [2.5, 3.5],
     saturation_level = 60000,
     kron_factor = 2.5,
     save = False,
@@ -123,8 +123,6 @@ photometriccalibration_kwargs = dict(
     calculate_mag_terms = True,
     mag_lower = None,
     mag_upper = None,
-    snr_lower = 15,
-    snr_upper = 500,
     classstar_lower = 0.7,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -217,9 +215,9 @@ stack_photometriccalibration_kwargs = dict(
     maskflag_upper = 1,
     inner_fraction = 0.8, # Fraction of the images
     isolation_radius = 20.0,
-    magnitude_key = 'MAG_APER_1',
-    flux_key = 'FLUX_APER_1',
-    fluxerr_key = 'FLUXERR_APER_1',
+    magnitude_key = 'MAG_AUTO',
+    flux_key = 'FLUX_AUTO',
+    fluxerr_key = 'FLUXERR_AUTO',
     fwhm_key = 'FWHM_IMAGE',
     x_key = 'X_IMAGE',
     y_key = 'Y_IMAGE',
@@ -238,26 +236,17 @@ stack_photometriccalibration_kwargs = dict(
 #%% Define the tile IDs for S250206dm
 
 #%% Query object frames
+from tippy.helper import TIPDataBrowser
 helper = Helper()
 data_qurier = SDTData()
-tile_id = 'T22956'
-# Load the data
-#data_qurier.sync_scidata(targetname = tile_id)
-
-target_images = data_qurier.show_scidestdata(
-    tile_id,
-    False,
-    'filter',
-    'calib*100.fits'
-)
-target_imglist_all = [target_imgpath for target_imglist in target_images.values() for target_imgpath in target_imglist]
-imginfo_all = data_qurier.get_imginfo(target_imglist_all)
-imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
-print(f'Tile ID: {tile_id}, Number of images: {len(imginfo_all)}, Number of groups: {len(imginfo_groups)}')
-
-# Set telescope information
-target_path = imginfo_groups[0]['file'][0]
-telinfo = helper.estimate_telinfo(target_path)
+browser = TIPDataBrowser('scidata')
+browser.objname = 'T22956'
+browser.filter = 'g'
+target_imgset = browser.search('calib*100.fits', 'science')
+target_imglist = target_imgset.target_images
+target_path = target_imglist[0].path
+telinfo = target_imglist[0].telinfo
+#telinfo = helper.estimate_telinfo(target_path)
 #%%
 # Define the image processing function
 # 76 images -> 9min 41s
@@ -289,27 +278,13 @@ def imgprocess(target_path, telinfo):
         except Exception as e:
             status['platesolve'] = e
 
-    status['mask'] = None
-    target_srcmask = None
-    if do_generatemask:
-        try:
-            # Mask the object frames
-            target_srcmask = MaskGenerator.mask_sources(
-                target_img = target_img,
-                target_mask = None,
-                **mask_kwargs
-            )
-            status['mask'] = True
-        except:
-            status['mask'] = e
-
     status['circular_mask'] = None
     if do_circularmask:
         try:
             # Generate the circular mask
             target_srcmask = MaskGenerator.mask_circle(
                 target_img = target_img,
-                target_mask = target_srcmask,
+                target_mask = None,
                 mask_type = 'source',
                 **circlemask_kwargs
             )
@@ -317,6 +292,21 @@ def imgprocess(target_path, telinfo):
 
         except Exception as e:
             status['circular_mask'] = e
+
+
+    status['mask'] = None
+    target_srcmask = None
+    if do_generatemask:
+        try:
+            # Mask the object frames
+            target_srcmask = MaskGenerator.mask_sources(
+                target_img = target_img,
+                target_mask = target_srcmask,
+                **mask_kwargs
+            )
+            status['mask'] = True
+        except:
+            status['mask'] = e
 
     status['object_mask'] = None
     target_objectmask = None
@@ -541,54 +531,44 @@ with ProcessPoolExecutor(max_workers=20) as executor:
 from tippy.catalog import TIPCatalog, TIPCatalogDataset
 
 if __name__ == "__main__":
-    source_catalogs = TIPCatalogDataset()
-    source_catalogs.search_catalogs(
+    source_catalogs_LC = TIPCatalogDataset()
+    source_catalogs_LC.search_catalogs(
         target_name = 'T22956',
         search_key = '100.com.fits.cat'
      )    
 # %%
 if __name__ == "__main__":
-    fit_filter_key = ['g', 'r', 'i', 'm450', 'm650', 'm800', 'm825', 'm850']#, 'm400', 'm425', 'm450', 
-                      #'m475', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 
-                      #'m675', 'm700', 'm725', 'm750', 'm775','m850', 'm875']
+    fit_filter_key = ['g', 'r', 'i', 'm400', 'm425', 'm450', 
+                      'm475', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 
+                      'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875']
     ra = 233.857430764 # SN2025fvw
     dec = 12.0577222937
-    # ra = 233.7658333 #EB
-    # dec = 11.9574303
-    # ra = 234.3112500 #AGN
-    # dec = 12.1974444 
-    # ra = 234.2416667 #SB
-    # dec = 12.0027778
-    # ra = 233.9041667 #QSO
-    # dec = 11.9508333
-    # ra = 233.6121667  #UGC9901
-    # dec = 12.2710611
-    # ra = 233.8625000  # EB
-    # dec = 12.103333
-    source_catalogs.select_catalogs(filter = fit_filter_key)
-    source_catalogs.select_sources(ra, dec, radius =  60)
+    source_catalogs_LC.select_catalogs(filter = fit_filter_key)
+    source_catalogs_LC.select_sources(ra, dec, radius =  60)
 #%%
 if __name__ == "__main__":
     from tippy.dataobjects import LightCurve
-    self = LightCurve(source_catalogs)
-    self.update_data(max_distance_arcsec = 5)
+    self = LightCurve(source_catalogs_LC)
+    self.merge_catalogs()
+    self.extract_source_info(ra, dec)
 # %%
 if __name__ == "__main__":
     source =self.data[0]
 
-    flux_key = 'MAGSKY_AUTO'
-    fluxerr_key = 'MAGERR_AUTO'
+    flux_key = 'MAGSKY_APER_2'
+    fluxerr_key = 'MAGERR_APER_2'
     matching_radius_arcsec = 5
     color_key: str = 'filter'#'OBSDATE'
     overplot_gaiaxp = False
     overplot_sdss = False
     overplot_ps1 = False
-    self.plt_params.ylim = [21, 11]
-    self.plt_params.xlim = [60757, 60780]
-    self.plt_params.figure_figsize = (6, 8)
-    self.FILTER_OFFSET['m450'] = -2
-    self.FILTER_OFFSET['m650'] = -1
-    self.FILTER_OFFSET['m850'] = +2
+    self.plt_params.ylim = [26, 7]
+    #self.plt_params.xlim = [60757, 60780]
+    self.plt_params.figure_figsize = (8, 10)
+    self.plt_params.label_position = 'upper right'
+    # self.FILTER_OFFSET['m450'] = -2
+    # self.FILTER_OFFSET['m650'] = -1
+    # self.FILTER_OFFSET['m850'] = +2
 #%%
 if __name__ == "__main__":
     from astropy.time import Time
@@ -617,31 +597,25 @@ if __name__ == "__main__":
     axs[0].errorbar(ps_r_obsdate_mjd, ps_r_mag , yerr=ps_r_magerr, ms = 10, fmt='^', mfc='red',  mec = 'black', label='PS1 r')
     axs[0].legend(loc='upper left', ncol = 2, fontsize=12)
 #%%
-figs[0]
  # %%
 from astropy.table import Table
-target = self.data[0]
+flux_key = 'MAGSKY_APER_2'
+fluxerr_key = 'MAGERR_APER_2'
+obs_tbl = self.data
 # Initialize empty lists to store combined values
 obsdates = []
 mags = []
 magerrs = []
 filters = []
 
-target = self.data[0]
-
 # Iterate over all columns to gather data by filter
-for colname in target.colnames:
-    if flux_key in colname:
-        idx = int(colname.split('_idx')[1])
-        meta = self.metadata[idx]
-        filt = meta['filter']
-        if filt not in fit_filter_key:
-            continue
-        # Append data
-        obsdates.append(Time(meta['obsdate']).mjd)
-        mags.append(target[colname])
-        magerrs.append(target[colname.replace(flux_key, fluxerr_key)])
-        filters.append(filt)
+for row in obs_tbl:
+    
+    # Append data
+    obsdates.append(row['mjd'])
+    mags.append(row[flux_key])
+    magerrs.append(row[fluxerr_key])
+    filters.append(row['filter'])
 
 obsdates.append(Time(ztf_r_obsdate, format = 'jd').mjd[0])
 mags.append(ztf_r_mag[0])
@@ -667,6 +641,14 @@ fit_tbl['mag'] = mags
 fit_tbl['e_mag'] = magerrs
 fit_tbl['filter'] = filters
 fit_tbl['magsys'] = ['AB'] * len(fit_tbl)
+#%%
+clean_idx = [True] * len(fit_tbl)
+for column in fit_tbl.colnames:
+    try:
+        clean_idx &= ~fit_tbl[column].mask
+    except:
+        pass
+fit_tbl = fit_tbl[clean_idx]
 filter_tbl = fit_tbl.group_by('filter').groups
 #%% FIT TO FIREBALL MODEL
 import numpy as np
@@ -757,7 +739,6 @@ for responsefile in list_responsefile:
     except Exception as e:
         print(f"Error registering filter {filter_name}: {e}")
 #%% Data 
-
 filterkeylist = [] 
 for filter_ in fit_tbl['filter']:
     if filter_key_sncosmo.get(filter_) is None:
@@ -770,7 +751,13 @@ fit_tbl['filter_sncosmo'] = filterkeylist
 show_tbl = fit_tbl
 #%%
 formatted_fit_tbl = helper.SNcosmo_format(fit_tbl['obsdate'], fit_tbl['mag'], fit_tbl['e_mag'], fit_tbl['filter_sncosmo'], magsys = fit_tbl['magsys'], zp = 25)
-formatted_fit_tbl = formatted_fit_tbl[formatted_fit_tbl['mjd'] < 60815]
+# formatted_fit_tbl = formatted_fit_tbl[((formatted_fit_tbl['mjd'] < 60773) & 
+#                                       (formatted_fit_tbl['mjd'] > 60770)) |
+#                                       ((formatted_fit_tbl['mjd'] < 60790) &
+#                                       (formatted_fit_tbl['mjd'] > 60787))]
+formatted_fit_tbl = formatted_fit_tbl[(formatted_fit_tbl['band'] == 'sdss::g') | 
+                                      (formatted_fit_tbl['band'] == 'sdss::r') |
+                                      (formatted_fit_tbl['band'] == 'sdss::i') ]
 #%%SNcosmo
 #chi-square
 def calc_chisq(formatted_fit_tbl, filt_):
@@ -790,7 +777,7 @@ def calc_chisq(formatted_fit_tbl, filt_):
 model = sncosmo.Model(source='salt3')
 dust = sncosmo.CCM89Dust()
 import sfdmap
-dustmap = sfdmap.SFDMap("./sfddata-master")
+#dustmap = sfdmap.SFDMap("./sfddata-master")
 #ebv = dustmap.ebv(ra, dec)
 # model.add_effect(dust, 'mw', 'obs')
 #model.set(mwebv = ebv)
@@ -835,8 +822,12 @@ delmag = 1.09- 0.161*x1+ 0.013*x1**2- 0.00130*x1**3
 e_delmag = np.sqrt((0.161*e_x1)**2+(0.013*2*e_x1)**2+(0.00130*3*e_x1)**2)
 t_max = result.parameters[1]
 
-t_range = np.arange(t_max - 10, t_max + 20, 0.01)
+t_range = np.arange(t_max - 20, t_max + 45, 0.01)
 Bmag_range = fitted_model.bandmag('bessellb', 'ab', t_range)
+nan_mask = np.isnan(Bmag_range)
+Bmag_range = Bmag_range[~nan_mask]
+t_range = t_range[~nan_mask]
+t_max = t_range[np.argmin(Bmag_range)]
 magB_idx = np.argmin(Bmag_range)
 magB_max = Bmag_range[magB_idx]
 timeB_max = t_range[magB_idx]
@@ -890,22 +881,99 @@ print(f'magB_max = {magB_max}')
 print(f'ABSmagB_max = {magB_max-nu}+-{e_magerr_max}')
 print(f'nu = {nu}+-{e_nu}')
 #%%
-names = np.array(['Ia SNe', 'Tully-Fisher', 'IRAS', 'TRGB'])
-dis = (np.array([distance, 18000000, 21300000, 17900000]))
-e_mag = np.array([e_nu, 0.23, 0.80, 0.49])
-nu = np.array([nu, 31.28, 31.64, 31.27 ])
-e_dis = (10**((nu+e_mag+5)/5)-dis)
+source =self.data[0]
+
+flux_key = 'MAGSKY_AUTO'
+fluxerr_key = 'MAGERR_AUTO'
+matching_radius_arcsec = 5
+color_key: str = 'filter'#'OBSDATE'
+overplot_gaiaxp = False
+overplot_sdss = False
+overplot_ps1 = False
+self.plt_params.ylim = [26, 7]
+self.plt_params.xlim = [60757, 60815]
+self.plt_params.figure_figsize = (8, 12)
+# self.FILTER_OFFSET['m450'] = -2
+# self.FILTER_OFFSET['m650'] = -1
+# self.FILTER_OFFSET['m850'] = +2
+figs, axs, matched_sources = self.plot(ra, 
+                    dec, 
+                    flux_key=flux_key, 
+                    color_key = color_key, 
+                    matching_radius_arcsec=matching_radius_arcsec,
+                    overplot_gaiaxp=overplot_gaiaxp,
+                    overplot_sdss = overplot_sdss,
+                    overplot_ps1 = overplot_ps1)
+ztf_g_mag = [16.9141, 15.334]
+ztf_g_magerr = [0.0708192, 0.0231074]
+ztf_g_obsdate = [2460762.0002315, 2460764.9897801]
+ztf_g_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in ztf_g_obsdate]
+ztf_r_mag = [18.9175 + 1.0]
+ztf_r_magerr = [0.0909718]
+ztf_r_obsdate = [2460759.842419]
+ztf_r_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in ztf_r_obsdate]
+ps_r_mag = [17.24 +1.0]
+ps_r_magerr = [0.03]
+ps_r_obsdate = [2460761.02748]
+ps_r_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in ps_r_obsdate]
+axs[0].errorbar(ztf_g_obsdate_mjd, ztf_g_mag, yerr=ztf_g_magerr, ms = 10, fmt='*', mfc='green', mec = 'black', label='ZTF g')
+axs[0].errorbar(ztf_r_obsdate_mjd, ztf_r_mag , yerr=ztf_r_magerr, ms = 10, fmt='*', mfc='red',  mec = 'black', label='ZTF r')
+axs[0].errorbar(ps_r_obsdate_mjd, ps_r_mag , yerr=ps_r_magerr, ms = 10, fmt='^', mfc='red',  mec = 'black', label='PS1 r')
+axs[0].legend(loc='upper left', ncol = 2, fontsize=12)
+# %%
+for filter_ in fit_filter_key:
+    mag = fitted_model.bandmag(filter_, 'ab', t_range)
+    mag_offset = self.FILTER_OFFSET.get(filter_)
+    axs[0].plot(t_range, mag + mag_offset, c=self.FILTER_COLOR.get(filter_), linestyle='-', linewidth=1.5, label=f'{filter_} model')
+# %%
+figs[0]
+# %%
+if __name__ == "__main__":
+    from tippy.dataobjects import PhotometricSpectrum
+    source_catalogs_PS = TIPCatalogDataset()
+    source_catalogs_PS.search_catalogs(
+        target_name = 'T22956',
+        search_key = '100.com.fits.cat'
+    )
+    source_catalogs_PS.select_sources(ra, dec, radius=60)
 #%%
-plt.figure(dpi = 300)
-plt.title('Distance to NGC1566')
-plt.scatter(names, dis/1e6, c = 'k')
-plt.errorbar(names, dis/1e6, e_dis/1e6, fmt = 'none', c ='k', capsize = 3)
-plt.axhline(dis[0]/1e6, c= 'k', linestyle = '--', linewidth = 0.5)
-plt.scatter(names[0], dis[0]/1e6, c = 'r', label = 'This work')
-plt.errorbar(names[0], dis[0]/1e6, e_dis[0]/1e6, fmt = 'none', c ='r', capsize = 3)
-plt.legend()
-plt.ylim(10, 35)
-plt.ylabel('Disance [Mpc]')
+if __name__ == "__main__":
+    fit_filter_key = ['m400', 'm425', 'm450', 
+                      'm475', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 
+                      'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875']
+
+    source_catalogs_PS.select_catalogs(filter=fit_filter_key, obs_start = '2025-03-28', obs_end = '2025-04-20')
+    #source_catalogs_PS.exclude_catalogs(telname = '7DT10')
+    spec = PhotometricSpectrum(source_catalogs_PS)
+    spec.merge_catalogs()
+    spec.extract_source_info(ra, dec)
 #%%
+if __name__ == "__main__":
+
+    spec.OFFSET = 3
+    spec.ncol = 3
+    #spec.plt_params.ylim = [50,10]
 
 # %%
+fig, axs, _ = spec.plot(ra, dec, color_key = 'obsdate', flux_key = 'MAGSKY_AUTO', fluxerr_key = 'MAGERR_AUTO')
+#%%
+from astropy.time import Time
+import numpy as np
+data_tbl = spec.data
+all_dates = Time(data_tbl['mjd'], format = 'mjd').to_value('iso', subfmt = 'date')
+data_tbl['obsdate_str'] = all_dates
+tbl_group = data_tbl.group_by('obsdate_str').groups
+wl_range = np.arange(4000, 9000, 1)
+#%%
+import matplotlib.pyplot as plt
+plt.figure()
+for i, tbl in enumerate(tbl_group):
+    obsdate = np.mean(tbl['mjd'][0])
+    print(obsdate)
+    wl = wl_range
+    f_lambda = fitted_model.flux(np.array(obsdate), np.array(wl))
+    abmag = -2.5 * np.log10(f_lambda) - 5 * np.log10(wl) - 2.406 + i * spec.OFFSET
+    wl_show = wl / 10
+    axs[0].plot(wl_show, abmag, label=f'{obsdate:.5f} MJD', c='black', linewidth = 1, alpha=0.5)
+#%%
+fig[0]

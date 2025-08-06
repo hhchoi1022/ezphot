@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
 import uuid
 
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage
-from tippy.imageojbects import Background, Errormap, Mask
+from tippy.imageobjects import ScienceImage, ReferenceImage
+from tippy.imageobjects import Background, Errormap, Mask
 from tippy.methods import TIPStacking  # Adjust import path if needed
 from tippy.methods import TIPPhotometricCalibration  # Adjust import path if needed
 from tippy.methods import TIPAperturePhotometry  # Adjust import path if needed
@@ -48,8 +48,10 @@ class TIPSubtraction(Helper):
     
     def get_referenceframe_from_image(self, 
                                       target_img: Union[ScienceImage],
+                                      telname: str = None,
                                       max_obsdate: Union[str, float, Time] = None,
                                       sort_key: Union[str, List[str]] = ['fraction', 'depth'],
+                                      overlap_threshold: float = 0.5,
                                       return_groups: bool = True,
                                       group_overlap_threshold: float = 0.8
                                       ):
@@ -74,16 +76,17 @@ class TIPSubtraction(Helper):
                 dec = target_img.dec,
                 ra_fov = target_img.fovx,
                 dec_fov = target_img.fovy,
-                telname = None,
+                telname = telname,
                 max_obsdate = max_obsdate,
                 seeing_limit = cfg['seeing'],
                 depth_limit = cfg['depth'],
                 return_groups = return_groups,
+                overlap_threshold = overlap_threshold,
                 group_overlap_threshold = group_overlap_threshold,
             )
             if reference_frames is not None and len(reference_frames) > 0:
                 break  # success
-            
+                    
         if reference_frames is None:
             print("No reference frames found for the target image.")
             return None
@@ -121,6 +124,7 @@ class TIPSubtraction(Helper):
                            seeing_limit: float = None,
                            depth_limit: float = None,
                            return_groups: bool = True,
+                           overlap_threshold: float = 0.5,
                            group_overlap_threshold: float = 0.8
                            ):
         
@@ -155,7 +159,7 @@ class TIPSubtraction(Helper):
         mask &= all_referenceframe_tbl['telkey'] == telkey
         mask &= all_referenceframe_tbl['filtername'] == filter_
         if telname is not None:
-            mask &= all_referenceframe_tbl['telname'] == telname                
+            mask &=  np.array([telname in str(row) for row in all_referenceframe_tbl['telname']])
         if max_obsdate is not None:
             obsdate_target = self.flexible_time_parser(max_obsdate)
             obs_times = Time(all_referenceframe_tbl['obsdate'], format='isot', scale='utc')
@@ -210,6 +214,7 @@ class TIPSubtraction(Helper):
         # Build final table with overlap fractions
         ref_table = Table(rows=matched_rows, names=filtered_tbl.colnames)
         ref_table['fraction'] = fractions
+        ref_table = ref_table[ref_table['fraction'] > overlap_threshold]
 
         # Optional: assign overlap-based group IDs
         if return_groups:
@@ -604,12 +609,13 @@ class TIPSubtraction(Helper):
                 subframe_target_stamp[y_key] = y_sub
                 subframe_target_stamp_path = target_stamp.parent / (target_stamp.stem + f'_subframe_{id_}' + target_stamp.suffix)
                 subframe_target_stamp.write(subframe_target_stamp_path, format='ascii', overwrite=True)
-                # self.to_regions(reg_x = x_sub,
-                #                 reg_y = y_sub,
-                #                 reg_size = 10,
-                #                 unit = 'pixel',
-                #                 output_file_path = str(subframe_target_stamp_path) +'.reg')
-                
+        
+        # Fill nan value to 0
+        subframe_target_img.data += 10* subframe_target_img.header['SKYSIG']
+        subframe_reference_img.data += 10* subframe_reference_img.header['SKYSIG']
+        subframe_target_img.data[np.isnan(subframe_target_img.data)] = 0
+        subframe_reference_img.data[np.isnan(subframe_reference_img.data)] = 0  
+
         if visualize:
             subframe_target_img.show()
             subframe_reference_img.show()
@@ -634,8 +640,8 @@ class TIPSubtraction(Helper):
                  visualize: bool = True,
                  convim: str = None,
                  normim: str = 'i',
-                 nrx: int = 3,
-                 nry: int = 2,
+                 nrx: int = 1,
+                 nry: int = 1,
                  iu: float = 60000,
                  il: float = -10000,
                  tu: float = 60000,
@@ -698,7 +704,7 @@ class TIPSubtraction(Helper):
         #subframe_convolve_img.remove()
         subframe_subtract_img = type(target_img)(result, telinfo = target_img.telinfo, load = True)
         subframe_subtract_mask.path = subframe_subtract_img.savepath.invalidmaskpath
-
+        
         if save:
             subframe_subtract_img.write()
             fullframe_subtract_mask.write()
@@ -716,6 +722,8 @@ class TIPSubtraction(Helper):
                         reference_imglist: List[ReferenceImage],
                         target_bkg: Background = None,
                         detection_sigma: float = 5,
+                        aperture_diameter_arcsec: List[float] = [5, 7, 10],
+                        aperture_diameter_seeing: List[float] = [3.5, 4.5],
                         
                         target_transient_number: int = 5,
                         reject_variable_sources: bool = False,
@@ -725,7 +733,22 @@ class TIPSubtraction(Helper):
                         save: bool = True,
                         verbose: bool = True,
                         visualize: bool = False,
-                        show_transient_numbers: int = 10):
+                        save_transient_figure: bool = True,
+                        save_candidate_figure: bool = True,
+                        show_transient_numbers: int = 100,
+                        show_candidate_numbers: int = 100,
+                        tu: float = None,
+                        tl: float = None,
+                        iu: float = None,
+                        il: float = None,
+                        nrx: int = 1,
+                        nry: int = 1,
+                        nsx: int = 10,
+                        nsy: int = 10,
+                        ko: int = 3,
+                        bgo: int = 1,
+                        r: int = 10,
+                        **hotpants_params):
         """
         Find transients in the subtracted image.
         This function uses the subtracted image from the subtract method.
@@ -747,10 +770,18 @@ class TIPSubtraction(Helper):
         save: bool = True
         verbose: bool = True
         visualize: bool = False
-        show_transient_numbers: int = 10
-        
+        save_transient_figure: bool = True
+        save_candidate_figure: bool = True
+        show_transient_numbers: int = 100
+        show_candidate_numbers: int = 100
+        nrx: int = 1
+        nry: int = 1
+        nsx: int = 10
+        nsy: int = 10
+        ko: int = 3
+        bgo: int = 1
+        r: int = 10
         """
-
         # Prepare reprojected target_img
         if target_bkg is not None:
             target_img_sub = self.background.subtract_background(
@@ -794,7 +825,8 @@ class TIPSubtraction(Helper):
             target_bkgrms = None,  # No background RMS for subtraction
             target_mask = None,
             detection_sigma = detection_sigma,
-            aperture_diameter_arcsec = [5,7,10],
+            aperture_diameter_arcsec = aperture_diameter_arcsec,
+            aperture_diameter_seeing = aperture_diameter_seeing,
             saturation_level = 60000,
             kron_factor = 2.5,
             save = save,
@@ -807,11 +839,8 @@ class TIPSubtraction(Helper):
             target_img = reprojected_target_img,
             target_catalog = reprojected_target_catalog,
             catalog_type = 'GAIAXP',
-            max_distance_second = 1.0,
+            max_distance_second = 5.0,
             calculate_color_terms = False,
-            calculate_mag_terms = False,
-            snr_lower = 15,
-            snr_upper = 500,
             save = True,
             verbose = verbose,
             visualize = visualize,
@@ -823,14 +852,26 @@ class TIPSubtraction(Helper):
         reprojected_target_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.refcat', '.invalidmask'])
         
         transient_criteria = dict()
+        if 'SATURATE' in reprojected_target_img.header.keys():
+            saturation_level_target = min(reprojected_target_img.header['SATURATE'] * 0.5, 60000)
+        else:
+            saturation_level_target = 60000
         reprojected_target_ref_catalog_data = reprojected_target_ref_catalog.data
-        saturation_level = np.percentile(reprojected_target_ref_catalog_data['FLUX_MAX'], 99.9)
-        transient_criteria['flux_upper_target'] = 60000#min(60000, saturation_level)
-        transient_criteria['flux_lower_target'] = reprojected_target_img.info.SKYVAL - 15 * reprojected_target_img.info.SKYSIG if reprojected_target_img.info.SKYVAL is not None and reprojected_target_img.info.SKYSIG is not None else -10000
         transient_criteria['classstar_lower'] = min(0.5, 0.9 * np.median(reprojected_target_ref_catalog_data['CLASS_STAR']))
         transient_criteria['elongation_upper'] = max(1.5, 1.2 * np.median(reprojected_target_ref_catalog_data['ELONGATION']))
+        if iu is None:
+            transient_criteria['flux_upper_target'] = saturation_level_target
+        else:
+            transient_criteria['flux_upper_target'] = iu
+        if il is None:
+            transient_criteria['flux_lower_target'] = reprojected_target_img.info.SKYVAL - 15 * reprojected_target_img.info.SKYSIG if reprojected_target_img.info.SKYVAL is not None and reprojected_target_img.info.SKYSIG is not None else -10000
+        else:
+            transient_criteria['flux_lower_target'] = il
         is_criteria_determined = True
-        reprojected_target_stamp = reprojected_target_ref_catalog.to_stamp(reprojected_target_img)
+        
+        reprojected_target_stamp = None
+        if len(reprojected_target_ref_catalog.data) > 30:
+            reprojected_target_stamp = reprojected_target_ref_catalog.to_stamp(reprojected_target_img)
 
         self.print("=============== Target Image Preparation END ===============", verbose)
         
@@ -846,22 +887,35 @@ class TIPSubtraction(Helper):
             reference_img_temp.path = reference_img.savedir / (uuid.uuid4().hex + '.fits')
             reference_img_temp.write()
             
+            # Step 2: Reproject reference images to reprojected_target_img
+            reprojected_reference_img, reprojected_reference_ivpmask = self._reproject_to_target(
+                reference_img = reference_img_temp,
+                target_img = reprojected_target_img,
+                save = save,
+                verbose = verbose
+            )
+            
+            reference_img_temp.clear()
+            reference_img_temp.remove(remove_main = True, remove_connected_files = True, skip_exts = [''])
+            #reference_img.clear()
+            #reprojected_reference_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
+            
             # Step 1: If reference_img.seeing is None, update seeing
             reference_catalog = None
             reference_ref_catalog = None
+            reprojected_reference_stamp = None
             if reference_img.seeing is None or reject_variable_sources:
                 # If reference catalog is not available, run SExtractor
-                if reference_img.savepath.catalogpath.exists():
-                    reference_catalog = TIPCatalog(reference_img.savepath.catalogpath, catalog_type = 'all', load= True)
-                    reference_catalog.load_target_img(reference_img)
-                else:
+                reference_catalog = reference_img.catalog
+                if reference_catalog is None:
                     reference_catalog = self.aperphot.sex_photometry(
-                        target_img = reference_img_temp,
+                        target_img = reprojected_reference_img,
                         target_bkg = None,  # No background for subtraction
                         target_bkgrms = None,  # No background RMS for subtraction
-                        target_mask = None,
+                        target_mask = reprojected_reference_ivpmask,
                         detection_sigma = detection_sigma,
-                        aperture_diameter_arcsec = [5,7,10],
+                        aperture_diameter_arcsec = aperture_diameter_arcsec,
+                        aperture_diameter_seeing = aperture_diameter_seeing,
                         saturation_level = 60000,
                         kron_factor = 2.5,
                         save = save,
@@ -870,40 +924,26 @@ class TIPSubtraction(Helper):
                         save_fig = False)
                 
                 try:
-                    reference_img_temp, reference_catalog, reference_ref_catalog = self.photcal.photometric_calibration(
-                        target_img = reference_img_temp,
+                    reprojected_reference_img, reprojected_reference_catalog, reprojected_reference_ref_catalog = self.photcal.photometric_calibration(
+                        target_img = reprojected_reference_img,
                         target_catalog = reference_catalog,
                         catalog_type = 'GAIAXP',
-                        max_distance_second = 1.0,
+                        max_distance_second = 5.0,
                         calculate_color_terms = False,
                         calculate_mag_terms = False,
-                        snr_lower = 0.0,
-                        snr_upper = 500,
                         save = True,
                         verbose = verbose,
                         visualize = visualize,
-                        save_fig = True,
+                        save_fig = False,
                         save_starcat = False,
                         save_refcat = True
                         )         
+                    #reprojected_reference_stamp = reprojected_reference_ref_catalog.to_stamp(reprojected_reference_img)
                 except:
-                    reference_ref_catalog, status, peeing = self.photcal.select_stars(
-                     target_catalog = reference_catalog   
-                    )
-                    reference_img_temp.header['SEEING'] = peeing * np.mean(reference_img_temp.pixelscale)
+                    peeing = np.median(reference_catalog.data['FWHM_IMAGE'])
+                    reprojected_reference_img.header['SEEING'] = peeing * np.mean(reprojected_reference_img.pixelscale)
 
-            # Step 2: Reproject reference images to reprojected_target_img
-            reprojected_reference_img, reprojected_reference_ivpmask = self._reproject_to_target(
-                reference_img = reference_img_temp,
-                target_img = reprojected_target_img,
-                save = save,
-                verbose = verbose
-            )
-            reference_img_temp.clear()
-            reference_img_temp.remove(remove_main = True, remove_connected_files = True, skip_exts = [''])
-            reference_img.clear()
-            reprojected_reference_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
-            
+
             if np.sum(reprojected_reference_ivpmask.data == 0) < 20000:
                 self.print('Reference image and target image are not overlapping enough for subtraction.', verbose)
                 failed_reference_images.append(i)
@@ -919,18 +959,22 @@ class TIPSubtraction(Helper):
             else:
                 subtract_seeing = reference_seeing
                 sigma_match = np.sqrt(reference_seeing**2 - target_seeing**2)
+            convolved_source_minarea =  np.pi * (subtract_seeing/2/np.mean(reprojected_target_img.pixelscale))**2 + 0.3 * 2 * np.pi * (sigma_match / 2.355 / np.mean(reprojected_target_img.pixelscale))**2
+                
+            saturation_level_reference = 60000
+            if 'SATURATE' in reprojected_reference_img.header.keys():
+                saturation_level_reference = min(1.5* reprojected_reference_img.header['SATURATE'],60000)
             transient_criteria['seeing_upper'] = 1.3 * subtract_seeing
             transient_criteria['seeing_lower'] = max(1.0, 0.7 * subtract_seeing)    
             # Set saturation level
-            if reference_ref_catalog is not None:
-                if len(reference_ref_catalog.data) > 0:
-                    saturation_level = np.percentile(reference_ref_catalog.data['FLUX_MAX'], 99.9)
-                    transient_criteria['flux_upper_reference'] = 60000#min(saturation_level, 60000)
-                else:
-                    transient_criteria['flux_upper_reference'] = 60000
+            if tu is None:
+                transient_criteria['flux_upper_reference'] = saturation_level_reference
             else:
-                transient_criteria['flux_upper_reference'] = 60000
-            transient_criteria['flux_lower_reference'] = reprojected_reference_img.info.SKYVAL - 15 * reprojected_reference_img.info.SKYSIG if reprojected_reference_img.info.SKYVAL is not None and reprojected_reference_img.info.SKYSIG is not None else -10000
+                transient_criteria['flux_upper_reference'] = tu
+            if tl is None:
+                transient_criteria['flux_lower_reference'] = reprojected_reference_img.info.SKYVAL - 15 * reprojected_reference_img.info.SKYSIG if reprojected_reference_img.info.SKYVAL is not None and reprojected_reference_img.info.SKYSIG is not None else -10000
+            else:
+                transient_criteria['flux_lower_reference'] = tl
             
             #ng = f"3 6 %.2f 4 %.2f 2 %.2f" %(0.5 * sigma_match, sigma_match, 2.0 * sigma_match)
             
@@ -938,7 +982,7 @@ class TIPSubtraction(Helper):
             subframe_target_imglist = []
             subframe_reference_imglist = []
             subframe_subtract_imglist = []
-            #try:
+    
             subframe_target_img, subframe_reference_img, subframe_subtract_img, fullframe_subtract_mask, subframe_subtract_ivpmask = self.subtract(
                 target_img = reprojected_target_img,
                 reference_img = reprojected_reference_img,
@@ -952,25 +996,29 @@ class TIPSubtraction(Helper):
                 # HOTPANTS Parameters
                 convim = None,
                 normim = 'i',
-                nrx = 1,
-                nry = 1,
+                nrx = nrx,
+                nry = nry,
                 iu = transient_criteria['flux_upper_target'],
                 il = transient_criteria['flux_lower_target'],
                 tu = transient_criteria['flux_upper_reference'],
                 tl = transient_criteria['flux_lower_reference'],
                 # Other hotpants parameters
-                ko = 3,
-                bgo = 1,
-                nsx = 15,
-                nsy = 15,
-                r = 10,
-                #ng = ng,
-            )
+                ko = ko,
+                bgo = bgo,
+                nsx = nsx,
+                nsy = nsy,
+                r = r,
+                **hotpants_params)
+            
             reprojected_reference_img.remove(remove_main = True, remove_connected_files = True)
             subframe_target_img.remove(remove_main = False, remove_connected_files = True)
             subframe_reference_img.remove(remove_main = False, remove_connected_files = True)
-            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True)
+            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
             final_subtraction_mask.combine_mask(fullframe_subtract_mask.data, operation='add')
+            
+            output_name = subframe_target_img.savepath.savepath.name
+            subframe_target_img.rename(new_name = 'sci_' + output_name)
+            subframe_reference_img.rename(new_name = 'ref_'+ output_name)
 
             # Step 5: Extract sources
             tbl_first = self.aperphot.sex_photometry(
@@ -978,9 +1026,10 @@ class TIPSubtraction(Helper):
                 target_bkg = None,  # No background for subtraction
                 target_bkgrms = None,  # No background RMS for subtraction
                 target_mask = subframe_subtract_ivpmask,
-                sex_params = dict(SEEING_FWHM = subtract_seeing),
+                sex_params = dict(SEEING_FWHM = subtract_seeing, DETECT_MINAREA = convolved_source_minarea),
                 detection_sigma = detection_sigma,
-                aperture_diameter_arcsec = [5,7,10],
+                aperture_diameter_arcsec = aperture_diameter_arcsec,
+                aperture_diameter_seeing = aperture_diameter_seeing,  
                 saturation_level = 60000,
                 save = save,
                 verbose = verbose,
@@ -1031,9 +1080,10 @@ class TIPSubtraction(Helper):
                     target_bkg = None,  # No background for subtraction
                     target_bkgrms = None,  # No background RMS for subtraction
                     target_mask = subframe_subtract_ivpmask,
-                    sex_params = dict(SEEING_FWHM = subtract_seeing),
+                    sex_params = dict(SEEING_FWHM = subtract_seeing),#, DETECT_MINAREA = convolved_source_minarea),
                     detection_sigma = detection_sigma,
-                    aperture_diameter_arcsec = [5,7,10],
+                    aperture_diameter_arcsec = aperture_diameter_arcsec,
+                    aperture_diameter_seeing = aperture_diameter_seeing,    
                     saturation_level = 60000,
                     kron_factor = 2.5,
                     save = False,
@@ -1064,17 +1114,16 @@ class TIPSubtraction(Helper):
             transient_tbl = None
             if reject_variable_sources:
                 transient_tbl = candidate_tbl.copy()
-                coord_first = SkyCoord(ra=transient_tbl.data['X_WORLD'],
-                                    dec=transient_tbl.data['Y_WORLD'],
-                                    unit = 'deg')
-                coord_second = SkyCoord(ra=reference_catalog.data['X_WORLD'],
-                                        dec=reference_catalog.data['Y_WORLD'],
+                if len(transient_tbl.data) > 0:
+                    coord_first = SkyCoord(ra=transient_tbl.data['X_WORLD'],
+                                        dec=transient_tbl.data['Y_WORLD'],
                                         unit = 'deg')
-                matched_first, matched_second, unmatched_first = self.cross_match(coord_first, coord_second, subtract_seeing)
-                transient_tbl.data = transient_tbl.data[unmatched_first]
+                    coord_second = SkyCoord(ra=reference_catalog.data['X_WORLD'],
+                                            dec=reference_catalog.data['Y_WORLD'],
+                                            unit = 'deg')
+                    matched_first, matched_second, unmatched_first = self.cross_match(coord_first, coord_second, subtract_seeing)
+                    transient_tbl.data = transient_tbl.data[unmatched_first]
                 
-                
-
             # # Step 8: reverse subtraction (reference_img - target_img)
             # if reverse_subtraction:
             #     _, _, reverse_subframe_subtract_img, _, reverse_subframe_subtract_ivpmask = self.subtract(
@@ -1158,61 +1207,69 @@ class TIPSubtraction(Helper):
             #             target_catalog = transient_tbl,
             #             save = True
             #         )
-                
-            candidate_tbl = self.photcal.apply_zp(
-                target_img = subframe_subtract_img,
-                target_catalog = candidate_tbl,
-                save = True
-            )   
-            transient_tbl = self.photcal.apply_zp(
-                target_img = subframe_subtract_img,
-                target_catalog = transient_tbl,
-                save = True
-            )
             
-            if visualize:
+            if len(candidate_tbl.data) > 0:
+                candidate_tbl = self.photcal.apply_zp(
+                    target_img = subframe_subtract_img,
+                    target_catalog = candidate_tbl,
+                    save = True
+                )   
+            if len(transient_tbl.data) > 0:
+                transient_tbl = self.photcal.apply_zp(
+                    target_img = subframe_subtract_img,
+                    target_catalog = transient_tbl,
+                    save = True
+                )
+            
+            if save_transient_figure:
                 if transient_tbl is not None:
                     if len(transient_tbl.data) > 0:
-                        for transient in transient_tbl.data[:show_transient_numbers]:
-                            ra = transient['X_WORLD']
-                            dec = transient['Y_WORLD']
-                            idx = transient['NUMBER']
-                            self.show_transient_positions(
-                                science_img = subframe_target_img,
-                                reference_img = subframe_reference_img,
-                                subtracted_img = subframe_subtract_img,
-                                x = ra,
-                                y = dec,
-                                coord_type = 'coord',
-                                zoom_radius_pixel = 100,
-                                downsample = 1,
-                                cmap = 'gray',
-                                scale = 'zscale',
-                                figsize = (15, 5),
-                                title = f'Transient at RA: {ra}, Dec: {dec}, Idx: {idx}',
-                                subtitles = [f'Science', f'Reference', f'Subtracted']
-                            )
-                else:
-                    if len(candidate_tbl.data) > 0:
-                        for transient in candidate_tbl.data[:show_transient_numbers]:
-                            ra = transient['X_WORLD']
-                            dec = transient['Y_WORLD']
-                            idx = transient['NUMBER']
-                            self.show_transient_positions(
-                                science_img = subframe_target_img,
-                                reference_img = subframe_reference_img,
-                                subtracted_img = subframe_subtract_img,
-                                x = ra,
-                                y = dec,
-                                coord_type = 'coord',
-                                zoom_radius_pixel = 100,
-                                downsample = 1,
-                                cmap = 'gray',
-                                scale = 'zscale',
-                                figsize = (15, 5),
-                                title = f'Transient at RA: {ra}, Dec: {dec}, Idx: {idx}',
-                                subtitles = [f'Science', f'Reference', f'Subtracted']
-                            )
+                        all_transients = transient_tbl.data[:show_transient_numbers]
+                        ra = all_transients['X_WORLD']
+                        dec = all_transients['Y_WORLD']
+                        idx = all_transients['NUMBER']
+                        self.show_transient_positions(
+                            science_img = subframe_target_img,
+                            reference_img = subframe_reference_img,
+                            subtracted_img = subframe_subtract_img,
+                            x_list = ra,
+                            y_list = dec,
+                            idx_list = idx,
+                            coord_type = 'coord',
+                            zoom_radius_pixel = 30,
+                            downsample = 1,
+                            ncols = 3,
+                            cmap = 'viridis',
+                            scale = 'zscale',
+                            subtitles = [f'Science', f'Reference', f'Subtracted'],
+                            transient_type = 'transient',
+                            save = save,
+                            visualize = visualize
+                        )
+            if save_candidate_figure:
+                if len(candidate_tbl.data) > 0:
+                    all_candidates = candidate_tbl.data[:show_candidate_numbers]
+                    ra = all_candidates['X_WORLD']
+                    dec = all_candidates['Y_WORLD']
+                    idx = all_candidates['NUMBER']
+                    self.show_transient_positions(
+                        science_img = subframe_target_img,
+                        reference_img = subframe_reference_img,
+                        subtracted_img = subframe_subtract_img,
+                        x_list = ra,
+                        y_list = dec,
+                        idx_list = idx,
+                        coord_type = 'coord',
+                        zoom_radius_pixel = 30,
+                        downsample = 1,
+                        ncols = 3,
+                        cmap = 'viridis',
+                        scale = 'zscale',
+                        subtitles = [f'Science', f'Reference', f'Subtracted'],
+                        transient_type = 'candidate',
+                        save = save,
+                        visualize = visualize
+                        )
                             
             final_subtraction_mask.write()
             all_catalogs.append(all_tbl)
@@ -1223,12 +1280,9 @@ class TIPSubtraction(Helper):
             subframe_subtract_img.clear()
             subframe_target_imglist.append(subframe_target_img)
             subframe_reference_imglist.append(subframe_reference_img)
-            subframe_subtract_imglist.append(subframe_subtract_img)
-            #except Exception as e:
-            #    self.print(f"Subtraction failed for reference image {i}: {e}", verbose)
-            #    continue
+            subframe_subtract_imglist.append(subframe_subtract_img)     
         return all_catalogs, candidate_catalogs, transient_catalogs, subframe_target_imglist, subframe_reference_imglist, subframe_subtract_imglist
-        
+
     def select_transients(self,
                             target_catalog: TIPCatalog,
                             snr_lower: float = 5.0,
@@ -1300,129 +1354,169 @@ class TIPSubtraction(Helper):
         else:
             return candidate_catalog
         
-    def show_transient_positions(self, 
-                                 science_img: Union[ScienceImage, ReferenceImage], 
-                                 reference_img: Union[ScienceImage, ReferenceImage], 
-                                 subtracted_img: Union[ScienceImage, ReferenceImage],
-                                 x: float, y: float, coord_type='coord',
-                                 zoom_radius_pixel=100, downsample=1,
-                                 cmap='gray', scale='zscale',
-                                 figsize=(15, 5), title: str=None, subtitles: list=None):
+    def show_transient_positions(
+        self,
+        science_img: Union[ScienceImage, ReferenceImage],
+        reference_img: Union[ScienceImage, ReferenceImage],
+        subtracted_img: Union[ScienceImage, ReferenceImage],
+        x_list: list,
+        y_list: list,
+        idx_list: list = None,
+        coord_type='coord',
+        zoom_radius_pixel=30,
+        downsample=1,
+        cmap='viridis',
+        scale='zscale',
+        ncols=2,
+        subtitles: list = None,
+        transient_type: str = 'transient',
+        save: bool = True,
+        visualize: bool = True
+    ):
+        import math
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        import numpy as np
+        from astropy.coordinates import SkyCoord
+        import astropy.units as u
 
-        fig, axes = plt.subplots(1, 3, figsize=figsize)
+        if len(x_list) != len(y_list):
+            raise ValueError("x_list and y_list must have the same length.")
+
+        n_transients = len(x_list)
+        n_rows = math.ceil(n_transients / ncols)
+
+        height, width = science_img.data.shape
+        aspect = width / height  # image aspect ratio
+
+        # === Outer GridSpec: Controls spacing between triplets ===
+        fig = plt.figure(figsize=(3 * ncols * aspect * 1.2, 2.5 * n_rows))
+        outer_grid = gridspec.GridSpec(n_rows, ncols, figure=fig, wspace=0.3, hspace=0.6)  
+
         img_list = [science_img, reference_img, subtracted_img]
-        subtitles = subtitles or ['Science', 'Reference', 'Subtracted']
+        subtitles = subtitles or ['Science', 'Reference', 'Residual']
+        axes = []
 
-        for ax, img, subtitle in zip(axes, img_list, subtitles):
-            img.show_position(
-                x=x, y=y,
-                coord_type=coord_type,
-                zoom_radius_pixel=zoom_radius_pixel,
-                downsample=downsample,
-                cmap=cmap,
-                scale=scale,
-                ax=ax
+        for idx, (x, y) in enumerate(zip(x_list, y_list)):
+            row = idx // ncols
+            col = idx % ncols
+            idx_label = idx_list[idx] if idx_list is not None else None
+
+            # Inner grid: 3 columns per triplet (science, ref, residual)
+            inner_grid = gridspec.GridSpecFromSubplotSpec(
+                1, 3, subplot_spec=outer_grid[row, col], wspace=0.15  # spacing within triplet
             )
-            ax.set_title(subtitle)
 
-        if title:
-            fig.suptitle(title, fontsize=16)
-            fig.subplots_adjust(top=0.88)
+            triplet_axes = [fig.add_subplot(inner_grid[0, j]) for j in range(3)]
+            axes.extend(triplet_axes)
 
-        plt.tight_layout()
-        plt.show()
+            # Plot images
+            for j, (img, subtitle) in enumerate(zip(img_list, subtitles)):
+                ax = triplet_axes[j]
+                img.show_position(
+                    x=x, y=y,
+                    coord_type=coord_type,
+                    zoom_radius_pixel=zoom_radius_pixel,
+                    downsample=downsample,
+                    cmap=cmap,
+                    scale=scale,
+                    ax=ax
+                )
+
+                # Formatting titles
+                coord = SkyCoord(ra=x, dec=y, unit='deg')
+                ra_str = coord.ra.to_string(unit=u.hourangle, sep='', pad=True, precision=2)   # HHMMSS.ss
+                dec_str = coord.dec.to_string(sep='', alwayssign=True, pad=True, precision=1)  # ±DDMMSS.s
+                objname = f'{transient_type}_J{ra_str}_{dec_str}'
+                if idx_label is not None:
+                    objname = f'[{idx_label:02d}] {objname}'
+
+                ax.set_xticks([])
+                ax.set_yticks([])
+                if j != 1:  # Science & Residual only
+                    ax.set_title(f"\n{subtitle}", fontsize=10, pad=6)
+                else:
+                    ax.set_title(f"{objname}\n{subtitle}", fontsize=10, pad=6)
+        
+        # Check scale
+        for ax in fig.axes:
+            for im in ax.get_images():
+                vmin, vmax = im.get_clim()
+                if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
+                    print(f"[FIX] Invalid clim in axis {ax}, resetting.")
+                    data = im.get_array()
+                    vmin, vmax = np.nanmin(data), np.nanmax(data)
+                    if vmin == vmax:  # flat image
+                        vmin, vmax = vmin - 1, vmax + 1
+                    im.set_clim(vmin, vmax)
+        
+        if save:
+            fig.savefig(
+                science_img.savepath.savedir / f'{science_img.savepath.savepath.name}.{transient_type}.png',
+                bbox_inches='tight', dpi=300
+            )
+            
+        if visualize:
+            plt.show()
+        else:
+            plt.close()
         return fig, axes
 
-#%%
-if __name__ == "__main__":
-    import glob
-    self = TIPSubtraction()
-    from tippy.imageojbects import *
-    from tippy.methods import TIPSubtraction, TIPStacking
-    from tippy.utils import *
-    from tippy.helper import Helper, TIPDataBrowser
-    import numpy as np
-    helper = Helper()
-    sdt_data_querier = SDTData()
-    databrowser = TIPDataBrowser('scidata')
-    databrowser.objname = 'NGC1566'
-    databrowser.observatory = 'KCT'
-    stacked_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
-    
-    target_img = stacked_imglist[0]
-    reference_img = self.get_referenceframe_from_image(target_img)[0]
-    telinfo = target_img.telinfo
 
-    # stacking = TIPStacking()
-    # target_imglist = [ScienceImage(img, telinfo = telinfo, load = True) for img in imginfo]
-    # target_img = stacking.select_quality_images(target_imglist, max_numbers = 3)[0]
-    # reference_img, _ = self.get_referenceframe_from_image(target_img)
+
+
+# %%
+if __name__ == "__main__":
+    from tippy.helper import TIPDataBrowser
+    self = TIPSubtraction()
 #%%
 if __name__ == "__main__":
-    combine_type = 'weight'
-    n_proc = 4
-    clip_type = None
-    sigma = 3.0
-    nlow = 1
-    nhigh = 1
-    resample = True
-    resample_type = 'LANCZOS3'
-    center_ra = None
-    center_dec = None
-    pixel_scale = None
-    x_size = None
-    y_size = None
-    scale = True
-    scale_type = 'min'
-    zp_key = 'ZP_APER_1'
-    convolve = True
-    seeing_key = 'SEEING'
-    kernel = 'gaussian'
-    detection_sigma = 5.0
-    aperture_diameter_arcsec = [5,7,10]
-    saturation_level = 40000
-    kron_factor = 2.5
-    catalog_type = 'GAIAXP'
-    max_distance_second = 1.0
-    calculate_mag_terms = True
-    calculate_color_terms = True
-    visualize_mag_key = 'MAG_AUTO'
-    save = True
-    verbose = True
-    visualize = True
-    save_fig = False
-    import numpy as np
-    # target_pathlist= glob.glob('/data/data1/factory_hhchoi/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01357/7DT15/r/calib*.fits')
-    # target_imglist = [ScienceImage(path, telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = False) for path in target_pathlist]
-    # reference_pathlist = glob.glob('/data/data1/factory_hhchoi/data/refdata/main/SkyMapper/SkyMapper_SG_32_Det_1x1/T01357/SkyMapper/g/DONE*fits')
-    # reference_imglist = [ReferenceImage(path, telinfo = self.get_telinfo('SkyMapper', 'SG_32_Det'), load = False) for path in reference_pathlist]
-    # target_img = target_imglist[0]
-    # reference_img = reference_imglist[0]
-#%%
-if __name__ == "__main__":
+    databrowser = TIPDataBrowser('scidata')
+    databrowser.observatory = 'RASA36'
+    databrowser.objname = 'NGC1566'
+    databrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
+    target_imgset = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
+    target_imglist = target_imgset.target_images
+    target_img = target_imglist[0]
+    reference_img = self.get_referenceframe_from_image(
+        target_img = target_img,
+        )[0]
+    reference_imglist = [reference_img]
+    target_bkg: Background = None
+    detection_sigma: float = 5
+    aperture_diameter_arcsec: float = [5,7,10]
+    aperture_diameter_seeing: float = [3.5,4.5]
+    
+    target_transient_number: int = 5
+    reject_variable_sources: bool = True
+    negative_detection: bool = True
+    reverse_subtraction: bool = False
+    
+    save: bool = True
+    verbose: bool = True
+    visualize: bool = True
+    show_transient_numbers: int = 10
+    nrx: int = 1
+    nry: int = 1
+    nsx: int = 10
+    nsy: int = 10
+    ko: int = 3
+    bgo: int = 1
+    r: int = 10
+    hotpants_params = dict()
     result = self.find_transients(
         target_img = target_img,
-        reference_imglist = [reference_img],
+        reference_imglist = reference_imglist,
         target_bkg = None,
         detection_sigma = 5,
+        aperture_diameter_arcsec = [5,7,10],
+        aperture_diameter_seeing = [3.5,4.5],
+        target_transient_number = 5,
         reject_variable_sources = True,
         negative_detection = True,
         reverse_subtraction = False,
-        save = True,
-        verbose = True,
-        visualize = True,
-        show_transient_numbers = 10
-        
+        visualize = False,
     )
-    #TODO CHECK WHETHER THE MAGSKY IS CORRECT (ZP is not changed during subtraction)
-    # %%
-#%%
-if __name__ == "__main__":
 
-    from tippy.catalog import TIPCatalog
-    T = result[2][0]
-    ra = 233.857430764
-    dec = 12.0577222937
-    T.show_source(ra, dec)
-    T.search_sources(ra, dec, 'coord')
+
 # %%

@@ -1,8 +1,8 @@
 
 
 #%%
-from tippy.photometry import *
-from tippy.imageojbects import *
+from tippy.methods import *
+from tippy.imageobjects import *
 from tippy.helper import Helper, TIPDataBrowser
 from tippy.utils import SDTData
 from tqdm import tqdm
@@ -40,7 +40,7 @@ print(Stacking)
 #%%
 #=============== CONFIOGURATION FOR SINGLE IMAGE PROCESSING ===============#
 save = True
-visualize = False
+visualize = True
 save_fig = True
 verbose = False
 
@@ -114,6 +114,7 @@ aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
+     aperture_diameter_seeing = [3.5, 4.5],
     saturation_level = 60000,
     kron_factor = 2.5,
     save = save,
@@ -128,10 +129,6 @@ photometriccalibration_kwargs = dict(
     max_distance_second = 1.0,
     calculate_color_terms = True,
     calculate_mag_terms = True,
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 15,
-    snr_upper = 500,
     classstar_lower = 0.7,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -162,7 +159,7 @@ photometriccalibration_kwargs = dict(
 #=============== CONFIGURATION FOR STACKING ===============#
 do_stacking = True
 stacking_kwargs = dict(
-    combine_type = 'mean',
+    combine_type = 'median',
     n_proc = 8,
     # Clip parameters
     clip_type = 'extrema',
@@ -180,7 +177,7 @@ stacking_kwargs = dict(
     # Scale parameters
     scale = True,
     scale_type = 'min',
-    zp_key = 'ZP_APER_1',
+    zp_key = 'ZP_APER_4',
     # Convolution parameters
     convolve = False,
     seeing_key = 'SEEING',
@@ -196,6 +193,7 @@ stack_aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
+    aperture_diameter_seeing = [3.5, 4.5],
     saturation_level = 60000,
     kron_factor = 2.5,
     save = save,
@@ -209,11 +207,6 @@ stack_photometriccalibration_kwargs = dict(
     max_distance_second = 1.0,
     calculate_color_terms = True,
     calculate_mag_terms = True,
-
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 15,
-    snr_upper = 500,
     classstar_lower = 0.7,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -245,6 +238,8 @@ stack_photometriccalibration_kwargs = dict(
 # =============== CONFIGURATION FOR DIA =============== #
 DIA_kwargs = dict(
     detection_sigma = 5,
+    aperture_diameter_arcsec = [5, 7, 10],
+    aperture_diameter_seeing = [3.5, 4.5],
     target_transient_number = 5,
     reject_variable_sources = True,
     negative_detection = True,
@@ -252,7 +247,18 @@ DIA_kwargs = dict(
     save = True,
     verbose = True,
     visualize = True,
-    show_transient_numbers = 10)
+    save_transient_figure = True,
+    save_candidate_figure = True,
+    show_transient_numbers = 100,
+    show_candidate_numbers = 100,
+    nrx = 1,
+    nry = 1,
+    nsx = 10,
+    nsy = 10,
+    ko = 3,
+    bgo = 1,
+    r = 10,
+    )
 
 #%% Define the tile IDs for S250206dm
 tile_ids_S250206dm = list([
@@ -266,7 +272,7 @@ tile_ids_S250206dm = list([
     "T01471", "T01809", "T01356", "T01810", "T01263", "T01811", "T01061", "T01688",
     "T01687", "T01461", "T01155"
     ])
-tile_ids_S250206dm = list(['T01161'])
+tile_ids_S250206dm = list(['T01158'])
 #%% Query object frames
 import time
 for tile_id in tile_ids_S250206dm:
@@ -527,6 +533,7 @@ for tile_id in tile_ids_S250206dm:
     print(f"Stacking completed in {time.time() - start:.2f} seconds.")
             
     # Stack the images
+
     stacked_imglist = Databrowser.search(
         pattern = 'calib*100.com.fits',
         return_type = 'science'
@@ -581,6 +588,8 @@ for tile_id in tile_ids_S250206dm:
                 print(f"[ERROR] {e}")
                 
     # Stack the images
+    Databrowser.filter = 'g'
+    Databrowser.objname = 'T01158'
     stacked_imglist = Databrowser.search(
         pattern = 'calib*100.com.fits',
         return_type = 'science'
@@ -606,8 +615,6 @@ for tile_id in tile_ids_S250206dm:
             except Exception as e:
                 print(f"[ERROR] {e}")
                 
-                
-    #### TODO SAVE TRANSIENT PLOTS FOR DIAGNOSTICS IN TIPSUBTRACT CLASS
 
     
             

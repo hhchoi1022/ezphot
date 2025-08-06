@@ -1,8 +1,8 @@
 
 
 #%%
-from tippy.photometry import *
-from tippy.imageojbects import *
+from tippy.methods import *
+from tippy.imageobjects import *
 from tippy.helper import Helper
 from tippy.utils import SDTData
 from tippy.helper import TIPDataBrowser
@@ -46,8 +46,8 @@ target_imglist = databrowser.search(pattern='Calib*20211202*.fits', return_type=
 #%%
 
 ### CONFIOGURATION FOR SINGLE IMAGE PROCESSING
-visualize = False
-verbose = False
+visualize = True
+verbose = True
 save_fig = True
 save = True
 
@@ -150,10 +150,8 @@ photometriccalibration_kwargs = dict(
     max_distance_second = 1.0,
     calculate_color_terms = True,
     calculate_mag_terms = True,
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 30,
-    snr_upper = 500,
+    mag_lower = -14,
+    mag_upper = -10,
     classstar_lower = 0.5,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -164,9 +162,9 @@ photometriccalibration_kwargs = dict(
     maskflag_upper = 1,
     inner_fraction = 0.95, # Fraction of the images
     isolation_radius = 10.0,
-    magnitude_key = 'MAG_APER_1',
-    flux_key = 'FLUX_APER_1',
-    fluxerr_key = 'FLUXERR_APER_1',
+    magnitude_key = 'MAG_AUTO',
+    flux_key = 'FLUX_AUTO',
+    fluxerr_key = 'FLUXERR_AUTO',
     fwhm_key = 'FWHM_IMAGE',
     x_key = 'X_IMAGE',
     y_key = 'Y_IMAGE',
@@ -603,6 +601,14 @@ lc.plt_params.ylim = [20, 11]
 lc.plot(ra = 64.9725, dec= -54.948081)
 # %% SUBTRACTION
 # Make reference image
+databrowser = TIPDataBrowser('scidata')
+databrowser.observatory = 'KCT'
+databrowser.objname = 'NGC1566'
+databrowser.filter = 'i'
+target_imglist = databrowser.search(pattern='Calib*2021*.fits', return_type='science')
+#%%
+
+#%%
 target_imglist_g = [img for img in target_imglist if img.filter.startswith('g')]
 target_imglist_r = [img for img in target_imglist if img.filter.startswith('r')]
 target_imglist_i = [img for img in target_imglist if img.filter.startswith('i')]
@@ -685,18 +691,30 @@ reference_img_r.register()
 # %% Start Image subtraction
 DIA_kwargs = dict(
     detection_sigma = 5,
+    aperture_diameter_arcsec = [4,7,10],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     target_transient_number = 5,
     reject_variable_sources = True,
     negative_detection = True,
     reverse_subtraction = False,
     save = True,
     verbose = False,
-    visualize = False,
-    show_transient_numbers = 10)
+    visualize = False, #False
+    save_transient_figure = True,
+    save_candidate_figure = True,
+    show_transient_numbers = 100,
+    show_candidate_numbers = 100,
+    iu = 60000,
+    il = -10000,
+    tu = 60000,
+    tl = -10000,
+    )
 
 databrowser = TIPDataBrowser('scidata')
-stacked_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
-from tippy.photometry import TIPSubtraction
+databrowser.filter = 'i'
+stacked_imgset = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
+stacked_imglist = stacked_imgset.target_images
+from tippy.methods import TIPSubtraction
 DIA = TIPSubtraction()
 # %%
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -747,11 +765,9 @@ catalogdataset.select_sources(ra = 64.9725, dec= -54.948081)
 # %%
 from tippy.dataobjects import LightCurve
 lc = LightCurve(catalogdataset)
-for catalog in lc.source_catalogs.catalogs:
-    catalog.load_target_img()
 # %%
 lc.plt_params.figure_figsize = (10, 6)
 lc.plt_params.xlim= [59500, 59700]
 lc.plt_params.ylim = [20, 11]
-lc.plot(ra = 64.9725, dec= -54.948081, flux_key = 'MAGSKY_APER_2')
+lc.plot(ra = 64.9725, dec= -54.948081, flux_key = 'MAGSKY_APER_3')
 # %%

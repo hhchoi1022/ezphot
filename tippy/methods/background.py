@@ -18,8 +18,8 @@ from scipy.interpolate import griddata
 import cv2
 
 from tippy.methods import TIPMasking
-from tippy.imageojbects import Mask, Background
-from tippy.imageojbects import ScienceImage, ReferenceImage, CalibrationImage
+from tippy.imageobjects import Mask, Background
+from tippy.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from tippy.helper import Helper
 #%%
 class TIPBackground(Helper): ############## CHECKED ##############
@@ -89,6 +89,10 @@ class TIPBackground(Helper): ############## CHECKED ##############
             self.print("External mask is loaded.", verbose)
             
         image_data = target_img.data
+        # If image_data is uint16, convert to float32
+        if image_data.dtype == np.uint16:
+            image_data = image_data.astype(np.float32)
+        target_img.data = image_data
 
         # Create a mask of NaN values
         invalid_mask = ~np.isfinite(image_data)
@@ -101,6 +105,7 @@ class TIPBackground(Helper): ############## CHECKED ##############
         
         # Step 2: Background estimation
         image_data = self.to_native(image_data)
+        
         bkg = sep.Background(image_data, 
                              mask=mask_to_use, 
                              bw=box_size, 
@@ -503,65 +508,3 @@ class TIPBackground(Helper): ############## CHECKED ##############
             plt.show()
         
         plt.close(fig)
-
-    
-# %%
-if __name__ == '__main__':
-    original_path  =Path('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT16/r/calib_7DT16_T22956_20250329_044447_r_100.fits')
-    S = ScienceImage(path = original_path, telinfo=Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1), load= True)
-    self = TIPBackground()
-    
-    # Input parameters
-    target_img: Union[ScienceImage, ReferenceImage] = S
-    #target_mask = Mask(S.savepath.maskpath, load = False)
-    target_mask = None
-    box_size: int = 128
-    filter_size: int = 3
-    bkg_estimator = 'sextractor'
-    
-    # Iterative background estimation
-    n_iterations: int = 2
-    mask_sigma: float = 3
-    mask_radius_factor = 3
-    mask_saturation_level = 50000
-    
-    # Others
-    verbose: bool = True
-    visualize: bool = True
-    save: bool = True
-    save_fig = True
-    # target_bkg, _ = self.calculate_photutils(target_img = target_img,
-    #                       target_mask = target_mask,
-    #                       box_size = box_size,
-    #                       filter_size = filter_size,
-    #                       n_iterations = n_iterations,
-    #                       mask_sigma = mask_sigma,
-    #                       mask_radius_factor = mask_radius_factor,
-    #                       verbose = verbose,
-    #                       visualize = visualize,
-    #                       save = save,
-    #                       save_fig = save_fig)
-    target_bkg, _ = self.calculate_sep(target_img = target_img,
-                            target_mask = target_mask,
-                            box_size = box_size,
-                            filter_size = filter_size,
-                            n_iterations = n_iterations,
-                            mask_sigma = mask_sigma,
-                            mask_radius_factor = mask_radius_factor,
-                            verbose = verbose,
-                            visualize = visualize,
-                            save = save,
-                            save_fig = save_fig)
-#%%
-if __name__ == '__main__':
-    #target_bkg = Background(path = target_img.savepath.bkgpath, load = True)
-    #S = ScienceImage(path = target_img.savepath.savepath, telinfo=target_img.telinfo, load = True)
-    sub = self.subtract_background(target_img = target_img,
-                                    target_bkg = target_bkg,
-                                    overwrite = False,
-                                    save = True,
-                                    visualize = True,
-                                    save_fig = True)
-    
-
-# %%

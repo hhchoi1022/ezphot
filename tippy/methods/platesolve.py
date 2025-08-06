@@ -4,7 +4,7 @@ import numpy as np
 
 from tippy.error import PlateSolveError
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, ReferenceImage
+from tippy.imageobjects import ScienceImage, ReferenceImage
 #%%
 class TIPPlateSolve(Helper): ############## CHECKED ##############
     
@@ -80,29 +80,4 @@ class TIPPlateSolve(Helper): ############## CHECKED ##############
                 output_img.update_status('SCAMP')
                 output_imglist.append(output_img)
             return output_imglist
-        
-# %%
-if __name__ == '__main__':
-    # Example usage
-    import glob
-    self = TIPPlateSolve()
-    scamp_sexparams: dict = None
-    sex_params: dict = None
-    scamp_params: dict = None
-    # Other parameters
-    overwrite: bool = True
-    verbose: bool = True
-    #filelist = glob.glob('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT13/m875/*.fits')
-    target_path = '/data/data1/factory_hhchoi/data/scidata/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/align_calib_7DT14_T22956_20250424_031813_m600_100.fits'
-    target_img = ScienceImage(path = target_path, telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-                  #ScienceImage(path = filelist[1], telinfo = Helper().get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)]
-    #target_image_output = self.solve_astrometry(target_img = target_img, overwrite = False, verbose = True)
-    # target_imglist = self.solve_scamp(
-    #     target_img = target_img,
-    #     scamp_sexparams = scamp_sexparams,
-    #     scamp_params = scamp_params,
-    #     # Other parameters
-    #     overwrite = False,
-    #     verbose = verbose
-    # )
-# %%
+    

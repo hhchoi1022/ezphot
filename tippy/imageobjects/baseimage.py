@@ -57,11 +57,13 @@ class Logger:
 class BaseImage(TIPConfig):
     """ Handles FITS image processing and tracks its status """
 
-    def __init__(self, path: Union[Path, str], telinfo : dict):
+    def __init__(self, path: Union[Path, str], telinfo : dict = None):
         path = Path(path)
 
         self.helper = Helper()
         self.path = path
+        if telinfo is None:
+            telinfo = self.helper.estimate_telinfo(self.path)
         self.telinfo = telinfo
         self.telkey = self._get_telkey()
         # Initialize or load status
@@ -110,6 +112,19 @@ class BaseImage(TIPConfig):
     def is_exists(self):
         return self.path.exists()
     
+    def rename(self, new_name: str):
+        """Rename the image file (with overwrite support)."""
+        old_path = self.path
+        new_path = self.path.parent / new_name
+
+        # If the target exists, remove it (overwrite)
+        if new_path.exists():
+            new_path.unlink()  # remove the existing file
+
+        old_path.rename(new_path)
+        self.path = new_path
+        print(f"Renamed {old_path} to {new_path}")
+
     def clear(self, clear_data: bool = True, clear_header: bool = False):
         """Clear the image data and header"""
         if clear_data:
@@ -234,33 +249,22 @@ class BaseImage(TIPConfig):
         return fig, ax
         
     def show_position(self,
-                      x: float,
-                      y: float,
-                      coord_type: str = 'pixel',
-                      downsample: int = 4,
-                      zoom_radius_pixel: int = 100,
-                      cmap: str = 'gray',
-                      scale: str = 'zscale',
-                      figsize=(6, 6),
-                      ax=None,
-                      save_path: str = None):
+                    x: float,
+                    y: float,
+                    coord_type: str = 'pixel',
+                    downsample: int = 4,
+                    zoom_radius_pixel: int = 100,
+                    cmap: str = 'gray',
+                    scale: str = 'zscale',
+                    figsize=(6, 6),
+                    ax=None,
+                    save_path: str = None,
+                    title: bool = True):  # Added flag to control title
         """
         Show a zoomed-in region around a given position in the image.
-
-        Parameters
-        ----------
-        x, y : float
-            Coordinates. Either pixel (x, y) or sky (RA, Dec in deg).
-        coord_type : str
-            Either 'pixel' or 'coord'.
-        downsample : int
-            Downsample factor (default=1).
-        zoom_radius_pixel : int
-            Radius (in pixels) for the cutout box.
         """
         import matplotlib.pyplot as plt
         from astropy.visualization import ZScaleInterval, MinMaxInterval
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
         from matplotlib.patches import Circle
 
         data = self.data
@@ -274,21 +278,16 @@ class BaseImage(TIPConfig):
             if wcs is None:
                 print("No valid WCS for sky-to-pixel conversion.")
                 return
-            try:
-                from astropy.coordinates import SkyCoord
-                import astropy.units as u
-                coord = SkyCoord(x * u.deg, y * u.deg, frame='icrs')
-                x_pix, y_pix = wcs.world_to_pixel(coord)
-            except Exception as e:
-                print(f"Failed WCS transformation: {e}")
-                return
+            from astropy.coordinates import SkyCoord
+            import astropy.units as u
+            coord = SkyCoord(x * u.deg, y * u.deg, frame='icrs')
+            x_pix, y_pix = wcs.world_to_pixel(coord)
         elif coord_type == 'pixel':
             x_pix, y_pix = x, y
         else:
             raise ValueError("coord_type must be 'pixel' or 'coord'.")
 
-        x_pix = int(x_pix)
-        y_pix = int(y_pix)
+        x_pix, y_pix = int(x_pix), int(y_pix)
 
         # Extract zoom window
         x_min = max(0, x_pix - zoom_radius_pixel)
@@ -299,35 +298,32 @@ class BaseImage(TIPConfig):
         cutout = data[y_min:y_max:downsample, x_min:x_max:downsample]
 
         # Scaling
-        if scale == 'zscale':
-            interval = ZScaleInterval()
-        elif scale == 'minmax':
-            interval = MinMaxInterval()
-        else:
-            print(f"Invalid scale option: {scale}")
-            return
+        interval = ZScaleInterval() if scale == 'zscale' else MinMaxInterval()
         vmin, vmax = interval.get_limits(cutout)
 
-        # If no axis provided, make a new figure
+        # Draw
         if ax is None:
             fig, ax = plt.subplots(figsize=figsize)
         else:
             fig = ax.figure
 
-        img = ax.imshow(cutout, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
-        circle = Circle(
+        ax.imshow(cutout, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
+        ax.add_patch(Circle(
             ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
-            radius=size * 0.08, edgecolor='red', facecolor='none', linewidth=1.5
-        )
-        ax.add_patch(circle)
-        ax.set_title(f"Zoom at ({x_pix}, {y_pix}) [{coord_type}]")
+            radius=size * (0.08/downsample), edgecolor='red', facecolor='none', linewidth=0.5
+        ))
         ax.axis('off')
-        
+        ax.set_aspect('auto')  # ? Avoid square enforcement
+
+        if title is not None:
+            ax.set_title(f"{title}", fontsize=8, pad=1)  # Less padding
+
         if save_path:
-            plt.savefig(save_path, dpi=300)
+            fig.savefig(save_path, dpi=300)
             print(f"Saved: {save_path}")
 
         return fig, ax
+
     
     def run_ds9(self):
         self.helper.run_ds9(self.path)        

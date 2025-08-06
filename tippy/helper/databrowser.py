@@ -11,9 +11,10 @@ from functools import partial
 from multiprocessing import cpu_count, Pool
 
 
-def _get_imginfo(filelist):
-    helper = Helper()
-    imginfo = helper.get_imginfo(filelist)
+
+def _get_imginfo(filelist, pattern):
+    helper = Helper()   
+    imginfo = helper.get_imginfo(filelist, pattern=pattern)
     return imginfo
 
 def _load_image(cls, path, telinfo=None):
@@ -41,7 +42,6 @@ class TIPDataBrowser(Helper):
         super().__init__()
         self.foldertype = foldertype
         self.basepath = self._get_default_path(foldertype)
-        
         # Search attributes
         self.observatory = None
         self.telkey = None
@@ -52,7 +52,7 @@ class TIPDataBrowser(Helper):
         self.obsdate = None
     
     def __repr__(self):
-        txt = f"<TIPQuery(foldertype='{self.foldertype}', basepath='{self.basepath}')>\n"
+        txt = f"<TIPDataBrowser(searchpath='{self.searchpath}', foldertype='{self.foldertype}')>\n"
         txt += "Search Attributes:\n"
         txt += f"  observatory : {self.observatory or '*'}\n"
         txt += f"  telkey      : {self.telkey or '*'}\n"
@@ -86,7 +86,7 @@ class TIPDataBrowser(Helper):
         import glob
         from collections import defaultdict
 
-        glob_pattern = self._construct_glob_pattern(pattern)
+        glob_pattern = str(self.searchpath / pattern)
         matched_files = glob.glob(glob_pattern, recursive=True)
         print(f"[INFO] Found {len(matched_files)} files matching '{glob_pattern}'")
 
@@ -95,19 +95,21 @@ class TIPDataBrowser(Helper):
             for file in matched_files:
                 path = Path(file)
                 # Use -3 for scidata/refdata, -2 for others
-                key_idx = -3 if self.foldertype in ['scidata', 'refdata'] else -2
+                key_idx = -2 if self.foldertype in ['scidata', 'refdata'] else -3
                 key = path.parts[key_idx] if len(path.parts) >= abs(key_idx) else 'UNKNOWN'
                 grouped[key].append(path)
             return {k: sorted(v) for k, v in sorted(grouped.items())}
         
         elif return_type == 'imginfo':
-            return self._to_imginfo(matched_files)
+            return self._to_imginfo(matched_files, pattern)
 
         elif return_type == 'science':
-            return self._to_science_images(matched_files)
+            from tippy.imageobjects import ImageSet
+            return ImageSet(self._to_science_images(matched_files))
 
         elif return_type == 'reference':
-            return self._to_reference_images(matched_files)
+            from tippy.imageobjects import ImageSet
+            return ImageSet(self._to_reference_images(matched_files))
 
         elif return_type == 'calibration':
             return self._to_calibration_images(matched_files)
@@ -117,6 +119,9 @@ class TIPDataBrowser(Helper):
         
         elif return_type == 'errormap':
             return self._to_errormap(matched_files)
+        
+        elif return_type == 'catalog':
+            return self._to_catalog(matched_files)
 
         else:
             raise ValueError(f"Invalid return_type: {return_type}. Choose from 'path', 'science', 'reference', 'calibration'.")
@@ -127,27 +132,16 @@ class TIPDataBrowser(Helper):
             "refdata": self.config["REFDATA_DIR"],
             "calibdata": self.config["CALIBDATA_DIR"],
             "mcalibdata": self.config["CALIBDATA_MASTERDIR"],
-            "obsdata": self.config["OBSDATA_DIR"]
+            "obsdata": self.config["OBSDATA_DIR"],
+            "rawdata": Path(self.config["OBSDATA_DIR"]),
         }
         if self.foldertype not in default_path_dict:
-            raise ValueError(f"Unknown foldertype: {self.foldertype}. Available types: {list(default_path_dict.keys())}")
+            print(f"[WARNING] Unknown foldertype: {self.foldertype}. Available types: {list(default_path_dict.keys())}")
+            return None
         else:
             return Path(default_path_dict[self.foldertype])
-
-    def _construct_glob_pattern(self, pattern='*.fits'):
-        if self.foldertype == 'scidata' or self.foldertype == 'refdata':
-            path = self.basepath / (self.observatory or '*') / (self.telkey or '*') / (self.objname or '*') / (self.telname or '*') / (self.filter or '*')
-        elif self.foldertype == 'calibdata':
-            path = self.basepath / (self.observatory or '*') / (self.telkey or '*') / (self.imgtype or '*') / (self.telname or '*')
-        elif self.foldertype == 'mcalibdata':
-            path = self.basepath / '*' / (self.observatory or '*') / (self.telkey or '*') / (self.telname or '*') / (self.imgtype or '*')
-        elif self.foldertype == 'obsdata':
-            path = self.basepath / (self.observatory or '*') / (self.telname or '*') / (self.obsdate or '*')
-        else:
-            raise ValueError(f"Unknown foldertype: {self.foldertype}")
-        return str(path / pattern)
     
-    def _to_imginfo(self, filepaths: List[Union[str, Path]]):
+    def _to_imginfo(self, filepaths: List[Union[str, Path]], pattern: str = '*.fits'):
         from astropy.table import vstack
         if not filepaths:
             return None
@@ -163,8 +157,17 @@ class TIPDataBrowser(Helper):
         file_groups = list(dir_to_files.values())
 
         # Run multiprocessing
-        with Pool(16) as pool:
-            results = list(tqdm(pool.imap(_get_imginfo, file_groups), total=len(file_groups), desc="Collecting ImgInfo"))
+        if len(file_groups) > 1:
+            with Pool(16) as pool:
+                results = list(
+                    tqdm(
+                        pool.starmap(_get_imginfo, [(group, pattern) for group in file_groups]),
+                        total=len(file_groups),
+                        desc="Collecting ImgInfo"
+                    )
+                )       
+        else:
+            results = [_get_imginfo(file_groups[0], pattern)]
 
         # Combine results
         tables = [tbl for tbl in results if tbl is not None and len(tbl) > 0]
@@ -173,14 +176,14 @@ class TIPDataBrowser(Helper):
         return vstack(tables, metadata_conflicts='silent')
 
     def _to_science_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import ScienceImage
+        from tippy.imageobjects import ScienceImage
         with Pool(16) as pool:
             func = partial(_load_image, ScienceImage, telinfo= self.estimate_telinfo)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Science Images"))
         return [img for img in images if img is not None]
 
     def _to_reference_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import ReferenceImage
+        from tippy.imageobjects import ReferenceImage
         telinfo = self.estimate_telinfo(filepaths[0])
         with Pool(16) as pool:
             func = partial(_load_image, ReferenceImage, telinfo=self.estimate_telinfo)
@@ -188,32 +191,56 @@ class TIPDataBrowser(Helper):
         return [img for img in images if img is not None]
 
     def _to_calibration_images(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import CalibrationImage
+        from tippy.imageobjects import CalibrationImage
         with Pool(16) as pool:
             func = partial(_load_image, CalibrationImage)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Calibration Images"))
         return [img for img in images if img is not None]
 
     def _to_background(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import Background
+        from tippy.imageobjects import Background
         with Pool(16) as pool:
             func = partial(_load_image, Background)
             backgrounds = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Backgrounds"))
         return [bg for bg in backgrounds if bg is not None]
     
     def _to_errormap(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import Errormap
+        from tippy.imageobjects import Errormap
         with Pool(16) as pool:
             func = partial(_load_image, Errormap)
             errormaps = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Errormaps"))
         return [emap for emap in errormaps if emap is not None]
 
     def _to_mask(self, filepaths: List[Union[str, Path]]):
-        from tippy.imageojbects import Mask
+        from tippy.imageobjects import Mask
         with Pool(16) as pool:
             func = partial(_load_image, Mask)
             masks = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Masks"))
         return [mask for mask in masks if mask is not None]
+    
+    def _to_catalog(self, filepaths: List[Union[str, Path]]):
+        from tippy.catalog import TIPCatalog
+        with Pool(16) as pool:
+            func = partial(_load_image, TIPCatalog)
+            masks = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Catalogs"))
+        return [mask for mask in masks if mask is not None]
+
+    @property
+    def searchpath(self):
+        basepath = self.basepath
+        if self.foldertype == 'scidata' or self.foldertype == 'refdata':
+            path = self.basepath / (self.observatory or '*') / (self.telkey or '*') / (self.objname or '*') / (self.telname or '*') / (self.filter or '*')
+        elif self.foldertype == 'calibdata':
+            path = self.basepath / (self.observatory or '*') / (self.telkey or '*') / (self.imgtype or '*') / (self.telname or '*')
+        elif self.foldertype == 'mcalibdata':
+            path = self.basepath / '*' / (self.observatory or '*') / (self.telkey or '*') / (self.telname or '*') / (self.imgtype or '*')
+        elif self.foldertype == 'obsdata':
+            path = self.basepath / (self.observatory or '*') / (self.telname or '*') / (self.obsdate or '*')
+        elif self.foldertype == 'rawdata':
+            path = self.basepath / (self.observatory or '*') / 'obsdata_from_mcs' / (self.telname or '*') / 'image' / (self.obsdate or '*')
+        else:
+            raise ValueError(f"Unknown foldertype: {self.foldertype}")
+        return path
 
     @property
     def keys(self) -> dict:
@@ -350,16 +377,16 @@ class TIPDataBrowser(Helper):
 
 
         
+
 # %%
 if __name__ == '__main__':
     # Example usage
     self = TIPDataBrowser(foldertype='scidata')
-    #self.observatory = '7DT'
-    #self.filter = 'g' 
+    self.observatory = 'LSGT'
     self.objname = 'NGC1566'
-    #self.imgtype = 'BIAS'   
     
-    A = self.search(pattern='*.fits', return_type='imginfo')
-    # Convert file paths to ScienceImage objects
+    A = self.search(pattern='Calib*180.fits', return_type='imginfo')
+    B = self.search(pattern='aCalibrated*.fit', return_type='imginfo')
+    C = vstack([A, B])
 
 # %%

@@ -5,7 +5,7 @@ from multiprocessing import Pool, cpu_count
 import bottleneck as bn
 from tqdm import tqdm
 from tippy.helper import Helper
-from tippy.imageojbects import ScienceImage, CalibrationImage, MasterImage, ReferenceImage, Errormap, Background
+from tippy.imageobjects import ScienceImage, CalibrationImage, MasterImage, ReferenceImage, Errormap, Background
 from tippy.methods import TIPProjection
 from tippy.methods import TIPBackground
 from tippy.methods import TIPPSFPhotometry
@@ -826,6 +826,7 @@ class TIPStacking(Helper):
     
     def select_quality_images(self, 
                               target_imglist: Union[List[ScienceImage], List[ReferenceImage]],
+                              min_obsdate: Union[Time, str, float] = None,
                               max_obsdate: Union[Time, str, float] = None,
                               seeing_key: str = 'SEEING',
                               depth_key: str = 'UL5_APER_1',
@@ -853,12 +854,13 @@ class TIPStacking(Helper):
         
         try:
             obsdate_time = Time(obsdatelist)
+            min_obs_time = self.flexible_time_parser(min_obsdate) if min_obsdate is not None else Time('1990-01-01')
             max_obs_time = self.flexible_time_parser(max_obsdate) if max_obsdate is not None else Time.now()
         except Exception as e:
             raise ValueError(f"Invalid date format: {e}")          
         
         # Mask for images before max_obsdate
-        valid_obs_mask = obsdate_time < max_obs_time
+        valid_obs_mask = (obsdate_time < max_obs_time) & (obsdate_time > min_obs_time)
         
         # Also apply validity mask for seeing, depth, ellipticity
         seeinglist = np.array([v if v is not None else np.nan for v in seeinglist], dtype=float)
@@ -1315,144 +1317,4 @@ class TIPStacking(Helper):
         
         self.print(f"Successfully matched seeing for {len(matched_imglist)} images", verbose)
         return matched_imglist, matched_errormaplist
-        
-    
-        
-    
-
-#%%
-if __name__ == '__main__':
-    import glob
-    from tippy.utils import SDTData
-    S = SDTData()
-    
-    self = TIPStacking()
-    filelist = S.show_scidestdata('T01158', pattern = 'calib*100.fits')['g']
-    telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1)
-    target_img = ScienceImage(filelist[0], telinfo = telinfo, load = True)
-
 # %%
-if __name__ == '__main__':
-    from tippy.methods import TIPErrormap
-    emap = TIPErrormap()
-    calib_imagelist = []
-    #for file_ in calib_info['file']:
-    #    calib_imagelist.append(CalibrationImage(file_, telinfo = telinfo, load = True))
-    target_outpath: str = None
-    errormap_outpath = None
-    combine_type: str = 'median'
-    n_proc=8
-    # Clip parameters
-    clip_type: str = None
-    sigma: float = 3.0
-    nlow: int = 1
-    nhigh: int = 1
-    # Other
-    verbose: bool = True
-    resample: bool = True
-    resample_type: str = 'LANCZOS3'
-    center_ra: float = None
-    center_dec: float = None
-    pixel_scale: float = None
-    x_size: int = None
-    y_size: int = None
-    
-    # Scale parameters
-    scale = True
-    scale_type: str = 'min'
-    zp_key = 'ZP_APER_1'
-    
-    save: bool = True
-    convolve = False
-    seeing_key: str = 'SEEING'
-    kernel: str = 'gaussian'
-    #kernel: str = 'image'
-    target_imglist = [ScienceImage(path = target_img, telinfo = telinfo, load = True) for target_img in filelist]
-    target_imglist = self.select_quality_images(target_imglist, 
-                                                max_obsdate = None,
-                                                weight_ellipticity = 3,
-                                                weight_seeing = 1,
-                                                weight_depth = 2,
-                                                max_numbers = None,
-                                                seeing_limit = 6,
-                                                depth_limit = 19,
-                                                ellipticity_limit = 0.3)
-    target_bkglist = [Background(path = target_img.savepath.bkgpath, load = True) for target_img in target_imglist]
-    target_errormaplist = [Errormap(path = target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True) for target_img in target_imglist]
-    # self.stack_multiprocess(
-    #     target_imglist = target_imglist,
-    #     target_bkglist = target_bkglist,
-    #     target_errormaplist = target_errormaplist,
-    #     target_outpath = target_outpath,
-    #     bkgrms_outpath = errormap_outpath,
-    #     combine_type = combine_type,
-    #     n_proc = n_proc,
-    #     scale = scale,
-    #     scale_type = scale_type,
-    #     zp_key = zp_key,
-    #     clip_type = clip_type,
-    #     sigma = sigma,
-    #     nlow = nlow,
-    #     nhigh = nhigh,
-    #     verbose = verbose,
-    #     save = save
-    # )
-    #target_imglist = [ScienceImage(target_img, telinfo = telinfo, load = True) for target_img in glob.glob('/home/hhchoi1022/TAO_2025A/week5_tmp/data/example/processed/*100.fits')]
-    #target_errormaplist = [Errormap(target_img, load = True) for target_img in glob.glob('/home/hhchoi1022/TAO_2025A/week5_tmp/data/example/processed/*weight.scaled.fits')]
-    # self.stack_multiprocess(
-    #     target_imglist = target_imglist,
-    #     target_bkglist = target_bkglist,
-    #     target_errormaplist = target_errormaplist,
-    #     target_outpath = target_outpath,
-    #     bkgrms_outpath = bkgrms_outpath,
-    #     combine_type = combine_type,
-    #     n_proc = n_proc,
-    #     scale = scale,
-    #     scale_type = scale_type,
-    #     zp_key = zp_key,
-    #     clip_type = clip_type,
-    #     sigma = sigma,
-    #     nlow = nlow,
-    #     nhigh = nhigh,
-    #     verbose = verbose,
-    #     save = save
-    # )
-# %%
-if __name__ == '__main__':
-    from astropy.io import fits
-    bias_info = fileinfo[fileinfo['imgtype'] == 'BIAS']
-    bias_imglist = [fits.getdata(file_) for file_ in bias_info['file']]
-# %%
-if __name__ == '__main__':
-    import time
-    start = time.time()
-    combined2 = self.combiner.combine_images_parallel(image_list = bias_imglist, 
-                                 combine_method = 'mean', 
-                                 clip_method = 'extrema',
-                                 nlow = 1,
-                                 nhigh = 1,
-                                 n_proc = 16)
-    print(f"Combined image shape: {combined.shape}")
-    print(f"Time taken: {time.time() - start:.2f} seconds") 
-# %%
-if __name__ == '__main__':
-
-    self.stack_swarp(
-        target_imglist = target_imglist,
-        target_errormaplist = target_errormaplist,
-        target_outpath = None,
-        weight_outpath = None,
-        combine_type = 'median',
-        # Resample parameters
-        resample = True,
-        resample_type = 'LANCZOS3',
-        center_ra = None,
-        center_dec = None,
-        pixel_scale = None,
-        x_size = None,
-        y_size = None,
-        # Other parameters
-        verbose = True
-    )
-    
-    # Define 

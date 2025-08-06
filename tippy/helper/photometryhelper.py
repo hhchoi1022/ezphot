@@ -149,6 +149,7 @@ class PhotometryHelper(TIPConfig):
     
     def get_imginfo(self, 
                     filelist: Union[List[str], List[Path]],
+                    pattern: Optional[str] = '*.fits',
                     keywords: Optional[List[str]] = None,
                     normalize_key: bool = True) -> Table:
         """
@@ -183,7 +184,7 @@ class PhotometryHelper(TIPConfig):
 
         # Iterate through directories and collect FITS file metadata
         for directory in directories:
-            coll = ImageFileCollection(location=directory, glob_include='*.fits')
+            coll = ImageFileCollection(location=directory, glob_include= pattern)
             if len(coll.files) > 0:
                 print(f"Loaded {len(coll.files)} FITS files from {directory}")
 
@@ -453,6 +454,19 @@ class PhotometryHelper(TIPConfig):
 
                     if update_header:
                         header['CAMMODE'] = readoutmode
+        
+        elif ('LSGT' in str(path)) or ('sophia' in str(path).lower()):
+            telescope = 'LSGT'
+            with fits.open(path, mode = 'update') as hdul:
+                header = hdul[0].header
+                if 'INSTRUME' in header.keys():
+                    if 'andor' in header['INSTRUME'].lower():
+                        ccd = 'SNUCAMII'
+                    else:
+                        ccd = 'ASI1600MM'
+            readoutmode = None
+            binning = 1
+
                 
         telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
         return telinfo
@@ -753,48 +767,75 @@ class PhotometryHelper(TIPConfig):
     #     no_matched_idx = np.where(~matched)[0]
     #     return obj_idx, sky_idx, no_matched_idx
 
+    # def cross_match(self, 
+    #                 obj_coords: SkyCoord, 
+    #                 sky_coords: SkyCoord, 
+    #                 max_distance_second: float = 5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    #     '''
+    #     parameters
+    #     ----------
+    #     1. obj_coords : SkyCoord
+    #                     source coordinates to be matched 
+    #     2. sky_coords : SkyCoord
+    #                     coordinates of reference stars
+    #     3. max_distance_second : float
+    #                     separation distance in seconds which indicates tolerance for matching (5)
+
+    #     returns 
+    #     -------
+    #     1. matched_object_idx : np.array
+    #                     matched object catalog indices 
+    #     2. matched_catalog_idx : np.array
+    #                     matched sky catalog indices
+    #     3. no_matched_object_idx : np.array
+    #                     not matched object catalog indices
+
+    #     notes 
+    #     -----
+    #     To extract matched objects from each catalog, 
+    #     USE : obj_coords[matched_object_idx] & sky_coords[matched_catalog_idx]
+    #     -----
+    #     '''
+    #     from astropy.coordinates import match_coordinates_sky
+    #     closest_ids, closest_dists, closest_dist3d = match_coordinates_sky(obj_coords, sky_coords)
+    #     max_distance = max_distance_second/3600
+    #     matched_object_idx = []
+    #     matched_catalog_idx = []
+    #     no_matched_object_idx = []
+    #     for i in range(len(closest_dists)):
+    #         if closest_dists.value[i] < max_distance:
+    #             matched_object_idx.append(i)
+    #             matched_catalog_idx.append(closest_ids[i])
+    #         else:
+    #             no_matched_object_idx.append(i)
+    #     return matched_object_idx, matched_catalog_idx, no_matched_object_idx
+    
     def cross_match(self, 
                     obj_coords: SkyCoord, 
                     sky_coords: SkyCoord, 
                     max_distance_second: float = 5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        '''
-        parameters
-        ----------
-        1. obj_coords : SkyCoord
-                        source coordinates to be matched 
-        2. sky_coords : SkyCoord
-                        coordinates of reference stars
-        3. max_distance_second : float
-                        separation distance in seconds which indicates tolerance for matching (5)
-
-        returns 
-        -------
-        1. matched_object_idx : np.array
-                        matched object catalog indices 
-        2. matched_catalog_idx : np.array
-                        matched sky catalog indices
-        3. no_matched_object_idx : np.array
-                        not matched object catalog indices
-
-        notes 
-        -----
-        To extract matched objects from each catalog, 
-        USE : obj_coords[matched_object_idx] & sky_coords[matched_catalog_idx]
-        -----
-        '''
+        """
+        Fast cross-match using vectorized operations.
+        """
         from astropy.coordinates import match_coordinates_sky
-        closest_ids, closest_dists, closest_dist3d = match_coordinates_sky(obj_coords, sky_coords)
-        max_distance = max_distance_second/3600
-        matched_object_idx = []
-        matched_catalog_idx = []
-        no_matched_object_idx = []
-        for i in range(len(closest_dists)):
-            if closest_dists.value[i] < max_distance:
-                matched_object_idx.append(i)
-                matched_catalog_idx.append(closest_ids[i])
-            else:
-                no_matched_object_idx.append(i)
+        import numpy as np
+
+        # Match coordinates
+        closest_ids, closest_dists, _ = match_coordinates_sky(obj_coords, sky_coords)
+
+        # Convert distance threshold to degrees (SkyCoord uses degrees internally)
+        max_distance_deg = max_distance_second / 3600.0
+
+        # Vectorized masking (no Python loops)
+        matched_mask = closest_dists.value < max_distance_deg
+
+        # Extract indices
+        matched_object_idx = np.where(matched_mask)[0]
+        matched_catalog_idx = closest_ids[matched_mask]
+        no_matched_object_idx = np.where(~matched_mask)[0]
+
         return matched_object_idx, matched_catalog_idx, no_matched_object_idx
+
 
     def group_table(self, tbl: Table, key: str, tolerance: float = 0.1):
         """
@@ -2135,7 +2176,6 @@ class PhotometryHelper(TIPConfig):
             # Only include keys that look like valid flags
             command.extend([f'-{key}', str(value)])
 
-
         self.print(f"RUN COMMAND: {' '.join(command)}", verbose)
 
         try:
@@ -2352,9 +2392,6 @@ class PhotometryHelper(TIPConfig):
         if not target_outpath:
             target_outpath = target_path.parent / f"{target_path.stem}.cat"
         sex_params['CATALOG_NAME'] = str(target_outpath)
-        if 'DETECT_MINAREA' in sex_params.keys():
-            minarea = max(default_params['DETECT_MINAREA'], sex_params['DETECT_MINAREA'])
-            sex_params['DETECT_MINAREA'] = str(minarea)
             
         if target_mask is not None:
             sex_params['FLAG_IMAGE'] = str(target_mask)
@@ -2587,6 +2624,8 @@ class PhotometryHelper(TIPConfig):
                   box_size: int = 512,
                   filter_size: int = 3,
                   
+                  # Fill to nan value 
+                  fill_zero_tonan: bool = True,                  
                   verbose: bool = True) -> None:
 
         """_summary_
@@ -2741,6 +2780,13 @@ class PhotometryHelper(TIPConfig):
         # Command to run SWARP
         all_images_str = ' '.join([str(img) for img in target_path])
         command = f'SWarp {all_images_str} -c {swarp_configfile} {swarpparams_str}'
+        
+        if fill_zero_tonan:
+            for path in target_path:
+                image = fits.open(path)
+                # If data is 0 value, fill it with nan_value
+                image[0].data[np.where(image[0].data == 0)] = np.nan
+                image.writeto(path, overwrite=True)
         
         try:
             self.print(f'RUN COMMAND: {command}', verbose)

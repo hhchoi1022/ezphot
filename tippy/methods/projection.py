@@ -10,8 +10,8 @@ from astropy.visualization import ZScaleInterval, ImageNormalize
 from astropy.wcs import WCS
 from astropy.io.fits import Header
 from tippy.methods import TIPPlateSolve
-from tippy.imageojbects import Mask
-from tippy.imageojbects import ScienceImage, ReferenceImage, Errormap  # Adjust import path if needed
+from tippy.imageobjects import Mask
+from tippy.imageobjects import ScienceImage, ReferenceImage, Errormap  # Adjust import path if needed
 from tippy.helper import Helper  # Adjust import path if needed
 #%%
 class TIPProjection(Helper):
@@ -190,6 +190,7 @@ class TIPProjection(Helper):
                   overwrite: bool = False,
                   save: bool = True,
                   return_ivpmask: bool = False,
+                  fill_zero_tonan: bool = True,
                   **kwargs
                   ):
         # If target_img is not saved, save it to the savepath
@@ -237,6 +238,7 @@ class TIPProjection(Helper):
             combine = True,
             subbkg = False,
             verbose = verbose,
+            fill_zero_tonan = fill_zero_tonan,
             ) 
         
         os.remove(errormap_outpath_tmp) if errormap_outpath_tmp is not None else None
@@ -301,76 +303,17 @@ class TIPProjection(Helper):
         if return_ivpmask:
             from tippy.methods import TIPMasking
             T = TIPMasking()
+            reprojected_img.data
             target_ivpmask = T.mask_invalidpixel(
                 target_img = reprojected_img,
                 target_mask = None,
                 save = save,
                 verbose = verbose,
                 visualize = False,
-                save_fig = save
+                save_fig = False
             )
             if save:
                 target_ivpmask.write()
             
         return reprojected_img, target_errormap, target_ivpmask
         
-    
-# %%
-if __name__ == "__main__":
-    import glob
-    from tippy.imageojbects import ScienceImage, ReferenceImage, Errormap 
-    from tippy.helper import TIPDataBrowser
-    self= TIPProjection()
-    databrowser = TIPDataBrowser('scidata')
-    databrowser.observatory = 'RASA36'
-    databrowser.objname = 'NGC1566'
-    databrowser.keys
-    target_imglist = databrowser.search(pattern='Calib*60.fits', return_type='science')
-    
-    # Non-bkg subtrcated
-    #reference_img = ReferenceImage('/home/hhchoi1022/data/refdata/main/7DT/7DT_C361K_HIGH_1x1/T22956/7DT14/m600/calib_7DT14_T22956_20250403_054224_m600_300.com.fits', telinfo = self.get_telinfo('7DT', 'C361K', 'HIGH', 1), load = True)
-#%%
-if __name__ == "__main__":
-    target_img = target_imglist[0]
-    target_errormap = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = True)
-    detection_sigma = 5
-    verbose = True
-    visualize = True
-    return_mask = True
-    save = True
-    save_path = None
-    target_outpath: Optional[Union[str, Path]] = None
-    swarp_params: Optional[dict] = None
-    errormap_type = 'MAP_RMS'
-
-    resample_type : str = 'LANCZOS3'
-    center_ra: Optional[float] = None# 53.88294812761
-    center_dec: Optional[float] = None#-82.35840450243
-    x_size: Optional[int] = None#None#10200
-    y_size: Optional[int] = None#None#6800
-    verbose: bool = True
-    overwrite = False
-    # reprojected_img, reprojected_weight = self.reproject(
-    #     target_img = reference_img,
-    #     target_errormap = target_errormap,
-    #     swarp_params = swarp_params,
-    #     errormap_type = errormap_type,
-    #     resample_type = resample_type,
-    #     center_ra = center_ra,
-    #     center_dec = center_dec,
-    #     x_size = x_size,
-    #     y_size = y_size,
-    #     verbose = verbose,
-    #     overwrite = overwrite,
-    #     save = save
-    # )
-        
-    
-    # aligned_img = T.align(target_img = target_img,
-    #                             reference_img = reference_img,
-    #                             detection_sigma = 5.0,
-    #                             verbose = True,
-    #                             overwrite = False
-    #                             )
-    #reprojected_imgs = T.reproject(target_imgs[0], target_outpath, swarp_params, center_ra, center_dec, x_size, y_size, verbose)
-# %%

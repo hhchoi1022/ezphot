@@ -4,7 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 from tippy.configuration import TIPConfig
 from tippy.catalog import TIPCatalog
-from tippy.image import ScienceImage
+from tippy.imageobjects import ScienceImage
 from tippy.helper import Helper
 import pandas as pd
 from astropy.time import Time
@@ -46,13 +46,15 @@ class TIPCatalogDataset(Helper):
             observatory=None,
             telname=None
         )
+        self._last_mode = "select"  # <-- Track last mode (select or exclude)
     
     def __repr__(self):
         
         txt = f"TIPCatalogDataset[n_selected/n_catalogs= {len(self.target_catalogs)}/{len(self.catalogs)}] \n"
         txt += 'SELECT FILTER ============\n'
         for key, value in self._last_filter.items():
-            txt += f"{key:>12} = {value}\n"
+            prefix = "!" if self._last_mode == "exclude" and value is not None else ""
+            txt += f"{prefix}{key:>11} = {value}\n"
         return txt
         
     @property
@@ -80,7 +82,6 @@ class TIPCatalogDataset(Helper):
             })
         return pd.DataFrame(rows)
 
-
     def _load_catalog_worker(self, args):
         catalog_file, existing_paths = args
         try:
@@ -104,7 +105,7 @@ class TIPCatalogDataset(Helper):
         max_distance_arcsec=1.0,
         ra_key='X_WORLD',
         dec_key='Y_WORLD',
-        data_keys=['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MASERR_APER',
+        data_keys=['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MAGERR_APER',
                 'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2',
                 'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC'],
         join_type='outer'
@@ -252,6 +253,83 @@ class TIPCatalogDataset(Helper):
 
         return succeeded_catalogs, failed_catalogs, skipped_catalogs
 
+    def exclude_catalogs(self, 
+                        file_key=None,
+                        filter=None, 
+                        exptime=None, 
+                        objname=None, 
+                        obs_start=None, 
+                        obs_end=None,
+                        seeing=None,
+                        depth=None,
+                        observatory=None,
+                        telname=None):
+        """
+        Exclude catalogs that match the given criteria from self.catalogs and self.target_catalogs.
+        """
+        df = self.df
+
+        # Convert inputs to arrays
+        if file_key is not None:
+            file_key = np.atleast_1d(file_key)
+            for key in file_key:
+                key = key.replace('*', '') if '*' in key else key
+                df = df[~df['path'].str.contains(key)]
+
+        if filter is not None:
+            filter = np.atleast_1d(filter)
+            df = df[~df['filter'].isin(filter)]
+            
+        if exptime is not None:
+            exptime = np.atleast_1d(exptime)
+            df = df[~df['exptime'].isin(exptime)]
+            
+        if objname is not None:
+            objname = np.atleast_1d(objname)
+            df = df[~df['objname'].isin(objname)]
+            
+        if obs_start is not None:
+            obs_start = self.flexible_time_parser(obs_start)
+            df = df[Time(df['obsdate'].tolist()) < obs_start]
+            
+        if obs_end is not None:
+            obs_end = self.flexible_time_parser(obs_end)
+            df = df[Time(df['obsdate'].tolist()) > obs_end]
+            
+        if seeing is not None:
+            df = df[df['seeing'] >= seeing]
+            
+        if depth is not None:
+            df = df[df['depth'] <= depth]
+            
+        if observatory is not None:
+            observatory = np.atleast_1d(observatory)
+            df = df[~df['observatory'].isin(observatory)]
+            
+        if telname is not None:
+            telname = np.atleast_1d(telname)
+            df = df[~df['telname'].isin(telname)]
+
+        # Update target_catalogs
+        if df.empty:
+            self.target_catalogs = []
+        else:
+            self.target_catalogs = [self.catalogs[i] for i in df.index]
+
+        self._last_filter = {
+            'file_key': file_key,
+            'filter': filter,
+            'exptime': exptime,
+            'objname': objname,
+            'obs_start': obs_start,
+            'obs_end': obs_end,
+            'seeing': seeing,
+            'depth': depth,
+            'observatory': observatory,
+            'telname': telname,
+        }
+
+        print(f"[INFO] Excluded catalogs based on given criteria. Remaining: {len(self.target_catalogs)}")
 
     def select_catalogs(self, 
                         file_key=None,
@@ -326,6 +404,7 @@ class TIPCatalogDataset(Helper):
             'observatory': observatory,
             'telname': telname,
         }
+        self._last_mode = "select"  # <-- mark as select
 
     def add_catalogs(self,
                      catalogs: Union[List[TIPCatalog], TIPCatalog]):
@@ -367,17 +446,24 @@ class TIPCatalogDataset(Helper):
             return (catalog.info, matched, sep)
         return None
 
-    def search_sources(self, ra, dec, radius=1.0, n_proc=8):
-        args = [(cat, ra, dec, radius) for cat in self.catalogs]
-        results = []
-        with ProcessPoolExecutor(max_workers=n_proc) as executor:
-            futures = [executor.submit(self._search_sources_worker, arg) for arg in args]
-            for future in tqdm(as_completed(futures), total=len(futures), desc="Searching sources..."):
-                r = future.result()
-                if r is not None:
-                    results.append(r)
-        return results
+    # def search_sources(self, ra, dec, radius=1.0, n_proc=8):
+    #     args = [(cat, ra, dec, radius) for cat in self.catalogs]
+    #     results = []
+    #     with ProcessPoolExecutor(max_workers=n_proc) as executor:
+    #         futures = [executor.submit(self._search_sources_worker, arg) for arg in args]
+    #         for future in tqdm(as_completed(futures), total=len(futures), desc="Searching sources..."):
+    #             r = future.result()
+    #             if r is not None:
+    #                 results.append(r)
+    #     return results
     
+    # def search_sources(self, ra, dec, radius = 10):
+    #     results = []
+    #     for cat in tqdm(self.target_catalogs, desc = 'Searching sources...'):
+    #         matched, sep, _ = cat.search_sources(ra, dec, unit='coord', matching_radius=radius)
+    #         results.append([cat.info, matched, sep])
+    #     return results
+        
     def select_sources(self, ra, dec, radius = 60):
         """
         Select sources from all catalogs within the given radius around the input coordinates.
@@ -397,9 +483,9 @@ class TIPCatalogDataset(Helper):
             DataFrame containing selected sources from all catalogs.
         """
         results = []
-        for cat in tqdm(self.catalogs, desc = 'Selecting sources...'):
+        for cat in tqdm(self.target_catalogs, desc = 'Selecting sources...'):
             cat.select_sources(ra, dec, unit='coord', matching_radius=radius)
-        return pd.concat(results, ignore_index=True) if results else pd.DataFrame()
+        #return pd.concat(results, ignore_index=True) if results else pd.DataFrame()
 
 
 #%%

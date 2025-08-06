@@ -1,7 +1,7 @@
 #%%
 from tippy.imageojbects import *
 from tippy.catalog import *
-from tippy.photometry import *
+from tippy.methods import *
 from tippy.routine import *
 from tippy.helper import *
 import multiprocessing
