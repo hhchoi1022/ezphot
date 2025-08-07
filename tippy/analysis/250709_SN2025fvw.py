@@ -108,7 +108,7 @@ aperturephotometry_kwargs = dict(
     aperture_diameter_arcsec = [5,7,10],
     aperture_diameter_seeing = [2.5, 3.5],
     saturation_level = 60000,
-    kron_factor = 2.5,
+    kron_factor = 1.5,
     save = False,
     verbose = True,
     visualize = False,
@@ -188,7 +188,7 @@ stack_aperturephotometry_kwargs = dict(
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
     saturation_level = 60000,
-    kron_factor = 2.5,
+    kron_factor = 1.5,
     save = False,
     verbose = True,
     visualize = True,
@@ -476,8 +476,6 @@ def stackprocess(stack_path, stack_bkgrmspath, telinfo):
     stacked_status = dict()
     try:
         # Perform aperture photometry
-        aperturephotometry_kwargs = stack_aperturephotometry_kwargs.copy()
-        aperturephotometry_kwargs['aperture_diameter_arcsec'].extend([2.5* stack_img.seeing, 3.5*stack_img.seeing])
         sex_catalog = AperturePhotometry.sex_photometry(
             target_img = stack_img,
             target_bkg = None,
@@ -538,13 +536,14 @@ if __name__ == "__main__":
      )    
 # %%
 if __name__ == "__main__":
-    fit_filter_key = ['g', 'r', 'i', 'm400', 'm425', 'm450', 
+    fit_filter_key = ['g', 'r', 'i', 'm425', 'm650', 'm775', 
                       'm475', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 
                       'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875']
     ra = 233.857430764 # SN2025fvw
     dec = 12.0577222937
     source_catalogs_LC.select_catalogs(filter = fit_filter_key)
-    source_catalogs_LC.select_sources(ra, dec, radius =  60)
+    #source_catalogs_LC.exclude_catalogs(telname = '7DT10')
+    #source_catalogs_LC.select_sources(ra, dec, radius =  60)
 #%%
 if __name__ == "__main__":
     from tippy.dataobjects import LightCurve
@@ -566,8 +565,6 @@ if __name__ == "__main__":
     #self.plt_params.xlim = [60757, 60780]
     self.plt_params.figure_figsize = (8, 10)
     self.plt_params.label_position = 'upper right'
-    # self.FILTER_OFFSET['m450'] = -2
-    # self.FILTER_OFFSET['m650'] = -1
     # self.FILTER_OFFSET['m850'] = +2
 #%%
 if __name__ == "__main__":
@@ -592,11 +589,20 @@ if __name__ == "__main__":
     ps_r_magerr = [0.03]
     ps_r_obsdate = [2460761.02748]
     ps_r_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in ps_r_obsdate]
-    axs[0].errorbar(ztf_g_obsdate_mjd, ztf_g_mag, yerr=ztf_g_magerr, ms = 10, fmt='*', mfc='green', mec = 'black', label='ZTF g')
+    # atlas_o_ul = [18.94]
+    # atlas_o_obsdate = [2460759.80766]
+    # atlas_o_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in atlas_o_obsdate]
+    ztf_r_ul = [20.31]
+    ztf_r_obsdate = [2460758.9986343]
+    ztf_r_obsdate_mjd = [Time(obsdate, format='jd').mjd for obsdate in ztf_r_obsdate]
+    axs[0].errorbar(ztf_g_obsdate_mjd, np.array(ztf_g_mag)-2, yerr=ztf_g_magerr, ms = 10, fmt='*', mfc='green', mec = 'black', label='ZTF g')
     axs[0].errorbar(ztf_r_obsdate_mjd, ztf_r_mag , yerr=ztf_r_magerr, ms = 10, fmt='*', mfc='red',  mec = 'black', label='ZTF r')
     axs[0].errorbar(ps_r_obsdate_mjd, ps_r_mag , yerr=ps_r_magerr, ms = 10, fmt='^', mfc='red',  mec = 'black', label='PS1 r')
+    # axs[0].errorbar(atlas_o_obsdate_mjd, atlas_o_ul, yerr=0, ms = 10, fmt='v', mfc='orange',  mec = 'black', label='ATLAS-O [UL]')
+    axs[0].errorbar(ztf_r_obsdate_mjd, ztf_r_ul, yerr=0, ms = 10, fmt='v', mfc='red',  mec = 'black', label='ZTF r [UL]')
     axs[0].legend(loc='upper left', ncol = 2, fontsize=12)
 #%%
+figs[0]
  # %%
 from astropy.table import Table
 flux_key = 'MAGSKY_APER_2'
@@ -751,13 +757,26 @@ fit_tbl['filter_sncosmo'] = filterkeylist
 show_tbl = fit_tbl
 #%%
 formatted_fit_tbl = helper.SNcosmo_format(fit_tbl['obsdate'], fit_tbl['mag'], fit_tbl['e_mag'], fit_tbl['filter_sncosmo'], magsys = fit_tbl['magsys'], zp = 25)
-# formatted_fit_tbl = formatted_fit_tbl[((formatted_fit_tbl['mjd'] < 60773) & 
-#                                       (formatted_fit_tbl['mjd'] > 60770)) |
-#                                       ((formatted_fit_tbl['mjd'] < 60790) &
-#                                       (formatted_fit_tbl['mjd'] > 60787))]
+# formatted_fit_tbl = formatted_fit_tbl[(formatted_fit_tbl['mjd'] < 60825)]
+formatted_fit_tbl = formatted_fit_tbl[((formatted_fit_tbl['mjd'] < 60767) & 
+                                      (formatted_fit_tbl['mjd'] > 60766)) |
+                                      ((formatted_fit_tbl['mjd'] < 60791) &
+                                      (formatted_fit_tbl['mjd'] > 60790))|
+                                      ((formatted_fit_tbl['mjd'] < 60785) &
+                                      (formatted_fit_tbl['mjd'] > 60784))|
+                                      ((formatted_fit_tbl['mjd'] < 60770) &
+                                      (formatted_fit_tbl['mjd'] > 60769))|
+                                      ((formatted_fit_tbl['mjd'] < 60795) &
+                                      (formatted_fit_tbl['mjd'] > 60794))|
+                                      ((formatted_fit_tbl['mjd'] < 60776) &
+                                      (formatted_fit_tbl['mjd'] > 60775))|
+                                      ((formatted_fit_tbl['mjd'] < 60770) &
+                                      (formatted_fit_tbl['mjd'] > 60760))]
 formatted_fit_tbl = formatted_fit_tbl[(formatted_fit_tbl['band'] == 'sdss::g') | 
                                       (formatted_fit_tbl['band'] == 'sdss::r') |
                                       (formatted_fit_tbl['band'] == 'sdss::i') ]
+#%%
+helper.group_table(formatted_fit_tbl, 'mjd', 0.5)
 #%%SNcosmo
 #chi-square
 def calc_chisq(formatted_fit_tbl, filt_):

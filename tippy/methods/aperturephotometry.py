@@ -220,16 +220,22 @@ class TIPAperturePhotometry(Helper):
             if sex_params['DETECT_MINAREA'] < 3:
                 sex_params['DETECT_MINAREA'] = 3
                 self.print(f"[WARNING] DETECT_MINAREA is less than 3. It is set to 3.", verbose)
-
+        if 'DETECT_THRESH' in sex_params.keys():
+            if sex_params['DETECT_THRESH'] < 1:
+                sex_params['DETECT_THRESH'] = 1
+                self.print('[WARNING] DETECT_THRESH is less than 1. It is set to 1.', verbose)
         for key, value in sex_params.items():
             all_sexconfig[key] = value
 
-        if 'DETECT_THRESH' not in sex_params.keys():
-            sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(all_sexconfig['DETECT_MINAREA'])
-        if 'ANALYSIS_THRESH' not in sex_params.keys():
-            sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
-        if 'DETECT_MINAREA' not in sex_params.keys():
-            sex_params['DETECT_MINAREA'] = all_sexconfig['DETECT_MINAREA']
+        # If DETECT_MINAREA is not set, use the default value from the config
+        # if 'DETECT_MINAREA' not in sex_params.keys():
+        #     sex_params['DETECT_MINAREA'] = all_sexconfig['DETECT_MINAREA']
+        # If DETECT_THRESH is not set, use the detection_sigma
+        #if 'DETECT_THRESH' not in sex_params.keys():
+        #    sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(sex_params['DETECT_MINAREA'])
+        #if 'ANALYSIS_THRESH' not in sex_params.keys():
+        #    sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
+
         
         # Second Sextractor run with the estimated parameters
         result, catalog, global_bkgval, global_bkgrms = self.run_sextractor(

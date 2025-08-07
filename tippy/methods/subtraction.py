@@ -721,9 +721,12 @@ class TIPSubtraction(Helper):
                         target_img: ScienceImage,
                         reference_imglist: List[ReferenceImage],
                         target_bkg: Background = None,
+                        
+                        # Photometry configuration
                         detection_sigma: float = 5,
                         aperture_diameter_arcsec: List[float] = [5, 7, 10],
                         aperture_diameter_seeing: List[float] = [3.5, 4.5],
+                        kron_factor: float = 1.5,
                         
                         target_transient_number: int = 5,
                         reject_variable_sources: bool = False,
@@ -828,7 +831,7 @@ class TIPSubtraction(Helper):
             aperture_diameter_arcsec = aperture_diameter_arcsec,
             aperture_diameter_seeing = aperture_diameter_seeing,
             saturation_level = 60000,
-            kron_factor = 2.5,
+            kron_factor = kron_factor,
             save = save,
             verbose = verbose,
             visualize = visualize,
@@ -917,7 +920,7 @@ class TIPSubtraction(Helper):
                         aperture_diameter_arcsec = aperture_diameter_arcsec,
                         aperture_diameter_seeing = aperture_diameter_seeing,
                         saturation_level = 60000,
-                        kron_factor = 2.5,
+                        kron_factor = kron_factor,
                         save = save,
                         verbose = verbose,
                         visualize = visualize,
@@ -1043,7 +1046,7 @@ class TIPSubtraction(Helper):
             )
         
             # Step 6: Filter the table for significant sources
-            selected_tbl_first = self.select_transients(
+            all_catalog, selected_catalog = self.select_transients(
                 target_catalog = tbl_first,
                 snr_lower = 5.0,
                 fwhm_lower = transient_criteria['seeing_lower'],
@@ -1064,8 +1067,8 @@ class TIPSubtraction(Helper):
                 return_only_transient = True,
             )
             
-            all_tbl = tbl_first.copy()  
-            candidate_tbl = selected_tbl_first.copy()
+            all_tbl = all_catalog.copy()  
+            candidate_tbl = selected_catalog.copy()
 
             subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask', '.transient', '.candidate', '.cat'])
 
@@ -1080,12 +1083,12 @@ class TIPSubtraction(Helper):
                     target_bkg = None,  # No background for subtraction
                     target_bkgrms = None,  # No background RMS for subtraction
                     target_mask = subframe_subtract_ivpmask,
-                    sex_params = dict(SEEING_FWHM = subtract_seeing),#, DETECT_MINAREA = convolved_source_minarea),
+                    sex_params = dict(SEEING_FWHM = subtract_seeing, DETECT_MINAREA = convolved_source_minarea),
                     detection_sigma = detection_sigma,
                     aperture_diameter_arcsec = aperture_diameter_arcsec,
                     aperture_diameter_seeing = aperture_diameter_seeing,    
                     saturation_level = 60000,
-                    kron_factor = 2.5,
+                    kron_factor = kron_factor,
                     save = False,
                     verbose = True,
                     visualize = visualize,
@@ -1114,6 +1117,7 @@ class TIPSubtraction(Helper):
             transient_tbl = None
             if reject_variable_sources:
                 transient_tbl = candidate_tbl.copy()
+                transient_tbl.path = all_tbl.savepath.transientcatalogpath
                 if len(transient_tbl.data) > 0:
                     coord_first = SkyCoord(ra=transient_tbl.data['X_WORLD'],
                                         dec=transient_tbl.data['Y_WORLD'],
@@ -1328,12 +1332,10 @@ class TIPSubtraction(Helper):
         target_catalog_data['FLAG_Transient'] = all_idx
         # Update the flags
         
-        transient_catalog = TIPCatalog(path = target_catalog.savepath.transientcatalogpath, catalog_type = 'transient', load = False)
-        transient_catalog.data = target_catalog_data[all_idx]
-        transient_catalog.load_target_img()
         candidate_catalog = TIPCatalog(path = target_catalog.savepath.candidatecatalogpath, catalog_type = 'transient', load = False)
-        candidate_catalog.data = target_catalog_data
+        candidate_catalog.data = target_catalog_data[all_idx]
         candidate_catalog.load_target_img()
+        target_catalog.data = target_catalog_data
         
         if verbose:
             print(f"Filtering sources based on criteria:")
@@ -1346,13 +1348,10 @@ class TIPSubtraction(Helper):
             print(f'Sources with all criteria met: {np.sum(all_idx)}')
 
         if save:
-            transient_catalog.write()
+            target_catalog.write()
             candidate_catalog.write()
         
-        if return_only_transient:
-            return transient_catalog
-        else:
-            return candidate_catalog
+        return target_catalog, candidate_catalog
         
     def show_transient_positions(
         self,
@@ -1472,20 +1471,23 @@ if __name__ == "__main__":
 #%%
 if __name__ == "__main__":
     databrowser = TIPDataBrowser('scidata')
-    databrowser.observatory = 'RASA36'
-    databrowser.objname = 'NGC1566'
-    databrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
-    target_imgset = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
-    target_imglist = target_imgset.target_images
+    tile_id = 'T08262'
+    databrowser.objname = tile_id
+    databrowser.filter = 'r'
+    stacked_imgset = databrowser.search(
+        pattern = 'calib*202507*com.fits',
+        return_type = 'science'
+    )        
+    target_imglist = stacked_imgset.target_images
     target_img = target_imglist[0]
-    reference_img = self.get_referenceframe_from_image(
-        target_img = target_img,
-        )[0]
+    target_bkg = target_img.bkgmap
+    reference_img = self.get_referenceframe_from_image(target_img)[0]
     reference_imglist = [reference_img]
     target_bkg: Background = None
     detection_sigma: float = 5
     aperture_diameter_arcsec: float = [5,7,10]
     aperture_diameter_seeing: float = [3.5,4.5]
+    kron_factor = 1.5 
     
     target_transient_number: int = 5
     reject_variable_sources: bool = True
@@ -1504,19 +1506,19 @@ if __name__ == "__main__":
     bgo: int = 1
     r: int = 10
     hotpants_params = dict()
-    result = self.find_transients(
-        target_img = target_img,
-        reference_imglist = reference_imglist,
-        target_bkg = None,
-        detection_sigma = 5,
-        aperture_diameter_arcsec = [5,7,10],
-        aperture_diameter_seeing = [3.5,4.5],
-        target_transient_number = 5,
-        reject_variable_sources = True,
-        negative_detection = True,
-        reverse_subtraction = False,
-        visualize = False,
-    )
+    # result = self.find_transients(
+    #     target_img = target_img,
+    #     reference_imglist = reference_imglist,
+    #     target_bkg = None,
+    #     detection_sigma = 5,
+    #     aperture_diameter_arcsec = [5,7,10],
+    #     aperture_diameter_seeing = [3.5,4.5],
+    #     target_transient_number = 5,
+    #     reject_variable_sources = True,
+    #     negative_detection = True,
+    #     reverse_subtraction = False,
+    #     visualize = False,
+    # )
 
 
 # %%

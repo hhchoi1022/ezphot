@@ -440,7 +440,7 @@ for tile_id in tile_ids:
     Databrowser.objname = tile_id
     Databrowser.filter = 'r'
     target_imgset = Databrowser.search(
-        pattern = 'calib*202507*100.fits',
+        pattern = 'calib**100.com.fits',
         return_type = 'science'
     )
     target_imglist = target_imgset.target_images
@@ -761,7 +761,7 @@ for tile_id in tile_ids:
     Databrowser.objname = tile_id
     Databrowser.filter = 'r'
     stacked_imgset = Databrowser.search(
-        pattern = 'calib*202507*com.fits',
+        pattern = 'calib*com.fits',
         return_type = 'science'
     )        
     stacked_imglist = stacked_imgset.target_images
@@ -791,4 +791,61 @@ for tile_id in tile_ids:
             except Exception as e:
                 print(f"[ERROR] {e}")
 
+# %% Check transaients 
+from tippy.imageobjects import ScienceImage
+from tippy.catalog import TIPCatalog
+Databrowser = context['Databrowser'].__class__('scidata')
+#tile_id = 'T08261'
+Databrowser.objname = tile_id
+Databrowser.filter = 'r'
+stacked_imgset = Databrowser.search(
+    pattern = 'sub*.fits',
+    return_type = 'science'
+)        
+sub_img = stacked_imgset.target_images[3]
+ref_img = ScienceImage(sub_img.savedir / sub_img.savepath.savepath.name.replace('sub_', 'ref_'), load = True)
+sci_img = ScienceImage(sub_img.savedir / sub_img.savepath.savepath.name.replace('sub_', 'sci_'), load = True)
+cat_all = sub_img.catalog
+cat_candidate = TIPCatalog(sub_img.savepath.catalogpath.with_suffix('.candidate'), load = True)
+cat_transient = TIPCatalog(sub_img.savepath.catalogpath.with_suffix('.transient'), load = True)
+# %%
+
+DIA = context['DIA']
+
+# %%
+print('# of detected sources:')
+print(len(cat_all.data))
+print('# of candidate sources:')
+print(len(cat_candidate.data))
+print('# of transient sources:')
+print(len(cat_transient.data))
+# %%
+print(sci_img.seeing, ref_img.seeing)
+print(sci_img.depth, ref_img.depth)
+# %%
+alls = cat_all.data
+candidates = cat_candidate.data
+transients = cat_transient.data
+x_list = transients['X_WORLD'][:100]
+y_list = transients['Y_WORLD'][:100]
+DIA.show_transient_positions(
+    sci_img,
+    ref_img,
+    sub_img,
+    x_list,
+    y_list
+)
+# %%
+ImageSet([sci_img, ref_img, sub_img]).run_ds9()
+#%%
+cat_transient.select_sources(
+    x = 241.623970,
+    y = -70.327119
+)
+# %%
+sci_img.depth
+# %%
+cat_transient.target_data['MAGSKY_AUTO']
+# %%
+cat_transient
 # %%

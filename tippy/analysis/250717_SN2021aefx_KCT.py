@@ -46,7 +46,7 @@ target_imglist = databrowser.search(pattern='Calib*20211202*.fits', return_type=
 #%%
 
 ### CONFIOGURATION FOR SINGLE IMAGE PROCESSING
-visualize = True
+visualize = False
 verbose = True
 save_fig = True
 save = True
@@ -136,6 +136,7 @@ aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     saturation_level = 35000,
     kron_factor = 2.5,
     save = save,
@@ -147,7 +148,7 @@ aperturephotometry_kwargs = dict(
 do_photometric_calibration = True
 photometriccalibration_kwargs = dict(
     catalog_type = 'APASS',
-    max_distance_second = 1.0,
+    max_distance_second = 3.0,
     calculate_color_terms = True,
     calculate_mag_terms = True,
     mag_lower = -14,
@@ -216,6 +217,7 @@ stack_aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
     aperture_diameter_arcsec = [5,7,10],
+    aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     saturation_level = 35000,
     kron_factor = 2.5,
     save = save,
@@ -225,15 +227,13 @@ stack_aperturephotometry_kwargs = dict(
 )
 
 stack_photometriccalibration_kwargs = dict(
-    catalog_type = 'GAIAXP',
-    max_distance_second = 2.0,
+    catalog_type = 'APASS',
+    max_distance_second = 3.0,
     calculate_color_terms = True,
     calculate_mag_terms = True,
 
-    mag_lower = None,
-    mag_upper = None,
-    snr_lower = 30,
-    snr_upper = 500,
+    mag_lower = -14,
+    mag_upper = -10,
     classstar_lower = 0.3,
     elongation_upper = 3,
     elongation_sigma = 5,
@@ -244,9 +244,9 @@ stack_photometriccalibration_kwargs = dict(
     maskflag_upper = 1,
     inner_fraction = 0.95, # Fraction of the images
     isolation_radius = 10.0,
-    magnitude_key = 'MAG_APER_1',
-    flux_key = 'FLUX_APER_1',
-    fluxerr_key = 'FLUXERR_APER_1',
+    magnitude_key = 'MAG_AUTO',
+    flux_key = 'FLUX_AUTO',
+    fluxerr_key = 'FLUXERR_AUTO',
     fwhm_key = 'FWHM_IMAGE',
     x_key = 'X_IMAGE',
     y_key = 'Y_IMAGE',
@@ -528,14 +528,10 @@ for imginfo_group in imginfo_groups:
             failed_imglist.extend(target_imglist)
             continue
 #%%
-def stackprocess(stack_path, stack_bkgrmspath, telinfo):
-    stack_img = ScienceImage(path=stack_path, telinfo=telinfo, load=True)
-    stack_bkgrms = Errormap(path=stack_bkgrmspath, emaptype='bkgrms', load=True)
+def stackprocess(stack_img, stack_bkgrms):
     stacked_status = dict()
     try:
         # Perform aperture photometry
-        aperturephotometry_kwargs = stack_aperturephotometry_kwargs.copy()
-        aperturephotometry_kwargs['aperture_diameter_arcsec'].extend([2.5* stack_img.seeing, 3.5*stack_img.seeing])
         sex_catalog = AperturePhotometry.sex_photometry(
             target_img = stack_img,
             target_bkg = None,
@@ -561,23 +557,25 @@ def stackprocess(stack_path, stack_bkgrmspath, telinfo):
     stack_img.data = None
     stack_bkgrms.data = None
     gc.collect()
-    return stack_img, stack_bkgrms, calib_catalog, stacked_status
+    return stack_img, stack_bkgrms, stacked_status
 #%%
 databrowser = TIPDataBrowser('scidata')
-stack_imglist = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
-stack_bkgrmslist = [Errormap(path=img.savepath.bkgrmspath, emaptype='bkgrms', load=True) for img in stack_imglist]
+stack_imgset = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
+stack_imglist = stack_imgset.target_images
+stack_bkgrmslist = stack_imgset.bkgrms
 #%%
-telinfo = stack_imglist[0].telinfo
-arglist = [(stack_img.path, stack_bkgrms.path, telinfo) for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist)]
-with ProcessPoolExecutor(max_workers=10) as executor:
-    failed_stacked_path = []
-    futures = [executor.submit(stackprocess, *args) for args in arglist]
+# run in multiprocess and check failed images
+failed_stacked_img = []
+with ProcessPoolExecutor(max_workers=16) as executor:
+    futures = [executor.submit(stackprocess, stack_img, stack_bkgrms) for stack_img, stack_bkgrms in zip(stack_imglist, stack_bkgrmslist)]
     for future in tqdm(as_completed(futures), total=len(futures)):
         try:
             result = future.result()
         except Exception as e:
-            failed_stacked_path.append(args[0])
+            failed_stacked_img.append(stack_img)
             print(f"[ERROR] {e}")
+
+
 # %%
 import time
 print('Current time:', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
@@ -688,10 +686,20 @@ reference_img_g = stacked_img_g.to_referenceimage()
 reference_img_r = stacked_img_r.to_referenceimage()
 reference_img_g.register()
 reference_img_r.register()
+#%% Register reference frame
+path = '/home/hhchoi1022/data/refdata/KCT/KCT_STX16803_1x1/NGC1566/KCT/Ref-KCT_STX16803-NGC1566-i-720.com.fits'
+ref_image = ReferenceImage(path=path, load=True)
+imgprocess(ref_image)
+#%%
+BkgGenerator.subtract_background(
+    ref_image,
+    ref_image.bkgmap,
+    save = True,
+    overwrite = True)
 # %% Start Image subtraction
 DIA_kwargs = dict(
     detection_sigma = 5,
-    aperture_diameter_arcsec = [4,7,10],
+    aperture_diameter_arcsec = [5,7,10],
     aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     target_transient_number = 5,
     reject_variable_sources = True,
@@ -711,7 +719,7 @@ DIA_kwargs = dict(
     )
 
 databrowser = TIPDataBrowser('scidata')
-databrowser.filter = 'i'
+databrowser.filter = 'g'
 stacked_imgset = databrowser.search(pattern='Calib*120.com.fits', return_type='science')
 stacked_imglist = stacked_imgset.target_images
 from tippy.methods import TIPSubtraction
@@ -740,14 +748,44 @@ def subtract_process(target_img):
         target_img._error = str(e)  # Store the error message if needed
         return target_img  # Return failed image as indicator
 #%%
-failed_images = []
-for img in stacked_imglist:
-    try:
-        result = subtract_process(img)  # Run once to check if it works
-    except:
-        failed_images.append(img)
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import gc
+from tqdm import tqdm
+
+def chunk_list(lst, chunk_size):
+    """Yield successive chunk_size-sized chunks from lst."""
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]
+
+def process_batch(batch_images, batch_index, max_workers=8):
+    print(f"\nStarting batch {batch_index+1} with {len(batch_images)} images...")
+
+    results = []
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(subtract_process, img) for img in batch_images]
+
+        for future in tqdm(as_completed(futures), total=len(futures), desc=f"Batch {batch_index+1}"):
+            try:
+                result = future.result()
+                if result is not None:
+                    results.append(result)
+            except Exception as e:
+                print(f"[ERROR in batch {batch_index+1}] {e}")
+    
+    # Clean up memory between batches
+    gc.collect()
+    return results
+
+# ? Main loop over batches
+batch_size = 16
+all_results = []
+
+for batch_index, batch in enumerate(chunk_list(stacked_imglist, batch_size)):
+    batch_results = process_batch(batch, batch_index, max_workers=16)
+    all_results.extend(batch_results)
 #%%
-# Run with multiprocessing
+
+#%%
 c = []
 with ProcessPoolExecutor(max_workers=10) as executor:
     futures = [executor.submit(subtract_process, img) for img in stacked_imglist]
@@ -760,7 +798,7 @@ with ProcessPoolExecutor(max_workers=10) as executor:
 
 # %%
 catalogdataset = TIPCatalogDataset()
-catalogdataset.search_catalogs('NGC1566', 'sub*.transient', folder = '/home/hhchoi1022/data/scidata/KCT')
+catalogdataset.search_catalogs('NGC1566', 'Calib*com.fits.cat', folder = '/home/hhchoi1022/data/scidata/KCT')
 catalogdataset.select_sources(ra = 64.9725, dec= -54.948081)
 # %%
 from tippy.dataobjects import LightCurve

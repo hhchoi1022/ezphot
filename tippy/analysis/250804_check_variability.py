@@ -141,7 +141,7 @@ aperturephotometry_kwargs = dict(
     aperture_diameter_arcsec = [4,7,10],
     aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     saturation_level = 35000,
-    kron_factor = 2.5,
+    kron_factor = 1.5,
     save = save,
     verbose = verbose,
     visualize = visualize,
@@ -472,7 +472,7 @@ selected_imglist = Stacking.select_quality_images(target_imglist, seeing_limit =
 stack_aperturephotometry_kwargs = dict(
     sex_params = None,
     detection_sigma = 5,
-    aperture_diameter_arcsec = [7,12,15],
+    aperture_diameter_arcsec = [4,7,10],
     aperture_diameter_seeing = [3.5, 4.5], # If given, use seeing to calculate aperture size
     saturation_level = 35000,
     kron_factor = 1.5,
@@ -483,7 +483,7 @@ stack_aperturephotometry_kwargs = dict(
 )
 
 stack_photometriccalibration_kwargs = dict(
-    catalog_type = 'APASS',
+    catalog_type = 'GAIAXP',
     max_distance_second = 5,
     calculate_color_terms = True,
     calculate_mag_terms = True,
@@ -515,11 +515,10 @@ stack_photometriccalibration_kwargs = dict(
 )
 #%%
 databrowser = TIPDataBrowser('scidata')
-databrowser.observatory = 'RASA36'
-databrowser.objname = 'NGC1566'
-databrowser.telkey = 'RASA36_KL4040_MERGE_1x1'
+databrowser.observatory = '7DT'
+databrowser.objname = 'T02386'
 # Stack the images
-imginfo_all = databrowser.search(pattern='Calib*60.fits', return_type='imginfo')
+imginfo_all = databrowser.search(pattern='calib*100.fits', return_type='imginfo')
 imginfo_groups = imginfo_all.group_by(['filter', 'telescop']).groups
  #%%
 stack_imglist = []
@@ -531,7 +530,7 @@ for imginfo_group in imginfo_groups:
     telinfo = helper.estimate_telinfo(imginfo_subgroups[0][0]['file'])
     for imginfo_subgroup in imginfo_subgroups:
         target_imglist = [ScienceImage(path=row['file'], telinfo=telinfo, load=True) for row in imginfo_subgroup]
-        target_imglist = Stacking.select_quality_images(target_imglist, seeing_limit = 8, depth_limit = 15, ellipticity_limit = 1.0, max_numbers = len(target_imglist), visualize = visualize)
+        target_imglist = Stacking.select_quality_images(target_imglist, seeing_limit = 4, depth_limit = 15, ellipticity_limit = 1.0, max_numbers = len(target_imglist), visualize = visualize)
         if len(target_imglist) == 0:
             print(f"[WARNING] No images found. skipping stacking.")
             continue
