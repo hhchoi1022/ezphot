@@ -1,0 +1,16 @@
+CatalogQuerier
+==============
+
+.. autoclass:: tippy.utils.catalogquerier.CatalogQuerier
+
+Methods
+-------
+
+.. autofunction:: tippy.utils.CatalogQuerier.query
+.. autofunction:: tippy.utils.CatalogQuerier.show_available_catalogs
+.. autofunction:: tippy.utils.CatalogQuerier.change_catalog
+
+Properties
+----------
+
+.. include:: _generated/tippy.utils.catalogquerier.CatalogQuerier_properties.rst

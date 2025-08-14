@@ -1,0 +1,1088 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ezphot.methods.preprocess &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ezphot.methods.preprocess</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ezphot.methods.preprocess</h1><div class="highlight"><pre>
+<span></span>
+
+<span class="c1">#%%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gc</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">astropy.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">u</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">Time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">ascii</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ccdproc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ccdproc</span><span class="w"> </span><span class="kn">import</span> <span class="n">CCDData</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">CalibrationImage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Stack</span>
+
+
+<span class="c1">#%%</span>
+<div class="viewcode-block" id="Preprocess">
+<a class="viewcode-back" href="../../../api/preprocess.html#ezphot.methods.preprocess.Preprocess">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Preprocess</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Preprocess the image.</span>
+<span class="sd">    </span>
+<span class="sd">    This class provides methods </span>
+<span class="sd">    </span>
+<span class="sd">    1. Get master frame from the image.</span>
+<span class="sd">    </span>
+<span class="sd">    2. Correct bias, dark, and flat.</span>
+<span class="sd">    </span>
+<span class="sd">    3. Correct bias and dark.</span>
+<span class="sd">    </span>
+<span class="sd">    4. Correct flat.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cached_masterframe_tbl</span> <span class="o">=</span> <span class="kc">None</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_masterframe_from_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                   <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span> <span class="ow">or</span> <span class="n">CalibrationImage</span><span class="p">,</span>
+                                   <span class="n">imagetyp</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span>
+                                   <span class="n">max_days</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get master frame from the image.</span>
+<span class="sd">        </span>
+<span class="sd">        This method will search for the master frame in the master frame directory.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or CalibrationImage</span>
+<span class="sd">            The target image to get the master frame from.</span>
+<span class="sd">        imagetyp : str, optional</span>
+<span class="sd">            The type of image to get the master frame from.</span>
+<span class="sd">        max_days : float, optional</span>
+<span class="sd">            The maximum number of days to search for the master frame.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        master_frames : Table</span>
+<span class="sd">            Metadata of the master frame(s) found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">target_img</span><span class="o">.</span><span class="n">is_header_loaded</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">master_frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_masterframe</span><span class="p">(</span>
+            <span class="n">observatory</span><span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">observatory</span><span class="p">,</span>
+            <span class="n">telkey</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telkey</span><span class="p">,</span>
+            <span class="n">telname</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telname</span><span class="p">,</span>
+            <span class="n">imagetyp</span> <span class="o">=</span> <span class="n">imagetyp</span><span class="p">,</span>
+            <span class="n">exptime</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">exptime</span><span class="p">,</span>
+            <span class="n">filter_</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">filter</span><span class="p">,</span>
+            <span class="n">obsdate</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">obsdate</span><span class="p">,</span>
+            <span class="n">max_days</span> <span class="o">=</span> <span class="n">max_days</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">master_frames</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_masterframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                        <span class="n">observatory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;7DT&#39;</span><span class="p">,</span>
+                        <span class="n">telkey</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;7DT_C361K_HIGH_1x1&#39;</span><span class="p">,</span>
+                        <span class="n">telname</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;7DT02&#39;</span><span class="p">,</span>
+                        <span class="n">imagetyp</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span>
+                        <span class="n">exptime</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">filter_</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">obsdate</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">max_days</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get master frame from the image.</span>
+<span class="sd">        </span>
+<span class="sd">        This method will search for the master frame in the master frame directory.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        observatory : str, optional</span>
+<span class="sd">            The observatory to get the master frame from.</span>
+<span class="sd">        telkey : str, optional</span>
+<span class="sd">            The telescope key to get the master frame from.</span>
+<span class="sd">        telname : str, optional</span>
+<span class="sd">            The telescope name to get the master frame from.</span>
+<span class="sd">        imagetyp : str, optional</span>
+<span class="sd">            The type of image to get the master frame from.</span>
+<span class="sd">        exptime : float, optional</span>
+<span class="sd">            The exposure time of the image to get the master frame from.</span>
+<span class="sd">        filter_ : str, optional</span>
+<span class="sd">            The filter of the image to get the master frame from.</span>
+<span class="sd">        obsdate : str, optional</span>
+<span class="sd">            The observation date of the image to get the master frame from.</span>
+<span class="sd">        max_days : float, optional</span>
+<span class="sd">            The maximum number of days to search for the master frame.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        master_frames : Table</span>
+<span class="sd">            Metadata of the master frame(s) found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">astropy.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">Time</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+        <span class="c1"># Load summary tables</span>
+        <span class="n">all_masterframe_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">masterframe_summary_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;CALIBDATA_MASTERDIR&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="s1">&#39;summary.ascii_fixed_width&#39;</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_masterframe_tbl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">masterframe_summary_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">all_masterframe_tbl</span> <span class="o">=</span> <span class="n">ascii</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">masterframe_summary_path</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;fixed_width&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] Master frame summary file not found: </span><span class="si">{</span><span class="n">masterframe_summary_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_masterframe_tbl</span> <span class="o">=</span> <span class="n">all_masterframe_tbl</span>
+
+        <span class="n">all_masterframe_tbl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_masterframe_tbl</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;No calibration frame metadata found.&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">obsdate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No obsdate provided. Returning None&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># === Base mask ===</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+
+        <span class="c1"># Apply filters</span>
+        <span class="k">if</span> <span class="n">observatory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;observatory&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">observatory</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">telkey</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;telkey&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">telkey</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">telname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;telname&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">telname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">imagetyp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;imagetyp&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">imagetyp</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">imagetyp</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;DARK&#39;</span> <span class="ow">and</span> <span class="n">exptime</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s1">&#39;exptime&#39;</span> <span class="ow">in</span> <span class="n">all_masterframe_tbl</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;exptime&#39;</span><span class="p">],</span> <span class="n">exptime</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">imagetyp</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;FLAT&#39;</span> <span class="ow">and</span> <span class="n">filter_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s1">&#39;filtername&#39;</span> <span class="ow">in</span> <span class="n">all_masterframe_tbl</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;filtername&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">filter_</span><span class="p">)</span>
+
+        <span class="n">all_masterframe_tbl</span> <span class="o">=</span> <span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="c1"># === group_id logic ===</span>
+        <span class="n">use_group_id</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">valid_group_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">obsdate_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">flexible_time_parser</span><span class="p">(</span><span class="n">obsdate</span><span class="p">)</span><span class="o">.</span><span class="n">mjd</span>
+        <span class="n">obs_times</span> <span class="o">=</span> <span class="n">Time</span><span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;obsdate&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;isot&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mjd</span>
+        <span class="n">delta_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">obs_times</span> <span class="o">-</span> <span class="n">obsdate_target</span><span class="p">)</span>
+        <span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;time_difference&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_t</span>
+
+        <span class="k">if</span> <span class="s1">&#39;group_id&#39;</span> <span class="ow">in</span> <span class="n">all_masterframe_tbl</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+            <span class="c1"># Try to find the nearest row with a valid group_id</span>
+            <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">delta_t</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">sorted_indices</span><span class="p">:</span>
+                <span class="n">gid</span> <span class="o">=</span> <span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;group_id&#39;</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">gid</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">valid_group_id</span> <span class="o">=</span> <span class="n">gid</span>
+                    <span class="n">use_group_id</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>  <span class="c1"># stop at the first valid group_id</span>
+
+        <span class="k">if</span> <span class="n">use_group_id</span><span class="p">:</span>
+            <span class="n">sub_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;group_id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">valid_group_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Fallback to time-based filtering</span>
+            <span class="n">delta_t</span> <span class="o">=</span> <span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="s1">&#39;time_difference&#39;</span><span class="p">]</span>
+            <span class="n">within_range</span> <span class="o">=</span> <span class="n">delta_t</span> <span class="o">&lt;</span> <span class="n">max_days</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">within_range</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No calibration frame found within max_days.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">sub_mask</span> <span class="o">=</span> <span class="n">within_range</span>
+
+        <span class="c1"># === Final filtering ===</span>
+        <span class="n">filtered_tbl</span> <span class="o">=</span> <span class="n">all_masterframe_tbl</span><span class="p">[</span><span class="n">sub_mask</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">filtered_tbl</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No calibration frame found with the specified criteria.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">filtered_tbl</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s1">&#39;time_difference&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">filtered_tbl</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_bdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span><span class="p">,</span> 
+                    <span class="n">bias_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                    <span class="n">dark_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span> <span class="n">flat_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span>
+                    <span class="n">save</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Correct bias, dark, and flat.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage</span>
+<span class="sd">            The target image to correct bias, dark, and flat.</span>
+<span class="sd">        bias_image : CalibrationImage</span>
+<span class="sd">            The bias image to correct bias, dark, and flat.</span>
+<span class="sd">        dark_image : CalibrationImage</span>
+<span class="sd">            The dark image to correct bias, dark, and flat.</span>
+<span class="sd">        flat_image : CalibrationImage</span>
+<span class="sd">            The flat image to correct bias, dark, and flat.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the corrected image.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        calib_image : ScienceImage</span>
+<span class="sd">            The corrected image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if target_img.status.BIASCOR[&#39;status&#39;]:</span>
+        <span class="c1">#     target_img.logger.warning(f&quot;BIAS correction already applied to {target_img.path}. BIAS correction is not applied.&quot;)</span>
+        <span class="c1">#     raise RuntimeError(f&quot;BIAS correction already applied to {target_img.path}&quot;)</span>
+        <span class="c1"># if target_img.status.DARKCOR[&#39;status&#39;]:</span>
+        <span class="c1">#     target_img.logger.warning(f&quot;DARK correction already applied to {target_img.path}. BIAS correction is not applied.&quot;)</span>
+        <span class="c1">#     raise RuntimeError(f&quot;DARK correction already applied to {target_img.path}&quot;)</span>
+        <span class="c1"># if target_img.status.FLATCOR[&#39;status&#39;]:</span>
+        <span class="c1">#     target_img.logger.warning(f&quot;FLAT correction already applied to {target_img.path}. BIAS correction is not applied.&quot;)</span>
+        <span class="c1">#     raise RuntimeError(f&quot;FLAT correction already applied to {target_img.path}&quot;)</span>
+
+        <span class="c1"># Convert input images to CCDData</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bias_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dark_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">flat_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="n">sci_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">bias_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">dark_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">flat_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Perform bias, dark, flat correction</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_bdf</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">sci_ccddata</span><span class="p">,</span> <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_ccddata</span><span class="p">,</span> <span class="n">dark_data</span> <span class="o">=</span> <span class="n">dark_ccddata</span><span class="p">,</span> <span class="n">flat_data</span> <span class="o">=</span> <span class="n">flat_ccddata</span><span class="p">)</span>        
+
+        <span class="c1"># Determine data types and convert to selected data type</span>
+        <span class="n">tgt_dtype</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">bias_dtype</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">dark_dtype</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">flat_dtype</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">selected_dtype</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">,</span> <span class="p">[</span><span class="n">tgt_dtype</span><span class="p">,</span> <span class="n">bias_dtype</span><span class="p">,</span> <span class="n">dark_dtype</span><span class="p">,</span> <span class="n">flat_dtype</span><span class="p">])</span>
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">selected_dtype</span><span class="p">)</span>
+        
+        <span class="c1"># Add metadata</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BIASCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">BCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">BIASPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+            <span class="n">DARKCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> 
+            <span class="n">DCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">DARKPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">dark_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+            <span class="n">FLATCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">FCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">FLATPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">flat_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Create new image object</span>
+        <span class="n">calib_image</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span>  <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span> <span class="s1">&#39;BIASCOR&#39;</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span> <span class="o">=</span> <span class="s1">&#39;DARKCOR&#39;</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span> <span class="o">=</span> <span class="s1">&#39;FLATCOR&#39;</span><span class="p">)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;BIAS correction applied with {bias_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;DARK correction applied with {dark_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;FLAT correction applied with {flat_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># bias_image.logger.info(f&quot;Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># dark_image.logger.info(f&quot;Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># flat_image.logger.info(f&quot;Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">calib_image</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">calib_image</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_correct_bdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tgt_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">bias_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">dark_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">flat_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">):</span>
+        <span class="n">bcalib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_bias</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">tgt_data</span><span class="p">,</span> <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_data</span><span class="p">)</span>
+        <span class="n">dbcalib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_dark</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">bcalib_data</span><span class="p">,</span> <span class="n">dark_data</span> <span class="o">=</span> <span class="n">dark_data</span><span class="p">)</span>
+        <span class="n">fdbcalib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_flat</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">dbcalib_data</span><span class="p">,</span> <span class="n">flat_data</span> <span class="o">=</span> <span class="n">flat_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fdbcalib_data</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_bd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span><span class="p">,</span> 
+                   <span class="n">bias_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                   <span class="n">dark_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                   <span class="n">save</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span>
+                   <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Correct bias and dark.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage   </span>
+<span class="sd">            The target image to correct bias and dark.</span>
+<span class="sd">        bias_image : CalibrationImage</span>
+<span class="sd">            The bias image to correct bias and dark.</span>
+<span class="sd">        dark_image : CalibrationImage</span>
+<span class="sd">            The dark image to correct bias and dark.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the corrected image.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        calib_image : ScienceImage</span>
+<span class="sd">            The corrected image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Convert input images to CCDData</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bias_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dark_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="n">sci_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">bias_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">dark_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Perform bias, dark correction</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_bd</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">sci_ccddata</span><span class="p">,</span> <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_ccddata</span><span class="p">,</span> <span class="n">dark_data</span> <span class="o">=</span> <span class="n">dark_ccddata</span><span class="p">)</span>
+
+        <span class="c1"># Determine data types and convert to selected data type</span>
+        <span class="n">tgt_dtype</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">bias_dtype</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">dark_dtype</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">selected_dtype</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">,</span> <span class="p">[</span><span class="n">tgt_dtype</span><span class="p">,</span> <span class="n">bias_dtype</span><span class="p">,</span> <span class="n">dark_dtype</span><span class="p">])</span>
+        <span class="c1">#selected_dtype = np.promote_types(tgt_dtype, bias_dtype, dark_dtype)</span>
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">selected_dtype</span><span class="p">)</span>
+        
+        <span class="c1"># Add metadata</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BIASCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">BCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">BIASPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+            <span class="n">DARKCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> 
+            <span class="n">DCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">DARKPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">dark_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Create new image object</span>
+        <span class="n">calib_image</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span>  <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span> <span class="s1">&#39;BIASCOR&#39;</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span> <span class="o">=</span> <span class="s1">&#39;DARKCOR&#39;</span><span class="p">)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;BIAS correction applied with {bias_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;DARK correction applied with {dark_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># bias_image.logger.info(f&quot;Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># dark_image.logger.info(f&quot;Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">calib_image</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="n">calib_image</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_correct_bd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tgt_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">bias_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">dark_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">):</span>
+        <span class="n">bcalib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_bias</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">tgt_data</span><span class="p">,</span> <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_data</span><span class="p">)</span>
+        <span class="n">dbcalib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_dark</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">bcalib_data</span><span class="p">,</span> <span class="n">dark_data</span> <span class="o">=</span> <span class="n">dark_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dbcalib_data</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_bias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span> <span class="ow">or</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                     <span class="n">bias_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span>
+                     <span class="n">save</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                     <span class="o">**</span><span class="n">kwargs</span>
+                     <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Correct bias in the image.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or CalibrationImage</span>
+<span class="sd">            The target image to correct bias.</span>
+<span class="sd">        bias_image : CalibrationImage</span>
+<span class="sd">            The bias image to correct bias.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the corrected image.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        calib_image : ScienceImage</span>
+<span class="sd">            The corrected image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if target_img.status.BIASCOR[&#39;status&#39;]:</span>
+        <span class="c1">#     target_img.logger.warning(f&quot;BIAS correction already applied to {target_img.path}. BIAS correction is not applied.&quot;)</span>
+        <span class="c1">#     raise RuntimeError(f&quot;BIAS correction already applied to {target_img.path}&quot;)</span>
+        
+        <span class="c1"># Convert input images to CCDData</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bias_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="n">sci_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">bias_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Perform bias correction</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_bias</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">sci_ccddata</span><span class="p">,</span> <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_ccddata</span><span class="p">)</span>
+        
+        <span class="c1"># Determine data types and convert to selected data type</span>
+        <span class="n">tgt_dtype</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">bias_dtype</span> <span class="o">=</span> <span class="n">bias_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">selected_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">(</span><span class="n">tgt_dtype</span><span class="p">,</span> <span class="n">bias_dtype</span><span class="p">)</span>
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">selected_dtype</span><span class="p">)</span>
+
+        <span class="c1"># Update header</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BIASCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">BCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">BIASPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Create new image object</span>
+        <span class="n">calib_image</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span>  <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span> <span class="s1">&#39;BIASCOR&#39;</span><span class="p">)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;BIAS correction applied with {bias_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># bias_image.logger.info(f&quot;Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">calib_image</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">calib_image</span>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_correct_bias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tgt_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">bias_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">):</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">subtract_bias</span><span class="p">(</span><span class="n">tgt_data</span><span class="p">,</span> <span class="n">bias_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">calib_data</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_dark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span> <span class="ow">or</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                     <span class="n">dark_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span> 
+                     <span class="n">save</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                     <span class="o">**</span><span class="n">kwargs</span>
+                     <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Correct dark in the image.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or CalibrationImage</span>
+<span class="sd">            The target image to correct dark.</span>
+<span class="sd">        dark_image : CalibrationImage</span>
+<span class="sd">            The dark image to correct dark.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the corrected image.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        calib_image : ScienceImage</span>
+<span class="sd">            The corrected image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Convert input images to CCDData</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dark_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="n">sci_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">dark_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Perform dark correction</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_dark</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">sci_ccddata</span><span class="p">,</span> <span class="n">dark_data</span> <span class="o">=</span> <span class="n">dark_ccddata</span><span class="p">)</span>
+        
+        <span class="c1"># Determine data types and convert to selected data type</span>
+        <span class="n">tgt_dtype</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">dark_dtype</span> <span class="o">=</span> <span class="n">dark_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">selected_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">(</span><span class="n">tgt_dtype</span><span class="p">,</span> <span class="n">dark_dtype</span><span class="p">)</span>
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">selected_dtype</span><span class="p">)</span>
+        
+        <span class="c1"># Add metadata</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">DARKCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">DCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">DARKPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">dark_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Create new image object</span>
+        <span class="n">calib_image</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span>  <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span> <span class="s1">&#39;DARKCOR&#39;</span><span class="p">)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;DARK correction applied with {dark_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># dark_image.logger.info(f&quot;Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">calib_image</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">calib_image</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_correct_dark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tgt_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">dark_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">):</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">subtract_dark</span><span class="p">(</span><span class="n">tgt_data</span><span class="p">,</span> <span class="n">dark_data</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">exposure_time</span> <span class="o">=</span> <span class="s1">&#39;EXPTIME&#39;</span><span class="p">,</span> <span class="n">exposure_unit</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">second</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">calib_data</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_img</span><span class="p">:</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">flat_image</span><span class="p">:</span> <span class="n">CalibrationImage</span><span class="p">,</span>
+                     <span class="n">save</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                     <span class="o">**</span><span class="n">kwargs</span>
+                     <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Correct flat in the image.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage</span>
+<span class="sd">            The target image to correct flat.</span>
+<span class="sd">        flat_image : CalibrationImage</span>
+<span class="sd">            The flat image to correct flat.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the corrected image.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        calib_image : ScienceImage</span>
+<span class="sd">            The corrected image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Convert input images to CCDData</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">flat_image</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+        <span class="n">sci_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        <span class="n">flat_ccddata</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">CCDData</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;adu&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Perform flat correction</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_correct_flat</span><span class="p">(</span><span class="n">tgt_data</span> <span class="o">=</span> <span class="n">sci_ccddata</span><span class="p">,</span> <span class="n">flat_data</span> <span class="o">=</span> <span class="n">flat_ccddata</span><span class="p">)</span>
+        
+        <span class="c1"># Determine data types and convert to selected data type</span>
+        <span class="n">tgt_dtype</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">flat_dtype</span> <span class="o">=</span> <span class="n">flat_image</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="n">selected_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">promote_types</span><span class="p">(</span><span class="n">tgt_dtype</span><span class="p">,</span> <span class="n">flat_dtype</span><span class="p">)</span>
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">selected_dtype</span><span class="p">)</span>
+        
+        <span class="c1"># Update header</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">FLATCOR</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">FCORTIME</span> <span class="o">=</span> <span class="n">Time</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>
+            <span class="n">FLATPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">flat_image</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Create new image object</span>
+        <span class="n">calib_image</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span>  <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">calib_data</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">calib_image</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span> <span class="s1">&#39;FLATCOR&#39;</span><span class="p">)</span>
+        <span class="c1"># calib_image.logger.info(f&quot;FLAT correction applied with {flat_image.savepath.savepath}&quot;)</span>
+        <span class="c1"># flat_image.logger.info(f&quot;Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}&quot;)</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">calib_image</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">calib_image</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">_correct_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tgt_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">,</span> <span class="n">flat_data</span> <span class="p">:</span> <span class="n">CCDData</span><span class="p">):</span>
+        <span class="n">calib_data</span> <span class="o">=</span> <span class="n">ccdproc</span><span class="o">.</span><span class="n">flat_correct</span><span class="p">(</span><span class="n">tgt_data</span><span class="p">,</span> <span class="n">flat_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">calib_data</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_masterframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calib_imagelist</span> <span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">CalibrationImage</span><span class="p">],</span> 
+                             <span class="n">mbias</span> <span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CalibrationImage</span> <span class="ow">or</span> <span class="n">List</span><span class="p">[</span><span class="n">CalibrationImage</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                             <span class="n">mdark</span> <span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CalibrationImage</span> <span class="ow">or</span> <span class="n">List</span><span class="p">[</span><span class="n">CalibrationImage</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                             
+                             <span class="c1"># Combine parameters</span>
+                             <span class="n">combine_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span>
+                             <span class="n">n_proc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+                             <span class="n">clip_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;extrema&#39;</span><span class="p">,</span>
+                             <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+                             <span class="n">nlow</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                             <span class="n">nhigh</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                            
+                             <span class="c1"># Other parameters</span>
+                             <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                             <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                             <span class="o">**</span><span class="n">kwargs</span>
+                             <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate master bias, dark, flat frames.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        calib_imagelist : List[CalibrationImage]</span>
+<span class="sd">            The list of calibration images to generate master frames from.</span>
+<span class="sd">        mbias : Union[CalibrationImage or List[CalibrationImage]], optional</span>
+<span class="sd">            The master bias image to use for bias correction.</span>
+<span class="sd">        mdark : Union[CalibrationImage or List[CalibrationImage]], optional</span>
+<span class="sd">            The master dark image to use for dark correction.</span>
+<span class="sd">        combine_type : str, optional</span>
+<span class="sd">            The type of combination to use for the master frames.</span>
+<span class="sd">        n_proc : int, optional</span>
+<span class="sd">            The number of processors to use for the master frames.</span>
+<span class="sd">        clip_type : str, optional</span>
+<span class="sd">            The type of clipping to use for the master frames.</span>
+<span class="sd">        sigma : float, optional</span>
+<span class="sd">            The sigma for the master frames.</span>
+<span class="sd">        nlow : int, optional</span>
+<span class="sd">            The number of low values to clip for the master frames.</span>
+<span class="sd">        nhigh : int, optional</span>
+<span class="sd">            The number of high values to clip for the master frames.</span>
+<span class="sd">        verbose : bool, optional</span>
+<span class="sd">            Whether to print verbose output.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the master frames.</span>
+<span class="sd">        **kwargs : dict, optional   </span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        master_files : dict</span>
+<span class="sd">            The master frames.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">def</span><span class="w"> </span><span class="nf">empty_memory</span><span class="p">(</span><span class="n">imagelist</span> <span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CalibrationImage</span> <span class="ow">or</span> <span class="n">List</span><span class="p">[</span><span class="n">CalibrationImage</span><span class="p">]]):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imagelist</span><span class="p">,</span> <span class="n">CalibrationImage</span><span class="p">):</span>
+                <span class="n">imagelist</span> <span class="o">=</span> <span class="p">[</span><span class="n">imagelist</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">imagelist</span><span class="p">:</span>
+                <span class="n">image</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">combiner</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="n">all_filelist</span> <span class="o">=</span> <span class="p">[</span><span class="n">image</span><span class="o">.</span><span class="n">path</span> <span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">calib_imagelist</span><span class="p">]</span>
+        <span class="n">all_fileinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">get_imginfo</span><span class="p">(</span><span class="n">all_filelist</span><span class="p">,</span> <span class="n">normalize_key</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">all_fileinfo</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calib_imagelist</span>
+        <span class="n">all_fileinfo_by_group</span> <span class="o">=</span> <span class="n">all_fileinfo</span><span class="o">.</span><span class="n">group_by</span><span class="p">([</span><span class="s1">&#39;binning&#39;</span><span class="p">,</span> <span class="s1">&#39;gain&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">groups</span>
+        <span class="n">master_files</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">all_fileinfo_by_group</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;binning&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;gain&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">BIAS</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">DARK</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(),</span> <span class="n">FLAT</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">())</span>
+        
+        <span class="k">if</span> <span class="n">mbias</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mbias</span><span class="p">,</span> <span class="n">CalibrationImage</span><span class="p">):</span>
+                <span class="n">mbias</span> <span class="o">=</span> <span class="p">[</span><span class="n">mbias</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">bias</span> <span class="ow">in</span> <span class="n">mbias</span><span class="p">:</span>
+                <span class="n">bias_key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">bias</span><span class="o">.</span><span class="n">binning</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias</span><span class="o">.</span><span class="n">gain</span><span class="p">))</span>
+                <span class="n">master_files</span><span class="p">[</span><span class="n">bias_key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bias</span>
+        <span class="k">if</span> <span class="n">mdark</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mdark</span><span class="p">,</span> <span class="n">CalibrationImage</span><span class="p">):</span>
+                <span class="n">mdark</span> <span class="o">=</span> <span class="p">[</span><span class="n">mdark</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">dark</span> <span class="ow">in</span> <span class="n">mdark</span><span class="p">:</span>
+                <span class="n">header</span> <span class="o">=</span> <span class="n">dark</span><span class="o">.</span><span class="n">header</span>
+                <span class="n">dark_key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dark</span><span class="o">.</span><span class="n">binning</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">dark</span><span class="o">.</span><span class="n">gain</span><span class="p">))</span>
+                <span class="n">master_files</span><span class="p">[</span><span class="n">dark_key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">dark</span><span class="o">.</span><span class="n">exptime</span><span class="p">)]</span> <span class="o">=</span> <span class="n">dark</span>
+        
+        <span class="c1"># Run the calibration</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">all_fileinfo_by_group</span><span class="p">:</span>
+            <span class="c1"># Separate the images by type</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;binning&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;gain&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]:</span>
+                <span class="n">bias_key</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;BIAS&#39;</span><span class="p">,</span> <span class="s1">&#39;ZERO&#39;</span><span class="p">]</span>
+                <span class="n">bias_mask</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;imgtype&#39;</span><span class="p">],</span> <span class="n">bias_key</span><span class="p">)</span>
+                <span class="n">bias_fileinfo</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="n">bias_mask</span><span class="p">]</span>
+                <span class="n">new_bias</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">bias_fileinfo</span><span class="p">:</span>
+                    <span class="n">bias_rep</span> <span class="o">=</span> <span class="n">bias_fileinfo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">bias_imagelist</span> <span class="o">=</span> <span class="n">bias_fileinfo</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+                    <span class="n">new_bias</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">stack_multiprocess</span><span class="p">(</span>
+                        <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">bias_imagelist</span><span class="p">,</span>
+                        <span class="n">target_errormaplist</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">target_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">weight_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">combine_type</span> <span class="o">=</span> <span class="n">combine_type</span><span class="p">,</span>
+                        <span class="n">n_proc</span> <span class="o">=</span> <span class="n">n_proc</span><span class="p">,</span>
+                        <span class="n">clip_type</span> <span class="o">=</span> <span class="n">clip_type</span><span class="p">,</span>
+                        <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">,</span> 
+                        <span class="n">nlow</span> <span class="o">=</span> <span class="n">nlow</span><span class="p">,</span>
+                        <span class="n">nhigh</span> <span class="o">=</span> <span class="n">nhigh</span><span class="p">,</span>
+                        <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
+                    <span class="n">empty_memory</span><span class="p">(</span><span class="n">bias_imagelist</span><span class="p">)</span>
+                    
+                    <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_bias</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">)</span>
+                    <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_bias</span>
+                                
+                <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+                    <span class="n">new_bias</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Master BIAS is not found.&quot;</span><span class="p">)</span>
+                
+                <span class="n">dark_key</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;DARK&#39;</span><span class="p">]</span>
+                <span class="n">dark_mask</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;imgtype&#39;</span><span class="p">],</span> <span class="n">dark_key</span><span class="p">)</span>
+                <span class="n">dark_fileinfo</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="n">dark_mask</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">dark_fileinfo</span><span class="p">:</span>
+                    <span class="n">dark_fileinfo_by_exptime</span> <span class="o">=</span> <span class="n">dark_fileinfo</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="s1">&#39;exptime&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span>
+                    <span class="k">for</span> <span class="n">dark_group</span> <span class="ow">in</span> <span class="n">dark_fileinfo_by_exptime</span><span class="p">:</span>
+                        <span class="n">dark_rep</span> <span class="o">=</span> <span class="n">dark_group</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">exptime_name</span> <span class="o">=</span> <span class="n">dark_rep</span><span class="p">[</span><span class="s1">&#39;exptime&#39;</span><span class="p">]</span>
+                        <span class="n">b_darkimagelist</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">dark_imagelist</span> <span class="o">=</span> <span class="n">dark_group</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">dark</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">dark_imagelist</span><span class="p">,</span> <span class="n">desc</span> <span class="o">=</span> <span class="s1">&#39;BIAS correction on DARK frames...&#39;</span><span class="p">):</span>
+                            <span class="n">b_dark_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">correct_bias</span><span class="p">(</span>
+                                <span class="n">target_img</span> <span class="o">=</span> <span class="n">dark</span><span class="p">,</span> 
+                                <span class="n">bias_image</span> <span class="o">=</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">],</span>
+                                <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+                            <span class="n">b_darkimagelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">b_dark_image</span><span class="p">)</span>
+                        
+                        <span class="n">empty_memory</span><span class="p">(</span><span class="n">dark_imagelist</span><span class="p">)</span>
+                        
+                        <span class="k">del</span> <span class="n">dark_imagelist</span>
+                        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+                        
+                        <span class="n">new_dark</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">stack_multiprocess</span><span class="p">(</span>
+                            <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">b_darkimagelist</span><span class="p">,</span>
+                            <span class="n">target_errormaplist</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">target_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">weight_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">combine_type</span> <span class="o">=</span> <span class="n">combine_type</span><span class="p">,</span>
+                            <span class="n">n_proc</span> <span class="o">=</span> <span class="n">n_proc</span><span class="p">,</span>
+                            <span class="n">clip_type</span> <span class="o">=</span> <span class="n">clip_type</span><span class="p">,</span>
+                            <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">,</span> 
+                            <span class="n">nlow</span> <span class="o">=</span> <span class="n">nlow</span><span class="p">,</span>
+                            <span class="n">nhigh</span> <span class="o">=</span> <span class="n">nhigh</span><span class="p">,</span>
+                            <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>   
+                        <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">][</span><span class="n">exptime_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_dark</span>
+
+                        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+                            <span class="n">new_dark</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                        
+                        <span class="k">del</span> <span class="n">b_darkimagelist</span>
+                        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>       
+                  
+
+                <span class="k">if</span> <span class="s1">&#39;100.0&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">new_dark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_masterframe</span><span class="p">(</span><span class="n">target_img</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">],</span>
+                                                    <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span>
+                                                    <span class="n">exptime</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span>
+                    <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">][</span><span class="s1">&#39;100.0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_dark</span>
+                
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;FLAT&#39;</span><span class="p">]:</span>    
+                <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">][</span><span class="s1">&#39;100.0&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Master BIAS or DARK frame not found.&quot;</span><span class="p">)</span>
+
+                <span class="n">flat_key</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FLAT&#39;</span><span class="p">]</span>
+                <span class="n">flat_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;imgtype&#39;</span><span class="p">],</span> <span class="n">flat_key</span><span class="p">)</span>
+                <span class="n">flat_fileinfo</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="n">flat_mask</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">flat_fileinfo</span><span class="p">:</span>
+                    <span class="n">flat_fileinfo_by_filter</span> <span class="o">=</span> <span class="n">flat_fileinfo</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="s1">&#39;filter&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span>
+                    <span class="k">for</span> <span class="n">flat_group</span> <span class="ow">in</span> <span class="n">flat_fileinfo_by_filter</span><span class="p">:</span>
+                        <span class="n">flat_rep</span> <span class="o">=</span> <span class="n">flat_group</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">filter_name</span> <span class="o">=</span> <span class="n">flat_rep</span><span class="p">[</span><span class="s1">&#39;filter&#39;</span><span class="p">]</span>
+                        <span class="n">db_flatimagelist</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">flat_imagelist</span> <span class="o">=</span> <span class="n">flat_group</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">flat</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">flat_imagelist</span><span class="p">,</span> <span class="n">desc</span> <span class="o">=</span> <span class="s1">&#39;BIAS, DARK correction on FLAT frames...&#39;</span><span class="p">):</span>
+                            <span class="n">mbias</span> <span class="o">=</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;BIAS&#39;</span><span class="p">]</span>
+                            <span class="c1"># Convert list of exposure time strings to floats</span>
+                            <span class="n">mdark_exptime_key_float</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+                            <span class="c1"># Find the closest exposure time to 20.0 seconds</span>
+                            <span class="n">closest_exptime</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">mdark_exptime_key_float</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mf">20.0</span><span class="p">))</span>
+
+                            <span class="c1"># Use the string version as key to access master dark</span>
+                            <span class="n">closest_exptime_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">closest_exptime</span><span class="p">)</span>       
+                            <span class="n">mdark</span> <span class="o">=</span> <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;DARK&#39;</span><span class="p">][</span><span class="n">closest_exptime_key</span><span class="p">]</span>  
+                                               
+                            <span class="n">db_flat_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">correct_bd</span><span class="p">(</span>
+                                <span class="n">target_img</span> <span class="o">=</span> <span class="n">flat</span><span class="p">,</span> 
+                                <span class="n">bias_image</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span> 
+                                <span class="n">dark_image</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
+                                <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+                            <span class="n">db_flatimagelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">db_flat_image</span><span class="p">)</span>
+                        <span class="n">empty_memory</span><span class="p">(</span><span class="n">flat_imagelist</span><span class="p">)</span>
+                        
+                        <span class="n">new_flat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">stack_multiprocess</span><span class="p">(</span>
+                            <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">db_flatimagelist</span><span class="p">,</span>
+                            <span class="n">target_errormaplist</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">target_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">weight_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">combine_type</span> <span class="o">=</span> <span class="n">combine_type</span><span class="p">,</span>
+                            <span class="n">n_proc</span> <span class="o">=</span> <span class="n">n_proc</span><span class="p">,</span>
+                            <span class="n">clip_type</span> <span class="o">=</span> <span class="n">clip_type</span><span class="p">,</span>
+                            <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">,</span> 
+                            <span class="n">nlow</span> <span class="o">=</span> <span class="n">nlow</span><span class="p">,</span>
+                            <span class="n">nhigh</span> <span class="o">=</span> <span class="n">nhigh</span><span class="p">,</span>
+                            <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>    
+                        <span class="n">master_files</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;FLAT&#39;</span><span class="p">][</span><span class="n">filter_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_flat</span>
+                        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+                            <span class="n">new_flat</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                        
+                        <span class="k">del</span> <span class="n">db_flatimagelist</span>
+                        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>    
+            
+        <span class="k">return</span> <span class="n">master_files</span></div>
+
+
+    <span class="c1"># def generate_bpmask(self, data, output, n_sigma=5, header=None):</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     Expects 2D cupy array as data (master dark)</span>
+    <span class="c1">#     Func to generate hot pixel mask.</span>
+    <span class="c1">#     Bad pixel criterion set by J.H. Bae</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     # from astropy.stats import sigma_clipped_stats</span>
+    <span class="c1">#     # from eclaire.stats import sigma_clipped_stats</span>
+
+    <span class="c1">#     # if self.queue:</span>
+    <span class="c1">#     #     self.queue.log_memory_stats(f&quot;After loading {dtype} data&quot;)</span>
+
+    <span class="c1">#     # mean, median, std = sigma_clipped_stats(data, sigma=3, maxiters=5) # astropy</span>
+    <span class="c1">#     # median, std = sigma_clipped_stats(data, reduce=&quot;median&quot;, width=3, iters=5) # eclaire</span>
+    <span class="c1">#     mean, median, std = sigma_clipped_stats_cupy(data, sigma=3, maxiters=5)</span>
+
+    <span class="c1">#     hot_mask = cp.abs(data - median) &gt; n_sigma * std  # 1 for bad, 0 for okay</span>
+    <span class="c1">#     hot_mask = cp.asnumpy(hot_mask).astype(&quot;uint8&quot;)</span>
+
+    <span class="c1">#     # # Save the file</span>
+    <span class="c1">#     # newhdu = fits.PrimaryHDU(hot_mask)</span>
+
+    <span class="c1">#     # Use CompImageHDU for less disk consumption</span>
+    <span class="c1">#     newhdu = fits.CompImageHDU(data=hot_mask)</span>
+
+    <span class="c1">#     # Create a primary HDU as placeholder</span>
+    <span class="c1">#     primary_hdu = fits.PrimaryHDU()</span>
+
+    <span class="c1">#     if header:</span>
+    <span class="c1">#         # for card in header.cards:</span>
+    <span class="c1">#         #     # skip certain keywords</span>
+    <span class="c1">#         #     if card.keyword in (&quot;BITPIX&quot;, &quot;NAXIS&quot;, &quot;NAXIS1&quot;, &quot;NAXIS2&quot;):</span>
+    <span class="c1">#         #         continue</span>
+    <span class="c1">#         #     newhdu.header.append(card)</span>
+    <span class="c1">#         for key in [</span>
+    <span class="c1">#             &quot;INSTRUME&quot;,</span>
+    <span class="c1">#             &quot;GAIN&quot;,</span>
+    <span class="c1">#             &quot;EXPTIME&quot;,</span>
+    <span class="c1">#             &quot;EXPOSURE&quot;,</span>
+    <span class="c1">#             &quot;JD&quot;,</span>
+    <span class="c1">#             &quot;MJD&quot;,</span>
+    <span class="c1">#             &quot;DATE-OBS&quot;,</span>
+    <span class="c1">#             &quot;DATE-LOC&quot;,</span>
+    <span class="c1">#             &quot;XBINNING&quot;,</span>
+    <span class="c1">#             &quot;YBINNING&quot;,</span>
+    <span class="c1">#         ]:</span>
+    <span class="c1">#             newhdu.header[key] = header[key]</span>
+    <span class="c1">#         # newhdu.header.add_comment(&quot;Above header is from the first dark frame&quot;)</span>
+    <span class="c1">#         newhdu.header[&quot;COMMENT&quot;] = &quot;Header inherited from first dark frame&quot;</span>
+    <span class="c1">#     newhdu.header[&quot;NHOTPIX&quot;] = (np.sum(hot_mask), &quot;Number of hot pixels.&quot;)</span>
+    <span class="c1">#     # newhdu.header[&#39;NDARKIMG&#39;] = (len(bias_sub_dark_names), &#39;Number of bias subtracted dark images used in sigma-clipped mean combine.&#39;)</span>
+    <span class="c1">#     # newhdu.header[&#39;EXPTIME&#39;] = dark_hdr[&#39;EXPTIME&#39;]</span>
+    <span class="c1">#     # newhdu.header[&#39;COMMENT&#39;] = &#39;Stable hot pixel mask image. Algorithm produced by J.H.Bae on 20250117.&#39;</span>
+    <span class="c1">#     newhdu.header[&quot;SIGMAC&quot;] = (n_sigma, &quot;HP threshold in clipped sigma&quot;)</span>
+    <span class="c1">#     newhdu.header[&quot;BADPIX&quot;] = (1, &quot;Pixel Value for Bad pixels&quot;)</span>
+
+    <span class="c1">#     # newhdul = fits.HDUList([newhdu])</span>
+    <span class="c1">#     newhdul = fits.HDUList([primary_hdu, newhdu])</span>
+    <span class="c1">#     newhdul.writeto(output, overwrite=True)</span>
+
+    <span class="c1">#     # if self.queue:</span>
+    <span class="c1">#     #     self.queue.log_memory_stats(f&quot;After saving {dtype}&quot;)</span>
+
+    <span class="c1"># def interpolate_masked_pixels_gpu_vectorized_weight(</span>
+    <span class="c1">#     image,</span>
+    <span class="c1">#     mask,</span>
+    <span class="c1">#     weight=None,</span>
+    <span class="c1">#     window=1,</span>
+    <span class="c1">#     method=&quot;median&quot;,</span>
+    <span class="c1">#     badpix=1,</span>
+    <span class="c1"># ):</span>
+    <span class="c1">#     &quot;&quot;&quot;Interpolate masked pixels in image (and optional weight map) using a mean filter.</span>
+
+    <span class="c1">#     Args:</span>
+    <span class="c1">#         image (cp.ndarray): 2D input image.</span>
+    <span class="c1">#         mask (cp.ndarray): Binary mask (1 = masked, 0 = valid) when badpix=1.</span>
+    <span class="c1">#         weight (cp.ndarray, optional): Pixel weight map. If None, unweighted mean is used. It must be 1/VARIANCE.</span>
+    <span class="c1">#         window (int): Radius of square window.</span>
+    <span class="c1">#         method (str): Interpolation method. Options are &quot;inverse_variance&quot; or &quot;median&quot;.</span>
+
+    <span class="c1">#     Returns:</span>
+    <span class="c1">#         interpolated_image (cp.ndarray): Image with interpolated masked pixels.</span>
+    <span class="c1">#         interpolated_weight (cp.ndarray): Weight map with interpolated weights.</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     import cupy as cp</span>
+
+    <span class="c1">#     H, W = image.shape</span>
+    <span class="c1">#     assert image.shape == mask.shape</span>
+    <span class="c1">#     if weight is not None:</span>
+    <span class="c1">#         assert weight.shape == image.shape</span>
+
+    <span class="c1">#     result = image.copy()</span>
+    <span class="c1">#     weight_result = weight.copy() if weight is not None else None  # cp.ones_like(image)</span>
+
+    <span class="c1">#     ys, xs = cp.where(mask == badpix)</span>
+    <span class="c1">#     N = ys.shape[0]</span>
+    <span class="c1">#     if N == 0:</span>
+    <span class="c1">#         return result, weight_result</span>
+
+    <span class="c1">#     # Create patch offsets</span>
+    <span class="c1">#     dy, dx = cp.meshgrid(</span>
+    <span class="c1">#         cp.arange(-window, window + 1), cp.arange(-window, window + 1), indexing=&quot;ij&quot;</span>
+    <span class="c1">#     )</span>
+    <span class="c1">#     dy = dy.ravel()</span>
+    <span class="c1">#     dx = dx.ravel()</span>
+
+    <span class="c1">#     patch_ys = ys[:, None] + dy[None, :]</span>
+    <span class="c1">#     patch_xs = xs[:, None] + dx[None, :]</span>
+
+    <span class="c1">#     # Mask out-of-bound locations</span>
+    <span class="c1">#     in_bounds = (patch_ys &gt;= 0) &amp; (patch_ys &lt; H) &amp; (patch_xs &gt;= 0) &amp; (patch_xs &lt; W)</span>
+
+    <span class="c1">#     # Clip for safe indexing</span>
+    <span class="c1">#     patch_ys_safe = cp.clip(patch_ys, 0, H - 1)</span>
+    <span class="c1">#     patch_xs_safe = cp.clip(patch_xs, 0, W - 1)</span>
+    <span class="c1">#     flat_indices = patch_ys_safe * W + patch_xs_safe</span>
+
+    <span class="c1">#     flat_image = image.ravel()</span>
+    <span class="c1">#     flat_mask = mask.ravel()</span>
+    <span class="c1">#     patch_vals = flat_image[flat_indices]</span>
+    <span class="c1">#     patch_mask = flat_mask[flat_indices]</span>
+
+    <span class="c1">#     valid = (patch_mask == 1 - badpix) &amp; in_bounds</span>
+
+    <span class="c1">#     if weight is not None:</span>
+    <span class="c1">#         flat_weight = weight.ravel()</span>
+    <span class="c1">#         patch_weights = flat_weight[flat_indices]</span>
+
+    <span class="c1">#         patch_weights = cp.where(valid, patch_weights, 0)</span>
+    <span class="c1">#         patch_vals = cp.where(valid, patch_vals, cp.nan)</span>
+
+    <span class="c1">#         if method == &quot;inverse_variance&quot;:</span>
+    <span class="c1">#             weighted_sum = cp.sum(patch_weights * patch_vals, axis=1)</span>
+    <span class="c1">#             weight_total = cp.sum(patch_weights, axis=1)</span>
+
+    <span class="c1">#             # if weight_total == 0, val is 0</span>
+    <span class="c1">#             interp_vals = cp.where(weight_total &gt; 0, weighted_sum / weight_total, 0)</span>
+    <span class="c1">#             interp_weights = weight_total  # assuming weight = 1/var</span>
+
+    <span class="c1">#         elif method == &quot;median&quot;:</span>
+    <span class="c1">#             # Compute median and MAD</span>
+    <span class="c1">#             interp_vals = cp.nanmedian(patch_vals, axis=1)</span>
+
+    <span class="c1">#             # Handle NaNs safely by using cp.isclose (for float stability)</span>
+    <span class="c1">#             mask = cp.isclose(patch_vals, interp_vals[:, None], equal_nan=True)</span>
+
+    <span class="c1">#             # For multiple matches per row, take first match</span>
+    <span class="c1">#             def first_match_per_row(data, mask):</span>
+    <span class="c1">#                 idx = cp.argmax(mask, axis=1)  # index of first True in each row</span>
+    <span class="c1">#                 row_idx = cp.arange(mask.shape[0])</span>
+    <span class="c1">#                 return data[row_idx, idx]</span>
+
+    <span class="c1">#             interp_weights = first_match_per_row(patch_weights, mask)</span>
+
+    <span class="c1">#         # Fill interpolated values and weights</span>
+    <span class="c1">#         result[ys, xs] = interp_vals</span>
+    <span class="c1">#         weight_result[ys, xs] = interp_weights</span>
+
+    <span class="c1">#         return result, weight_result</span>
+
+    <span class="c1">#     else:</span>
+    <span class="c1">#         patch_vals = cp.where(valid, patch_vals, cp.nan)</span>
+    <span class="c1">#         interp_vals = cp.nanmedian(patch_vals, axis=1)</span>
+
+    <span class="c1">#         result[ys, xs] = interp_vals</span>
+    <span class="c1">#         return result  </span>
+
+
+<span class="c1"># %%</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

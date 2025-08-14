@@ -1,0 +1,8 @@
+include README.md
+include requirements.txt
+include LICENSE
+recursive-include ezphot/configuration *
+recursive-include ezphot/utils *
+prune docs/_build
+global-exclude *.py[cod] __pycache__/* *.so
+

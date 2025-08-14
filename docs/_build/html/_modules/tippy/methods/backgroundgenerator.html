@@ -1,0 +1,573 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tippy.methods.backgroundgenerator &mdash; TIPpy 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            TIPpy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">TIPpy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">tippy.methods.backgroundgenerator</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for tippy.methods.backgroundgenerator</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1">#%%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">SigmaClip</span><span class="p">,</span> <span class="n">sigma_clipped_stats</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">photutils.segmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_threshold</span><span class="p">,</span> <span class="n">detect_sources</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">photutils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">circular_footprint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mpl_toolkits.axes_grid1</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_axes_locatable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.wcs</span><span class="w"> </span><span class="kn">import</span> <span class="n">WCS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.wcs.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">proj_plane_pixel_scales</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numba</span><span class="w"> </span><span class="kn">import</span> <span class="n">jit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">photutils.aperture</span><span class="w"> </span><span class="kn">import</span> <span class="n">CircularAperture</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">astroscrappy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sep</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">griddata</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mask</span><span class="p">,</span> <span class="n">Background</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+<span class="c1">#%%</span>
+<div class="viewcode-block" id="BackgroundGenerator">
+<a class="viewcode-back" href="../../../api/backgroundgenerator.html#tippy.methods.BackgroundGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BackgroundGenerator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Method class to estimate and subtract the background of astronomical images using </span>
+<span class="sd">    SEP (Source Extractor-like) or photutils-based methods.</span>
+
+<span class="sd">    This class provides methods </span>
+<span class="sd">    </span>
+<span class="sd">    1. Calculation of 2D background map from SEP or photutils-based methods.</span>
+<span class="sd">    </span>
+<span class="sd">    2. Calculation of 1D (constant) background level from SEP or photutils-based methods.</span>
+<span class="sd">    </span>
+<span class="sd">    3. Subtraction of background from the target image.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the BackgroundGenerator class.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        None</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_with_sep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="c1"># Input parameters</span>
+                          <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+                          <span class="n">target_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mask</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                          <span class="n">is_2D_bkg</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                          <span class="n">box_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+                          <span class="n">filter_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+  
+                          <span class="c1"># Others</span>
+                          <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                          <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                          <span class="n">visualize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                          <span class="n">save_fig</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                          <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Estimate the background of an astronomical image using SEP.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The target image to estimate the background from.</span>
+<span class="sd">        target_mask : Mask, optional</span>
+<span class="sd">            The mask to use for the background estimation.</span>
+<span class="sd">        is_2D_bkg : bool, optional</span>
+<span class="sd">            Whether to estimate a 2D background.</span>
+<span class="sd">        box_size : int, optional</span>
+<span class="sd">            The size of the box for the background estimation.</span>
+<span class="sd">        filter_size : int, optional</span>
+<span class="sd">            The size of the filter for the background estimation.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the background image.</span>
+<span class="sd">        verbose : bool, optional</span>
+<span class="sd">            Whether to print verbose output.</span>
+<span class="sd">        visualize : bool, optional</span>
+<span class="sd">            Whether to visualize the background image.</span>
+<span class="sd">        save_fig : bool, optional</span>
+<span class="sd">            Whether to save the background image as a figure.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        target_bkg : Background</span>
+<span class="sd">            The estimated background image instance from TIPpy.</span>
+<span class="sd">        bkg : sep.Background</span>
+<span class="sd">            The background image instance from sep.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Step 1: Load the image and mask</span>
+        <span class="n">mask_to_use</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">target_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask_to_use</span> <span class="o">=</span> <span class="n">target_mask</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;External mask is loaded.&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+            
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span>
+        <span class="c1"># If image_data is uint16, convert to float32</span>
+        <span class="k">if</span> <span class="n">image_data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">:</span>
+            <span class="n">image_data</span> <span class="o">=</span> <span class="n">image_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">image_data</span>
+
+        <span class="c1"># Create a mask of NaN values</span>
+        <span class="n">invalid_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">invalid_mask</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">invalid_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">image_filled</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">posinf</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">neginf</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="c1"># Inpaint using the mask</span>
+            <span class="n">image_data</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">inpaint</span><span class="p">(</span><span class="n">image_filled</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">inpaintRadius</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INPAINT_TELEA</span><span class="p">)</span>
+        
+        <span class="c1"># Step 2: Background estimation</span>
+        <span class="n">image_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">to_native</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+        
+        <span class="n">bkg</span> <span class="o">=</span> <span class="n">sep</span><span class="o">.</span><span class="n">Background</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> 
+                             <span class="n">mask</span><span class="o">=</span><span class="n">mask_to_use</span><span class="p">,</span> 
+                             <span class="n">bw</span><span class="o">=</span><span class="n">box_size</span><span class="p">,</span> 
+                             <span class="n">bh</span><span class="o">=</span><span class="n">box_size</span><span class="p">,</span>
+                             <span class="n">fw</span><span class="o">=</span><span class="n">filter_size</span><span class="p">,</span> 
+                             <span class="n">fh</span><span class="o">=</span><span class="n">filter_size</span><span class="p">)</span>
+        <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg</span><span class="o">.</span><span class="n">back</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">is_2D_bkg</span><span class="p">:</span>
+            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg_map</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bkg_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)</span>
+            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> <span class="n">bkg_val</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">image_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        
+        <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">Background</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">bkgpath</span><span class="p">,</span> <span class="n">load</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">bkg_map</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span>
+        <span class="c1"># Update header of the background image</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">TGTPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">),</span>
+            <span class="n">MASKPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_mask</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">BKGTYPE</span> <span class="o">=</span> <span class="s1">&#39;SEP&#39;</span><span class="p">,</span>
+            <span class="n">BKGIS2D</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">BKGVALU</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)),</span>
+            <span class="n">BKGSIG</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)),</span>
+            <span class="n">BKGBOX</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">box_size</span><span class="p">),</span>
+            <span class="n">BKGFILT</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">filter_size</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Update header of the target image</span>
+        <span class="n">update_header_kwargs_image</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BKGPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_bkg</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_bkg</span><span class="o">.</span><span class="n">is_exists</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">BKGTYPE</span> <span class="o">=</span> <span class="s1">&#39;SEP&#39;</span>
+        <span class="p">)</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs_image</span><span class="p">)</span>
+
+        <span class="c1">## Update status          </span>
+        <span class="n">event_details_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;SEP&#39;</span><span class="p">,</span> 
+            <span class="n">box_size</span> <span class="o">=</span> <span class="n">box_size</span><span class="p">,</span> 
+            <span class="n">filter_size</span> <span class="o">=</span> <span class="n">filter_size</span><span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">add_status</span><span class="p">(</span><span class="s2">&quot;background_sep&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">event_details_kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">target_bkg</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">visualize</span> <span class="ow">or</span> <span class="n">save_fig</span><span class="p">:</span>
+            <span class="n">save_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">save_fig</span><span class="p">:</span>
+                <span class="n">save_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">bkgpath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.png&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_visualize</span><span class="p">(</span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+                            <span class="n">mask_data</span> <span class="o">=</span> <span class="n">mask_to_use</span> <span class="p">,</span>
+                            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg_map</span><span class="p">,</span> 
+                            <span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span><span class="p">,</span>
+                            <span class="n">show</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">target_bkg</span><span class="p">,</span> <span class="n">bkg</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate_with_photutils</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                <span class="c1"># Input parameters</span>
+                                <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+                                <span class="n">target_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mask</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="n">is_2D_bkg</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                <span class="n">box_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+                                <span class="n">filter_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+                                <span class="n">bkg_estimator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;sextractor&#39;</span><span class="p">,</span> <span class="c1"># &#39;mean&#39;, &#39;median&#39;, &#39;sextractor&#39;</span>
+                                
+                                <span class="c1"># Others</span>
+                                <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                <span class="n">visualize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                <span class="n">save_fig</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>     
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Estimate the background of an astronomical image using photutils.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The target image to estimate the background from.</span>
+<span class="sd">        target_mask : Mask, optional</span>
+<span class="sd">            The mask to use for the background estimation.</span>
+<span class="sd">        is_2D_bkg : bool, optional</span>
+<span class="sd">            Whether to estimate a 2D background.</span>
+<span class="sd">        box_size : int, optional</span>
+<span class="sd">            The size of the box for the background estimation.</span>
+<span class="sd">        filter_size : int, optional</span>
+<span class="sd">            The size of the filter for the background estimation.</span>
+<span class="sd">        bkg_estimator : str, optional</span>
+<span class="sd">            The background estimator to use.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the background image.</span>
+<span class="sd">        verbose : bool, optional</span>
+<span class="sd">            Whether to print verbose output.</span>
+<span class="sd">        visualize : bool, optional</span>
+<span class="sd">            Whether to visualize the background image.</span>
+<span class="sd">        save_fig : bool, optional</span>
+<span class="sd">            Whether to save the background image as a figure.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        target_bkg : Background</span>
+<span class="sd">            The estimated background image instance from TIPpy.</span>
+<span class="sd">        bkg : photutils.background.Background2D</span>
+<span class="sd">            The background image instance from photutils.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">photutils.background</span><span class="w"> </span><span class="kn">import</span> <span class="n">Background2D</span><span class="p">,</span> <span class="n">MedianBackground</span><span class="p">,</span> <span class="n">MeanBackground</span><span class="p">,</span> <span class="n">SExtractorBackground</span>
+
+        <span class="c1"># Step 1: Load the image and mask</span>
+        <span class="n">mask_to_use</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">target_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask_to_use</span> <span class="o">=</span> <span class="n">target_mask</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;External mask is loaded.&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+            
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Step 2: Background estimation</span>
+        <span class="c1"># Set the background estimation methods</span>
+        <span class="n">bkg_estimator_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">MeanBackground</span><span class="p">(),</span>
+            <span class="s1">&#39;median&#39;</span><span class="p">:</span> <span class="n">MedianBackground</span><span class="p">(),</span>
+            <span class="s1">&#39;sextractor&#39;</span><span class="p">:</span> <span class="n">SExtractorBackground</span><span class="p">()</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">bkg_estimator</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bkg_estimator_dict</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid background estimator &#39;</span><span class="si">{</span><span class="n">bkg_estimator</span><span class="si">}</span><span class="s2">&#39;. Choose from &#39;mean&#39;, &#39;median&#39;, &#39;sextractor&#39;.&quot;</span><span class="p">)</span>
+        <span class="n">bkgestimator</span> <span class="o">=</span> <span class="n">bkg_estimator_dict</span><span class="p">[</span><span class="n">bkg_estimator</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s1">&#39;Estimating 2D background...&#39;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+        <span class="n">bkg</span> <span class="o">=</span> <span class="n">Background2D</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> 
+                           <span class="n">box_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">box_size</span><span class="p">,</span> <span class="n">box_size</span><span class="p">),</span> 
+                           <span class="n">mask</span><span class="o">=</span><span class="n">mask_to_use</span><span class="p">,</span>
+                           <span class="n">filter_size</span><span class="o">=</span><span class="p">(</span><span class="n">filter_size</span><span class="p">,</span> <span class="n">filter_size</span><span class="p">),</span>
+                           <span class="n">sigma_clip</span><span class="o">=</span><span class="n">SigmaClip</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">maxiters</span> <span class="o">=</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">bkg_estimator</span><span class="o">=</span><span class="n">bkgestimator</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_2D_bkg</span><span class="p">:</span>
+            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg</span><span class="o">.</span><span class="n">background</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bkg_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">bkg</span><span class="o">.</span><span class="n">background</span><span class="p">)</span>
+            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> <span class="n">bkg_val</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">image_data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">Background</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">bkgpath</span><span class="p">,</span> <span class="n">load</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">bkg_map</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span>
+
+        <span class="c1"># Update header/status </span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">TGTPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="p">),</span>
+            <span class="n">MASKPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_mask</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">BKGTYPE</span> <span class="o">=</span> <span class="s1">&#39;Photutils&#39;</span><span class="p">,</span>
+            <span class="n">BKGIS2D</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">BKGVALU</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)),</span>
+            <span class="n">BKGSIG</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)),</span>
+            <span class="n">BKGBOX</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">box_size</span><span class="p">),</span>
+            <span class="n">BKGFILT</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">filter_size</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># Update header of the target image</span>
+        <span class="n">update_header_kwargs_image</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BKGPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_bkg</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_bkg</span><span class="o">.</span><span class="n">is_exists</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">BKGTYPE</span> <span class="o">=</span> <span class="s1">&#39;Photutils&#39;</span>
+        <span class="p">)</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs_image</span><span class="p">)</span>
+
+        <span class="c1">## Update status          </span>
+        <span class="n">event_details_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;Photutils&#39;</span><span class="p">,</span> 
+            <span class="n">box_size</span> <span class="o">=</span> <span class="n">box_size</span><span class="p">,</span> 
+            <span class="n">filter_size</span> <span class="o">=</span> <span class="n">filter_size</span><span class="p">)</span>
+        <span class="n">target_bkg</span><span class="o">.</span><span class="n">add_status</span><span class="p">(</span><span class="s2">&quot;background_sep&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">event_details_kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">target_bkg</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">save_fig</span> <span class="ow">or</span> <span class="n">visualize</span><span class="p">:</span>
+            <span class="n">save_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">save_fig</span><span class="p">:</span>
+                <span class="n">save_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">bkgpath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.png&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_visualize</span><span class="p">(</span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span> 
+                            <span class="n">mask_data</span> <span class="o">=</span> <span class="n">mask_to_use</span> <span class="p">,</span> 
+                            <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg_map</span><span class="p">,</span> 
+                            <span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span><span class="p">,</span>
+                            <span class="n">show</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">target_bkg</span><span class="p">,</span> <span class="n">bkg</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">subtract_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                            <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+                            <span class="n">target_bkg</span><span class="p">:</span> <span class="n">Background</span><span class="p">,</span>
+                            
+                            <span class="c1"># Other parameters</span>
+                            <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                            <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                            <span class="n">visualize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                            <span class="n">save_fig</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Subtract the background from the target image.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The target image to subtract the background from.</span>
+<span class="sd">        target_bkg : tippy.imageobjects.Background</span>
+<span class="sd">            The background image to subtract from the target image.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the subtracted image.</span>
+<span class="sd">        overwrite : bool, optional</span>
+<span class="sd">            Whether to overwrite the target image.</span>
+<span class="sd">        visualize : bool, optional</span>
+<span class="sd">            Whether to visualize the subtracted image.</span>
+<span class="sd">        save_fig : bool, optional</span>
+<span class="sd">            Whether to save the subtracted image as a figure.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The subtracted image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Step 1: Load the image and mask</span>
+        <span class="c1">#target_img = target_img.copy()</span>
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">image_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">image_data</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">newbyteorder</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">))</span>
+        <span class="n">image_header</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">bkg_data</span> <span class="o">=</span> <span class="n">target_bkg</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">bkg_data</span> <span class="o">=</span> <span class="n">bkg_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">bkg_data</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">newbyteorder</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">))</span>
+        
+        <span class="c1"># Step 2: Subtract the background</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">new_path</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;subbkg_&#39;</span> <span class="o">+</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">target_img</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span> <span class="o">=</span> <span class="n">new_path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">image_header</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">image_data</span> <span class="o">-</span> <span class="n">bkg_data</span>
+        <span class="n">bkg_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">bkg_data</span><span class="p">)</span>
+        <span class="c1"># Step 3: Update the header</span>
+        <span class="c1"># Update backgroundimg info</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">target_bkg</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BKGPATH</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_bkg</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_bkg</span><span class="o">.</span><span class="n">is_exists</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span> 
+            <span class="n">BKGVALU</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># Background value is set to 0 after subtraction</span>
+        <span class="p">)</span>
+        <span class="c1"># Update subbkg info</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        <span class="c1"># Update target_img status</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="s1">&#39;BKGSUB&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Step 4: Save the image</span>
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">visualize</span> <span class="ow">or</span> <span class="n">save_fig</span><span class="p">:</span>
+            <span class="n">save_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">save_fig</span><span class="p">:</span>
+                <span class="n">save_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.subbkg.png&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_visualize</span><span class="p">(</span>
+                <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+                <span class="n">mask_data</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">,</span>
+                <span class="n">bkg_map</span> <span class="o">=</span> <span class="n">bkg_data</span><span class="p">,</span> 
+                <span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span><span class="p">,</span>
+                <span class="n">show</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">target_img</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_visualize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                   <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+                   <span class="n">mask_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">bkg_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">subtitles</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize available data: image, mask, and/or background map.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">astropy.visualization</span><span class="w"> </span><span class="kn">import</span> <span class="n">ZScaleInterval</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mpl_toolkits.axes_grid1</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_axes_locatable</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+        <span class="n">interval</span> <span class="o">=</span> <span class="n">ZScaleInterval</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">downsample</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">factor</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">data</span><span class="p">[::</span><span class="n">factor</span><span class="p">,</span> <span class="p">::</span><span class="n">factor</span><span class="p">]</span>
+
+        <span class="n">panels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">default_titles</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">image_data</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">image_data_small</span> <span class="o">=</span> <span class="n">downsample</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+        <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">interval</span><span class="o">.</span><span class="n">get_limits</span><span class="p">(</span><span class="n">image_data_small</span><span class="p">)</span>
+        <span class="n">panels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">image_data_small</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Greys_r&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">)))</span>
+        <span class="n">default_titles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Target Image&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">mask_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask_data_small</span> <span class="o">=</span> <span class="n">downsample</span><span class="p">(</span><span class="n">mask_data</span><span class="p">)</span>
+            <span class="n">panels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">mask_data_small</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Greys_r&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">default_titles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Mask&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">bkg_map</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bkg_map_small</span> <span class="o">=</span> <span class="n">downsample</span><span class="p">(</span><span class="n">bkg_map</span><span class="p">)</span>
+            <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">interval</span><span class="o">.</span><span class="n">get_limits</span><span class="p">(</span><span class="n">bkg_map_small</span><span class="p">)</span>
+            <span class="n">panels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">bkg_map_small</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Greys_r&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">)))</span>
+            <span class="n">default_titles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;2D Background&quot;</span><span class="p">)</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">panels</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;Nothing to visualize.&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">subtitles</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">subtitles</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+            <span class="n">subtitles</span> <span class="o">=</span> <span class="n">default_titles</span>
+
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="n">n</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">imshow_kwargs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">panels</span><span class="p">):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">divider</span> <span class="o">=</span> <span class="n">make_axes_locatable</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">cax</span> <span class="o">=</span> <span class="n">divider</span><span class="o">.</span><span class="n">append_axes</span><span class="p">(</span><span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s1">&#39;5%&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">imshow_kwargs</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">subtitles</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">cax</span><span class="o">=</span><span class="n">cax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;vertical&#39;</span><span class="p">)</span>
+            
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span></div>
+
+
+<span class="c1"># %%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">ScienceImage</span><span class="p">(</span><span class="s1">&#39;/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T17274/7DT15/g/calib_7DT15_T17274_20241122_061812_g_100.fits&#39;</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">BackgroundGenerator</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">estimate_with_photutils</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">target_mask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">sourcemask</span><span class="p">,</span>
+        <span class="n">is_2D_bkg</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span>
+    
+
+<span class="c1"># %%</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

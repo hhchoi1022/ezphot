@@ -1,0 +1,500 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ezphot.methods.reproject &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ezphot.methods.reproject</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ezphot.methods.reproject</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1">#%%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">fits</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.visualization</span><span class="w"> </span><span class="kn">import</span> <span class="n">ZScaleInterval</span><span class="p">,</span> <span class="n">ImageNormalize</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.wcs</span><span class="w"> </span><span class="kn">import</span> <span class="n">WCS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io.fits</span><span class="w"> </span><span class="kn">import</span> <span class="n">Header</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Platesolve</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mask</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">,</span> <span class="n">Errormap</span>  <span class="c1"># Adjust import path if needed</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>  <span class="c1"># Adjust import path if needed</span>
+<span class="c1">#%%</span>
+<div class="viewcode-block" id="Reproject">
+<a class="viewcode-back" href="../../../api/reproject.html#ezphot.methods.reproject.Reproject">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Reproject</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reproject the image.</span>
+<span class="sd">    </span>
+<span class="sd">    This class provides methods </span>
+<span class="sd">    </span>
+<span class="sd">    1. Align the image with astroalign</span>
+<span class="sd">    </span>
+<span class="sd">    2. Reproject the image with SWarp</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the Reproject class.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platesolve</span> <span class="o">=</span> <span class="n">Platesolve</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">align</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+              <span class="n">reference_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+              <span class="n">detection_sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+              <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+              <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+              <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+              
+              <span class="c1"># platesolve parameters</span>
+              <span class="n">platesolve</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+              <span class="o">**</span><span class="n">kwargs</span>
+              <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Align the image with astroalign.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The target image to align.</span>
+<span class="sd">        reference_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The reference image to align.</span>
+<span class="sd">        detection_sigma : float, optional</span>
+<span class="sd">            The detection sigma for astroalign.</span>
+<span class="sd">        verbose : bool, optional</span>
+<span class="sd">            Whether to print verbose output.</span>
+<span class="sd">        overwrite : bool, optional</span>
+<span class="sd">            Whether to overwrite the existing alignment.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the aligned image.</span>
+<span class="sd">        platesolve : bool, optional</span>
+<span class="sd">            Whether to solve the astrometry with SCAMP.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">            Additional keyword arguments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        target_img : ScienceImage</span>
+<span class="sd">            The aligned image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Path                </span>
+        <span class="n">target_data</span><span class="p">,</span> <span class="n">target_header</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">reference_data</span><span class="p">,</span> <span class="n">reference_header</span> <span class="o">=</span> <span class="n">reference_img</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">reference_img</span><span class="o">.</span><span class="n">header</span>
+
+        <span class="c1"># If sign on determinant of pixel scale matrix is different, flip the target image horizontally.</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">wcs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">reference_img</span><span class="o">.</span><span class="n">wcs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_det</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">pixel_scale_matrix</span><span class="p">)</span>
+            <span class="n">reference_det</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">reference_img</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">pixel_scale_matrix</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">target_det</span><span class="p">)</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">reference_det</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[WARNING] Target and reference images have opposite handedness (flip/mirror). Flipping the target image.&quot;</span><span class="p">)</span>
+                <span class="n">target_data</span><span class="p">,</span> <span class="n">target_header</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flip_image</span><span class="p">(</span><span class="n">target_data</span><span class="p">,</span> <span class="n">target_header</span><span class="p">,</span> <span class="n">flip</span><span class="o">=</span><span class="s1">&#39;fliplr&#39;</span><span class="p">)</span>
+                
+        <span class="n">flip_modes</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">original</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+                          <span class="n">flip_horizon</span> <span class="o">=</span> <span class="s1">&#39;fliplr&#39;</span><span class="p">,</span>
+                          <span class="n">flip_vertical</span> <span class="o">=</span> <span class="s1">&#39;flipud&#39;</span><span class="p">)</span>
+        
+        <span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">flip_mode</span> <span class="ow">in</span> <span class="n">flip_modes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[INFO] Trying astroalign with </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> image...&quot;</span><span class="p">)</span>
+
+                <span class="n">flipped_data</span><span class="p">,</span> <span class="n">flipped_header</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flip_image</span><span class="p">(</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">target_data</span><span class="p">,</span> 
+                    <span class="n">header</span> <span class="o">=</span> <span class="n">target_header</span><span class="p">,</span> 
+                    <span class="n">flip</span> <span class="o">=</span> <span class="n">flip_mode</span><span class="p">)</span>
+
+                <span class="n">aligned_data</span><span class="p">,</span> <span class="n">aligned_header</span><span class="p">,</span> <span class="n">footprint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">img_astroalign</span><span class="p">(</span>
+                    <span class="n">target_img</span><span class="o">=</span><span class="n">flipped_data</span><span class="p">,</span>
+                    <span class="n">reference_img</span><span class="o">=</span><span class="n">reference_data</span><span class="p">,</span>
+                    <span class="n">target_header</span><span class="o">=</span><span class="n">flipped_header</span><span class="p">,</span>
+                    <span class="n">reference_header</span><span class="o">=</span><span class="n">reference_header</span><span class="p">,</span>
+                    <span class="n">target_outpath</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">detection_sigma</span><span class="o">=</span><span class="n">detection_sigma</span><span class="p">,</span>
+                    <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+                <span class="p">)</span>
+                <span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[SUCCESS] Alignment succeeded with </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> image.&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[FAILURE] Astroalign failed with </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> image: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>      
+            <span class="n">aligned_path</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">alignpath</span>
+            <span class="n">target_img</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span> <span class="o">=</span> <span class="n">aligned_path</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        
+        <span class="n">target_img</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">aligned_data</span>
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">aligned_header</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">ALIGNREF</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">reference_img</span><span class="o">.</span><span class="n">path</span><span class="p">),</span>
+            <span class="n">ALIGNSIG</span> <span class="o">=</span> <span class="n">detection_sigma</span><span class="p">,</span>
+        <span class="p">)</span>
+            
+        <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+            
+        <span class="n">target_img</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span> <span class="o">=</span> <span class="s1">&#39;ASTROALIGN&#39;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">platesolve</span><span class="p">:</span>
+            <span class="n">target_img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">platesolve</span><span class="o">.</span><span class="n">solve_scamp</span><span class="p">(</span>
+                <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+                <span class="n">scamp_sexparams</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">scamp_params</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="c1"># Other parameters</span>
+                <span class="n">overwrite</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">target_img</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reproject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">target_img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">],</span>
+                  <span class="n">target_errormap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Errormap</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">swarp_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  
+                  <span class="n">resample_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;LANCZOS3&#39;</span><span class="p">,</span>
+                  <span class="n">center_ra</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">center_dec</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">x_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">y_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">pixelscale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                  <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                  <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                  <span class="n">return_ivpmask</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                  <span class="n">fill_zero_tonan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                  <span class="o">**</span><span class="n">kwargs</span>
+                  <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reproject the image with SWarp.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_img : ScienceImage or ReferenceImage</span>
+<span class="sd">            The target image to reproject.</span>
+<span class="sd">        target_errormap : Errormap, optional</span>
+<span class="sd">            The error map to use for the reproject.</span>
+<span class="sd">        swarp_params : dict, optional</span>
+<span class="sd">            The parameters for SWarp.</span>
+<span class="sd">        resample_type : str, optional</span>
+<span class="sd">            The type of resampling for SWarp.</span>
+<span class="sd">        center_ra : float, optional</span>
+<span class="sd">            The center RA for SWarp.</span>
+<span class="sd">        center_dec : float, optional</span>
+<span class="sd">            The center Dec for SWarp.</span>
+<span class="sd">        x_size : int, optional</span>
+<span class="sd">            The size of the image in the x direction for SWarp.</span>
+<span class="sd">        y_size : int, optional</span>
+<span class="sd">            The size of the image in the y direction for SWarp.</span>
+<span class="sd">        pixelscale : float, optional</span>
+<span class="sd">            The pixel scale for SWarp.</span>
+<span class="sd">        verbose : bool, optional</span>
+<span class="sd">            Whether to print verbose output.</span>
+<span class="sd">        overwrite : bool, optional</span>
+<span class="sd">            Whether to overwrite the existing reprojected image.</span>
+<span class="sd">        save : bool, optional</span>
+<span class="sd">            Whether to save the reprojected image.</span>
+<span class="sd">        return_ivpmask : bool, optional</span>
+<span class="sd">            Whether to return the invalid pixel mask.</span>
+<span class="sd">        fill_zero_tonan : bool, optional</span>
+<span class="sd">            Whether to fill the zero to nan.</span>
+<span class="sd">        **kwargs : dict, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If target_img is not saved, save it to the savepath</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">target_img</span><span class="o">.</span><span class="n">is_exists</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="c1"># If target_errormap is not saved, save it to the savepath</span>
+
+        <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">emaptype</span> <span class="o">==</span> <span class="s1">&#39;bkgrms&#39;</span><span class="p">:</span>
+                <span class="n">target_errormap</span><span class="o">.</span><span class="n">to_weight</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">is_exists</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+
+        <span class="n">original_header</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">target_path</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span>
+        <span class="c1"># If overwrite, set the output path to the savepath</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">target_outpath</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span>
+            <span class="n">errormap_outpath</span> <span class="o">=</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_outpath</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">coaddpath</span>
+            <span class="n">errormap_outpath</span> <span class="o">=</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">coaddpath</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="c1"># Temporary output paths</span>
+        <span class="n">target_outpath_tmp</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_outpath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.tmp&#39;</span>
+        <span class="n">errormap_outpath_tmp</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">errormap_outpath</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.tmp&#39;</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="n">swarp_configfile</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SWARP_CONFIG&#39;</span><span class="p">]</span>
+        
+        <span class="n">target_outpath</span><span class="p">,</span> <span class="n">errormap_outpath_tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">run_swarp</span><span class="p">(</span>
+            <span class="n">target_path</span> <span class="o">=</span> <span class="n">target_path</span><span class="p">,</span>
+            <span class="n">swarp_configfile</span> <span class="o">=</span> <span class="n">swarp_configfile</span><span class="p">,</span>
+            <span class="n">swarp_params</span> <span class="o">=</span> <span class="n">swarp_params</span><span class="p">,</span>
+            <span class="n">target_outpath</span> <span class="o">=</span> <span class="n">target_outpath</span><span class="p">,</span>
+            <span class="n">weight_inpath</span> <span class="o">=</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">path</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>            
+            <span class="n">weight_outpath</span> <span class="o">=</span> <span class="n">errormap_outpath_tmp</span><span class="p">,</span>
+            <span class="n">weight_type</span> <span class="o">=</span> <span class="s1">&#39;MAP_WEIGHT&#39;</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">resample</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">resample_type</span> <span class="o">=</span> <span class="n">resample_type</span><span class="p">,</span>
+            <span class="n">center_ra</span> <span class="o">=</span> <span class="n">center_ra</span><span class="p">,</span>
+            <span class="n">center_dec</span> <span class="o">=</span> <span class="n">center_dec</span><span class="p">,</span>
+            <span class="n">x_size</span> <span class="o">=</span> <span class="n">x_size</span><span class="p">,</span>
+            <span class="n">y_size</span> <span class="o">=</span> <span class="n">y_size</span><span class="p">,</span>
+            <span class="n">pixelscale</span> <span class="o">=</span> <span class="n">pixelscale</span><span class="p">,</span>
+            <span class="n">combine</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">subbkg</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
+            <span class="n">fill_zero_tonan</span> <span class="o">=</span> <span class="n">fill_zero_tonan</span><span class="p">,</span>
+            <span class="p">)</span> 
+        
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">errormap_outpath_tmp</span><span class="p">)</span> <span class="k">if</span> <span class="n">errormap_outpath_tmp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        
+        <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_outpath_tmp</span><span class="p">,</span> <span class="n">errormap_outpath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">run_swarp</span><span class="p">(</span>
+                <span class="n">target_path</span> <span class="o">=</span> <span class="n">target_path</span><span class="p">,</span>
+                <span class="n">swarp_configfile</span> <span class="o">=</span> <span class="n">swarp_configfile</span><span class="p">,</span>
+                <span class="n">swarp_params</span> <span class="o">=</span> <span class="n">swarp_params</span><span class="p">,</span>
+                <span class="n">target_outpath</span> <span class="o">=</span> <span class="n">target_outpath_tmp</span><span class="p">,</span>
+                <span class="n">weight_inpath</span> <span class="o">=</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">path</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>            
+                <span class="n">weight_outpath</span> <span class="o">=</span> <span class="n">errormap_outpath</span><span class="p">,</span>
+                <span class="n">weight_type</span> <span class="o">=</span> <span class="s1">&#39;MAP_WEIGHT&#39;</span> <span class="k">if</span> <span class="n">target_errormap</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">resample</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="n">resample_type</span> <span class="o">=</span> <span class="s1">&#39;NEAREST&#39;</span><span class="p">,</span>
+                <span class="n">center_ra</span> <span class="o">=</span> <span class="n">center_ra</span><span class="p">,</span>
+                <span class="n">center_dec</span> <span class="o">=</span> <span class="n">center_dec</span><span class="p">,</span>
+                <span class="n">x_size</span> <span class="o">=</span> <span class="n">x_size</span><span class="p">,</span>
+                <span class="n">y_size</span> <span class="o">=</span> <span class="n">y_size</span><span class="p">,</span>
+                <span class="n">pixelscale</span> <span class="o">=</span> <span class="n">pixelscale</span><span class="p">,</span>
+                <span class="n">combine</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="n">subbkg</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
+                <span class="p">)</span> 
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">target_outpath_tmp</span><span class="p">)</span>
+        
+        <span class="n">reprojected_img</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">target_img</span><span class="p">)(</span><span class="n">path</span> <span class="o">=</span> <span class="n">target_outpath</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">reprojected_img</span><span class="o">.</span><span class="n">savedir</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">savedir</span>
+        <span class="n">reprojected_img</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">merge_header</span><span class="p">(</span><span class="n">reprojected_img</span><span class="o">.</span><span class="n">header</span><span class="p">,</span> <span class="n">original_header</span><span class="p">,</span> <span class="n">exclude_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;PV*&#39;</span><span class="p">,</span> <span class="s1">&#39;*SEC&#39;</span><span class="p">])</span>
+        <span class="n">reprojected_img</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="n">process_name</span> <span class="o">=</span> <span class="s1">&#39;REPROJECT&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_errormap</span> <span class="o">=</span> <span class="n">Errormap</span><span class="p">(</span><span class="n">path</span> <span class="o">=</span> <span class="n">errormap_outpath</span><span class="p">,</span> <span class="n">emaptype</span> <span class="o">=</span> <span class="s1">&#39;bkgweight&#39;</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">target_errormap</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">original_header</span>
+            <span class="n">target_errormap</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">target_errormap</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span>
+                <span class="n">remove_main</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> 
+                <span class="n">remove_connected_files</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="n">skip_exts</span> <span class="o">=</span> <span class="p">[],</span>
+                <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">target_errormap</span><span class="o">.</span><span class="n">to_rms</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_errormap</span> <span class="o">=</span> <span class="kc">None</span>       
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">save</span><span class="p">:</span>
+            <span class="n">reprojected_img</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">reprojected_img</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">reprojected_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">return_ivpmask</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaskGenerator</span>
+            <span class="n">T</span> <span class="o">=</span> <span class="n">MaskGenerator</span><span class="p">()</span>
+            <span class="n">reprojected_img</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">mask_invalidpixel</span><span class="p">(</span>
+                <span class="n">target_img</span> <span class="o">=</span> <span class="n">reprojected_img</span><span class="p">,</span>
+                <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">save</span> <span class="o">=</span> <span class="n">save</span><span class="p">,</span>
+                <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
+                <span class="n">visualize</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+                <span class="n">target_ivpmask</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+            
+        <span class="k">return</span> <span class="n">reprojected_img</span><span class="p">,</span> <span class="n">target_errormap</span><span class="p">,</span> <span class="n">target_ivpmask</span>
+    
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_flip_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                    <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> 
+                    <span class="n">header</span><span class="p">:</span> <span class="n">Header</span><span class="p">,</span> 
+                    <span class="n">flip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Header</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Flip image data and WCS in a consistent way.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : np.ndarray</span>
+<span class="sd">            2D image array</span>
+<span class="sd">        wcs : astropy.wcs.WCS</span>
+<span class="sd">            WCS object to be updated</span>
+<span class="sd">        flip : str</span>
+<span class="sd">            &#39;fliplr&#39; for left-right, &#39;flipud&#39; for up-down</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data_flipped : np.ndarray</span>
+<span class="sd">            Flipped image data</span>
+<span class="sd">        wcs_flipped : WCS</span>
+<span class="sd">            Flipped WCS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wcs</span> <span class="o">=</span> <span class="n">WCS</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">flip</span> <span class="o">==</span> <span class="s1">&#39;fliplr&#39;</span><span class="p">:</span>
+            <span class="n">data_flipped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fliplr</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">header</span><span class="p">[</span><span class="s1">&#39;CRPIX1&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nx</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">wcs</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">crpix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            
+            <span class="c1"># Flip relevant coefficients</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;CD1_1&#39;</span><span class="p">,</span> <span class="s1">&#39;CD2_1&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;A_0_2&#39;</span><span class="p">,</span> <span class="s1">&#39;A_2_0&#39;</span><span class="p">,</span> <span class="s1">&#39;B_1_1&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;AP_0_0&#39;</span><span class="p">,</span> <span class="s1">&#39;AP_0_1&#39;</span><span class="p">,</span> <span class="s1">&#39;AP_0_2&#39;</span><span class="p">,</span> <span class="s1">&#39;AP_2_0&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;BP_1_0&#39;</span><span class="p">,</span> <span class="s1">&#39;BP_1_1&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+                
+        <span class="k">elif</span> <span class="n">flip</span> <span class="o">==</span> <span class="s1">&#39;flipud&#39;</span><span class="p">:</span>
+            <span class="n">data_flipped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">header</span><span class="p">[</span><span class="s1">&#39;CRPIX2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ny</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">wcs</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">crpix</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            
+            <span class="c1"># Flip relevant coefficients</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;CD1_2&#39;</span><span class="p">,</span> <span class="s1">&#39;CD2_2&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;A_1_1&#39;</span><span class="p">,</span> <span class="s1">&#39;B_0_2&#39;</span><span class="p">,</span> <span class="s1">&#39;B_2_0&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;AP_0_1&#39;</span><span class="p">,</span> <span class="s1">&#39;AP_1_1&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;BP_0_0&#39;</span><span class="p">,</span> <span class="s1">&#39;BP_0_2&#39;</span><span class="p">,</span> <span class="s1">&#39;BP_1_0&#39;</span><span class="p">,</span> <span class="s1">&#39;BP_2_0&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">header</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="k">elif</span> <span class="n">flip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_flipped</span> <span class="o">=</span> <span class="n">data</span>
+            <span class="n">header</span> <span class="o">=</span> <span class="n">header</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;flip must be &#39;fliplr&#39; or &#39;flipud&#39; or None&quot;</span><span class="p">)</span>
+        <span class="c1"># Update the WCS header</span>
+        <span class="k">return</span> <span class="n">data_flipped</span><span class="p">,</span> <span class="n">header</span></div>
+
+    
+        
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,329 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stack &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Subtract" href="subtract.html" />
+    <link rel="prev" title="Reproject" href="reproject.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="methods.html">Methods</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="maskgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundgenerator.html">BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errormapgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html">Preprocess</a></li>
+<li class="toctree-l2"><a class="reference internal" href="platesolve.html">PlateSolve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html">AperturePhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="psfphotometry.html">PSFPhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html">PhotometricCalibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproject.html">Reproject</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Stack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.methods.stack.Stack"><code class="docutils literal notranslate"><span class="pre">Stack</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Stack.stack_multiprocess"><code class="docutils literal notranslate"><span class="pre">stack_multiprocess()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Stack.stack_swarp"><code class="docutils literal notranslate"><span class="pre">stack_swarp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Stack.select_quality_images"><code class="docutils literal notranslate"><span class="pre">select_quality_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Stack.match_zeropoints"><code class="docutils literal notranslate"><span class="pre">match_zeropoints()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Stack.match_seeing"><code class="docutils literal notranslate"><span class="pre">match_seeing()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="subtract.html">Subtract</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="methods.html">Methods</a></li>
+      <li class="breadcrumb-item active">Stack</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/stack.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="stack">
+<h1>Stack<a class="headerlink" href="#stack" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.methods.stack.Stack">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Stack</span></span><a class="reference internal" href="../_modules/ezphot/methods/stack.html#Stack"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.methods.stack.Stack" title="Link to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Stack.__init__def</span> <span class="pre">ezphot.methods.stack.Stack.__init__()</span></span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Stack.stack_multiprocess">
+<span class="sig-name descname"><span class="pre">stack_multiprocess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_bkglist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_bkgrmslist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_outpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bkgrms_outpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">combine_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'median'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_proc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlow</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhigh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LANCZOS3'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center_ra</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center_dec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'min'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zp_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ZP_APER_1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convolve</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SEEING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gaussian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Stack.stack_multiprocess" title="Link to this definition"></a></dt>
+<dd><p>Stack a list of images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>] or </em><em>List</em><em>[</em><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage"><em>CalibrationImage</em></a><em>]</em>) – The list of images to stack.</p></li>
+<li><p><strong>target_bkglist</strong> (<em>List</em><em>[</em><a class="reference internal" href="background.html#ezphot.imageobjects.background.Background" title="ezphot.imageobjects.background.Background"><em>Background</em></a><em>]</em><em>, </em><em>optional</em>) – The list of backgrounds to subtract from the images.</p></li>
+<li><p><strong>target_bkgrmslist</strong> (<em>List</em><em>[</em><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap"><em>Errormap</em></a><em>]</em><em>, </em><em>optional</em>) – The list of background RMS maps to use for the stacking.</p></li>
+<li><p><strong>target_outpath</strong> (<em>str</em><em>, </em><em>optional</em>) – The path to save the stacked image.</p></li>
+<li><p><strong>bkgrms_outpath</strong> (<em>str</em><em>, </em><em>optional</em>) – The path to save the background RMS map.</p></li>
+<li><p><strong>combine_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of combination to use for the stacking.</p></li>
+<li><p><strong>n_proc</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of processes to use for the stacking.</p></li>
+<li><p><strong>clip_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of clipping to use for the stacking. [sigma, extrema]</p></li>
+<li><p><strong>sigma</strong> (<em>float</em><em>, </em><em>optional</em>) – The sigma for the clipping.</p></li>
+<li><p><strong>nlow</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of low values to clip.</p></li>
+<li><p><strong>nhigh</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of high values to clip.</p></li>
+<li><p><strong>resample</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to resample the images.</p></li>
+<li><p><strong>resample_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of resampling to use for the stacking in SWArp configuration. [‘NEAREST’, ‘BILINEAR’, ‘BICUBIC’, ‘LANCZOS3’, etc.]</p></li>
+<li><p><strong>center_ra</strong> (<em>float</em><em>, </em><em>optional</em>) – The RA of the center of the stacked image.</p></li>
+<li><p><strong>center_dec</strong> (<em>float</em><em>, </em><em>optional</em>) – The Dec of the center of the stacked image.</p></li>
+<li><p><strong>pixel_scale</strong> (<em>float</em><em>, </em><em>optional</em>) – The pixel scale of the stacked image.</p></li>
+<li><p><strong>x_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The size of the stacked image in the x-direction.</p></li>
+<li><p><strong>y_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The size of the stacked image in the y-direction.</p></li>
+<li><p><strong>scale</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to scale the images.</p></li>
+<li><p><strong>scale_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of scaling to use for the stacking. [‘min’, ‘mean’, ‘median’, ‘max’]</p></li>
+<li><p><strong>zp_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key to use for the zero point.</p></li>
+<li><p><strong>convolve</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to convolve the images.</p></li>
+<li><p><strong>seeing_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key to use for the seeing.</p></li>
+<li><p><strong>kernel</strong> (<em>str</em><em>, </em><em>optional</em>) – The kernel to use for the convolution. [‘gaussian’, ‘image’]</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the stacked image.</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>target_img</strong> (<em>ScienceImage</em>) – The stacked image.</p></li>
+<li><p><strong>target_bkgrms</strong> (<em>Errormap</em>) – The stacked background RMS map.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Stack.stack_swarp">
+<span class="sig-name descname"><span class="pre">stack_swarp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_bkglist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_errormaplist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_outpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errormap_outpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">combine_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'median'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LANCZOS3'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center_ra</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center_dec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'min'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zp_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ZP_APER_1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convolve</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SEEING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gaussian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Stack.stack_swarp" title="Link to this definition"></a></dt>
+<dd><p>Stack multiple images using SWArp.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage"><em>CalibrationImage</em></a><em>]</em><em>]</em>) – List of images to stack</p></li>
+<li><p><strong>target_bkglist</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference internal" href="background.html#ezphot.imageobjects.background.Background" title="ezphot.imageobjects.background.Background"><em>Background</em></a><em>]</em><em>]</em>) – Optional list of background maps to stack</p></li>
+<li><p><strong>target_errormaplist</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap"><em>Errormap</em></a><em>]</em><em>]</em>) – Optional list of error maps to stack</p></li>
+<li><p><strong>target_outpath</strong> (<em>str</em>) – Path to save the stacked image</p></li>
+<li><p><strong>errormap_outpath</strong> (<em>str</em>) – Path to save the stacked error map</p></li>
+<li><p><strong>combine_type</strong> (<em>str</em>) – Method to combine images (‘median’, ‘weighted’, ‘mean’, ‘sum’, ‘min’, ‘max’)</p></li>
+<li><p><strong>resample</strong> (<em>bool</em>) – Whether to resample the images</p></li>
+<li><p><strong>resample_type</strong> (<em>str</em>) – Type of resampling to use (‘NEAREST’, ‘BILINEAR’, ‘BICUBIC’, ‘LANCZOS3’, etc.)</p></li>
+<li><p><strong>center_ra</strong> (<em>float</em>) – RA of the center of the stacked image</p></li>
+<li><p><strong>center_dec</strong> (<em>float</em>) – Dec of the center of the stacked image</p></li>
+<li><p><strong>pixel_scale</strong> (<em>float</em>) – Pixel scale of the stacked image</p></li>
+<li><p><strong>x_size</strong> (<em>int</em>) – Size of the stacked image in pixels</p></li>
+<li><p><strong>y_size</strong> (<em>int</em>) – Size of the stacked image in pixels</p></li>
+<li><p><strong>scale</strong> (<em>bool</em>) – Whether to scale the images</p></li>
+<li><p><strong>scale_type</strong> (<em>str</em>) – Method to scale images (‘min’, ‘mean’, ‘median’, ‘max’)</p></li>
+<li><p><strong>zp_key</strong> (<em>str</em>) – Header keyword for zero point</p></li>
+<li><p><strong>convolve</strong> (<em>bool</em>) – Whether to convolve the images</p></li>
+<li><p><strong>seeing_key</strong> (<em>str</em>) – Header keyword for seeing/FWHM in pixel units</p></li>
+<li><p><strong>kernel</strong> (<em>str</em>) – Convolution kernel type (‘gaussian’)</p></li>
+<li><p><strong>save</strong> (<em>bool</em>) – Whether to save the stacked image and error map</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Print progress messages</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(stack_instance, stack_weight_instance)</strong> – Stacked image and optionally its weight map</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Union[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage">CalibrationImage</a>], Optional[<a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap">Errormap</a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Stack.select_quality_images">
+<span class="sig-name descname"><span class="pre">select_quality_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_obsdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_obsdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SEEING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'UL5_APER_1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipticity_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ELLIP'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obsdate_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'DATE-OBS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_ellipticity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_seeing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">18.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipticity_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Stack.select_quality_images" title="Link to this definition"></a></dt>
+<dd><p>Select the best images based on seeing, depth, and ellipticity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a><em>]</em><em>]</em>) – List of images to select from.</p></li>
+<li><p><strong>min_obsdate</strong> (<em>Union</em><em>[</em><em>Time</em><em>, </em><em>str</em><em>, </em><em>float</em><em>]</em>) – Minimum observation date.</p></li>
+<li><p><strong>max_obsdate</strong> (<em>Union</em><em>[</em><em>Time</em><em>, </em><em>str</em><em>, </em><em>float</em><em>]</em>) – Maximum observation date.</p></li>
+<li><p><strong>seeing_key</strong> (<em>str</em>) – Header keyword for seeing/FWHM in pixel units</p></li>
+<li><p><strong>depth_key</strong> (<em>str</em>) – Header keyword for depth in AB magnitude</p></li>
+<li><p><strong>ellipticity_key</strong> (<em>str</em>) – Header keyword for ellipticity</p></li>
+<li><p><strong>obsdate_key</strong> (<em>str</em>) – Header keyword for observation date</p></li>
+<li><p><strong>weight_ellipticity</strong> (<em>float</em>) – Weight for ellipticity</p></li>
+<li><p><strong>weight_seeing</strong> (<em>float</em>) – Weight for seeing</p></li>
+<li><p><strong>weight_depth</strong> (<em>float</em>) – Weight for depth</p></li>
+<li><p><strong>max_numbers</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of images to select.</p></li>
+<li><p><strong>seeing_limit</strong> (<em>float</em>) – Maximum seeing limit in arcseconds</p></li>
+<li><p><strong>depth_limit</strong> (<em>float</em>) – Minimum depth limit in AB magnitude</p></li>
+<li><p><strong>ellipticity_limit</strong> (<em>float</em>) – Maximum ellipticity limit</p></li>
+<li><p><strong>visualize</strong> (<em>bool</em>) – Whether to visualize the selected images</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Whether to print verbose output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(selected_imglist, selected_errormaplist)</strong> – List of selected images and optionally their error maps</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[List[Union[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage">ReferenceImage</a>]], Optional[List[<a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap">Errormap</a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Stack.match_zeropoints">
+<span class="sig-name descname"><span class="pre">match_zeropoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_errormaplist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'median'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zp_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ZP_APER_1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_proc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Stack.match_zeropoints" title="Link to this definition"></a></dt>
+<dd><p>Match the zero points of multiple images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage"><em>CalibrationImage</em></a><em>]</em><em>]</em>) – List of images to match zero points.</p></li>
+<li><p><strong>target_errormaplist</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap"><em>Errormap</em></a><em>]</em><em>]</em>) – Optional list of error maps to match zero points.</p></li>
+<li><p><strong>method</strong> (<em>str</em>) – Method to determine reference ZP (‘min’, ‘max’, or ‘median’).</p></li>
+<li><p><strong>zp_key</strong> (<em>str</em>) – Header keyword for zero point.</p></li>
+<li><p><strong>save</strong> (<em>bool</em>) – Whether to save scaled images and error maps.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>) – Whether to overwrite existing files.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Print progress messages.</p></li>
+<li><p><strong>n_proc</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of processes to use for the stacking.</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(scaled_imglist, scaled_errormaplist)</strong> – List of zero-matched images and optionally zero-matched error maps.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[List[Union[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage">CalibrationImage</a>]], Optional[List[<a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap">Errormap</a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Stack.match_seeing">
+<span class="sig-name descname"><span class="pre">match_seeing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_errormaplist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_bkglist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SEEING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gaussian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Stack.match_seeing" title="Link to this definition"></a></dt>
+<dd><p>Match the seeing (PSF FWHM) of multiple images using convolution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage"><em>CalibrationImage</em></a><em>]</em><em>]</em>) – List of images to match seeing</p></li>
+<li><p><strong>target_errormaplist</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap"><em>Errormap</em></a><em>]</em><em>]</em>) – Corresponding error maps to also convolve</p></li>
+<li><p><strong>target_bkglist</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference internal" href="background.html#ezphot.imageobjects.background.Background" title="ezphot.imageobjects.background.Background"><em>Background</em></a><em>]</em><em>]</em>) – Corresponding background maps to also convolve</p></li>
+<li><p><strong>seeing_key</strong> (<em>str</em>) – Header keyword for seeing/FWHM in pixel units</p></li>
+<li><p><strong>kernel</strong> (<em>str</em>) – Convolution kernel type (‘gaussian’)</p></li>
+<li><p><strong>save</strong> (<em>bool</em>) – Whether to save the matched images and error maps</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>) – Whether to overwrite existing files</p></li>
+<li><p><strong>visualize</strong> (<em>bool</em>) – Whether to visualize the matched images and error maps</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Print progress messages</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(matched_imglist, matched_errormaplist)</strong> – List of seeing-matched images and optionally their convolved error maps</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[List[Union[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage" title="ezphot.imageobjects.calibrationimage.CalibrationImage">CalibrationImage</a>]], Optional[List[<a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap" title="ezphot.imageobjects.errormap.Errormap">Errormap</a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="reproject.html" class="btn btn-neutral float-left" title="Reproject" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="subtract.html" class="btn btn-neutral float-right" title="Subtract" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,729 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ezphot.utils.imagequerier &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ezphot.utils.imagequerier</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ezphot.utils.imagequerier</h1><div class="highlight"><pre>
+<span></span><span class="c1">#%%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">astropy.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">u</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">Longitude</span><span class="p">,</span> <span class="n">Latitude</span><span class="p">,</span> <span class="n">Angle</span><span class="p">,</span> <span class="n">SkyCoord</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.table</span><span class="w"> </span><span class="kn">import</span> <span class="n">Table</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">Time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.wcs</span><span class="w"> </span><span class="kn">import</span> <span class="n">WCS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astroquery.hips2fits</span><span class="w"> </span><span class="kn">import</span> <span class="n">hips2fits</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astroquery.mocserver</span><span class="w"> </span><span class="kn">import</span> <span class="n">MOCServer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">cm</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span>
+
+<span class="c1">#%%</span>
+<span class="n">hips2fits</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HIPS2FITS</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to handle image queries.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes the ImageQuerier with the path to the image.</span>
+
+<span class="sd">        :param image_path: Path to the image file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">catalog_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">catalog_key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog Key &#39;</span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">&#39; is not recognized. Available keys: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span> <span class="o">=</span> <span class="n">catalog_key</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span><span class="w"> </span><span class="nc">Configuration</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Handles configuration for Vizier queries.&quot;&quot;&quot;</span>
+
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">projection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;TAN&#39;</span>
+            
+            <span class="nd">@projection</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">projection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">projection</span> <span class="o">=</span> <span class="n">value</span>
+            
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">coordsys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;icrs&#39;</span>
+        
+            <span class="nd">@coordsys</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">coordsys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coordsys</span> <span class="o">=</span> <span class="n">value</span>
+            
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;fits&#39;</span>
+            
+            <span class="nd">@format</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">format</span> <span class="o">=</span> <span class="n">value</span>
+                
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">stretch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;linear&#39;</span>
+            
+            <span class="nd">@stretch</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">stretch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stretch</span> <span class="o">=</span> <span class="n">value</span>
+                
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">cmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;Greys_r&#39;</span>
+
+            <span class="nd">@cmap</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">cmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cmap</span> <span class="o">=</span> <span class="n">value</span>
+                
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">min_cut</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mf">0.5</span>
+            
+            <span class="nd">@min_cut</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">min_cut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">min_cut</span> <span class="o">=</span> <span class="n">value</span>
+                
+            <span class="nd">@property</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">max_cut</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mf">99.5</span>
+            
+            <span class="nd">@max_cut</span><span class="o">.</span><span class="n">setter</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">max_cut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">max_cut</span> <span class="o">=</span> <span class="n">value</span>
+            
+            <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;========HIPS2FITS Configuration========</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  projection      = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">projection</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  coordsys        = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">coordsys</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  format          = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  stretch         = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">stretch</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  cmap            = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cmap</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  min_cut         = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">min_cut</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;  max_cut         = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_cut</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;====================================&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">Configuration</span><span class="p">()</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">catalog_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">catalog_ids</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="c1"># SkyMapper DR4 </span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS4/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper/DR4/g&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS4/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper/DR4/r&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS4/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper/DR4/i&#39;</span>
+        
+        <span class="c1"># Skymapper DR1</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/u&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-U&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-G&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/v&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-V&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-R&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-I&#39;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SkyMapper/SMSS1/z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;CDS/P/Skymapper-Z&#39;</span>
+
+        <span class="c1"># Pan-STARRS DR1 </span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;PanSTARRS/PS1/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/PanSTARRS/DR1/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;PanSTARRS/PS1/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/PanSTARRS/DR1/r&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;PanSTARRS/PS1/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/PanSTARRS/DR1/i&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;PanSTARRS/PS1/z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/PanSTARRS/DR1/z&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;PanSTARRS/PS1/y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/PanSTARRS/DR1/y&quot;</span>
+        
+        <span class="c1"># SDSS DR9 </span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SDSS/SDSS9/u&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/SDSS9/u&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SDSS/SDSS9/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/SDSS9/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SDSS/SDSS9/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/SDSS9/r&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SDSS/SDSS9/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/SDSS9/i&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;SDSS/SDSS9/z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/SDSS9/z&quot;</span>
+        
+        <span class="c1"># DESI Legacy Imaging Survey</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DESI/DESI/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DESI-Legacy-Surveys/DR10/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DESI/DESI/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DESI-Legacy-Surveys/DR10/r&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DESI/DESI/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DESI-Legacy-Surveys/DR10/i&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DESI/DESI/z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DESI-Legacy-Surveys/DR10/z&quot;</span>
+        
+        <span class="c1"># DSS </span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DSS/DSS2/b&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DSS2/blue&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DSS/DSS2/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DSS2/red&quot;</span>
+        <span class="c1"># catalog_ids[&#39;DSSDSS2/nir&#39;] = &quot;CDS/P/DSS2/NIR&quot;</span>
+        
+        <span class="c1"># ZTF</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;ZTF/ZTF7/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/ZTF/DR7/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;ZTF/ZTF7/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/ZTF/DR7/r&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;ZTF/ZTF7/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/ZTF/DR7/i&quot;</span>
+        
+        <span class="c1"># DECAM</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DECALS/DEC5/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DECaLS/DR5/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DECALS/DEC5/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DECaLS/DR5/r&quot;</span>
+        
+        <span class="c1"># DES</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DES/DES2/g&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DES-DR2/g&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DES/DES2/r&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DES-DR2/r&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DES/DES2/i&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DES-DR2/i&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DES/DES2/z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DES-DR2/z&quot;</span>
+        <span class="n">catalog_ids</span><span class="p">[</span><span class="s1">&#39;DES/DES2/Y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;CDS/P/DES-DR2/Y&quot;</span>
+        
+        
+        <span class="k">return</span> <span class="n">catalog_ids</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_change_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">catalog_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span> <span class="o">=</span> <span class="n">catalog_key</span>
+            <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog Key &#39;</span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">&#39; is not recognized.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_show_available_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current catalog: &quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Available catalogs</span><span class="se">\n</span><span class="s2">==================&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">catalog_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">catalog_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">catalog_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_catalog_coverages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                                 <span class="n">ra</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                                 <span class="n">dec</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> 
+                                 <span class="n">radius_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> 
+                                 <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                 <span class="n">search_all</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">regions</span><span class="w"> </span><span class="kn">import</span> <span class="n">CircleSkyRegion</span>
+
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">SkyCoord</span><span class="p">(</span><span class="n">ra</span><span class="o">=</span><span class="n">ra</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">,</span> <span class="n">dec</span><span class="o">=</span><span class="n">dec</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">)</span>
+        <span class="n">region</span> <span class="o">=</span> <span class="n">CircleSkyRegion</span><span class="p">(</span><span class="n">center</span><span class="o">=</span><span class="n">coord</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">radius_deg</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">search_all</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">catalog_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span>
+                <span class="n">hips_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="p">[</span><span class="n">catalog_key</span><span class="p">]</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">MOCServer</span><span class="o">.</span><span class="n">query_region</span><span class="p">(</span>
+                    <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+                    <span class="n">criteria</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;ID=</span><span class="si">{</span><span class="n">hips_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">intersect</span><span class="o">=</span><span class="s2">&quot;overlaps&quot;</span><span class="p">,</span>
+                    <span class="n">max_rec</span><span class="o">=</span><span class="mi">1</span>
+                <span class="p">)</span>
+                <span class="n">has_coverage</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">has_coverage</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[ERROR] Failed to check </span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">catalog_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">has_coverage</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="s1">&#39;✓&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">has_coverage</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;✗&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">catalog_key</span><span class="p">,</span> <span class="n">hips_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">query</span> <span class="o">=</span> <span class="n">MOCServer</span><span class="o">.</span><span class="n">query_region</span><span class="p">(</span>
+                        <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+                        <span class="n">criteria</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;ID=</span><span class="si">{</span><span class="n">hips_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">intersect</span><span class="o">=</span><span class="s2">&quot;overlaps&quot;</span><span class="p">,</span>
+                        <span class="n">max_rec</span><span class="o">=</span><span class="mi">1</span>
+                    <span class="p">)</span>
+                    <span class="n">has_coverage</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">has_coverage</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[ERROR] Failed to check </span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">results</span><span class="p">[</span><span class="n">catalog_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">has_coverage</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">catalog_key</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="s1">&#39;✓&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">has_coverage</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;✗&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">wcs</span><span class="p">:</span> <span class="n">WCS</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="c1"># If wcs inputted, overrides ra, dec, fov, rotation_angle</span>
+               <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span>
+               <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span>
+               <span class="n">ra</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+               <span class="n">dec</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+               <span class="n">fov</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+               <span class="n">rotation_angle</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+               <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+               <span class="p">):</span>
+        
+        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;hips2fits_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">ra</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">dec</span><span class="si">}</span><span class="s2">.fits&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Default save path: </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">wcs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If WCS is provided, use it to query the image</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">hips2fits</span><span class="o">.</span><span class="n">query_with_wcs</span><span class="p">(</span>
+                <span class="n">hips</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="p">],</span>
+                <span class="n">wcs</span><span class="o">=</span><span class="n">wcs</span><span class="p">,</span>
+                <span class="nb">format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">format</span><span class="p">,</span>
+                <span class="n">min_cut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">min_cut</span><span class="p">,</span>
+                <span class="n">max_cut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_cut</span><span class="p">,</span>
+                <span class="n">stretch</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">stretch</span><span class="p">,</span>
+                <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cmap</span><span class="p">),</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">hips2fits</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">hips</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">catalog_ids</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="p">],</span>
+                <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+                <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+                <span class="n">projection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">projection</span><span class="p">,</span>
+                <span class="n">fov</span><span class="o">=</span><span class="n">Angle</span><span class="p">(</span><span class="n">fov</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">),</span>
+                <span class="n">ra</span><span class="o">=</span><span class="n">Longitude</span><span class="p">(</span><span class="n">ra</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">),</span>
+                <span class="n">dec</span><span class="o">=</span><span class="n">Latitude</span><span class="p">(</span><span class="n">dec</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">),</span>
+                <span class="n">coordsys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">coordsys</span><span class="p">,</span>
+                <span class="n">rotation_angle</span><span class="o">=</span><span class="n">Angle</span><span class="p">(</span><span class="n">rotation_angle</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">),</span>
+                <span class="nb">format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">format</span><span class="p">,</span>
+                <span class="n">min_cut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">min_cut</span><span class="p">,</span>
+                <span class="n">max_cut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_cut</span><span class="p">,</span>
+                <span class="n">stretch</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">stretch</span><span class="p">,</span>
+                <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cmap</span><span class="p">),</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="p">)</span>
+            
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved: </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">save_path</span>
+            
+
+<div class="viewcode-block" id="ImageQuerier">
+<a class="viewcode-back" href="../../../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ImageQuerier</span><span class="p">(</span><span class="n">HIPS2FITS</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to handle image queries using HiPS2FITS.</span>
+<span class="sd">    Inherits from HIPS2FITS to utilize its methods and properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ImageQuerier.__init__">
+<a class="viewcode-back" href="../../../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes the ImageQuerier with the specified catalog key.</span>
+
+<span class="sd">        :param catalog_key: Key for the catalog to query.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">catalog_key</span><span class="o">=</span><span class="n">catalog_key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;ImageQuerier(catalog=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span>
+    
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+              <span class="n">height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+              <span class="n">ra</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+              <span class="n">dec</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+              <span class="n">pixelscale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+              <span class="n">telinfo</span><span class="p">:</span> <span class="n">Table</span><span class="p">,</span>
+              <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+              <span class="n">objname</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+              <span class="n">rotation_angle</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+              <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+              <span class="n">resigster</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+              <span class="n">n_processes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run HiPS2FITS queries with split tiles using multiprocessing.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of astropy.io.fits.HDUList</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No catalog key provided. Please set the catalog key using the change_catalog method.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_coverage</span><span class="p">(</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span><span class="n">search_all</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No coverage found for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">ra</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">dec</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">observatory</span><span class="p">,</span> <span class="n">telname</span><span class="p">,</span> <span class="n">filter_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_catalog_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="n">fov</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span> <span class="o">*</span> <span class="n">pixelscale</span> <span class="o">/</span> <span class="mi">3600</span>  <span class="c1"># Convert pixel scale to degrees</span>
+        <span class="n">tile_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_query_regions</span><span class="p">(</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+            <span class="n">ra</span><span class="o">=</span><span class="n">ra</span><span class="p">,</span>
+            <span class="n">dec</span><span class="o">=</span><span class="n">dec</span><span class="p">,</span>
+            <span class="n">fov</span><span class="o">=</span><span class="n">fov</span><span class="p">,</span>
+            <span class="n">rotation_angle</span><span class="o">=</span><span class="n">rotation_angle</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;hips2fits_</span><span class="si">{</span><span class="n">observatory</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">telname</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">ra</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">dec</span><span class="si">}</span><span class="s2">.fits&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[QUERY] Dispatching </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tile_params</span><span class="p">)</span><span class="si">}</span><span class="s2"> tiles with </span><span class="si">{</span><span class="n">n_processes</span><span class="si">}</span><span class="s2"> processes&quot;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">n_processes</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[(</span><span class="n">param</span><span class="p">,</span> <span class="n">output_path</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">tile_params</span><span class="p">]</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query_tile_worker</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+        
+        <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stacking</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="n">target_imglist</span> <span class="o">=</span> <span class="p">[</span><span class="n">ScienceImage</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="n">telinfo</span><span class="p">,</span> <span class="n">load</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="c1"># # # Stacking </span>
+        <span class="n">stack_instance</span><span class="p">,</span> <span class="n">stack_weight_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacking</span><span class="o">.</span><span class="n">stack_swarp</span><span class="p">(</span>
+            <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">,</span>
+            <span class="n">target_bkglist</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">target_errormaplist</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">target_outpath</span> <span class="o">=</span> <span class="n">output_path</span><span class="p">,</span>
+            <span class="n">errormap_outpath</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">combine_type</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+            <span class="n">resample</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">resample_type</span> <span class="o">=</span> <span class="s1">&#39;LANCZOS3&#39;</span><span class="p">,</span>
+            <span class="n">center_ra</span> <span class="o">=</span> <span class="n">ra</span><span class="p">,</span>
+            <span class="n">center_dec</span> <span class="o">=</span> <span class="n">dec</span><span class="p">,</span>
+            <span class="n">pixel_scale</span> <span class="o">=</span> <span class="n">pixelscale</span><span class="p">,</span>
+            <span class="n">x_size</span> <span class="o">=</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">y_size</span> <span class="o">=</span> <span class="n">height</span><span class="p">,</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">scale_type</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+            <span class="n">zp_key</span> <span class="o">=</span> <span class="s1">&#39;ZP_APER_1&#39;</span><span class="p">,</span>
+            <span class="n">convolve</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">seeing_key</span> <span class="o">=</span> <span class="s1">&#39;SEEING&#39;</span><span class="p">,</span>
+            <span class="n">kernel</span> <span class="o">=</span> <span class="s1">&#39;gaussian&#39;</span><span class="p">,</span>
+            <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="p">)</span>
+        
+        <span class="n">stack_instance</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+        <span class="n">stack_instance</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="n">stack_instance</span> <span class="o">=</span> <span class="n">stack_instance</span><span class="o">.</span><span class="n">to_referenceimage</span><span class="p">()</span>
+        <span class="c1"># Update stack_instance with metadata</span>
+        <span class="n">update_header_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">BINNING</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">TELNAME</span> <span class="o">=</span> <span class="n">telname</span><span class="p">,</span>
+            <span class="n">FILTER</span> <span class="o">=</span> <span class="n">filter_</span><span class="p">,</span>
+            <span class="n">TELESCOP</span> <span class="o">=</span> <span class="n">observatory</span><span class="p">,</span>
+            <span class="n">OBJNAME</span> <span class="o">=</span> <span class="n">objname</span> <span class="k">if</span> <span class="n">objname</span> <span class="k">else</span> <span class="s1">&#39;Unknown&#39;</span><span class="p">,</span>
+            <span class="n">IMAGETYP</span> <span class="o">=</span> <span class="s1">&#39;LIGHT&#39;</span><span class="p">,</span>
+            <span class="n">OBSDATE</span> <span class="o">=</span> <span class="n">Time</span><span class="p">(</span><span class="s1">&#39;2001-01-01T00:00:00&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isot</span><span class="p">,</span>  <span class="c1"># Placeholder date</span>
+            <span class="n">SEEING</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+            <span class="n">UL5_APER_2</span> <span class="o">=</span> <span class="mf">21.0</span>
+        <span class="p">)</span>
+        <span class="n">stack_instance</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">**</span><span class="n">update_header_kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">stack_instance</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e3</span><span class="p">:</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">data</span> <span class="o">*=</span> <span class="mf">1e3</span>
+        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">savedir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Save path: </span><span class="si">{</span><span class="n">stack_instance</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">savedir</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Default save path: </span><span class="si">{</span><span class="n">stack_instance</span><span class="o">.</span><span class="n">savepath</span><span class="o">.</span><span class="n">savepath</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">stack_instance</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        
+        <span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
+            <span class="n">target_img</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="n">stack_instance</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_coverage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">ra</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                       <span class="n">dec</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                       <span class="n">radius_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+                       <span class="n">search_all</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                       <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the current HiPS catalog has coverage at the given RA/Dec.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ra : float</span>
+<span class="sd">            Right Ascension in degrees</span>
+<span class="sd">        dec : float</span>
+<span class="sd">            Declination in degrees</span>
+<span class="sd">        radius_deg : float</span>
+<span class="sd">            Search radius in degrees</span>
+<span class="sd">        verbose : bool</span>
+<span class="sd">            If True, prints whether coverage exists</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        coverage_dict : dict</span>
+<span class="sd">            Dictionary of catalog_key -&gt; bool (True if covered).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_catalog_coverages</span><span class="p">(</span><span class="n">ra</span><span class="o">=</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="o">=</span><span class="n">dec</span><span class="p">,</span> <span class="n">radius_deg</span><span class="o">=</span><span class="n">radius_deg</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="n">search_all</span><span class="o">=</span><span class="n">search_all</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">change_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change the current catalog to query.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        catalog_key : str</span>
+<span class="sd">            The catalog key to change to.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_change_catalog</span><span class="p">(</span><span class="n">catalog_key</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_available_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Display available catalogs.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        None</span>
+<span class="sd">                </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of catalog keys: list</span>
+<span class="sd">            List of available catalogs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_available_catalogs</span><span class="p">()</span>
+    
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_split_query_regions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                             <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                             <span class="n">height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                             <span class="n">ra</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                             <span class="n">dec</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                             <span class="n">fov</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                             <span class="n">rotation_angle</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                             <span class="n">max_pixels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">45000000</span><span class="p">,</span>
+                             <span class="n">margin_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+                             <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Split a large query into tiles with unique RA/Dec centers that cover the full region.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of dict : Each dict contains query parameters for a tile</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">total_pixels</span> <span class="o">=</span> <span class="n">width</span> <span class="o">*</span> <span class="n">height</span>
+
+        <span class="k">if</span> <span class="n">total_pixels</span> <span class="o">&lt;=</span> <span class="n">max_pixels</span><span class="p">:</span>
+            <span class="n">width_with_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)))</span>
+            <span class="n">height_with_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">height</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)))</span>
+            <span class="n">fov_with_margin</span> <span class="o">=</span> <span class="n">fov</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[{</span>
+                <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">width_with_margin</span><span class="p">,</span>
+                <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="n">height_with_margin</span><span class="p">,</span>
+                <span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="n">ra</span><span class="p">,</span>
+                <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="n">dec</span><span class="p">,</span>
+                <span class="s1">&#39;fov&#39;</span><span class="p">:</span> <span class="n">fov_with_margin</span><span class="p">,</span>
+                <span class="s1">&#39;rotation_angle&#39;</span><span class="p">:</span> <span class="n">rotation_angle</span><span class="p">,</span>
+                <span class="s1">&#39;tile_id&#39;</span><span class="p">:</span> <span class="s1">&#39;0_0&#39;</span>
+            <span class="p">}]</span>
+
+        <span class="c1"># Determine number of splits needed per axis</span>
+        <span class="n">n_splits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">total_pixels</span> <span class="o">/</span> <span class="n">max_pixels</span><span class="p">)))</span>
+        <span class="n">tile_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="n">n_splits</span>
+        <span class="n">tile_height</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="n">n_splits</span>
+        <span class="n">base_tile_fov</span> <span class="o">=</span> <span class="n">fov</span> <span class="o">/</span> <span class="n">n_splits</span>  <span class="c1"># Original FoV per tile</span>
+
+        <span class="c1"># Apply margin to width/height and FoV</span>
+        <span class="n">tile_width_with_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">tile_width</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)))</span>
+        <span class="n">tile_height_with_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">tile_height</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)))</span>
+        <span class="n">tile_fov_with_margin</span> <span class="o">=</span> <span class="n">base_tile_fov</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">margin_fraction</span><span class="p">)</span>
+
+        <span class="c1"># Pixel scale (deg/pixel) stays fixed</span>
+        <span class="n">pixscale_deg</span> <span class="o">=</span> <span class="n">fov</span> <span class="o">/</span> <span class="n">width</span>
+        <span class="n">dec_rad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">deg2rad</span><span class="p">(</span><span class="n">dec</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[SPLIT] </span><span class="si">{</span><span class="n">width</span><span class="si">}</span><span class="s2">x</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s2"> &gt;&gt;&gt; </span><span class="si">{</span><span class="n">n_splits</span><span class="si">}</span><span class="s2">x</span><span class="si">{</span><span class="n">n_splits</span><span class="si">}</span><span class="s2"> tiles &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">tile_width</span><span class="si">}</span><span class="s2">x</span><span class="si">{</span><span class="n">tile_height</span><span class="si">}</span><span class="s2"> px), margin = </span><span class="si">{</span><span class="n">margin_fraction</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">tile_params</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_splits</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_splits</span><span class="p">):</span>
+                <span class="c1"># Offset in sky from the center (no margin added here)</span>
+                <span class="n">delta_ra_deg</span> <span class="o">=</span> <span class="p">((</span><span class="n">j</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_splits</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">tile_width</span> <span class="o">*</span> <span class="n">pixscale_deg</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">dec_rad</span><span class="p">)</span>
+                <span class="n">delta_dec_deg</span> <span class="o">=</span> <span class="p">((</span><span class="n">n_splits</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">))</span> <span class="o">*</span> <span class="n">tile_height</span> <span class="o">*</span> <span class="n">pixscale_deg</span>
+
+                <span class="n">center_ra</span> <span class="o">=</span> <span class="n">ra</span> <span class="o">+</span> <span class="n">delta_ra_deg</span>
+                <span class="n">center_dec</span> <span class="o">=</span> <span class="n">dec</span> <span class="o">+</span> <span class="n">delta_dec_deg</span>
+
+                <span class="n">tile_params</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">tile_width_with_margin</span><span class="p">,</span>
+                    <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="n">tile_height_with_margin</span><span class="p">,</span>
+                    <span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="n">center_ra</span><span class="p">,</span>
+                    <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="n">center_dec</span><span class="p">,</span>
+                    <span class="s1">&#39;fov&#39;</span><span class="p">:</span> <span class="n">tile_fov_with_margin</span><span class="p">,</span>
+                    <span class="s1">&#39;rotation_angle&#39;</span><span class="p">:</span> <span class="n">rotation_angle</span><span class="p">,</span>
+                    <span class="s1">&#39;tile_id&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">tile_params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_query_tile_worker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Standalone worker function for multiprocessing.</span>
+<span class="sd">        This function must be top-level (not class method) for pickling.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tile_param</span><span class="p">,</span> <span class="n">save_path</span><span class="p">,</span> <span class="n">verbose</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
+
+        <span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;.</span><span class="si">{</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;tile_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.fits&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">(</span>
+            <span class="n">wcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">],</span>
+            <span class="n">height</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span>
+            <span class="n">ra</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">],</span>
+            <span class="n">dec</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">],</span>
+            <span class="n">fov</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;fov&#39;</span><span class="p">],</span>
+            <span class="n">rotation_angle</span><span class="o">=</span><span class="n">tile_param</span><span class="p">[</span><span class="s1">&#39;rotation_angle&#39;</span><span class="p">],</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span>
+        <span class="p">)</span></div>
+
+
+
+
+<span class="c1">#%%</span>
+    
+<span class="c1"># Example usage:</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">ImageQuerier</span><span class="p">(</span><span class="n">catalog_key</span><span class="o">=</span><span class="s1">&#39;SkyMapper/SMSS1/u&#39;</span><span class="p">)</span>
+
+    
+    <span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">fits</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
+    <span class="n">tile_id</span> <span class="o">=</span> <span class="s1">&#39;NGC1566&#39;</span>
+    <span class="n">databrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
+    <span class="n">databrowser</span><span class="o">.</span><span class="n">observatory</span> <span class="o">=</span> <span class="s1">&#39;KCT&#39;</span>
+    <span class="n">databrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;NGC1566&#39;</span>
+    <span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;i&#39;</span>
+    <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">databrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calib*.fits&#39;</span><span class="p">,</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">telinfo</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">naxis1</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">naxis2</span>
+    <span class="n">fov</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">height</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">pixelscale</span><span class="p">)</span> <span class="o">/</span><span class="mi">3600</span>
+    <span class="n">ra</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span>
+    <span class="n">dec</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span>
+    <span class="n">pixelscale</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">pixelscale</span><span class="p">)</span> 
+    <span class="n">rotation_angle</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">objname</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">objname</span>
+    <span class="c1">#self.check_catalog_coverages(ra = ra, dec = dec, radius_deg = fov/2, search_all = True)</span>
+<span class="c1">#%%</span>
+    <span class="c1"># Run the query</span>
+    <span class="n">stack_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+        <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+        <span class="n">ra</span><span class="o">=</span><span class="n">ra</span><span class="p">,</span>
+        <span class="n">dec</span><span class="o">=</span><span class="n">dec</span><span class="p">,</span>
+        <span class="n">pixelscale</span><span class="o">=</span><span class="n">pixelscale</span><span class="p">,</span>
+        <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">telinfo</span><span class="o">=</span><span class="n">telinfo</span><span class="p">,</span>
+        <span class="n">objname</span><span class="o">=</span><span class="n">objname</span><span class="p">,</span>
+        <span class="n">rotation_angle</span><span class="o">=</span><span class="n">rotation_angle</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+    <span class="p">)</span>
+    
+
+<span class="c1"># %%</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

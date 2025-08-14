@@ -1,2 +1,0 @@
-
-from .tipconfig import TIPConfig

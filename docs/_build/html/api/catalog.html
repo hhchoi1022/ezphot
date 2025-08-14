@@ -1,0 +1,409 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalog &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="CatalogSet" href="catalogset.html" />
+    <link rel="prev" title="DataObjects" href="dataobjects.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="dataobjects.html">DataObjects</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Catalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.dataobjects.catalog.Catalog"><code class="docutils literal notranslate"><span class="pre">Catalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.catalog.Catalog.__init__"><code class="docutils literal notranslate"><span class="pre">Catalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.show_source"><code class="docutils literal notranslate"><span class="pre">show_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.apply_mask"><code class="docutils literal notranslate"><span class="pre">apply_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.to_stamp"><code class="docutils literal notranslate"><span class="pre">to_stamp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.to_region"><code class="docutils literal notranslate"><span class="pre">to_region()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.Catalog.load_info"><code class="docutils literal notranslate"><span class="pre">load_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="catalogset.html">CatalogSet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lightcurve.html">LightCurve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometricspectrum.html">PhotometricSpectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="dataobjects.html">DataObjects</a></li>
+      <li class="breadcrumb-item active">Catalog</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/catalog.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="catalog">
+<h1>Catalog<a class="headerlink" href="#catalog" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.dataobjects.catalog.Catalog">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Catalog</span></span><a class="reference internal" href="../_modules/ezphot/dataobjects/catalog.html#Catalog"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.catalog.Catalog" title="Link to this definition"></a></dt>
+<dd><p>Catalog class for handling source catalog data.</p>
+<p>This class is designed to handle source catalog data from a FITS file.
+It automatically loads the corresponding target image from the FITS file.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ezphot.dataobjects.catalog.Catalog.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">catalog_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'all'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ezphot/dataobjects/catalog.html#Catalog.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.catalog.Catalog.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize the Catalog instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>Union</em><em>[</em><em>Path</em><em>, </em><em>str</em><em>]</em>) – Path to the catalog file.</p></li>
+<li><p><strong>catalog_type</strong> (<em>str</em><em>, </em><em>optional</em>) – Catalog type. Default is ‘all’. [‘all’, ‘reference’, ‘valid’, ‘transient’, ‘forced’]</p></li>
+<li><p><strong>info</strong> (<em>Info</em><em>, </em><em>optional</em>) – Info object. Default is None.</p></li>
+<li><p><strong>load</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to load the catalog data. Default is True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.select_sources">
+<span class="sig-name descname"><span class="pre">select_sources</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'coord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matching_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.select_sources" title="Link to this definition"></a></dt>
+<dd><p>Select sources from a catalog based on their positions.</p>
+<p>Selected sources are stored in self.target_data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>list</em><em>, </em><em>np.ndarray</em><em>]</em>) – X coordinates of the sources.</p></li>
+<li><p><strong>y</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>list</em><em>, </em><em>np.ndarray</em><em>]</em>) – Y coordinates of the sources.</p></li>
+<li><p><strong>unit</strong> (<em>str</em><em>, </em><em>optional</em>) – Unit of the coordinates. Default is ‘coord’.</p></li>
+<li><p><strong>matching_radius</strong> (<em>float</em><em>, </em><em>optional</em>) – Matching radius in arcseconds. Default is 5.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.show_source">
+<span class="sig-name descname"><span class="pre">show_source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoom_radius_pixel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matching_radius_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.show_source" title="Link to this definition"></a></dt>
+<dd><p>Show two-panel view of the target image with a single source marked (red).
+The left panel shows the full image, and the right panel shows a zoomed-in view of the target position.
+If a source is matched, it is marked with a blue circle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_ra</strong> (<em>float</em>) – Right ascension of the target source.</p></li>
+<li><p><strong>target_dec</strong> (<em>float</em>) – Declination of the target source.</p></li>
+<li><p><strong>downsample</strong> (<em>int</em><em>, </em><em>optional</em>) – Downsampling factor for the image. Default is 4.</p></li>
+<li><p><strong>zoom_radius_pixel</strong> (<em>float</em><em>, </em><em>optional</em>) – Radius of the zoomed-in view in pixels. Default is 50.</p></li>
+<li><p><strong>matching_radius_arcsec</strong> (<em>float</em><em>, </em><em>optional</em>) – Matching radius in arcseconds. Default is 3.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>fig</strong> – Figure object.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>matplotlib.figure.Figure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.copy" title="Link to this definition"></a></dt>
+<dd><p>Return a deep copy of this Catalog instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>copied_catalog</strong> – A deep copy of the Catalog instance.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#ezphot.dataobjects.catalog.Catalog" title="ezphot.dataobjects.catalog.Catalog">Catalog</a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;catalog.fits&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">copied_catalog</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">copied_catalog</span><span class="o">.</span><span class="n">path</span>
+<span class="go">&#39;catalog.fits&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ascii'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.write" title="Link to this definition"></a></dt>
+<dd><p>Write catalog data to the savepath (self.savepath.savepath).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>format</strong> (<em>str</em><em>, </em><em>optional</em>) – Format of the output file. Default is ‘ascii’.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.remove">
+<span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_main</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_connected_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_exts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['.png',</span> <span class="pre">'.cat']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.remove" title="Link to this definition"></a></dt>
+<dd><p>Remove the main FITS file and/or associated connected files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>remove_main</strong> (<em>bool</em>) – If True, remove the main FITS file (self.path)</p></li>
+<li><p><strong>remove_connected_files</strong> (<em>bool</em>) – If True, remove associated files (status, mask, coadd, etc.)</p></li>
+<li><p><strong>skip_exts</strong> (<em>list</em>) – List of file extensions to skip (e.g. [‘.png’, ‘.cat’])</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – If True, print removal results</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>{file_path (str): success (bool)} for each file attempted</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.apply_mask">
+<span class="sig-name descname"><span class="pre">apply_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_ivpmask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'X_IMAGE'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Y_IMAGE'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.apply_mask" title="Link to this definition"></a></dt>
+<dd><p>Apply a mask to the catalog.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_ivpmask</strong> (<a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask" title="ezphot.imageobjects.mask.Mask"><em>Mask</em></a>) – Mask to apply to the catalog.</p></li>
+<li><p><strong>x_key</strong> (<em>str</em><em>, </em><em>optional</em>) – Column name for X coordinates. Default is ‘X_IMAGE’.</p></li>
+<li><p><strong>y_key</strong> (<em>str</em><em>, </em><em>optional</em>) – Column name for Y coordinates. Default is ‘Y_IMAGE’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>masked_sources</strong> – Catalog with sources that are not masked.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Table</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.to_stamp">
+<span class="sig-name descname"><span class="pre">to_stamp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FLUX_AUTO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.to_stamp" title="Link to this definition"></a></dt>
+<dd><p>Convert X_WORLD and Y_WORLD to pixel coordinates and save to a stamp catalog.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em> or </em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a>) – Target image to convert to pixel coordinates.</p></li>
+<li><p><strong>sort_by</strong> (<em>str</em><em>, </em><em>optional</em>) – Column name to sort the catalog by. Default is ‘FLUX_AUTO’.</p></li>
+<li><p><strong>max_number</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of sources to save. Default is 50000.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>stamppath</strong> – Path to the stamp catalog.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.to_region">
+<span class="sig-name descname"><span class="pre">to_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'circle'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.to_region" title="Link to this definition"></a></dt>
+<dd><p>Convert X_IMAGE and Y_IMAGE to a region file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reg_size</strong> (<em>float</em><em>, </em><em>optional</em>) – Size of the region in pixels. Default is 6.0.</p></li>
+<li><p><strong>shape</strong> (<em>str</em><em>, </em><em>optional</em>) – Shape of the region. Default is ‘circle’.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="additional-methods">
+<h2>Additional Methods<a class="headerlink" href="#additional-methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.save_info">
+<span class="sig-name descname"><span class="pre">save_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.save_info" title="Link to this definition"></a></dt>
+<dd><p>Save processing info to a JSON file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, print the path of the info file. Default is False.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.Catalog.load_info">
+<span class="sig-name descname"><span class="pre">load_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.Catalog.load_info" title="Link to this definition"></a></dt>
+<dd><p>Load processing info from a JSON file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, print the path of the info file. Default is False.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>info</strong> – Info object loaded from the JSON file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Info</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+<p class="rubric">Key Properties</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Property</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">connected_files</span></code></p></td>
+<td><p>Return all associated files that would be deleted in <cite>remove()</cite> if remove_connected_files=True,</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">data</span></code></p></td>
+<td><p>Lazy-load table data from path by trying multiple formats.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is_data_loaded</span></code></p></td>
+<td><p>Check if the data is loaded.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is_exists</span></code></p></td>
+<td><p>Check if the catalog file exists.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is_saved</span></code></p></td>
+<td><p>Check if the catalog has been saved.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nselected</span></code></p></td>
+<td><p>Number of selected sources in the target data.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nsources</span></code></p></td>
+<td><p>Number of sources in the catalog.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">savedir</span></code></p></td>
+<td><p>Return the directory where this image and associated files will be saved.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">savepath</span></code></p></td>
+<td><p>Dynamically builds save paths based on the path</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">target_data</span></code></p></td>
+<td><p>Return the selected sources by self.select_sources().</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="dataobjects.html" class="btn btn-neutral float-left" title="DataObjects" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="catalogset.html" class="btn btn-neutral float-right" title="CatalogSet" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,168 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Connected to py311 (Python 3.11.13)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "30b4f080-30a2-49b5-b9c7-fba5a616cc3e",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/hhchoi1022/anaconda3/envs/py311/lib/python3.11/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+      "  from .autonotebook import tqdm as notebook_tqdm\n"
+     ]
+    },
+    {
+     "ename": "ModuleNotFoundError",
+     "evalue": "No module named 'ezphot.imageojbects'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mModuleNotFoundError\u001b[39m                       Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[1]\u001b[39m\u001b[32m, line 19\u001b[39m\n\u001b[32m     16\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmatplotlib\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcm\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScalarMappable\n\u001b[32m     17\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmatplotlib\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcolors\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Normalize\n\u001b[32m---> \u001b[39m\u001b[32m19\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mutils\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m SDTDataQuerier\n\u001b[32m     20\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalog, TIPCatalogDataset\n\u001b[32m     21\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/utils/__init__.py:4\u001b[39m\n\u001b[32m      2\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mexternaldata\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m CatalogQuerier\n\u001b[32m      3\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mtiles\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Tiles\n\u001b[32m----> \u001b[39m\u001b[32m4\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimagequerier\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ImageQuerier\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/utils/imagequerier.py:17\u001b[39m\n\u001b[32m     14\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mastropy\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mtime\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Time\n\u001b[32m     16\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n\u001b[32m---> \u001b[39m\u001b[32m17\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimageojbects\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScienceImage, ReferenceImage\n\u001b[32m     19\u001b[39m \u001b[38;5;66;03m#%%\u001b[39;00m\n\u001b[32m     20\u001b[39m hips2fits.timeout = \u001b[32m300\u001b[39m\n",
+      "\u001b[31mModuleNotFoundError\u001b[39m: No module named 'ezphot.imageojbects'"
+     ]
+    }
+   ],
+   "source": [
+    "from typing import List, Union\n",
+    "import glob\n",
+    "from pathlib import Path\n",
+    "from tqdm import tqdm\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "from scipy.spatial import cKDTree\n",
+    "from astropy.table import Table\n",
+    "from astropy.time import Time\n",
+    "from astropy.io import fits\n",
+    "from astropy.coordinates import SkyCoord\n",
+    "import astropy.units as u\n",
+    "from matplotlib import cycler\n",
+    "from itertools import cycle\n",
+    "from matplotlib.cm import ScalarMappable\n",
+    "from matplotlib.colors import Normalize\n",
+    "\n",
+    "from ezphot.utils import SDTDataQuerier\n",
+    "from ezphot.catalog import TIPCatalog, TIPCatalogDataset\n",
+    "from ezphot.helper import Helper\n",
+    "from ezphot.imageobjects import ScienceImage\n",
+    "from ezphot.utils import CatalogQuerier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "3dea801f-11eb-418f-845f-fba29e4ab4bc",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ModuleNotFoundError",
+     "evalue": "No module named 'ezphot.imageobjects.sdtreference'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mModuleNotFoundError\u001b[39m                       Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[2]\u001b[39m\u001b[32m, line 19\u001b[39m\n\u001b[32m     16\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmatplotlib\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcm\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScalarMappable\n\u001b[32m     17\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmatplotlib\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcolors\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Normalize\n\u001b[32m---> \u001b[39m\u001b[32m19\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mutils\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m SDTDataQuerier\n\u001b[32m     20\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalog, TIPCatalogDataset\n\u001b[32m     21\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/utils/__init__.py:4\u001b[39m\n\u001b[32m      2\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mexternaldata\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m CatalogQuerier\n\u001b[32m      3\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mtiles\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Tiles\n\u001b[32m----> \u001b[39m\u001b[32m4\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimagequerier\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ImageQuerier\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/utils/imagequerier.py:17\u001b[39m\n\u001b[32m     14\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mastropy\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mtime\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Time\n\u001b[32m     16\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n\u001b[32m---> \u001b[39m\u001b[32m17\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimageobjects\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScienceImage, ReferenceImage\n\u001b[32m     19\u001b[39m \u001b[38;5;66;03m#%%\u001b[39;00m\n\u001b[32m     20\u001b[39m hips2fits.timeout = \u001b[32m300\u001b[39m\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/imageobjects/__init__.py:10\u001b[39m\n\u001b[32m      8\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mmasterimage\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m MasterImage\n\u001b[32m      9\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mreferenceimage\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ReferenceImage\n\u001b[32m---> \u001b[39m\u001b[32m10\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01msdtreference\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m SDTReference\n\u001b[32m     11\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mmask\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Mask\n\u001b[32m     12\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mbackground\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Background\n",
+      "\u001b[31mModuleNotFoundError\u001b[39m: No module named 'ezphot.imageobjects.sdtreference'"
+     ]
+    }
+   ],
+   "source": [
+    "from typing import List, Union\n",
+    "import glob\n",
+    "from pathlib import Path\n",
+    "from tqdm import tqdm\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "from scipy.spatial import cKDTree\n",
+    "from astropy.table import Table\n",
+    "from astropy.time import Time\n",
+    "from astropy.io import fits\n",
+    "from astropy.coordinates import SkyCoord\n",
+    "import astropy.units as u\n",
+    "from matplotlib import cycler\n",
+    "from itertools import cycle\n",
+    "from matplotlib.cm import ScalarMappable\n",
+    "from matplotlib.colors import Normalize\n",
+    "\n",
+    "from ezphot.utils import SDTDataQuerier\n",
+    "from ezphot.catalog import TIPCatalog, TIPCatalogDataset\n",
+    "from ezphot.helper import Helper\n",
+    "from ezphot.imageobjects import ScienceImage\n",
+    "from ezphot.utils import CatalogQuerier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "323748d4-c815-4e9f-833a-aadfb1ee27e0",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ModuleNotFoundError",
+     "evalue": "No module named 'ezphot.imageobjects'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+      "\u001b[31mModuleNotFoundError\u001b[39m                       Traceback (most recent call last)",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[3]\u001b[39m\u001b[32m, line 20\u001b[39m\n\u001b[32m     17\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mmatplotlib\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcolors\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Normalize\n\u001b[32m     19\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mutils\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m SDTDataQuerier\n\u001b[32m---> \u001b[39m\u001b[32m20\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalog, TIPCatalogDataset\n\u001b[32m     21\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n\u001b[32m     22\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimage\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScienceImage\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/catalog/__init__.py:4\u001b[39m\n\u001b[32m      2\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mreferencecatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ReferenceCatalog\n\u001b[32m      3\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalog\n\u001b[32m----> \u001b[39m\u001b[32m4\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalogdataset\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalogDataset\n",
+      "\u001b[36mFile \u001b[39m\u001b[32m/data/data1/factory_hhchoi/code/ezphot/ezphot/catalog/catalogdataset.py:7\u001b[39m\n\u001b[32m      5\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mconfiguration\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Configuration\n\u001b[32m      6\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mcatalog\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m TIPCatalog\n\u001b[32m----> \u001b[39m\u001b[32m7\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mimage\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m ScienceImage\n\u001b[32m      8\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mezphot\u001b[39;00m\u001b[34;01m.\u001b[39;00m\u001b[34;01mhelper\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mimport\u001b[39;00m Helper\n\u001b[32m      9\u001b[39m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mpandas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01mpd\u001b[39;00m\n",
+      "\u001b[31mModuleNotFoundError\u001b[39m: No module named 'ezphot.imageobjects'"
+     ]
+    }
+   ],
+   "source": [
+    "from typing import List, Union\n",
+    "import glob\n",
+    "from pathlib import Path\n",
+    "from tqdm import tqdm\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "from scipy.spatial import cKDTree\n",
+    "from astropy.table import Table\n",
+    "from astropy.time import Time\n",
+    "from astropy.io import fits\n",
+    "from astropy.coordinates import SkyCoord\n",
+    "import astropy.units as u\n",
+    "from matplotlib import cycler\n",
+    "from itertools import cycle\n",
+    "from matplotlib.cm import ScalarMappable\n",
+    "from matplotlib.colors import Normalize\n",
+    "\n",
+    "from ezphot.utils import SDTDataQuerier\n",
+    "from ezphot.catalog import TIPCatalog, TIPCatalogDataset\n",
+    "from ezphot.helper import Helper\n",
+    "from ezphot.imageobjects import ScienceImage\n",
+    "from ezphot.utils import ExternalData"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "py311",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python",
+   "version": "3.11.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}

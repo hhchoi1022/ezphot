@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlateSolve &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="AperturePhotometry" href="aperturephotometry.html" />
+    <link rel="prev" title="Preprocess" href="preprocess.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="methods.html">Methods</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="maskgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundgenerator.html">BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errormapgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html">Preprocess</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">PlateSolve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.methods.Platesolve"><code class="docutils literal notranslate"><span class="pre">Platesolve</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Platesolve.solve_astrometry"><code class="docutils literal notranslate"><span class="pre">solve_astrometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Platesolve.solve_scamp"><code class="docutils literal notranslate"><span class="pre">solve_scamp()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html">AperturePhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="psfphotometry.html">PSFPhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html">PhotometricCalibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproject.html">Reproject</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stack.html">Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subtract.html">Subtract</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="methods.html">Methods</a></li>
+      <li class="breadcrumb-item active">PlateSolve</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/platesolve.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="platesolve">
+<h1>PlateSolve<a class="headerlink" href="#platesolve" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.methods.Platesolve">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Platesolve</span></span><a class="reference internal" href="../_modules/ezphot/methods/platesolve.html#Platesolve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.methods.Platesolve" title="Link to this definition"></a></dt>
+<dd><p>Platesolve class for solving astrometry and SCAMP.</p>
+<p>This class provides methods</p>
+<ol class="arabic simple">
+<li><p>Solving astrometry using Astrometry.net.</p></li>
+<li><p>Solving astrometry using SCAMP.</p></li>
+</ol>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Platesolve.__init__def</span> <span class="pre">ezphot.methods.Platesolve.__init__()</span></span></dt>
+<dd><p>Initialize the Platesolve class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Platesolve.solve_astrometry">
+<span class="sig-name descname"><span class="pre">solve_astrometry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Platesolve.solve_astrometry" title="Link to this definition"></a></dt>
+<dd><p>Solve astrometry using Astrometry.net.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a><em>]</em>) – The target image to solve astrometry for.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to overwrite the existing astrometry solution.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>output_img</strong> – The output image with astrometry solution.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Platesolve.solve_scamp">
+<span class="sig-name descname"><span class="pre">solve_scamp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scamp_sexparams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scamp_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Platesolve.solve_scamp" title="Link to this definition"></a></dt>
+<dd><p>Solve astrometry using SCAMP.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<em>Union</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>, </em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a><em>, </em><em>List</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>]</em><em>, </em><em>List</em><em>[</em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a><em>]</em><em>]</em>) – The target image(s) to solve astrometry for.</p></li>
+<li><p><strong>scamp_sexparams</strong> (<em>dict</em><em>, </em><em>optional</em>) – The SExtractor parameters for SCAMP.</p></li>
+<li><p><strong>scamp_params</strong> (<em>dict</em><em>, </em><em>optional</em>) – The SCAMP parameters for SCAMP.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to overwrite the existing astrometry solution.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>output_imglist</strong> – The output image(s) with astrometry solution.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="preprocess.html" class="btn btn-neutral float-left" title="Preprocess" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aperturephotometry.html" class="btn btn-neutral float-right" title="AperturePhotometry" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

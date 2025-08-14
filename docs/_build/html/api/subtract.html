@@ -1,0 +1,434 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subtract &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Imageobjects" href="imageobjects.html" />
+    <link rel="prev" title="Stack" href="stack.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="methods.html">Methods</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="maskgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundgenerator.html">BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errormapgenerator.html">MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html">Preprocess</a></li>
+<li class="toctree-l2"><a class="reference internal" href="platesolve.html">PlateSolve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html">AperturePhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="psfphotometry.html">PSFPhotometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html">PhotometricCalibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproject.html">Reproject</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stack.html">Stack</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Subtract</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.methods.subtract.Subtract"><code class="docutils literal notranslate"><span class="pre">Subtract</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.find_transients"><code class="docutils literal notranslate"><span class="pre">find_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.subtract"><code class="docutils literal notranslate"><span class="pre">subtract()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.select_transients"><code class="docutils literal notranslate"><span class="pre">select_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.show_transient_positions"><code class="docutils literal notranslate"><span class="pre">show_transient_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.get_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.query_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">query_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.methods.Subtract.select_reference_image"><code class="docutils literal notranslate"><span class="pre">select_reference_image()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="methods.html">Methods</a></li>
+      <li class="breadcrumb-item active">Subtract</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/subtract.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="subtract">
+<h1>Subtract<a class="headerlink" href="#subtract" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.methods.subtract.Subtract">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Subtract</span></span><a class="reference internal" href="../_modules/ezphot/methods/subtract.html#Subtract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.methods.subtract.Subtract" title="Link to this definition"></a></dt>
+<dd><p>Subtract a reference image from a target image.</p>
+<p>This class will prepare the subtracted region by trimming both images to the overlapping region.
+Then, run HOTPANTS subtraction to find transients.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Subtract.__init__def</span> <span class="pre">ezphot.methods.subtract.Subtract.__init__()</span></span></dt>
+<dd><p>Initialize the Subtract class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.find_transients">
+<span class="sig-name descname"><span class="pre">find_transients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_bkg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detection_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture_diameter_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[5,</span> <span class="pre">7,</span> <span class="pre">10]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture_diameter_seeing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[3.5,</span> <span class="pre">4.5]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kron_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">catalog_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'GAIAXP'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_transient_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_variable_sources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">negative_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reverse_subtraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_transient_figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_candidate_figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_transient_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_candidate_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">il</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nrx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nry</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ko</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bgo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">hotpants_params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.find_transients" title="Link to this definition"></a></dt>
+<dd><p>Find transients in the subtracted image.</p>
+<p>This function will prepare the subtracted image by trimming the target image to the overlapping region.
+Then, run HOTPANTS subtraction to find transients.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The target image to find transients in.</p></li>
+<li><p><strong>reference_imglist</strong> (<em>List</em><em>[</em><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a><em>]</em>) – The list of reference images to find transients in.</p></li>
+<li><p><strong>target_bkg</strong> (<a class="reference internal" href="background.html#ezphot.imageobjects.background.Background" title="ezphot.imageobjects.background.Background"><em>Background</em></a><em>, </em><em>optional</em>) – The background for the target image.</p></li>
+<li><p><strong>detection_sigma</strong> (<em>float</em><em>, </em><em>optional</em>) – The detection sigma for the target image.</p></li>
+<li><p><strong>aperture_diameter_arcsec</strong> (<em>List</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – The aperture diameter in arcseconds for the target image.</p></li>
+<li><p><strong>aperture_diameter_seeing</strong> (<em>List</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – The aperture diameter in seeing for the target image.</p></li>
+<li><p><strong>kron_factor</strong> (<em>float</em><em>, </em><em>optional</em>) – The Kron factor for the target image.</p></li>
+<li><p><strong>target_transient_number</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of transients to find in the target image.</p></li>
+<li><p><strong>reject_variable_sources</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to reject variable sources.</p></li>
+<li><p><strong>negative_detection</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to detect negative sources.</p></li>
+<li><p><strong>reverse_subtraction</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to reverse the subtraction.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the subtracted image.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+<li><p><strong>visualize</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to visualize the subtracted image.</p></li>
+<li><p><strong>save_transient_figure</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the transient figure.</p></li>
+<li><p><strong>save_candidate_figure</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the candidate figure.</p></li>
+<li><p><strong>show_transient_numbers</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of transients to show in the transient figure.</p></li>
+<li><p><strong>show_candidate_numbers</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of candidates to show in the candidate figure.</p></li>
+<li><p><strong>tu</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the template image.</p></li>
+<li><p><strong>tl</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the input image.</p></li>
+<li><p><strong>iu</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the input image.</p></li>
+<li><p><strong>il</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the input image.</p></li>
+<li><p><strong>nrx</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>nry</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>nsx</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>nsy</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>ko</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>bgo</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>r</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>**hotpants_params</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments for the HOTPANTS subtraction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(transient_catalogs, candidate_catalogs)</strong> – The list of transient catalogs and the list of candidate catalogs.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[List[Table], List[Table]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.subtract">
+<span class="sig-name descname"><span class="pre">subtract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_ivpmask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_ivpmask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_stamp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'i'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nrx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nry</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">il</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-10000</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">hotpants_params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.subtract" title="Link to this definition"></a></dt>
+<dd><p>Subtract the target_img from reference-img.
+It will prepare the subtracted region by trimming both images to the overlapping region.
+Then, run HOTPANTS subtraction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The target image to subtract from.</p></li>
+<li><p><strong>reference_img</strong> (<a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a>) – The reference image to subtract.</p></li>
+<li><p><strong>target_ivpmask</strong> (<a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask" title="ezphot.imageobjects.mask.Mask"><em>Mask</em></a><em>, </em><em>optional</em>) – The mask for the target image.</p></li>
+<li><p><strong>reference_ivpmask</strong> (<a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask" title="ezphot.imageobjects.mask.Mask"><em>Mask</em></a><em>, </em><em>optional</em>) – The mask for the reference image.</p></li>
+<li><p><strong>target_stamp</strong> (<em>str</em><em>, </em><em>optional</em>) – The stamp for the target image.</p></li>
+<li><p><strong>id</strong> (<em>int</em><em>, </em><em>optional</em>) – The id for the target image.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the subtracted image.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+<li><p><strong>visualize</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to visualize the subtracted image.</p></li>
+<li><p><strong>convim</strong> (<em>str</em><em>, </em><em>optional</em>) – The convolution image type. [‘t’, ‘i’]</p></li>
+<li><p><strong>normim</strong> (<em>str</em><em>, </em><em>optional</em>) – The normalization image type. [‘t’, ‘i’]</p></li>
+<li><p><strong>nrx</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>nry</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of regions for subtraction.</p></li>
+<li><p><strong>iu</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the input image.</p></li>
+<li><p><strong>il</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the input image.</p></li>
+<li><p><strong>tu</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the template image.</p></li>
+<li><p><strong>tl</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the template image.</p></li>
+<li><p><strong>**hotpants_params</strong> (<em>dict</em><em>, </em><em>optional</em>) – Additional keyword arguments for the HOTPANTS subtraction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(subframe_target_img, subframe_reference_img, subframe_subtract_img, fullframe_subtract_mask, subframe_subtract_mask)</strong> – The subtracted image, the reference image, the subtracted image, the full frame mask, and the subframe mask.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage">ReferenceImage</a>, <a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a>, <a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask" title="ezphot.imageobjects.mask.Mask">Mask</a>, <a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask" title="ezphot.imageobjects.mask.Mask">Mask</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.select_transients">
+<span class="sig-name descname"><span class="pre">select_transients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_catalog</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr_lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwhm_lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwhm_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maskflag_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_star_lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elongation_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FLUX_AUTO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluxerr_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FLUXERR_AUTO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwhm_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FWHM_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FLAGS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maskflag_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NIMAFLAGS_ISO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classstar_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CLASS_STAR'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elongation_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ELONGATION'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_only_transient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.select_transients" title="Link to this definition"></a></dt>
+<dd><p>Select valid sources from the catalog based on SNR, flags, class star, and elongation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_catalog</strong> (<a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog" title="ezphot.dataobjects.catalog.Catalog"><em>Catalog</em></a>) – The catalog to select sources from.</p></li>
+<li><p><strong>snr_lower</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the SNR.</p></li>
+<li><p><strong>fwhm_lower</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the FWHM.</p></li>
+<li><p><strong>fwhm_upper</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the FWHM.</p></li>
+<li><p><strong>flag_upper</strong> (<em>int</em><em>, </em><em>optional</em>) – The upper limit for the flags.</p></li>
+<li><p><strong>maskflag_upper</strong> (<em>int</em><em>, </em><em>optional</em>) – The upper limit for the mask flags.</p></li>
+<li><p><strong>class_star_lower</strong> (<em>float</em><em>, </em><em>optional</em>) – The lower limit for the class star.</p></li>
+<li><p><strong>elongation_upper</strong> (<em>float</em><em>, </em><em>optional</em>) – The upper limit for the elongation.</p></li>
+<li><p><strong>flux_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the flux.</p></li>
+<li><p><strong>fluxerr_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the flux error.</p></li>
+<li><p><strong>fwhm_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the FWHM.</p></li>
+<li><p><strong>flag_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the flags.</p></li>
+<li><p><strong>maskflag_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the mask flags.</p></li>
+<li><p><strong>classstar_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the class star.</p></li>
+<li><p><strong>elongation_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The key for the elongation.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print verbose output.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the catalog.</p></li>
+<li><p><strong>return_only_transient</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to return only the transient catalog.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>(target_catalog, candidate_catalog)</strong> – The target catalog and the candidate catalog.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[<a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog" title="ezphot.dataobjects.catalog.Catalog">Catalog</a>, <a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog" title="ezphot.dataobjects.catalog.Catalog">Catalog</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.show_transient_positions">
+<span class="sig-name descname"><span class="pre">show_transient_positions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">science_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subtracted_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'coord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoom_radius_pixel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viridis'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zscale'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ncols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subtitles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transient_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'transient'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.show_transient_positions" title="Link to this definition"></a></dt>
+<dd><p>Show the transient positions on the science, reference, and subtracted images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>science_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The science image.</p></li>
+<li><p><strong>reference_img</strong> (<a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage"><em>ReferenceImage</em></a>) – The reference image.</p></li>
+<li><p><strong>subtracted_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The subtracted image.</p></li>
+<li><p><strong>x_list</strong> (<em>list</em>) – The list of x coordinates.</p></li>
+<li><p><strong>y_list</strong> (<em>list</em>) – The list of y coordinates.</p></li>
+<li><p><strong>idx_list</strong> (<em>list</em><em>, </em><em>optional</em>) – The list of indices.</p></li>
+<li><p><strong>coord_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The coordinate type. [‘coord’, ‘pixel’]</p></li>
+<li><p><strong>zoom_radius_pixel</strong> (<em>int</em><em>, </em><em>optional</em>) – The zoom radius in pixels.</p></li>
+<li><p><strong>downsample</strong> (<em>int</em><em>, </em><em>optional</em>) – The downsample factor.</p></li>
+<li><p><strong>cmap</strong> (<em>str</em><em>, </em><em>optional</em>) – The colormap.</p></li>
+<li><p><strong>scale</strong> (<em>str</em><em>, </em><em>optional</em>) – The scale. [‘linear’, ‘log’, ‘sqrt’, ‘arcsinh’]</p></li>
+<li><p><strong>ncols</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of columns.</p></li>
+<li><p><strong>subtitles</strong> (<em>list</em><em>, </em><em>optional</em>) – The subtitles for the images.</p></li>
+<li><p><strong>transient_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The transient type. [‘transient’, ‘candidate’]</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the figure.</p></li>
+<li><p><strong>visualize</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to visualize the figure.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The figure.</p></li>
+<li><p><strong>axes</strong> (<em>list</em>) – The axes.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.get_referenceframe_from_image">
+<span class="sig-name descname"><span class="pre">get_referenceframe_from_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_obsdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['fraction',</span> <span class="pre">'depth']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overlap_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_overlap_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.get_referenceframe_from_image" title="Link to this definition"></a></dt>
+<dd><p>Get the reference frame from the target image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The target image to get the reference frame from.</p></li>
+<li><p><strong>telname</strong> (<em>str</em><em>, </em><em>optional</em>) – The telescope name.</p></li>
+<li><p><strong>max_obsdate</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>float</em><em>, </em><em>Time</em><em>]</em><em>, </em><em>optional</em>) – The maximum observation date.</p></li>
+<li><p><strong>sort_key</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>List</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – The sort key.</p></li>
+<li><p><strong>overlap_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – The overlap threshold.</p></li>
+<li><p><strong>return_groups</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to return the groups.</p></li>
+<li><p><strong>group_overlap_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – The group overlap threshold.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>reference_img</strong> (<em>ReferenceImage</em>) – The reference image.</p></li>
+<li><p><strong>reference_frames</strong> (<em>Table</em>) – The metadata of the reference frames matched the criteria.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.get_referenceframe">
+<span class="sig-name descname"><span class="pre">get_referenceframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observatory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telkey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra_fov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.35</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec_fov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_obsdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overlap_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_overlap_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.get_referenceframe" title="Link to this definition"></a></dt>
+<dd><p>Get the reference frame from the target image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>observatory</strong> (<em>str</em>) – The observatory name.</p></li>
+<li><p><strong>telkey</strong> (<em>str</em>) – The telescope key.</p></li>
+<li><p><strong>filter</strong> (<em>str</em>) – The filter name.</p></li>
+<li><p><strong>ra</strong> (<em>float</em>) – The right ascension of the target image.</p></li>
+<li><p><strong>dec</strong> (<em>float</em>) – The declination of the target image.</p></li>
+<li><p><strong>ra_fov</strong> (<em>float</em><em>, </em><em>optional</em>) – The field of view in right ascension.</p></li>
+<li><p><strong>dec_fov</strong> (<em>float</em><em>, </em><em>optional</em>) – The field of view in declination.</p></li>
+<li><p><strong>telname</strong> (<em>str</em><em>, </em><em>optional</em>) – The telescope name.</p></li>
+<li><p><strong>max_obsdate</strong> (<em>str</em><em>, </em><em>optional</em>) – The maximum observation date.</p></li>
+<li><p><strong>seeing_limit</strong> (<em>float</em><em>, </em><em>optional</em>) – The seeing limit.</p></li>
+<li><p><strong>depth_limit</strong> (<em>float</em><em>, </em><em>optional</em>) – The depth limit.</p></li>
+<li><p><strong>return_groups</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to return the groups.</p></li>
+<li><p><strong>overlap_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – The overlap threshold.</p></li>
+<li><p><strong>group_overlap_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – The group overlap threshold.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ref_table</strong> – The metadata of the reference frames matched the criteria.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Table</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.query_referenceframe_from_image">
+<span class="sig-name descname"><span class="pre">query_referenceframe_from_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">catalog_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SkyMapper/SMSS4/g'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.query_referenceframe_from_image" title="Link to this definition"></a></dt>
+<dd><p>Query the reference frame from the target image using HIPS2FITS.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_img</strong> (<a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a>) – The target image to query the reference frame from.</p></li>
+<li><p><strong>catalog_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The catalog key to query the reference frame from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>reference_img</strong> – The reference image.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage" title="ezphot.imageobjects.referenceimage.ReferenceImage">ReferenceImage</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.methods.Subtract.select_reference_image">
+<span class="sig-name descname"><span class="pre">select_reference_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_imglist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_obsdate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'SEEING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'UL5_5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipticity_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ELLIP'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obsdate_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'DATE-OBS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_ellipticity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_seeing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.methods.Subtract.select_reference_image" title="Link to this definition"></a></dt>
+<dd><p>Select the reference image from the target image list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_imglist</strong> (<em>List</em><em>[</em><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage"><em>ScienceImage</em></a><em>]</em>) – The list of target images.</p></li>
+<li><p><strong>max_obsdate</strong> (<em>Union</em><em>[</em><em>Time</em><em>, </em><em>str</em><em>, </em><em>float</em><em>]</em><em>, </em><em>optional</em>) – The maximum observation date.</p></li>
+<li><p><strong>seeing_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The seeing key.</p></li>
+<li><p><strong>depth_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The depth key.</p></li>
+<li><p><strong>ellipticity_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The ellipticity key.</p></li>
+<li><p><strong>obsdate_key</strong> (<em>str</em><em>, </em><em>optional</em>) – The observation date key.</p></li>
+<li><p><strong>weight_ellipticity</strong> (<em>float</em><em>, </em><em>optional</em>) – The weight for the ellipticity.</p></li>
+<li><p><strong>weight_seeing</strong> (<em>float</em><em>, </em><em>optional</em>) – The weight for the seeing.</p></li>
+<li><p><strong>weight_depth</strong> (<em>float</em><em>, </em><em>optional</em>) – The weight for the depth.</p></li>
+<li><p><strong>max_numbers</strong> (<em>int</em><em>, </em><em>optional</em>) – The maximum number of images to select.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>best_image</strong> – The best image.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage" title="ezphot.imageobjects.scienceimage.ScienceImage">ScienceImage</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="stack.html" class="btn btn-neutral float-left" title="Stack" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="imageobjects.html" class="btn btn-neutral float-right" title="Imageobjects" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,310 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CatalogSet &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="LightCurve" href="lightcurve.html" />
+    <link rel="prev" title="Catalog" href="catalog.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="dataobjects.html">DataObjects</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="catalog.html">Catalog</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">CatalogSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.dataobjects.catalogset.CatalogSet"><code class="docutils literal notranslate"><span class="pre">CatalogSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.catalogset.CatalogSet.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.search_catalogs"><code class="docutils literal notranslate"><span class="pre">search_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.merge_catalogs"><code class="docutils literal notranslate"><span class="pre">merge_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.exclude_catalogs"><code class="docutils literal notranslate"><span class="pre">exclude_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.select_catalogs"><code class="docutils literal notranslate"><span class="pre">select_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.add_catalogs"><code class="docutils literal notranslate"><span class="pre">add_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.CatalogSet.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lightcurve.html">LightCurve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometricspectrum.html">PhotometricSpectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="dataobjects.html">DataObjects</a></li>
+      <li class="breadcrumb-item active">CatalogSet</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/catalogset.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="catalogset">
+<h1>CatalogSet<a class="headerlink" href="#catalogset" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.dataobjects.catalogset.CatalogSet">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">CatalogSet</span></span><a class="reference internal" href="../_modules/ezphot/dataobjects/catalogset.html#CatalogSet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.catalogset.CatalogSet" title="Link to this definition"></a></dt>
+<dd><p>CatalogSet class for managing a set of catalogs.</p>
+<p>This class provides methods</p>
+<ol class="arabic simple">
+<li><p>Search for catalogs in the given folder.</p></li>
+<li><p>Select catalogs with given criteria.</p></li>
+<li><p>Exclude catalogs with given criteria.</p></li>
+<li><p>Add catalogs to the set.</p></li>
+<li><p>Merge catalogs into single table.</p></li>
+<li><p>Select sources from each Catalog instance.</p></li>
+</ol>
+<dl class="py method">
+<dt class="sig sig-object py" id="ezphot.dataobjects.catalogset.CatalogSet.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">catalogs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ezphot/dataobjects/catalogset.html#CatalogSet.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.catalogset.CatalogSet.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize the CatalogSet class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>catalogs</strong> (<em>list</em><em>[</em><a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog" title="ezphot.dataobjects.catalog.Catalog"><em>Catalog</em></a><em>]</em><em>, </em><em>optional</em>) – List of Catalog instances. Defaults to None. If None, the CatalogSet will be dummy instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.search_catalogs">
+<span class="sig-name descname"><span class="pre">search_catalogs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">search_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.cat'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_proc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.search_catalogs" title="Link to this definition"></a></dt>
+<dd><p>Search for catalogs in the given folder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_name</strong> (<em>str</em>) – Name of the target.</p></li>
+<li><p><strong>search_key</strong> (<em>str</em>) – Search key for catalogs.</p></li>
+<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Folder to search for catalogs.</p></li>
+<li><p><strong>recursive</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, search recursively in the given folder.</p></li>
+<li><p><strong>n_proc</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of processes to use for loading catalogs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>succeeded_catalogs</strong> (<em>list[Catalog]</em>) – List of Catalog instances that were successfully loaded.</p></li>
+<li><p><strong>failed_catalogs</strong> (<em>list[str]</em>) – List of paths that failed to load.</p></li>
+<li><p><strong>skipped_catalogs</strong> (<em>list[str]</em>) – List of paths that were skipped.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.merge_catalogs">
+<span class="sig-name descname"><span class="pre">merge_catalogs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_distance_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'X_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Y_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['MAGSKY_AUTO',</span> <span class="pre">'MAGERR_AUTO',</span> <span class="pre">'MAGSKY_APER',</span> <span class="pre">'MAGERR_APER',</span> <span class="pre">'MAGSKY_APER_1',</span> <span class="pre">'MAGERR_APER_1',</span> <span class="pre">'MAGSKY_APER_2',</span> <span class="pre">'MAGERR_APER_2',</span> <span class="pre">'MAGSKY_APER_3',</span> <span class="pre">'MAGERR_APER_3',</span> <span class="pre">'MAGSKY_CIRC',</span> <span class="pre">'MAGERR_CIRC']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">join_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outer'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.merge_catalogs" title="Link to this definition"></a></dt>
+<dd><p>Merge catalogs into single table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_distance_arcsec</strong> (<em>float</em><em>, </em><em>optional</em>) – Maximum distance in arcseconds for matching sources.</p></li>
+<li><p><strong>ra_key</strong> (<em>str</em><em>, </em><em>optional</em>) – Column name for right ascension.</p></li>
+<li><p><strong>dec_key</strong> (<em>str</em><em>, </em><em>optional</em>) – Column name for declination.</p></li>
+<li><p><strong>data_keys</strong> (<em>list</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – List of column names for data.</p></li>
+<li><p><strong>join_type</strong> (<em>str</em><em>, </em><em>optional</em>) – Type of join to use.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>merged_tbl</strong> (<em>astropy.table.Table</em>) – Merged table of catalogs.</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em>) – Metadata of catalogs.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.exclude_catalogs">
+<span class="sig-name descname"><span class="pre">exclude_catalogs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exptime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">objname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observatory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.exclude_catalogs" title="Link to this definition"></a></dt>
+<dd><p>Exclude catalogs that match the given criteria from self.catalogs.</p>
+<p>Select catalogs from self.catalogs and update self.target_catalogs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_key</strong> (<em>str</em><em>, </em><em>optional</em>) – File key to exclude.</p></li>
+<li><p><strong>filter</strong> (<em>str</em><em>, </em><em>optional</em>) – Filter to exclude.</p></li>
+<li><p><strong>exptime</strong> (<em>float</em><em>, </em><em>optional</em>) – Exposure time to exclude.</p></li>
+<li><p><strong>objname</strong> (<em>str</em><em>, </em><em>optional</em>) – Object name to exclude.</p></li>
+<li><p><strong>obs_start</strong> (<em>str</em><em>, </em><em>optional</em>) – Observation start time to exclude.</p></li>
+<li><p><strong>obs_end</strong> (<em>str</em><em>, </em><em>optional</em>) – Observation end time to exclude.</p></li>
+<li><p><strong>seeing</strong> (<em>float</em><em>, </em><em>optional</em>) – Seeing to exclude.</p></li>
+<li><p><strong>depth</strong> (<em>float</em><em>, </em><em>optional</em>) – Depth to exclude.</p></li>
+<li><p><strong>observatory</strong> (<em>str</em><em>, </em><em>optional</em>) – Observatory to exclude.</p></li>
+<li><p><strong>telname</strong> (<em>str</em><em>, </em><em>optional</em>) – Telescope name to exclude.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.select_catalogs">
+<span class="sig-name descname"><span class="pre">select_catalogs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exptime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">objname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seeing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observatory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">telname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.select_catalogs" title="Link to this definition"></a></dt>
+<dd><p>Select catalogs that match the given criteria from self.catalogs.</p>
+<p>Select catalogs from self.catalogs and update self.target_catalogs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_key</strong> (<em>str</em><em>, </em><em>optional</em>) – File key to select.</p></li>
+<li><p><strong>filter</strong> (<em>str</em><em>, </em><em>optional</em>) – Filter to select.</p></li>
+<li><p><strong>exptime</strong> (<em>float</em><em>, </em><em>optional</em>) – Exposure time to select.</p></li>
+<li><p><strong>objname</strong> (<em>str</em><em>, </em><em>optional</em>) – Object name to select.</p></li>
+<li><p><strong>obs_start</strong> (<em>str</em><em>, </em><em>optional</em>) – Observation start time to select.</p></li>
+<li><p><strong>obs_end</strong> (<em>str</em><em>, </em><em>optional</em>) – Observation end time to select.</p></li>
+<li><p><strong>seeing</strong> (<em>float</em><em>, </em><em>optional</em>) – Seeing to select.</p></li>
+<li><p><strong>depth</strong> (<em>float</em><em>, </em><em>optional</em>) – Depth to select.</p></li>
+<li><p><strong>observatory</strong> (<em>str</em><em>, </em><em>optional</em>) – Observatory to select.</p></li>
+<li><p><strong>telname</strong> (<em>str</em><em>, </em><em>optional</em>) – Telescope name to select.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.add_catalogs">
+<span class="sig-name descname"><span class="pre">add_catalogs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">catalogs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.add_catalogs" title="Link to this definition"></a></dt>
+<dd><p>Add catalogs to the dataset.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.CatalogSet.select_sources">
+<span class="sig-name descname"><span class="pre">select_sources</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.CatalogSet.select_sources" title="Link to this definition"></a></dt>
+<dd><p>Select sources from all catalogs within the given radius around the input coordinates.</p>
+<p>Each catalog will be updated with the selected sources.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ra</strong> (<em>float</em>) – Right Ascension in degrees.</p></li>
+<li><p><strong>dec</strong> (<em>float</em>) – Declination in degrees.</p></li>
+<li><p><strong>radius</strong> (<em>float</em>) – Search radius in arcseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+<p class="rubric">Key Properties</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Property</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">df</span></code></p></td>
+<td><p>Return a DataFrame containing metadata of all catalogs.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="catalog.html" class="btn btn-neutral float-left" title="Catalog" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="lightcurve.html" class="btn btn-neutral float-right" title="LightCurve" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

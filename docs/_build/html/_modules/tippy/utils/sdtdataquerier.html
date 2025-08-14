@@ -1,0 +1,600 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tippy.utils.sdtdataquerier &mdash; TIPpy 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            TIPpy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">TIPpy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">tippy.utils.sdtdataquerier</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for tippy.utils.sdtdataquerier</h1><div class="highlight"><pre>
+<span></span><span class="c1">#%%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">TIPConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">fits</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.table</span><span class="w"> </span><span class="kn">import</span> <span class="n">Table</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">TIPConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tippy.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+
+<span class="c1">#%%</span>
+
+<div class="viewcode-block" id="SDTDataQuerier">
+<a class="viewcode-back" href="../../../api/sdtdataquerier.html#tippy.utils.sdtdataquerier.SDTDataQuerier">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SDTDataQuerier</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    SDTDataQuerier is a class that syncs data from the source directory to the destination directory.</span>
+<span class="sd">    </span>
+<span class="sd">    This class provides</span>
+<span class="sd">    </span>
+<span class="sd">    1. Syncing observational data</span>
+<span class="sd">    </span>
+<span class="sd">    2. Syncing calibrated data</span>
+<span class="sd">    </span>
+<span class="sd">    3. Showing the list of files in the source and destination directories</span>
+<span class="sd">    </span>
+<span class="sd">    4. Showing the list of folders in the source and destination directories</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">ccd</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;C361K&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">folders</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ccd</span> <span class="o">=</span> <span class="n">ccd</span>
+        
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sync_obsdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                     <span class="n">foldername</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Syncs all FITS files from a given foldername in the source directory to the destination directory.</span>
+<span class="sd">        </span>
+<span class="sd">        This function opens multiple rsync processes to sync the data. (n_processes = len(telescope_ids))</span>
+<span class="sd">        The destination directory is defined in the helper.config[&#39;SDTDATA_OBSDESTDIR&#39;]</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        foldername : str</span>
+<span class="sd">            The foldername to sync.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Step 1: Get telescope directories</span>
+        <span class="n">source_pattern</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">],</span><span class="s2">&quot;7DT??&quot;</span><span class="p">,</span> <span class="n">foldername</span><span class="p">)</span>
+        <span class="n">telescope_dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">source_pattern</span><span class="p">)</span>
+        
+        <span class="c1"># Step 2: Extract telescope IDs</span>
+        <span class="n">telescope_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">t</span><span class="p">)))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">telescope_dirs</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">telescope_ids</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No telescope folders found.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Step 3: Move all files to temporary storage in parallel</span>
+        <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">telescope_ids</span><span class="p">))</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="n">dest_folders</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_obsrsync</span><span class="p">,</span> <span class="p">[(</span><span class="n">tid</span><span class="p">,</span> <span class="n">foldername</span><span class="p">)</span> <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="n">telescope_ids</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sync_scidata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">targetname</span> <span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Syncs all FITS files from a given targetname in the source directory to the destination directory.</span>
+<span class="sd">        </span>
+<span class="sd">        This function opens multiple rsync processes to sync the data. (n_processes = len(telescope_ids))</span>
+<span class="sd">        The destination directory is defined in the helper.config[&#39;SDTDATA_SCIDESTDIR&#39;]</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        targetname : str</span>
+<span class="sd">            The target name to sync.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Step 1: Get telescope directories</span>
+        <span class="n">source_pattern</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">)</span>
+        <span class="n">telescope_dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">source_pattern</span><span class="p">)</span>
+        
+        <span class="c1"># Step 2: Extract telescope IDs</span>
+        <span class="n">telescope_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">((</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">t</span><span class="p">)))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">telescope_dirs</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">telescope_ids</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No telescope folders found.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Step 3: Move all files to temporary storage in parallel</span>
+        <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">telescope_ids</span><span class="p">))</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="n">dest_folders</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_scirsync</span><span class="p">,</span> <span class="p">[(</span><span class="n">tid</span><span class="p">,</span> <span class="n">targetname</span><span class="p">)</span> <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="n">telescope_ids</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_obssourcedata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                           <span class="n">foldername</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                           <span class="n">show_only_numbers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                           <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*.fits&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the number or list of FITS files matching a pattern in a given folder across all 7DT?? telescope directories.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        foldername : str</span>
+<span class="sd">            Subfolder name (e.g., filter name) inside each 7DT?? directory.</span>
+<span class="sd">        show_only_numbers : bool</span>
+<span class="sd">            If True, return only the number of matched FITS files per telescope.</span>
+<span class="sd">        pattern : str</span>
+<span class="sd">            Glob pattern to match FITS files (default: &#39;*.fits&#39;).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary of {telescope_id: count or list of file paths}, sorted by telescope ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+        <span class="n">fits_counts</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Find all 7DT?? telescope directories</span>
+        <span class="n">telescope_dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">],</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">telescope_dir</span> <span class="ow">in</span> <span class="n">telescope_dirs</span><span class="p">:</span>
+            <span class="n">telescope_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">telescope_dir</span><span class="p">)</span>
+            <span class="n">folder_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">telescope_dir</span><span class="p">,</span> <span class="n">foldername</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">folder_path</span><span class="p">):</span>
+                <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder_path</span><span class="p">,</span> <span class="n">pattern</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">show_only_numbers</span><span class="p">:</span>
+                    <span class="n">fits_counts</span><span class="p">[</span><span class="n">telescope_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fits_counts</span><span class="p">[</span><span class="n">telescope_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+
+        <span class="n">sorted_fits_counts</span> <span class="o">=</span> <span class="p">{</span><span class="n">tid</span><span class="p">:</span> <span class="n">fits_counts</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span> <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_counts</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sorted_fits_counts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">sorted_fits_counts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sorted_fits_counts</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_obsdestdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                         <span class="n">foldername</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                         <span class="n">show_only_numbers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                         <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*.fits&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the number or list of FITS files matching a pattern in a given folder across all 7DT?? telescopes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        foldername : str</span>
+<span class="sd">            Subfolder name (e.g., filter name) inside each 7DT?? directory.</span>
+<span class="sd">        show_only_numbers : bool</span>
+<span class="sd">            If True, only show counts of matched files.</span>
+<span class="sd">        pattern : str</span>
+<span class="sd">            Pattern to match FITS files (e.g., &#39;*.fits&#39;, &#39;calib*.fits&#39;).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary keyed by telescope ID, containing counts or file lists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+        <span class="n">fits_counts</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">telescope_dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSDESTDIR&#39;</span><span class="p">],</span> <span class="s1">&#39;7DT??&#39;</span><span class="p">,</span> <span class="n">foldername</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">telescope_dir</span> <span class="ow">in</span> <span class="n">telescope_dirs</span><span class="p">:</span>
+            <span class="n">telescope_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">telescope_dir</span><span class="p">))</span>
+            <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">telescope_dir</span><span class="p">,</span> <span class="n">pattern</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">show_only_numbers</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">telescope_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">telescope_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+
+        <span class="n">sorted_fits_counts</span> <span class="o">=</span> <span class="p">{</span><span class="n">tid</span><span class="p">:</span> <span class="n">fits_counts</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span> <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_counts</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sorted_fits_counts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">sorted_fits_counts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sorted_fits_counts</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_obssourcefolder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                             <span class="n">folder_key</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the contents of the source and destination directories.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Source directory:&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">],</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">,</span> <span class="n">folder_key</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="n">folder_key</span> <span class="o">=</span> <span class="n">folder_key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">folders</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;7DT&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">subfolders</span> <span class="o">=</span> <span class="p">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">sub</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()}</span>
+                <span class="n">folders</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">subfolders</span><span class="p">)</span>
+                
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sorted_folders</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">matched_folders</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">folder_key</span> <span class="ow">in</span> <span class="n">folder</span><span class="p">:</span>
+                    <span class="n">matched_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_folders</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Matching folders:&quot;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">))</span>
+                <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_obsdestfolder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                           <span class="n">folder_key</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the contents of the source and destination directories.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Source directory:&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSDESTDIR&#39;</span><span class="p">],</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">,</span> <span class="n">folder_key</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="n">folder_key</span> <span class="o">=</span> <span class="n">folder_key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">folders</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSDESTDIR&#39;</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;7DT&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">subfolders</span> <span class="o">=</span> <span class="p">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">sub</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()}</span>
+                <span class="n">folders</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">subfolders</span><span class="p">)</span>
+                
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sorted_folders</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">matched_folders</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">folder_key</span> <span class="ow">in</span> <span class="n">folder</span><span class="p">:</span>
+                    <span class="n">matched_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_folders</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Matching folders:&quot;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">))</span>
+                <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">)</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_scisourcedata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                           <span class="n">targetname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                           <span class="n">show_only_numbers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> 
+                           <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;filter&#39;</span><span class="p">,</span>  <span class="c1"># &#39;filter&#39; or &#39;telescope&#39;</span>
+                           <span class="n">file_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*.fits&#39;</span>  <span class="c1"># e.g., &#39;*.fits&#39;, &#39;calib*.fits&#39;</span>
+                           <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the number of FITS files matching a pattern for each specified folder across all 7DT?? directories.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        targetname : str</span>
+<span class="sd">            Target name under SDTDATA_SCISOURCEDIR.</span>
+<span class="sd">        show_only_numbers : bool</span>
+<span class="sd">            If True, only show counts instead of filenames.</span>
+<span class="sd">        key : str</span>
+<span class="sd">            &#39;filter&#39; (default) to group by filter folders under telescopes, or &#39;telescope&#39; to group only by telescope.</span>
+<span class="sd">        file_pattern : str</span>
+<span class="sd">            File pattern to match FITS files, e.g., &#39;*.fits&#39;, &#39;calib*.fits&#39;, &#39;*stack*.fits&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary of telescope or filter-wise counts or file lists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+        <span class="n">fits_counts</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;filter&#39;</span><span class="p">:</span>
+            <span class="n">dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;telescope&#39;</span><span class="p">:</span>
+            <span class="n">dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid key. Must be &#39;filter&#39; or &#39;telescope&#39;.&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+            <span class="n">id_</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;filter&#39;</span><span class="p">:</span>
+                <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">file_pattern</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="n">file_pattern</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">id_</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fits_counts</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">show_only_numbers</span> <span class="k">else</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="n">show_only_numbers</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">fits_files</span><span class="p">))</span>
+
+        <span class="n">sorted_fits_counts</span> <span class="o">=</span> <span class="p">{</span><span class="n">id_</span><span class="p">:</span> <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="k">for</span> <span class="n">id_</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_counts</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sorted_fits_counts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">sorted_fits_counts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sorted_fits_counts</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_scidestdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                         <span class="n">targetname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                         <span class="n">show_only_numbers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;filter&#39;</span><span class="p">,</span>  <span class="c1"># &#39;filter&#39; or &#39;telescope&#39;</span>
+                         <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*.fits&#39;</span>  <span class="c1"># e.g., &#39;*.fits&#39;, &#39;calib*.fits&#39;</span>
+                         <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the number of FITS files matching a pattern for each specified folder across all 7DT?? directories.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        targetname : str</span>
+<span class="sd">            Target name under SDTDATA_SCIDESTDIR.</span>
+<span class="sd">        show_only_numbers : bool</span>
+<span class="sd">            If True, only show counts instead of filenames.</span>
+<span class="sd">        key : str</span>
+<span class="sd">            &#39;filter&#39; (default) to group by filter folders under telescopes, or &#39;telescope&#39; to group only by telescope.</span>
+<span class="sd">        pattern : str</span>
+<span class="sd">            File pattern to match FITS files, e.g., &#39;*.fits&#39;, &#39;calib*.fits&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary of telescope or filter-wise counts or file lists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+        <span class="n">fits_counts</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;filter&#39;</span><span class="p">:</span>
+            <span class="n">dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCIDESTDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;telescope&#39;</span><span class="p">:</span>
+            <span class="n">dirs</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCIDESTDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="s2">&quot;7DT??&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid key. Must be &#39;filter&#39; or &#39;telescope&#39;.&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+            <span class="n">id_</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;filter&#39;</span><span class="p">:</span>
+                <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">pattern</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fits_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">id_</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fits_counts</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">show_only_numbers</span> <span class="k">else</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="n">show_only_numbers</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fits_files</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">fits_files</span><span class="p">))</span>
+
+        <span class="n">sorted_fits_counts</span> <span class="o">=</span> <span class="p">{</span><span class="n">id_</span><span class="p">:</span> <span class="n">fits_counts</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="k">for</span> <span class="n">id_</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fits_counts</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sorted_fits_counts</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No matching folders found.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">sorted_fits_counts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sorted_fits_counts</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_scisourcefolder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                             <span class="n">folder_key</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the contents of the source directory.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        folder_key : str</span>
+<span class="sd">            The folder key to show.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of folder names: list</span>
+<span class="sd">            List of folder names that match the folder key.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Source directory:&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">],</span> <span class="n">folder_key</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="n">folder_key</span> <span class="o">=</span> <span class="n">folder_key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">matched_folders</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_targets</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">all_targets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">folder_key</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
+                <span class="n">matched_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">all_matched_folders</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_matched_folders</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_obsdestfolder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                           <span class="n">folder_key</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shows the contents of the source and destination directories.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        folder_key : str</span>
+<span class="sd">            The folder key to show.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of folder names: list</span>
+<span class="sd">            List of folder names that match the folder key.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Source directory:&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCIDESTDIR&#39;</span><span class="p">],</span> <span class="n">folder_key</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">folder_key</span><span class="p">:</span>
+            <span class="n">folder_key</span> <span class="o">=</span> <span class="n">folder_key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">matched_folders</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_targets</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCIDESTDIR&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">all_targets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">folder_key</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
+                <span class="n">matched_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">all_matched_folders</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">matched_folders</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_matched_folders</span><span class="p">)</span>
+            
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_obsrsync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">telescope_id</span><span class="p">,</span> <span class="n">foldername</span><span class="p">):</span>
+        <span class="n">src_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">],</span> <span class="n">telescope_id</span><span class="p">,</span> <span class="n">foldername</span><span class="p">)</span>
+        <span class="n">dest_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSDESTDIR&#39;</span><span class="p">],</span> <span class="n">telescope_id</span><span class="p">,</span> <span class="n">foldername</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">src_folder</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Source folder does not exist: </span><span class="si">{</span><span class="n">src_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+            
+        <span class="c1"># Ensure destination directory exists</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dest_folder</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Rsync all files to the temporary location</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rsync&quot;</span><span class="p">,</span> <span class="s2">&quot;-av&quot;</span><span class="p">,</span> <span class="s2">&quot;--progress&quot;</span><span class="p">,</span> <span class="n">src_folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">dest_folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Moving all files for </span><span class="si">{</span><span class="n">telescope_id</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">dest_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dest_folder</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_scirsync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">telescope_id</span><span class="p">,</span> <span class="n">targetname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Moves all FITS files from a telescope&#39;s folder into a temporary directory.</span>
+
+<span class="sd">        :param telescope_id: The specific telescope folder (e.g., &#39;7DT01&#39;, &#39;7DT02&#39;)</span>
+<span class="sd">        :param targetname: The folder containing FITS files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">src_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCISOURCEDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="n">telescope_id</span><span class="p">)</span>
+        <span class="n">dest_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_SCIDESTDIR&#39;</span><span class="p">],</span> <span class="n">targetname</span><span class="p">,</span> <span class="n">telescope_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">src_folder</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Source folder does not exist: </span><span class="si">{</span><span class="n">src_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+            
+        <span class="c1"># Ensure destination directory exists</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">dest_folder</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Rsync all files to the temporary location</span>
+        <span class="c1">#cmd = [&quot;rsync&quot;, &quot;-av&quot;, &quot;--progress&quot;, &quot;--exclude&quot;, &quot;*.png&quot;, &quot;--exclude&quot;, &quot;*.cat&quot;, src_folder + &quot;/&quot;, dest_folder + &quot;/&quot;]</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rsync&quot;</span><span class="p">,</span> <span class="s2">&quot;-av&quot;</span><span class="p">,</span> <span class="s2">&quot;--progress&quot;</span><span class="p">,</span> <span class="s2">&quot;--exclude&quot;</span><span class="p">,</span> <span class="s2">&quot;*.png&quot;</span><span class="p">,</span> <span class="n">src_folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">dest_folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Moving all files for </span><span class="si">{</span><span class="n">telescope_id</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">dest_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dest_folder</span></div>
+
+    
+
+<span class="c1">#%%</span>
+<span class="c1"># Example usage:</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">foldername</span> <span class="o">=</span> <span class="s2">&quot;2025&quot;</span>  <span class="c1"># Add required folder keys</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">SDTDataQuerier</span><span class="p">()</span>
+    <span class="c1">#tbl = self.show_destdata(&#39;2025-02-10_gain0&#39;)</span>
+    <span class="n">tile_id_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+    <span class="s2">&quot;T22956&quot;</span>
+    <span class="p">])</span>
+    <span class="c1">#self.sync_obsdata(foldername)</span>
+    <span class="c1">#data = self.show_scisourcedata(targetname)</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+    <span class="k">for</span> <span class="n">targetname</span> <span class="ow">in</span> <span class="n">tile_id_list</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Syncing data for target: </span><span class="si">{</span><span class="n">targetname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_scidata</span><span class="p">(</span><span class="n">targetname</span> <span class="o">=</span> <span class="n">targetname</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="c1">#sync_manager.sync_all_folders(folder_keys)</span>
+
+<span class="c1"># %%</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

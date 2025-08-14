@@ -1,0 +1,742 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ezphot.dataobjects.catalogset &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ezphot.dataobjects.catalogset</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ezphot.dataobjects.catalogset</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1">#%%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">fits</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">Time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.table</span><span class="w"> </span><span class="kn">import</span> <span class="n">Table</span><span class="p">,</span> <span class="n">vstack</span><span class="p">,</span> <span class="n">join</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">SkyCoord</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">astropy.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">u</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessPoolExecutor</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">Configuration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.dataobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">Catalog</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+
+<span class="c1">#%%</span>
+
+<div class="viewcode-block" id="CatalogSet">
+<a class="viewcode-back" href="../../../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CatalogSet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    CatalogSet class for managing a set of catalogs.</span>
+<span class="sd">    </span>
+<span class="sd">    This class provides methods </span>
+<span class="sd">    </span>
+<span class="sd">    1. Search for catalogs in the given folder.</span>
+<span class="sd">    </span>
+<span class="sd">    2. Select catalogs with given criteria.</span>
+<span class="sd">    </span>
+<span class="sd">    3. Exclude catalogs with given criteria.</span>
+<span class="sd">    </span>
+<span class="sd">    4. Add catalogs to the set.</span>
+<span class="sd">    </span>
+<span class="sd">    5. Merge catalogs into single table.</span>
+<span class="sd">        </span>
+<span class="sd">    6. Select sources from each Catalog instance.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="CatalogSet.__init__">
+<a class="viewcode-back" href="../../../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalogs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Catalog</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the CatalogSet class.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        catalogs : list[Catalog], optional</span>
+<span class="sd">            List of Catalog instances. Defaults to None. If None, the CatalogSet will be dummy instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span> <span class="o">=</span> <span class="n">catalogs</span> <span class="k">if</span> <span class="n">catalogs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_filter</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">file_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">exptime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">objname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">obs_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">obs_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">seeing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">depth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">observatory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">telname</span><span class="o">=</span><span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_mode</span> <span class="o">=</span> <span class="s2">&quot;select&quot;</span>  <span class="c1"># &lt;-- Track last mode (select or exclude)</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        
+        <span class="n">txt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;CatalogSet[n_selected/n_catalogs= </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">)</span><span class="si">}</span><span class="s2">] </span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">txt</span> <span class="o">+=</span> <span class="s1">&#39;SELECT FILTER ============</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_filter</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;!&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_mode</span> <span class="o">==</span> <span class="s2">&quot;exclude&quot;</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">txt</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">key</span><span class="si">:</span><span class="s2">&gt;11</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">txt</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                        <span class="n">target_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">search_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;.cat&#39;</span><span class="p">,</span>
+                        <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">n_proc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Search for catalogs in the given folder.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_name : str</span>
+<span class="sd">            Name of the target.</span>
+<span class="sd">        search_key : str</span>
+<span class="sd">            Search key for catalogs.</span>
+<span class="sd">        folder : str, optional</span>
+<span class="sd">            Folder to search for catalogs.</span>
+<span class="sd">        recursive : bool, optional</span>
+<span class="sd">            If True, search recursively in the given folder.</span>
+<span class="sd">        n_proc : int, optional</span>
+<span class="sd">            Number of processes to use for loading catalogs.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        succeeded_catalogs : list[Catalog]</span>
+<span class="sd">            List of Catalog instances that were successfully loaded.</span>
+<span class="sd">        failed_catalogs : list[str]</span>
+<span class="sd">            List of paths that failed to load.</span>
+<span class="sd">        skipped_catalogs : list[str]</span>
+<span class="sd">            List of paths that were skipped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SCIDATA_DIR&#39;</span><span class="p">]</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+
+        <span class="n">target_dir</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">folder</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">target_name</span><span class="si">}</span><span class="s2">*&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Folder found: </span><span class="si">{</span><span class="n">target_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">target_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] No matching subdirectory for target_name: </span><span class="si">{</span><span class="n">target_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">catalog_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">target_dir</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">search_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span> <span class="k">if</span> <span class="n">recursive</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">target_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">search_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog files: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">catalog_files</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">existing_paths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">]</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[(</span><span class="n">catalog_file</span><span class="p">,</span> <span class="n">existing_paths</span><span class="p">)</span> <span class="k">for</span> <span class="n">catalog_file</span> <span class="ow">in</span> <span class="n">catalog_files</span><span class="p">]</span>
+
+        <span class="n">succeeded_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">failed_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">skipped_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">n_proc</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_load_catalog_worker</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading catalogs&quot;</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">status</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">catalog</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;success&#39;</span><span class="p">:</span>
+                <span class="n">succeeded_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">catalog</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[LOADED] </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;skipped&#39;</span><span class="p">:</span>
+                <span class="n">skipped_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[SKIPPED] </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">failed_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[FAILED] </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">succeeded_catalogs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">succeeded_catalogs</span><span class="p">,</span> <span class="n">failed_catalogs</span><span class="p">,</span> <span class="n">skipped_catalogs</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">max_distance_arcsec</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">ra_key</span><span class="o">=</span><span class="s1">&#39;X_WORLD&#39;</span><span class="p">,</span>
+        <span class="n">dec_key</span><span class="o">=</span><span class="s1">&#39;Y_WORLD&#39;</span><span class="p">,</span>
+        <span class="n">data_keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;MAGSKY_AUTO&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_AUTO&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGSKY_APER&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_APER&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;MAGSKY_APER_1&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_APER_1&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGSKY_APER_2&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_APER_2&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;MAGSKY_APER_3&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_APER_3&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGSKY_CIRC&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGERR_CIRC&#39;</span><span class="p">],</span>
+        <span class="n">join_type</span><span class="o">=</span><span class="s1">&#39;outer&#39;</span>
+        <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Merge catalogs into single table.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        max_distance_arcsec : float, optional</span>
+<span class="sd">            Maximum distance in arcseconds for matching sources.</span>
+<span class="sd">        ra_key : str, optional</span>
+<span class="sd">            Column name for right ascension.</span>
+<span class="sd">        dec_key : str, optional</span>
+<span class="sd">            Column name for declination.</span>
+<span class="sd">        data_keys : list[str], optional</span>
+<span class="sd">            List of column names for data.</span>
+<span class="sd">        join_type : str, optional</span>
+<span class="sd">            Type of join to use.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        merged_tbl : astropy.table.Table</span>
+<span class="sd">            Merged table of catalogs.</span>
+<span class="sd">        metadata : dict</span>
+<span class="sd">            Metadata of catalogs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">astropy.coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">SkyCoord</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">astropy.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">u</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+        <span class="n">catalogs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span>
+        <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Step 1: Load and preprocess all catalogs</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">catalog</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">catalogs</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">catalogs</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Preparing catalogs&quot;</span><span class="p">):</span>
+            <span class="n">tbl</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">target_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">ra</span> <span class="o">=</span> <span class="n">tbl</span><span class="p">[</span><span class="n">ra_key</span><span class="p">]</span>
+            <span class="n">dec</span> <span class="o">=</span> <span class="n">tbl</span><span class="p">[</span><span class="n">dec_key</span><span class="p">]</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">ra</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dec</span><span class="p">)</span>
+            <span class="n">tbl</span> <span class="o">=</span> <span class="n">tbl</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tbl</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">tbl</span><span class="p">[</span><span class="n">ra_key</span><span class="p">])</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">tbl</span><span class="p">[</span><span class="n">dec_key</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Still create a dummy DataFrame with NaNs</span>
+                <span class="n">n_dummy</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># You can make this 1 or 0, depending on downstream needs</span>
+                <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_dummy</span><span class="p">,</span> <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_dummy</span><span class="p">}</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data_keys</span><span class="p">:</span>
+                    <span class="n">colname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">_idx</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="n">row</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_dummy</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+                <span class="n">df</span><span class="p">[</span><span class="s1">&#39;catalog_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">df</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+                <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SkyCoord</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">n_dummy</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">n_dummy</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">))</span>  <span class="c1"># dummy coords</span>
+                <span class="n">metadata</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="n">metadata</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+            <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="n">tbl</span><span class="p">[</span><span class="n">ra_key</span><span class="p">],</span> <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="n">tbl</span><span class="p">[</span><span class="n">dec_key</span><span class="p">]}</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data_keys</span><span class="p">:</span>
+                <span class="n">colname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">_idx</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">row</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span> <span class="o">=</span> <span class="n">tbl</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">tbl</span><span class="o">.</span><span class="n">colnames</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tbl</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+            <span class="n">df</span><span class="p">[</span><span class="s1">&#39;catalog_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">df</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># placeholder</span>
+            <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SkyCoord</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="p">{}</span>
+
+        <span class="c1"># Step 2: Initialize merged_df with first catalog</span>
+        <span class="n">merged_df</span> <span class="o">=</span> <span class="n">dfs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">merged_df</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Merging catalogs&quot;</span><span class="p">):</span>
+            <span class="n">c1</span> <span class="o">=</span> <span class="n">SkyCoord</span><span class="p">(</span><span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">,</span> <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">)</span>
+            <span class="n">c2</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">df2</span> <span class="o">=</span> <span class="n">dfs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="c1"># Match c2 ? c1</span>
+            <span class="n">idx</span><span class="p">,</span> <span class="n">d2d</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">c2</span><span class="o">.</span><span class="n">match_to_catalog_sky</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+            <span class="n">sep_mask</span> <span class="o">=</span> <span class="n">d2d</span><span class="o">.</span><span class="n">arcsec</span> <span class="o">&lt;</span> <span class="n">max_distance_arcsec</span>
+            <span class="n">df2</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">sep_mask</span><span class="p">,</span> <span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="n">sep_mask</span><span class="p">]][</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
+            <span class="n">matched</span> <span class="o">=</span> <span class="n">df2</span><span class="p">[</span><span class="n">df2</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">unmatched</span> <span class="o">=</span> <span class="n">df2</span><span class="p">[</span><span class="n">df2</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="c1"># Assign new match_id for unmatched</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unmatched</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">unmatched</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+                    <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;match_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">unmatched</span><span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Avoid duplicated column merge</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="n">matched</span><span class="p">[[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">matched</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">col</span> <span class="o">==</span> <span class="s1">&#39;match_id&#39;</span><span class="p">]]</span>
+            <span class="n">merged_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">merged_df</span><span class="p">,</span> <span class="n">matched</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">&#39;match_id&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="n">join_type</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">join_type</span> <span class="o">==</span> <span class="s1">&#39;outer&#39;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">unmatched</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">merged_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">merged_df</span><span class="p">,</span> <span class="n">unmatched</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Step 3: Add detection count</span>
+        <span class="n">main_key</span> <span class="o">=</span> <span class="n">data_keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">match_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">main_key</span><span class="p">)]</span>
+        <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;n_detections&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="n">match_cols</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Remove columns that are completely NaN (dummy columns)</span>
+        <span class="n">idx_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="s1">&#39;_idx&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">]</span>
+        <span class="n">is_dummy_row</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="n">idx_cols</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">merged_df</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="o">~</span><span class="n">is_dummy_row</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">merged_tbl</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">from_pandas</span><span class="p">(</span><span class="n">merged_df</span><span class="p">)</span>
+        
+        <span class="c1"># Add coord column</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">SkyCoord</span><span class="p">(</span><span class="n">ra</span><span class="o">=</span><span class="n">merged_tbl</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">,</span> <span class="n">dec</span><span class="o">=</span><span class="n">merged_tbl</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="p">)</span>
+        <span class="n">merged_tbl</span><span class="p">[</span><span class="s1">&#39;coord&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">coord</span>
+        <span class="k">return</span> <span class="n">merged_tbl</span><span class="p">,</span> <span class="n">metadata</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exclude_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                        <span class="n">file_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">exptime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">objname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">obs_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">obs_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">seeing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">depth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">observatory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">telname</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Exclude catalogs that match the given criteria from self.catalogs.</span>
+<span class="sd">        </span>
+<span class="sd">        Select catalogs from self.catalogs and update self.target_catalogs.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_key : str, optional</span>
+<span class="sd">            File key to exclude.</span>
+<span class="sd">        filter : str, optional</span>
+<span class="sd">            Filter to exclude.</span>
+<span class="sd">        exptime : float, optional</span>
+<span class="sd">            Exposure time to exclude.</span>
+<span class="sd">        objname : str, optional</span>
+<span class="sd">            Object name to exclude.</span>
+<span class="sd">        obs_start : str, optional</span>
+<span class="sd">            Observation start time to exclude.</span>
+<span class="sd">        obs_end : str, optional </span>
+<span class="sd">            Observation end time to exclude.</span>
+<span class="sd">        seeing : float, optional</span>
+<span class="sd">            Seeing to exclude.</span>
+<span class="sd">        depth : float, optional</span>
+<span class="sd">            Depth to exclude.</span>
+<span class="sd">        observatory : str, optional</span>
+<span class="sd">            Observatory to exclude.</span>
+<span class="sd">        telname : str, optional</span>
+<span class="sd">            Telescope name to exclude.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span>
+
+        <span class="c1"># Convert inputs to arrays</span>
+        <span class="k">if</span> <span class="n">file_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_key</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">file_key</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">file_key</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">key</span> <span class="k">else</span> <span class="n">key</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="nb">filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">filter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="nb">filter</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;filter&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="nb">filter</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">exptime</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">exptime</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">exptime</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;exptime&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">exptime</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">objname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">objname</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">objname</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;objname&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">objname</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">obs_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">obs_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">flexible_time_parser</span><span class="p">(</span><span class="n">obs_start</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Time</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;obsdate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span> <span class="o">&lt;</span> <span class="n">obs_start</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">obs_end</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">obs_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">flexible_time_parser</span><span class="p">(</span><span class="n">obs_end</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Time</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;obsdate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span> <span class="o">&gt;</span> <span class="n">obs_end</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">seeing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;seeing&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">seeing</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">depth</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">observatory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">observatory</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">observatory</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;observatory&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">observatory</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">telname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">telname</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">telname</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;telname&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">telname</span><span class="p">)]</span>
+
+        <span class="c1"># Update target_catalogs</span>
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;file_key&#39;</span><span class="p">:</span> <span class="n">file_key</span><span class="p">,</span>
+            <span class="s1">&#39;filter&#39;</span><span class="p">:</span> <span class="nb">filter</span><span class="p">,</span>
+            <span class="s1">&#39;exptime&#39;</span><span class="p">:</span> <span class="n">exptime</span><span class="p">,</span>
+            <span class="s1">&#39;objname&#39;</span><span class="p">:</span> <span class="n">objname</span><span class="p">,</span>
+            <span class="s1">&#39;obs_start&#39;</span><span class="p">:</span> <span class="n">obs_start</span><span class="p">,</span>
+            <span class="s1">&#39;obs_end&#39;</span><span class="p">:</span> <span class="n">obs_end</span><span class="p">,</span>
+            <span class="s1">&#39;seeing&#39;</span><span class="p">:</span> <span class="n">seeing</span><span class="p">,</span>
+            <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">depth</span><span class="p">,</span>
+            <span class="s1">&#39;observatory&#39;</span><span class="p">:</span> <span class="n">observatory</span><span class="p">,</span>
+            <span class="s1">&#39;telname&#39;</span><span class="p">:</span> <span class="n">telname</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[INFO] Excluded catalogs based on given criteria. Remaining: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">select_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                        <span class="n">file_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">exptime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">objname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">obs_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                        <span class="n">obs_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">seeing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">depth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">observatory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">telname</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select catalogs that match the given criteria from self.catalogs.</span>
+<span class="sd">        </span>
+<span class="sd">        Select catalogs from self.catalogs and update self.target_catalogs.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_key : str, optional</span>
+<span class="sd">            File key to select.</span>
+<span class="sd">        filter : str, optional</span>
+<span class="sd">            Filter to select.   </span>
+<span class="sd">        exptime : float, optional</span>
+<span class="sd">            Exposure time to select.</span>
+<span class="sd">        objname : str, optional</span>
+<span class="sd">            Object name to select.</span>
+<span class="sd">        obs_start : str, optional</span>
+<span class="sd">            Observation start time to select.</span>
+<span class="sd">        obs_end : str, optional</span>
+<span class="sd">            Observation end time to select.</span>
+<span class="sd">        seeing : float, optional</span>
+<span class="sd">            Seeing to select.</span>
+<span class="sd">        depth : float, optional</span>
+<span class="sd">            Depth to select.</span>
+<span class="sd">        observatory : str, optional</span>
+<span class="sd">            Observatory to select.</span>
+<span class="sd">        telname : str, optional</span>
+<span class="sd">            Telescope name to select.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span>
+
+        <span class="c1"># Convert inputs to arrays</span>
+        <span class="k">if</span> <span class="n">file_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_key</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">file_key</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">file_key</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">key</span> <span class="k">else</span> <span class="n">key</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="nb">filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">filter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="nb">filter</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;filter&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="nb">filter</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">exptime</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">exptime</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">exptime</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;exptime&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">exptime</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">objname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">objname</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">objname</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;objname&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">objname</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">obs_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">obs_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">flexible_time_parser</span><span class="p">(</span><span class="n">obs_start</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Time</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;obsdate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="n">obs_start</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">obs_end</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">obs_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">flexible_time_parser</span><span class="p">(</span><span class="n">obs_end</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Time</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;obsdate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span> <span class="o">&lt;=</span> <span class="n">obs_end</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">seeing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;seeing&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">seeing</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">depth</span><span class="p">]</span>
+            
+        <span class="k">if</span> <span class="n">observatory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">observatory</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">observatory</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;observatory&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">observatory</span><span class="p">)]</span>
+            
+        <span class="k">if</span> <span class="n">telname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">telname</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">telname</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;telname&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">telname</span><span class="p">)]</span>
+
+        <span class="c1"># Update target_catalogs</span>
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;file_key&#39;</span><span class="p">:</span> <span class="n">file_key</span><span class="p">,</span>
+            <span class="s1">&#39;filter&#39;</span><span class="p">:</span> <span class="nb">filter</span><span class="p">,</span>
+            <span class="s1">&#39;exptime&#39;</span><span class="p">:</span> <span class="n">exptime</span><span class="p">,</span>
+            <span class="s1">&#39;objname&#39;</span><span class="p">:</span> <span class="n">objname</span><span class="p">,</span>
+            <span class="s1">&#39;obs_start&#39;</span><span class="p">:</span> <span class="n">obs_start</span><span class="p">,</span>
+            <span class="s1">&#39;obs_end&#39;</span><span class="p">:</span> <span class="n">obs_end</span><span class="p">,</span>
+            <span class="s1">&#39;seeing&#39;</span><span class="p">:</span> <span class="n">seeing</span><span class="p">,</span>
+            <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">depth</span><span class="p">,</span>
+            <span class="s1">&#39;observatory&#39;</span><span class="p">:</span> <span class="n">observatory</span><span class="p">,</span>
+            <span class="s1">&#39;telname&#39;</span><span class="p">:</span> <span class="n">telname</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_mode</span> <span class="o">=</span> <span class="s2">&quot;select&quot;</span>  <span class="c1"># &lt;-- mark as select</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_catalogs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                     <span class="n">catalogs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Catalog</span><span class="p">],</span> <span class="n">Catalog</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add catalogs to the dataset.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">catalogs</span><span class="p">,</span> <span class="n">Catalog</span><span class="p">):</span>
+            <span class="n">catalogs</span> <span class="o">=</span> <span class="p">[</span><span class="n">catalogs</span><span class="p">]</span>
+            
+        <span class="n">succeeded_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">failed_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">skipped_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">existing_paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">cat</span><span class="o">.</span><span class="n">path</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">catalog</span> <span class="ow">in</span> <span class="n">catalogs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">catalog</span><span class="o">.</span><span class="n">path</span> <span class="ow">in</span> <span class="n">existing_paths</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] Catalog already exists: </span><span class="si">{</span><span class="n">catalog</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">skipped_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">catalog</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">catalog</span><span class="o">.</span><span class="n">is_loaded</span><span class="p">:</span>
+                <span class="n">load_result</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">load_target_img</span><span class="p">(</span><span class="n">target_img</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">load_result</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="n">original_img</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">find_corresponding_fits</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">original_img</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">target_img</span> <span class="o">=</span> <span class="n">ScienceImage</span><span class="p">(</span><span class="n">original_img</span><span class="p">,</span> <span class="n">telinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">estimate_telinfo</span><span class="p">(</span><span class="n">original_img</span><span class="p">),</span> <span class="n">load</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="n">load_result</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">load_target_img</span><span class="p">(</span><span class="n">target_img</span><span class="o">=</span><span class="n">target_img</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">catalog</span><span class="o">.</span><span class="n">is_loaded</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded catalog: </span><span class="si">{</span><span class="n">catalog_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">succeeded_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">catalog</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[ERROR] Failed to load catalog: </span><span class="si">{</span><span class="n">catalog_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">failed_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">)</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">succeeded_catalogs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">succeeded_catalogs</span><span class="p">,</span> <span class="n">failed_catalogs</span><span class="p">,</span> <span class="n">skipped_catalogs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">select_sources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">radius</span> <span class="o">=</span> <span class="mi">60</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select sources from all catalogs within the given radius around the input coordinates.</span>
+<span class="sd">        </span>
+<span class="sd">        Each catalog will be updated with the selected sources.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ra : float</span>
+<span class="sd">            Right Ascension in degrees.</span>
+<span class="sd">        dec : float</span>
+<span class="sd">            Declination in degrees.</span>
+<span class="sd">        radius : float</span>
+<span class="sd">            Search radius in arcseconds.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_catalogs</span><span class="p">,</span> <span class="n">desc</span> <span class="o">=</span> <span class="s1">&#39;Selecting sources...&#39;</span><span class="p">):</span>
+            <span class="n">cat</span><span class="o">.</span><span class="n">select_sources</span><span class="p">(</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;coord&#39;</span><span class="p">,</span> <span class="n">matching_radius</span><span class="o">=</span><span class="n">radius</span><span class="p">)</span>
+        
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">df</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a DataFrame containing metadata of all catalogs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalogs</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">cat</span><span class="o">.</span><span class="n">info</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s1">&#39;catalog&#39;</span><span class="p">:</span> <span class="n">cat</span><span class="p">,</span>
+                <span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="s1">&#39;filter&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">filter</span><span class="p">,</span>
+                <span class="s1">&#39;exptime&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">exptime</span><span class="p">,</span>
+                <span class="s1">&#39;obsdate&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">obsdate</span><span class="p">,</span>
+                <span class="s1">&#39;observatory&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">observatory</span><span class="p">,</span>
+                <span class="s1">&#39;telname&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">telname</span><span class="p">,</span>
+                <span class="s1">&#39;objname&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">objname</span><span class="p">,</span>
+                <span class="s1">&#39;seeing&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">seeing</span><span class="p">,</span>
+                <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">depth</span><span class="p">,</span>
+                <span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">ra</span><span class="p">,</span>
+                <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">dec</span><span class="p">,</span>
+                <span class="s1">&#39;fov_ra&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">fov_ra</span><span class="p">,</span>
+                <span class="s1">&#39;fov_dec&#39;</span><span class="p">:</span> <span class="n">info</span><span class="o">.</span><span class="n">fov_dec</span><span class="p">,</span>
+            <span class="p">})</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_catalog_worker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">catalog_file</span><span class="p">,</span> <span class="n">existing_paths</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">)</span> <span class="ow">in</span> <span class="n">existing_paths</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;skipped&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">),</span> <span class="kc">None</span>
+
+            <span class="n">catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">catalog_file</span><span class="p">,</span> <span class="n">catalog_type</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">load</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">catalog</span><span class="o">.</span><span class="n">is_loaded</span><span class="p">:</span>
+                <span class="n">load_result</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">load_target_img</span><span class="p">(</span><span class="n">target_img</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">catalog</span><span class="o">.</span><span class="n">is_loaded</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;success&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">),</span> <span class="n">catalog</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;failed&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">),</span> <span class="kc">None</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;failed&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">catalog_file</span><span class="p">),</span> <span class="kc">None</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_sources_worker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">catalog</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">radius</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="n">matched</span><span class="p">,</span> <span class="n">sep</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">search_sources</span><span class="p">(</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;coord&#39;</span><span class="p">,</span> <span class="n">matching_radius</span><span class="o">=</span><span class="n">radius</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">catalog</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">matched</span><span class="p">,</span> <span class="n">sep</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<span class="c1">#%%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">CatalogSet</span><span class="p">()</span>
+    <span class="n">target_name</span> <span class="o">=</span> <span class="s1">&#39;T01358&#39;</span>
+    <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">load</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">search_key</span> <span class="o">=</span> <span class="s1">&#39;100.fits.cat&#39;</span>  <span class="c1"># Default search key for catalogs</span>
+    <span class="n">succeeded</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">skipped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_catalogs</span><span class="p">(</span>
+        <span class="n">target_name</span><span class="o">=</span><span class="n">target_name</span><span class="p">,</span>
+        <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+        <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">,</span>
+        <span class="n">search_key</span><span class="o">=</span><span class="n">search_key</span><span class="p">,</span>
+        <span class="n">n_proc</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="p">)</span>
+<span class="c1">#%%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">select_sources</span><span class="p">(</span><span class="n">ra</span> <span class="o">=</span> <span class="mf">234.14732382</span><span class="p">,</span> <span class="n">dec</span> <span class="o">=</span> <span class="mf">11.503295046</span><span class="p">,</span> <span class="n">radius</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+<span class="c1">#%%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">select_catalogs</span><span class="p">(</span>
+        <span class="nb">filter</span> <span class="o">=</span> <span class="s1">&#39;g&#39;</span>
+    <span class="p">)</span>
+<span class="c1">#%%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">result1</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">merge_catalogs_fast</span><span class="p">(</span>
+        <span class="n">ra_key</span><span class="o">=</span><span class="s1">&#39;X_WORLD&#39;</span><span class="p">,</span>
+        <span class="n">dec_key</span><span class="o">=</span><span class="s1">&#39;Y_WORLD&#39;</span><span class="p">,</span>
+        <span class="n">join_type</span> <span class="o">=</span> <span class="s1">&#39;outer&#39;</span>
+    <span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">merge_catalogs</span><span class="p">(</span>
+        
+    <span class="p">)</span>
+<span class="c1"># %%</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

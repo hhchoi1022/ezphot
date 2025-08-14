@@ -1,0 +1,234 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LightCurve &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PhotometricSpectrum" href="photometricspectrum.html" />
+    <link rel="prev" title="CatalogSet" href="catalogset.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="methods.html">Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="dataobjects.html">DataObjects</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="catalog.html">Catalog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="catalogset.html">CatalogSet</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">LightCurve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ezphot.dataobjects.lightcurve.LightCurve"><code class="docutils literal notranslate"><span class="pre">LightCurve</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.lightcurve.LightCurve.__init__"><code class="docutils literal notranslate"><span class="pre">LightCurve.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.LightCurve.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.LightCurve.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ezphot.dataobjects.LightCurve.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="photometricspectrum.html">PhotometricSpectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="dataobjects.html">DataObjects</a></li>
+      <li class="breadcrumb-item active">LightCurve</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/lightcurve.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="lightcurve">
+<h1>LightCurve<a class="headerlink" href="#lightcurve" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ezphot.dataobjects.lightcurve.LightCurve">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LightCurve</span></span><a class="reference internal" href="../_modules/ezphot/dataobjects/lightcurve.html#LightCurve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.lightcurve.LightCurve" title="Link to this definition"></a></dt>
+<dd><p>Light curve object.</p>
+<p>This object is used to plot the light curve of a source.
+It is initialized with a source_catalogs object, which is a CatalogSet object.
+The source_catalogs object is used to extract the source information from the catalogs.</p>
+<p>To change the plot parameters, modify the plt_params attribute.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ezphot.dataobjects.lightcurve.LightCurve.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_catalogs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ezphot/dataobjects/lightcurve.html#LightCurve.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.dataobjects.lightcurve.LightCurve.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize the LightCurve object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>source_catalogs</strong> (<a class="reference internal" href="catalogset.html#ezphot.dataobjects.catalogset.CatalogSet" title="ezphot.dataobjects.catalogset.CatalogSet"><em>CatalogSet</em></a>) – The source catalogs to use for the light curve.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.LightCurve.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matching_radius_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'MAGSKY_AUTO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluxerr_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'MAGERR_AUTO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'filter'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_filter_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.LightCurve.plot" title="Link to this definition"></a></dt>
+<dd><p>Plot light curve for the closest source to (ra, dec).</p>
+<p>The figure parameters are set in the plt_params attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ra</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>dec</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>matching_radius_arcsec</strong> (<em>float</em>) – Search radius for the source match.</p></li>
+<li><p><strong>flux_key</strong> (<em>str</em>) – Column name for flux.</p></li>
+<li><p><strong>fluxerr_key</strong> (<em>str</em>) – Column name for flux error.</p></li>
+<li><p><strong>color_key</strong> (<em>str</em>) – Column name for color.</p></li>
+<li><p><strong>data</strong> (<em>astropy.table.Table</em>) – Table to plot.</p></li>
+<li><p><strong>apply_filter_offsets</strong> (<em>bool</em>) – If True, apply filter offsets.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – Figure object.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – Axes object.</p></li>
+<li><p><strong>tbl</strong> (<em>astropy.table.Table</em>) – Table of data.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.LightCurve.search_source">
+<span class="sig-name descname"><span class="pre">search_source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'X_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Y_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matching_radius_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.LightCurve.search_source" title="Link to this definition"></a></dt>
+<dd><p>Search for sources in the merged catalog.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ra</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>dec</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>ra_key</strong> (<em>str</em>) – Column name for right ascension. Default is ‘X_WORLD’.</p></li>
+<li><p><strong>dec_key</strong> (<em>str</em>) – Column name for declination. Default is ‘Y_WORLD’.</p></li>
+<li><p><strong>matching_radius_arcsec</strong> (<em>float</em>) – Search radius for the source match.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ezphot.dataobjects.LightCurve.extract_source_info">
+<span class="sig-name descname"><span class="pre">extract_source_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'X_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Y_WORLD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['MAGSKY_AUTO',</span> <span class="pre">'MAGSKY_APER',</span> <span class="pre">'MAGSKY_APER_1',</span> <span class="pre">'MAGSKY_APER_2',</span> <span class="pre">'MAGSKY_APER_3',</span> <span class="pre">'MAGSKY_APER_4']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluxerr_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['MAGERR_AUTO',</span> <span class="pre">'MAGERR_APER',</span> <span class="pre">'MAGERR_APER_1',</span> <span class="pre">'MAGERR_APER_2',</span> <span class="pre">'MAGERR_APER_3',</span> <span class="pre">'MAGERR_APER_4']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matching_radius_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_filter_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.dataobjects.LightCurve.extract_source_info" title="Link to this definition"></a></dt>
+<dd><p>Extract source information from the merged catalog.</p>
+<p>Each row of the returned table will be a per-exposure record with the metadata and photometry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ra</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>dec</strong> (<em>float</em>) – Sky position in degrees.</p></li>
+<li><p><strong>ra_key</strong> (<em>str</em>) – Column name for right ascension. Default is ‘X_WORLD’.</p></li>
+<li><p><strong>dec_key</strong> (<em>str</em>) – Column name for declination. Default is ‘Y_WORLD’.</p></li>
+<li><p><strong>flux_keys</strong> (<em>str</em><em> or </em><em>sequence</em><em> of </em><em>str</em>) – Photometry value columns you want to carry over (e.g., ‘MAGSKY_APER_1’).
+Accepts a single key or a list/tuple of keys.</p></li>
+<li><p><strong>fluxerr_keys</strong> (<em>str</em><em> or </em><em>sequence</em><em> of </em><em>str</em>) – Corresponding error columns (e.g., ‘MAGERR_APER_1’). Must be same length as <cite>flux_keys</cite>.</p></li>
+<li><p><strong>matching_radius_arcsec</strong> (<em>float</em>) – Search radius for the source match.</p></li>
+<li><p><strong>fit_filter_key</strong> (<em>str</em><em> or </em><em>None</em>) – Placeholder for future use (ignored).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>One row per exposure/catalog with metadata + requested photometry.
+Returns None if no source is found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>astropy.table.Table or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="catalogset.html" class="btn btn-neutral float-left" title="CatalogSet" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="photometricspectrum.html" class="btn btn-neutral float-right" title="PhotometricSpectrum" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
