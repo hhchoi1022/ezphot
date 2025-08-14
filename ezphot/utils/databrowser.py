@@ -1,6 +1,7 @@
 
 
 #%%
+import inspect
 from pathlib import Path
 from typing import List, Union
 from functools import partial
@@ -55,7 +56,7 @@ class DataBrowser:
     def __init__(self, foldertype: str = None):
         self.helper = Helper()
         self.foldertype = foldertype
-        self.basepath = self._get_default_path(foldertype)
+        self.basepath = self._get_default_path()
         # Search attributes
         self.observatory = None
         self.telkey = None
@@ -75,8 +76,29 @@ class DataBrowser:
         txt += f"  objname     : {self.objname or '*'}\n"
         txt += f"  filter      : {self.filter or '*'}\n"
         txt += f"  obsdate     : {self.obsdate or '*'}\n"
+        txt += f'\n For help, use \'help(self)\' or `self.help()`.'
         return txt
-    
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
+
     def search(self, 
                pattern: str ='*.fits', 
                return_type: str = 'path') -> Union[dict, List[Path]]:
@@ -166,16 +188,14 @@ class DataBrowser:
         else:
             raise ValueError(f"Invalid return_type: {return_type}. Choose from 'path', 'science', 'reference', 'calibration'.")
 
-
-    def _get_default_path(self, foldertype):
+    def _get_default_path(self):
         default_path_dict = {
             "scidata": self.helper.config["SCIDATA_DIR"],
             "refdata": self.helper.config["REFDATA_DIR"],
             "calibdata": self.helper.config["CALIBDATA_DIR"],
             "mcalibdata": self.helper.config["CALIBDATA_MASTERDIR"],
-            "obsdata": self.helper.config["OBSDATA_DIR"],
-            "rawdata": Path(self.helper.config["OBSDATA_DIR"]),
-        }
+            "obsdata": self.helper.config["OBSDATA_DIR"]
+            }
         if self.foldertype not in default_path_dict:
             print(f"[WARNING] Unknown foldertype: {self.foldertype}. Available types: {list(default_path_dict.keys())}")
             return None
@@ -276,7 +296,6 @@ class DataBrowser:
         pathlib.Path
             The search path.
         """
-        basepath = self.basepath
         if self.foldertype == 'scidata' or self.foldertype == 'refdata':
             path = self.basepath / (self.observatory or '*') / (self.telkey or '*') / (self.objname or '*') / (self.telname or '*') / (self.filter or '*')
         elif self.foldertype == 'calibdata':
@@ -285,8 +304,6 @@ class DataBrowser:
             path = self.basepath / '*' / (self.observatory or '*') / (self.telkey or '*') / (self.telname or '*') / (self.imgtype or '*')
         elif self.foldertype == 'obsdata':
             path = self.basepath / (self.observatory or '*') / (self.telname or '*') / (self.obsdate or '*')
-        elif self.foldertype == 'rawdata':
-            path = self.basepath / (self.observatory or '*') / 'obsdata_from_mcs' / (self.telname or '*') / 'image' / (self.obsdate or '*')
         else:
             raise ValueError(f"Unknown foldertype: {self.foldertype}")
         return path
@@ -438,10 +455,10 @@ class DataBrowser:
 # %%
 if __name__ == '__main__':
     # Example usage
-    self = DataBrowser(foldertype='scidata')
+    self = DataBrowser(foldertype='rawdata')
     self.observatory = '7DT'
     self.objname = 'T08262'
     
-    A = self.search(pattern='calib*100.fits', return_type='science')
+    #A = self.search(pattern='calib*100.fits', return_type='science')
 
 # %%

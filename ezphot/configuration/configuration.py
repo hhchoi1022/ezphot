@@ -67,7 +67,8 @@ class Configuration:
             self.path_config_specific_telescope = self.path_config_specific / self.telkey
             self.path_config_specific_telescope.mkdir(parents=True, exist_ok=True)
             self._register_telescope()
-
+        
+        self = Configuration()
         # After creating all config files, load them and make sure all directories exist
         for path in list(self.config.values()):
             self._ensure_dirs_exist(path)
@@ -170,9 +171,9 @@ class Configuration:
             OBSERVATORY_TELESCOPEINFO = str(self.path_config_global / 'CCD.dat')
         )
         sdtdata_config = dict(
-            SDTDATA_OBSSOURCEDIR = str(self.path_data / 'obsdata' / '7DT' / 'rawdata'),
+            SDTDATA_OBSSOURCEDIR = str(self.path_data / 'connecteddata' / '7DT' / 'obsdata'),
             SDTDATA_OBSDESTDIR = str(self.path_data / 'obsdata' / '7DT'),
-            SDTDATA_SCISOURCEDIR = str(self.path_data / 'scidata' / '7DT' / 'processed_1x1_gain2750'),
+            SDTDATA_SCISOURCEDIR = str(self.path_data / 'connecteddata' / '7DT' / 'processed_1x1_gain2750'),
             SDTDATA_SCIDESTDIR = str(self.path_data / 'scidata' / '7DT' / '7DT_C361K_HIGH_1x1')
         )
 

@@ -1,4 +1,6 @@
 #%%
+from tqdm import tqdm
+import inspect
 import os
 import glob
 import subprocess
@@ -26,8 +28,30 @@ class SDTDataQuerier:
         self.helper = Helper()
         self.folders = []
         self.ccd = ccd
-        
 
+    def __repr__(self):
+        return f"SDTDataQuerier(ccd={self.ccd})\n For help, use 'help(self)' or `self.help()`."
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
+        
     def sync_obsdata(self, 
                      foldername: str):
         """
@@ -108,9 +132,10 @@ class SDTDataQuerier:
         fits_counts = {}
 
         # Find all 7DT?? telescope directories
-        telescope_dirs = glob.glob(os.path.join(self.config['SDTDATA_OBSSOURCEDIR'], "7DT??"))
+        telescope_dirs = glob.glob(os.path.join(self.helper.config['SDTDATA_OBSSOURCEDIR'], "7DT??"))
+        print(f"Found {len(telescope_dirs)} telescope directories.")
 
-        for telescope_dir in telescope_dirs:
+        for telescope_dir in tqdm(telescope_dirs, desc="Searching telescopes..."):
             telescope_id = os.path.basename(telescope_dir)
             folder_path = os.path.join(telescope_dir, foldername)
 
@@ -123,12 +148,12 @@ class SDTDataQuerier:
                     fits_counts[telescope_id] = sorted(fits_files)
 
         sorted_fits_counts = {tid: fits_counts[tid] for tid in sorted(fits_counts)}
+        total_counts = sum([len(files) if isinstance(files, list) else files for files in sorted_fits_counts.values()])
 
         if not sorted_fits_counts:
-            print("No matching folders found.")
+            print("No matched folders found.")
         else:
-            print(sorted_fits_counts)
-
+            print(f"Total files found: {total_counts}")
         return sorted_fits_counts
 
     def show_obsdestdata(self, 
@@ -171,7 +196,7 @@ class SDTDataQuerier:
         sorted_fits_counts = {tid: fits_counts[tid] for tid in sorted(fits_counts)}
 
         if not sorted_fits_counts:
-            print("No matching folders found.")
+            print("No matched folders found.")
         else:
             print(sorted_fits_counts)
 
@@ -179,7 +204,7 @@ class SDTDataQuerier:
 
 
     def show_obssourcefolder(self, 
-                             folder_key : str = None):
+                             folder_key : str = '*'):
         """
         Shows the contents of the source and destination directories.
         """
@@ -193,21 +218,20 @@ class SDTDataQuerier:
             if entry.is_dir() and entry.name.startswith("7DT") and len(entry.name) == 5:
                 subfolders = {os.path.join(sub.name) for sub in os.scandir(entry.path) if sub.is_dir()}
                 folders.update(subfolders)
+            
+        sorted_folders = sorted(folders)
                 
-        if not folder_key:
-            return sorted_folders
-        else:
-            matched_folders = []
-            for folder in folders:
-                if folder_key in folder:
-                    matched_folders.append(folder)
-                else:
-                    pass
-            if not matched_folders:
-                print("No matching folders found.")
+        matched_folders = []
+        for folder in sorted_folders:
+            if folder_key in folder:
+                matched_folders.append(folder)
             else:
-                print("Matching folders:", sorted(matched_folders))
-                return sorted(matched_folders)
+                pass
+        if not matched_folders:
+            print("No matched folders found.")
+        else:
+            print(f"{len(matched_folders)} folders found.")
+            return matched_folders
 
     def show_obsdestfolder(self, 
                            folder_key : str = None):
@@ -225,20 +249,19 @@ class SDTDataQuerier:
                 subfolders = {os.path.join(sub.name) for sub in os.scandir(entry.path) if sub.is_dir()}
                 folders.update(subfolders)
                 
-        if not folder_key:
-            return sorted_folders
-        else:
-            matched_folders = []
-            for folder in folders:
-                if folder_key in folder:
-                    matched_folders.append(folder)
-                else:
-                    pass
-            if not matched_folders:
-                print("No matching folders found.")
+        sorted_folders = sorted(folders)
+            
+        matched_folders = []
+        for folder in sorted_folders:
+            if folder_key in folder:
+                matched_folders.append(folder)
             else:
-                print("Matching folders:", sorted(matched_folders))
-                return sorted(matched_folders)
+                pass
+        if not matched_folders:
+            print("No matched folders found.")
+        else:
+            print(f"{len(matched_folders)} folders found.")
+            return matched_folders
         
     def show_scisourcedata(self, 
                            targetname: str, 
@@ -276,8 +299,9 @@ class SDTDataQuerier:
             dirs = glob.glob(os.path.join(self.helper.config['SDTDATA_SCISOURCEDIR'], targetname, "7DT??"))
         else:
             raise ValueError("Invalid key. Must be 'filter' or 'telescope'.")
+        print(f'# of directories: {len(dirs)}')
 
-        for dir in dirs:
+        for dir in tqdm(dirs, desc="Searching directories..."):
             id_ = os.path.basename(dir)
 
             if key.lower() == 'filter':
@@ -294,13 +318,14 @@ class SDTDataQuerier:
                 fits_counts[id_].extend(sorted(fits_files))
 
         sorted_fits_counts = {id_: fits_counts[id_] for id_ in sorted(fits_counts)}
+        total_counts = sum([len(files) if isinstance(files, list) else files for files in sorted_fits_counts.values()])
 
         if not sorted_fits_counts:
-            print("No matching folders found.")
+            print("No matched targets found.")
+            return None
         else:
-            print(sorted_fits_counts)
-
-        return sorted_fits_counts
+            print(f"Total files found: {total_counts}")
+            return sorted_fits_counts
     
     def show_scidestdata(self, 
                          targetname: str, 
@@ -356,14 +381,13 @@ class SDTDataQuerier:
                 fits_counts[id_].extend(sorted(fits_files))
 
         sorted_fits_counts = {id_: fits_counts[id_] for id_ in sorted(fits_counts)}
-
+        total_counts = sum([len(files) if isinstance(files, list) else files for files in sorted_fits_counts.values()])
         if not sorted_fits_counts:
-            print("No matching folders found.")
+            print("No matched folders found.")
+            return None
         else:
-            print(sorted_fits_counts)
-
-        return sorted_fits_counts
-
+            print(f"Total files found: {total_counts}")
+            return sorted_fits_counts
 
     def show_scisourcefolder(self, 
                              folder_key : str = '*'):
@@ -390,6 +414,7 @@ class SDTDataQuerier:
             if folder_key in target:
                 matched_folders.append(target)
         all_matched_folders = set(matched_folders)
+        print(f"{len(all_matched_folders)} folders found.")
         return sorted(all_matched_folders)
 
     def show_obsdestfolder(self, 
@@ -472,13 +497,14 @@ if __name__ == "__main__":
     tile_id_list = set([
     "T22956"
     ])
+    folder_key = '*'
     #self.sync_obsdata(foldername)
     #data = self.show_scisourcedata(targetname)
     import time
-    for targetname in tile_id_list:
-        print(f"Syncing data for target: {targetname}")
-        self.sync_scidata(targetname = targetname)
-        time.sleep(10)
+    # for targetname in tile_id_list:
+    #     print(f"Syncing data for target: {targetname}")
+    #     self.sync_scidata(targetname = targetname)
+    #     time.sleep(10)
     #sync_manager.sync_all_folders(folder_keys)
-
-# %%
+    #a = self.show_obssourcefolder(folder_key)
+    #a = self.show_scisourcefolder(folder_key = '*')

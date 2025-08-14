@@ -58,15 +58,30 @@ class AperturePhotometry:
         """ 
         self.helper = Helper()
         self.background = BackgroundGenerator()
-        self.errormap = ErrormapGenerator()
+        self.errormap = ErrormapGenerator() 
+        
+    def __repr__(self):
+        return f"Method class: {self.__class__.__name__}\n For help, use 'help(self)' or `self.help()`."
 
-    @property
-    def __doc__(self):
+    def help(self):
+        # Get all public methods from the class, excluding `help`
         methods = [
-            name for name, obj in inspect.getmembers(self.__class__, predicate=inspect.isfunction)
-            if not name.startswith("_")  # skip private
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
         ]
-        return f"{self.__class__.__name__} instance.\n\nMethods:\n" + "\n".join(f"  - {m}()" for m in methods)
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
 
     def sex_photometry(self,
                        # Input parameters

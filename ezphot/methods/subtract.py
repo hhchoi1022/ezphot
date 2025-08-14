@@ -1,5 +1,6 @@
 
 #%%
+import inspect
 from typing import Union, List
 from pathlib import Path
 from datetime import datetime
@@ -61,7 +62,30 @@ class Subtract:
         self.masking = MaskGenerator()
         self.projection = Reproject()
         self.imagequerier = ImageQuerier()
-        
+
+    def __repr__(self):
+        return f"Method class: {self.__class__.__name__}\n For help, use 'help(self)' or `self.help()`."
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+
     def subtract(self,
                  target_img: ScienceImage,
                  reference_img: ReferenceImage,

@@ -1,6 +1,7 @@
 
 
 #%%
+import inspect
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
@@ -37,8 +38,28 @@ class CatalogQuerier:
         self.current_catalog_key = catalog_key
 
     def __repr__(self):
-        return f"CatalogQuerier(catalog={self.current_catalog_key})\n{self.config}"
-    
+        return f"CatalogQuerier(catalog={self.current_catalog_key})\n{self.config}\n For help, use 'help(self)' or `self.help()`."
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
+
     def query(self,
               coord,
               epoch = None,

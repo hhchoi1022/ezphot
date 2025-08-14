@@ -1,5 +1,6 @@
 
 #%%
+import inspect
 import os
 from typing import Union, Optional, Tuple, List
 import numpy as np
@@ -36,7 +37,30 @@ class Reproject:
         """
         self.platesolve = Platesolve()
         self.helper = Helper()
-        
+
+    def __repr__(self):
+        return f"Method class: {self.__class__.__name__}\n For help, use 'help(self)' or `self.help()`."
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+
     def align(self,
               target_img: Union[ScienceImage, ReferenceImage],
               reference_img: Union[ScienceImage, ReferenceImage],
