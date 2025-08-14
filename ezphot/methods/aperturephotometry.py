@@ -60,13 +60,13 @@ class AperturePhotometry:
         self.background = BackgroundGenerator()
         self.errormap = ErrormapGenerator()
 
-    # @property
-    # def __doc__(self):
-    #     methods = [
-    #         name for name, obj in inspect.getmembers(self.__class__, predicate=inspect.isfunction)
-    #         if not name.startswith("_")  # skip private
-    #     ]
-    #     return f"{self.__class__.__name__} instance.\n\nMethods:\n" + "\n".join(f"  - {m}()" for m in methods)
+    @property
+    def __doc__(self):
+        methods = [
+            name for name, obj in inspect.getmembers(self.__class__, predicate=inspect.isfunction)
+            if not name.startswith("_")  # skip private
+        ]
+        return f"{self.__class__.__name__} instance.\n\nMethods:\n" + "\n".join(f"  - {m}()" for m in methods)
 
     def sex_photometry(self,
                        # Input parameters
