@@ -39,18 +39,22 @@ def _load_image(cls, path, telinfo=None):
 
 class DataBrowser:
     """
-    DataBrowser is a class that provides a unified interface for searching and loading data from the telescope data directory.  
-    It provides 
-    
+    DataBrowser is a class that provides a unified interface for searching and loading data 
+    from the telescope data directory.  
+
+    It provides:
+
     1. Search for files matching the current filters and return them as different types of objects.
-    Types of objects:
-        - Imageset of ScienceImage 
-        - Imageset of ReferenceImage
-        - Imageset of CalibrationImage
-        - List of Background
-        - List of Errormap
-        - List of Mask
-        - List of Catalog
+
+       Types of objects:
+       
+       - ``ImageSet`` of ``ScienceImage``
+       - ``ImageSet`` of ``ReferenceImage``
+       - ``ImageSet`` of ``CalibrationImage``
+       - ``ImageSet`` of ``Background``
+       - ``ImageSet`` of ``Errormap``
+       - ``ImageSet`` of ``Mask``
+       - ``CatalogSet`` of ``Catalog``
     """
     
     def __init__(self, foldertype: str = None):
@@ -106,52 +110,59 @@ class DataBrowser:
         """
         Search for FITS files matching the current attributes and return them grouped by telescope or as objects.
         
-        This method will search for the files in the searchpath defined by the current filters (observatory, telkey, objname, telname, filter, obsdate).        
+        This method will search for the files in the searchpath defined by the current filters 
+        (observatory, telkey, objname, telname, filter, obsdate).        
         
         Parameters
         ----------
         pattern : str
-            Filename pattern to match (e.g., '*.fits').
+            Filename pattern to match (e.g., ``'*.fits'``).
         return_type : str
-            'path', 'science', 'reference', 'calibration', 'background', 'errormap', 'mask' or 'imginfo' to convert paths to objects.
+            ``'path'``, ``'science'``, ``'reference'``, ``'calibration'``, 
+            ``'background'``, ``'errormap'``, ``'mask'`` or ``'imginfo'`` 
+            to convert paths to objects.
         
         Returns
         -------
-        output : Dict, Table, ImageSet, or List
-            - If return_type is 'path', returns dict[telname] = list of file paths.
-            - If return_type is 'imginfo', returns astropy.table.Table of imginfo.
-            - If return_type is 'science', 'reference', 'calibration', returns ImageSet.
-            - If return_type is 'mask', 'background', 'errormap', returns list of image objects.
-        """        
+        output : Dict, Table, ImageSet, CatalogSet
+            - If ``return_type``=``'path'``, returns ``dict[telname] = list of file paths``.
+            - If ``return_type``=``'imginfo'``, returns ``astropy.table.Table`` of imginfo.
+            - If ``return_type``=``'science'``, ``'reference'``, ``'calibration'``, ``'mask'``, ``'background'``, ``'errormap'``,  returns ``'ImageSet'``.
+            - If ``return_type``=``'catalog'``, returns CatalogSet.
+        """
+    
         return self.search_folder(pattern=pattern, folder=self.searchpath, return_type=return_type)
     
     def search_folder(self, 
                       pattern: str, 
                       folder: str,
                       return_type: str = 'path') -> Union[dict, List[Path]]:
-
         """
         Search for FITS files matching the current attributes and return them grouped by telescope or as objects.
         
-        This method will search for the files in the searchpath defined by the current filters (observatory, telkey, objname, telname, filter, obsdate).        
-        
+        This method will search for the files in the searchpath defined by the current filters 
+        (observatory, telkey, objname, telname, filter, obsdate).        
+
         Parameters
         ----------
         pattern : str
-            Filename pattern to match (e.g., '*.fits').
+            Filename pattern to match (e.g., ``'*.fits'``).
         folder : str
             Folder to search in. 
         return_type : str
-            'path', 'science', 'reference', 'calibration', 'background', 'errormap', 'mask' or 'imginfo' to convert paths to objects.
+            ``'path'``, ``'science'``, ``'reference'``, ``'calibration'``, 
+            ``'background'``, ``'errormap'``, ``'mask'`` or ``'imginfo'`` 
+            to convert paths to objects.
         
         Returns
         -------
-        output : Dict, Table, ImageSet, or List
-            - If return_type is 'path', returns dict[telname] = list of file paths.
-            - If return_type is 'imginfo', returns astropy.table.Table of imginfo.
-            - If return_type is 'science', 'reference', 'calibration', returns ImageSet.
-            - If return_type is 'mask', 'background', 'errormap', returns list of image objects.
-        """        
+        output : Dict, Table, ImageSet, CatalogSet
+            - If ``return_type``=``'path'``, returns ``dict[telname] = list of file paths``.
+            - If ``return_type``=``'imginfo'``, returns ``astropy.table.Table`` of imginfo.
+            - If ``return_type``=``'science'``, ``'reference'``, ``'calibration'``, ``'mask'``, ``'background'``, ``'errormap'``,  returns ``'ImageSet'``.
+            - If ``return_type``=``'catalog'``, returns ``'CatalogSet'``.
+        """
+        
         import glob
         from collections import defaultdict
 
@@ -174,19 +185,23 @@ class DataBrowser:
             return ImageSet(self._to_reference_images(matched_files))
 
         elif return_type == 'calibration':
-            return self._to_calibration_images(matched_files)
+            from ezphot.imageobjects import ImageSet
+            return ImageSet(self._to_calibration_images(matched_files))
         
         elif return_type == 'background':
-            return self._to_background(matched_files)
+            from ezphot.imageobjects import ImageSet
+            return ImageSet(self._to_background(matched_files))
         
         elif return_type == 'errormap':
-            return self._to_errormap(matched_files)
+            from ezphot.imageobjects import ImageSet
+            return ImageSet(self._to_errormap(matched_files))
         
         elif return_type == 'catalog':
-            return self._to_catalog(matched_files)
+            from ezphot.dataobjects import CatalogSet
+            return CatalogSet(self._to_catalog(matched_files))
 
         else:
-            raise ValueError(f"Invalid return_type: {return_type}. Choose from 'path', 'science', 'reference', 'calibration'.")
+            raise ValueError(f"Invalid return_type: {return_type}. Choose from 'path', 'science', 'reference', 'calibration', 'background', 'errormap', 'catalog'.")
 
     def _get_default_path(self):
         default_path_dict = {
@@ -280,7 +295,7 @@ class DataBrowser:
         return [mask for mask in masks if mask is not None]
     
     def _to_catalog(self, filepaths: List[Union[str, Path]]):
-        from ezphot.skycatalog import Catalog
+        from ezphot.dataobjects import Catalog
         with Pool(16) as pool:
             func = partial(_load_image, Catalog)
             masks = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Catalogs"))
@@ -448,17 +463,3 @@ class DataBrowser:
             print(f"[WARNING] list_available failed: {e}")
 
         return result
-
-
-        
-
-# %%
-if __name__ == '__main__':
-    # Example usage
-    self = DataBrowser(foldertype='rawdata')
-    self.observatory = '7DT'
-    self.objname = 'T08262'
-    
-    #A = self.search(pattern='calib*100.fits', return_type='science')
-
-# %%

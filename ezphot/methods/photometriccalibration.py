@@ -76,7 +76,6 @@ class PhotometricCalibration:
                                 elongation_upper: float = 1.7,
                                 elongation_sigma: float = 5,
                                 fwhm_lower: float = 1,
-                                fwhm_upper: float = 15,
                                 fwhm_sigma: float = 5,
                                 flag_upper: int = 1,
                                 maskflag_upper: int = 1,
@@ -179,7 +178,7 @@ class PhotometricCalibration:
             The reference catalog for photometric calibration.
         """
         update_kwargs = dict()
-        catalogs = self.catalogutils.get_catalogs_coord(
+        catalogs = self.catalogutils.get_catalogs(
             ra = target_img.ra,
             dec = target_img.dec,
             fov_ra = target_img.fovx,
@@ -365,14 +364,14 @@ class PhotometricCalibration:
             zperr_key = magerr_key.replace('MAGERR_', 'ZPERR_')
             mag_key_sky = mag_key.replace('MAG_', 'MAGSKY_')
             npix_key = mag_key.replace('MAG_', 'NPIX_')
-            ul3_key = mag_key.replace('MAG_', 'UL3_')
-            ul5_key = mag_key.replace('MAG_', 'UL5_')
+            ul3_key = mag_key.replace('MAG_', 'UL3SKY_')
+            ul5_key = mag_key.replace('MAG_', 'UL5SKY_')
             
             # Calculate zero point
             zp = matched_ref[mag_key_ref] - matched_obj[mag_key]
             #if magerr_key_ref in matched_ref.colnames:
             #    zperr = np.sqrt(matched_ref[magerr_key_ref]**2 + matched_objf[magerr_key]**2)
-            sc = SigmaClip(sigma=5.0, maxiters=3)
+            sc = SigmaClip(sigma=3.0, maxiters=5)
             masked = sc(zp)
             zp_cleaned_indices = np.where(~masked.mask)[0]
             masked_zp = zp[~masked.mask]
@@ -699,6 +698,8 @@ class PhotometricCalibration:
             ul3_key = mag_key.replace('MAG_', 'UL3_')
             ul5_key = mag_key.replace('MAG_', 'UL5_')
             npix_key = mag_key.replace('MAG_', 'NPIX_')
+            ul3_key_sky = ul3_key.replace('UL3_', 'UL3SKY_')
+            ul5_key_sky = ul5_key.replace('UL5_', 'UL5SKY_')
 
             if zp_key not in header:
                 print(f"[WARNING] {zp_key} not in header. Skipping {mag_key}")
@@ -707,16 +708,26 @@ class PhotometricCalibration:
             zp = header[zp_key]
             target_catalog_data[mag_key_sky] = target_catalog_data[mag_key] + zp
             target_catalog_data[zp_key] = zp
+            if ul3_key in target_catalog_data.colnames:
+                target_catalog_data[ul3_key_sky] = target_catalog_data[ul3_key] + zp
+            else:
+                if skysig is not None:
+                    npix_aperture = np.mean(target_catalog_data[npix_key])
+                    bkg_noise = skysig * np.sqrt(npix_aperture)
+                    ul3 = zp - 2.5 * np.log10(3 * bkg_noise)
+                    target_catalog_data[ul3_key_sky] = ul3
+                
+            if ul5_key in target_catalog_data.colnames:
+                target_catalog_data[ul5_key_sky] = target_catalog_data[ul5_key] + zp
+            else:
+                if skysig is not None:
+                    npix_aperture = np.mean(target_catalog_data[npix_key])
+                    bkg_noise = skysig * np.sqrt(npix_aperture)
+                    ul5 = zp - 2.5 * np.log10(5 * bkg_noise)
+                    target_catalog_data[ul5_key_sky] = ul5
+
             if zperr_key in header:
                 target_catalog_data[zperr_key] = header[zperr_key]
-
-            if skysig is not None:
-                npix_aperture = np.mean(target_catalog_data[npix_key])
-                bkg_noise = skysig * np.sqrt(npix_aperture)
-                ul3 = zp - 2.5 * np.log10(3 * bkg_noise)
-                ul5 = zp - 2.5 * np.log10(5 * bkg_noise)
-                target_catalog_data[ul3_key] = ul3
-                target_catalog_data[ul5_key] = ul5
 
         if save:
             target_catalog.write()
@@ -1327,93 +1338,3 @@ class PhotometricCalibration:
             plt.close()
 
         return mag_min, mag_max, zp, zp_err, saturation_level
-        
-# %%
-if __name__ == '__main__':
-    from ezphot.utils import DataBrowser
-    # from ezphot.utils import SDTDataQuerier
-    # sdtdata = SDTDataQuerier()
-    # sdtdata.sync_scidata(targetname = 'T08803')
-    databrowser = DataBrowser('scidata')
-    databrowser.observatory = '7DT'
-    databrowser.filter = 'g'
-    databrowser.objname = 'T22956'
-    databrowser.telname = '7DT16'
-    target_imgset = databrowser.search('calib*100.fits', return_type = 'science')
-    target_imglist = target_imgset.target_images
-    target_img = target_imglist[0]
-    target_bkg = target_img.bkgmap
-    target_bkgrms = target_img.bkgrms
-    target_catalog = target_img.catalog
-
-
-    catalog_type = 'GAIAXP'  # str - Reference catalog type ('GAIAXP', 'GAIA', 'PS1')
-    max_distance_second = 1.0  # float - Maximum matching distance in arcseconds
-    calculate_color_terms = True  # bool - Whether to calculate color terms
-    calculate_mag_terms = True  # bool - Whether to calculate magnitude terms
-
-    # Star Selection Parameters
-    mag_lower = 13  # float - Lower magnitude limit
-    mag_upper = 15  # float - Upper magnitude limit
-    snr_lower = 20  # float - Lower SNR limit
-    snr_upper = 300  # float - Upper SNR limit
-    classstar_lower = 0.8  # float - Minimum CLASS_STAR value
-    elongation_upper = 1.7  # float - Maximum elongation
-    elongation_sigma = 5  # float - Sigma clipping for elongation
-    fwhm_lower = 1  # float - Lower FWHM limit in pixels
-    fwhm_upper = 15  # float - Upper FWHM limit in pixels
-    fwhm_sigma = 5  # float - Sigma clipping for FWHM
-    flag_upper = 1  # int - Maximum FLAGS value
-    maskflag_upper = 1  # int - Maximum IMAFLAGS_ISO value
-    inner_fraction = 0.7  # float - Fraction of image to use (inner region)
-    isolation_radius = 10.0  # float - Isolation radius in pixels
-
-    # Column Name Parameters
-    magnitude_key = 'MAG_AUTO'  # str - Magnitude column name
-    fwhm_key = 'FWHM_IMAGE'  # str - FWHM column name
-    x_key = 'X_IMAGE'  # str - X coordinate column name
-    y_key = 'Y_IMAGE'  # str - Y coordinate column name
-    classstar_key = 'CLASS_STAR'  # str - CLASS_STAR column name
-    elongation_key = 'ELONGATION'  # str - Elongation column name
-    flag_key = 'FLAGS'  # str - FLAGS column name
-    maskflag_key = 'IMAFLAGS_ISO'  # str - Mask flags column name
-
-    # Output Control Parameters
-    save = False  # bool - Whether to save results
-    verbose = True  # bool - Whether to print verbose output
-    visualize = True  # bool - Whether to show plots
-    save_fig = False  # bool - Whether to save plots
-    save_refcat = False  # bool - Whether to save reference catalog
-    dynamic_mag_range = False
-    self = PhotometricCalibration()
-    self.photometric_calibration(target_img = target_img,
-                                 target_catalog = target_catalog,
-                                 catalog_type = catalog_type,
-                                 max_distance_second = max_distance_second,
-                                 calculate_color_terms = calculate_color_terms,
-                                 calculate_mag_terms = calculate_mag_terms,
-                                 mag_lower = mag_lower,
-                                 mag_upper = mag_upper,
-                                 dynamic_mag_range = dynamic_mag_range,
-                                 snr_lower = snr_lower,
-                                 snr_upper = snr_upper,
-                                 classstar_lower = classstar_lower,
-                                 elongation_upper = elongation_upper,
-                                 elongation_sigma = elongation_sigma,
-                                 fwhm_lower = fwhm_lower,
-                                 fwhm_upper = fwhm_upper,
-                                 fwhm_sigma = fwhm_sigma,
-                                 flag_upper = flag_upper,
-                                 maskflag_upper = maskflag_upper,
-                                 inner_fraction = inner_fraction,
-                                 save = save,
-                                 verbose = verbose,
-                                 visualize = visualize,
-                                 save_fig = save_fig,
-                                 save_refcat = save_refcat,
-                                 magnitude_key = magnitude_key,
-                                 fwhm_key = fwhm_key,
-                                 )
-    
-
-                     # %%

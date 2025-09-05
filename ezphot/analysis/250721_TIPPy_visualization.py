@@ -176,9 +176,9 @@ errormap_mask_kwargs = dict(
 mbias_path = Preprocessor.get_masterframe_from_image(target_img, 'BIAS')[0]['file']
 mdark_path = Preprocessor.get_masterframe_from_image(target_img, 'DARK')[0]['file']
 mflat_path = Preprocessor.get_masterframe_from_image(target_img, 'FLAT')[0]['file']
-mbias = MasterImage(path = mbias_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
-mdark = MasterImage(path = mdark_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
-mflat = MasterImage(path = mflat_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
+mbias = CalibrationImage(path = mbias_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
+mdark = CalibrationImage(path = mdark_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
+mflat = CalibrationImage(path = mflat_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
 if do_generateerrormap:
     try:
         if errormap_from_propagation:

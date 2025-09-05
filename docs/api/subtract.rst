@@ -15,7 +15,3 @@ Methods
 .. autofunction:: ezphot.methods.Subtract.query_referenceframe_from_image
 .. autofunction:: ezphot.methods.Subtract.select_reference_image
 
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.subtract.Subtract_properties.rst

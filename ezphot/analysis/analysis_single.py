@@ -97,9 +97,9 @@ mflat_path = Preprocessor.get_masterframe_from_image(
     imagetyp = 'FLAT',
     max_days = 30)[0]['file']
 
-mbias = MasterImage(path=mbias_path, telinfo = telinfo, load=True)
-mdark = MasterImage(path=mdark_path, telinfo = telinfo, load=True)
-mflat = MasterImage(path=mflat_path, telinfo = telinfo, load=True)
+mbias = CalibrationImage(path=mbias_path, telinfo = telinfo, load=True)
+mdark = CalibrationImage(path=mdark_path, telinfo = telinfo, load=True)
+mflat = CalibrationImage(path=mflat_path, telinfo = telinfo, load=True)
 
 target_bkgrms = ErrormapGenerator.calculate_bkgrms_from_propagation(
     target_bkg = target_bkg,

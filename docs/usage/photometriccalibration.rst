@@ -1,0 +1,101 @@
+Photometric Calibration
+=======================
+
+The :class:`~ezphot.methods.photometriccalibration.PhotometricCalibration` class
+provides methods for performing **photometric calibration** of astronomical images.  
+It supports:
+
+1. Photometric calibration using external reference catalogs. 
+2. Application of saved zero points, color terms, and magnitude terms.  
+
+.. note::
+   After performiong photometric calibration, header keywords related to zeropoints are updated. 
+
+Usage Examples
+--------------
+
+.. _basic-photocal:
+
+Basic Photometric Calibration
+-----------------------------
+
+.. code-block:: python
+
+    from ezphot.methods.photometriccalibration import PhotometricCalibration
+    from ezphot.imageobjects import ScienceImage
+    from ezphot.dataobjects import Catalog
+
+    sci = ScienceImage("example.fits")
+    catalog = Catalog("example.cat")
+
+    calib = PhotometricCalibration()
+
+    # Perform photometric calibration using GaiaXP catalog
+    sci, catalog, refcat = calib.photometric_calibration(
+        target_img = sci,
+        target_catalog = catalog,
+        catalog_type = "GAIAXP",
+        mag_lower = 13,
+        mag_upper = 15,
+        visualize = True,
+        save_fig = True
+    )
+
+    print("Calibrated catalog:", catalog.data[:5])
+
+Applying Zeropoints
+-------------------
+
+If you have already run the calibration step in
+:ref:`basic-photocal`, you can directly apply the saved zeropoint
+from the FITS header to your catalog:
+
+.. code-block:: python
+
+    updated_catalog = calib.apply_zp(
+        target_img = sci,
+        target_catalog = catalog,
+        save = True
+    )
+
+    print(updated_catalog.data.columns)
+
+Applying Color Terms
+--------------------
+
+If you have already run the calibration step in
+:ref:`basic-photocal`, you can directly apply the saved color term for zeropoint
+from the FITS header to your catalog:
+
+.. code-block:: python
+
+    updated_catalog = calib.apply_color_terms(
+        target_img = sci,
+        target_catalog = catalog,
+        comparison_catalog = refcat,
+        max_distance_second = 1.0,
+        save = True
+    )
+
+Applying Magnitude Terms
+------------------------
+
+If you have already run the calibration step in
+:ref:`basic-photocal`, you can directly apply the saved magnitude term for zeropoint
+from the FITS header to your catalog:
+
+.. code-block:: python
+
+    updated_catalog = calib.apply_mag_terms(
+        target_img = sci,
+        target_catalog = catalog,
+        save = True
+    )
+
+
+.. note::
+
+   All photometric calibration results are saved into the FITS header of
+   ``target_img`` and propagated into the :class:`ezphot.dataobjects.catalog.Catalog` as new columns
+   (e.g., ``MAGSKY_*``, ``ZP_*``, ``UL3_*``, ``UL5_*``).
+

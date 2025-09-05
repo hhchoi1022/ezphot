@@ -89,6 +89,7 @@ class Preprocess:
         """
         if not target_img.is_header_loaded:
             target_img.header
+
         master_frames = self.get_masterframe(
             observatory= target_img.observatory,
             telkey = target_img.telkey,
@@ -143,7 +144,7 @@ class Preprocess:
 
         # Load summary tables
         all_masterframe_info = {}
-        masterframe_summary_path = Path(self.config['CALIBDATA_MASTERDIR']) / 'summary.ascii_fixed_width'
+        masterframe_summary_path = Path(self.helper.config['CALIBDATA_MASTERDIR']) / 'summary.ascii_fixed_width'
         
         if self._cached_masterframe_tbl is None:
             if masterframe_summary_path.exists():
@@ -168,15 +169,19 @@ class Preprocess:
         # Apply filters
         if observatory is not None:
             mask &= (all_masterframe_tbl['observatory'] == observatory)
+
         if telkey is not None:
             mask &= (all_masterframe_tbl['telkey'] == telkey)
+
         if telname is not None:
             mask &= (all_masterframe_tbl['telname'] == telname)
+
         if imagetyp is not None:
             mask &= (all_masterframe_tbl['imagetyp'] == imagetyp.upper())
 
         if imagetyp.upper() == 'DARK' and exptime is not None and 'exptime' in all_masterframe_tbl.colnames:
             mask &= np.isclose(all_masterframe_tbl['exptime'], exptime)
+            
         elif imagetyp.upper() == 'FLAT' and filter_ is not None and 'filtername' in all_masterframe_tbl.colnames:
             mask &= (all_masterframe_tbl['filtername'] == filter_)
 
@@ -213,6 +218,9 @@ class Preprocess:
 
         # === Final filtering ===
         filtered_tbl = all_masterframe_tbl[sub_mask]
+        
+        base_dir = Path(self.helper.config['CALIBDATA_MASTERDIR'])
+        filtered_tbl['file'] = [str((base_dir / Path(fname))) for fname in filtered_tbl['file']]
 
         if len(filtered_tbl) == 0:
             print("No calibration frame found with the specified criteria.")

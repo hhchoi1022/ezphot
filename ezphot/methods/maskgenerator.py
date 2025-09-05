@@ -61,7 +61,6 @@ class MaskGenerator():
     def mask_invalidpixel(self,
                          # Input parameters
                           target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
-                          target_mask: Optional[Mask] = None,
                           threshold_invalid_connection: int = 100000,
                           # Others
                           save: bool = False,
@@ -75,8 +74,6 @@ class MaskGenerator():
         ----------
         target_img : ScienceImage or ReferenceImage or CalibrationImage
             The target image to generate the invalid pixel mask from.
-        target_mask : Mask, optional
-            The mask to use for the invalid pixel mask generation.
         threshold_invalid_connection : int, optional
             The threshold for the invalid pixel mask generation.
         save : bool, optional
@@ -96,12 +93,6 @@ class MaskGenerator():
         
         import numpy as np
         from scipy.ndimage import label
-
-        if target_mask is None:
-            target_mask = Mask(target_img.savepath.invalidmaskpath, masktype='invalid', load=False)
-            target_mask.remove()
-        else:
-            self.helper.print("External mask is loaded.", verbose)
 
         image_data = target_img.data
 
@@ -126,8 +117,8 @@ class MaskGenerator():
         # Combine all invalid pixel masks
         invalidmask = nan_mask | large_zero_mask
 
-        mask_previous = target_mask.data
-        target_mask.combine_mask(invalidmask, 'or')
+        target_mask = Mask(target_img.savepath.invalidmaskpath, masktype='invalid', load=False)
+        target_mask.data = invalidmask
         target_mask.header = target_img.header
 
         # Update header/status
@@ -156,7 +147,7 @@ class MaskGenerator():
             self._visualize(
                 target_img=target_img,
                 final_mask=target_mask,
-                previous_mask=mask_previous,
+                previous_mask=None,
                 save_path=save_path,
                 show=visualize
             )

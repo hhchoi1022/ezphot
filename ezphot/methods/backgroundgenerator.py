@@ -67,7 +67,8 @@ class BackgroundGenerator:
     def estimate_with_sep(self,
                           # Input parameters
                           target_img: Union[ScienceImage, ReferenceImage],
-                          target_mask: Optional[Mask] = None,
+                          target_srcmask: Optional[Mask] = None,
+                          target_ivpmask: Optional[Mask] = None,
                           is_2D_bkg: bool = True,
                           box_size: int = 32,
                           filter_size: int = 3,
@@ -85,8 +86,10 @@ class BackgroundGenerator:
         ----------
         target_img : ScienceImage or ReferenceImage
             The target image to estimate the background from.
-        target_mask : Mask, optional
-            The mask to use for the background estimation.
+        target_srcmask : Mask, optional
+            The source mask to use for the background estimation.
+        target_ivpmask : Mask, optional
+            The invalid pixel mask to use for the background estimation.
         is_2D_bkg : bool, optional
             Whether to estimate a 2D background.
         box_size : int, optional
@@ -112,27 +115,29 @@ class BackgroundGenerator:
         
         # Step 1: Load the image and mask
         mask_to_use = None
-        if target_mask is None:
+        if target_srcmask is None:
             pass
         else:
-            mask_to_use = target_mask.data.astype(bool)
+            mask_to_use = target_srcmask.data.astype(bool)
             self.helper.print("External mask is loaded.", verbose)
             
         image_data = target_img.data
         # If image_data is uint16, convert to float32
         if image_data.dtype == np.uint16:
             image_data = image_data.astype(np.float32)
-        target_img.data = image_data
 
         # Create a mask of NaN values
-        invalid_mask = ~np.isfinite(image_data)
+        # invalid_mask = ~np.isfinite(image_data)
 
-        if np.any(invalid_mask):
-            mask = invalid_mask.astype(np.uint8)
-            image_filled = np.nan_to_num(image_data, nan=0, posinf=0.0, neginf=0.0).astype(np.float32)
-            # Inpaint using the mask
-            image_data = cv2.inpaint(image_filled, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
-        
+        # if np.any(invalid_mask):
+        #     mask = invalid_mask.astype(np.uint8)
+        #     image_filled = np.nan_to_num(image_data, nan=0, posinf=0.0, neginf=0.0).astype(np.float32)
+        #     # Inpaint using the mask
+        #     image_data = cv2.inpaint(image_filled, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+
+        if target_ivpmask is not None:
+            image_data[target_ivpmask.data] = np.nan
+
         # Step 2: Background estimation
         image_data = self.helper.to_native(image_data)
         
@@ -149,17 +154,21 @@ class BackgroundGenerator:
             bkg_val = np.mean(bkg_map)
             bkg_map = np.full_like(image_data, bkg_val, dtype=image_data.dtype)
         
+        if target_ivpmask is not None:
+            bkg_map[target_ivpmask.data] = np.nan
+        
         target_bkg = Background(target_img.savepath.bkgpath, load=False)
         target_bkg.data = bkg_map
         target_bkg.header = target_img.header
+        
         # Update header of the background image
         update_header_kwargs = dict(
             TGTPATH = str(target_img.path),
-            MASKPATH = str(target_mask.path) if target_mask is not None else None,
+            MASKPATH = str(target_srcmask.path) if target_srcmask is not None else None,
             BKGTYPE = 'SEP',
             BKGIS2D = True,
-            BKGVALU = float(np.mean(bkg_map)),
-            BKGSIG = float(np.std(bkg_map)),
+            BKGVALU = float(np.nanmean(bkg_map)),
+            BKGSIG = float(np.nanstd(bkg_map)),
             BKGBOX = int(box_size),
             BKGFILT = int(filter_size),
         )
@@ -210,6 +219,7 @@ class BackgroundGenerator:
                                 save_fig: bool = False):     
         """
         Estimate the background of an astronomical image using photutils.
+        OBSOLETE: Use scienceimage.calculate_background() instead.
         
         Parameters
         ----------
@@ -469,15 +479,3 @@ class BackgroundGenerator:
         
         plt.close(fig)
 
-# %%
-if __name__ == "__main__":
-    target_img = ScienceImage('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T17274/7DT15/g/calib_7DT15_T17274_20241122_061812_g_100.fits', load = True)
-    self = BackgroundGenerator()
-    self.estimate_with_photutils(
-        target_img = target_img,
-        target_mask = target_img.sourcemask,
-        is_2D_bkg = False
-    )
-    
-
-# %%

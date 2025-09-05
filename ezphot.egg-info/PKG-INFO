@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ezphot
-Version: 0.2.1
+Version: 0.2.4
 Summary: Easy and flexible photometry toolkit in Python, from preprocessing to analysis, for various telescopes.
 Author: Hyeonho Choi
 Classifier: Programming Language :: Python :: 3
@@ -38,8 +38,32 @@ Requires-Dist: tqdm>=4.67.1
 Requires-Dist: scikit-image>=0.24.0
 Dynamic: author
 Dynamic: classifier
+Dynamic: description
 Dynamic: description-content-type
 Dynamic: license-file
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary
+
+Installation
+============
+
+The latest stable release of **ezphot** is available on `PyPI <https://pypi.org/project/ezphot/>`_.
+
+Install with pip::
+
+    pip install ezphot
+
+Upgrade to the newest version::
+
+    pip install --upgrade ezphot
+
+For development builds from TestPyPI::
+
+    pip install -i https://test.pypi.org/simple/ ezphot
+
+From source::
+
+    git clone https://github.com/hhchoi1022/ezphot.git
+    cd ezphot
+    pip install .

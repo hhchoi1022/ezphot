@@ -11,8 +11,3 @@ Methods
 .. autofunction:: ezphot.methods.AperturePhotometry.circular_photometry
 .. autofunction:: ezphot.methods.AperturePhotometry.elliptical_photometry
 
-
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.aperturephotometry.AperturePhotometry_properties.rst

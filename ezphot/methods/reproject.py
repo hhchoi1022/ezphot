@@ -18,7 +18,7 @@ from ezphot.helper import Helper  # Adjust import path if needed
 #%%
 class Reproject:
     """
-    Reproject the image.
+    Reproject class.
     
     This class provides methods 
     
@@ -333,7 +333,6 @@ class Reproject:
             reprojected_img.data
             target_ivpmask = T.mask_invalidpixel(
                 target_img = reprojected_img,
-                target_mask = None,
                 save = save,
                 verbose = verbose,
                 visualize = False,

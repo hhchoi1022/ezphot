@@ -82,6 +82,28 @@ class AperturePhotometry:
         # Final plain text output
         help_text = ""
         print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        
+    def run_photometry(self,
+                       target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
+                       target_bkg: Optional[Background] = None,
+                       target_bkgrms: Optional[Errormap] = None,
+                       target_mask: Optional[Mask] = None,
+                       sex_params: dict = None,
+                       detection_sigma: float = 5,
+                       aperture_diameter_arcsec: Union[float, list] = [5, 7, 10],
+                       aperture_diameter_seeing: Union[float, list] = [3.5, 4.5],
+                       saturation_level: float = 60000,
+                       kron_factor: float = 2.5,
+                       save: bool = True,
+                       verbose: bool = True,
+                       visualize: bool = True,
+                       save_fig: bool = False,
+                       **kwargs
+                       ):
+        """
+        Run photometry on the target image.
+        """
+        pass
 
     def sex_photometry(self,
                        # Input parameters
@@ -147,7 +169,6 @@ class AperturePhotometry:
         if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
             raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
         
-        # If target_bkg is given, subtract background before sextractor
         if not target_img.is_saved:
             target_img.write()
         
@@ -161,7 +182,7 @@ class AperturePhotometry:
         sexconfig_path = target_img.config['SEX_CONFIG']
         all_sexconfig = self.helper.load_config(sexconfig_path)
         
-        # Image
+        # If target_bkg is given, subtract background before sextractor
         remove_subbkg = False
         if target_bkg is not None:
             target_img_sub = self.background.subtract_background(
@@ -178,8 +199,6 @@ class AperturePhotometry:
             remove_subbkg = True
         else:
             target_img_sub = target_img
-            if 'BACK_TYPE' not in sex_params.keys():
-                sex_params['BACK_TYPE'] = 'AUTO'
             
         # Background RMS
         remove_bkgrms = False
@@ -571,7 +590,8 @@ class AperturePhotometry:
                             x_arr: Union[float, list, np.ndarray],
                             y_arr: Union[float, list, np.ndarray],
                             aperture_diameter_arcsec: Union[float, list] = [5,7,10],
-                            annulus_diameter_arcsec: Union[float, list] = None, # When local background is used
+                            aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
+                            annulus_width_arcsec: Union[float, list] = None, # When local background is used
                             unit: str = 'pixel',
                             target_bkg: Optional[Background] = None,
                             target_mask: Union[str, Path, np.ndarray] = None,
@@ -636,7 +656,7 @@ class AperturePhotometry:
             
         # If target_bkgrms is not given, calculate it from the target image
         if target_bkgrms is None:
-            target_bkgrms, _, _ = self.errormap.calculate_from_sourcemask(
+            target_bkgrms, _, _ = self.errormap.calculate_errormap_from_image(
                 target_img = target_img,
                 errormap_type = 'bkgrms',
                 save = False,
@@ -654,10 +674,26 @@ class AperturePhotometry:
         pixelscale = np.mean(target_img.pixelscale)
 
         # Step 4: Normalize radius inputs
+        all_apertures = []
         aperture_diameter_arcsec = np.atleast_1d(aperture_diameter_arcsec)
-        annulus_diameter_arcsec = np.atleast_1d(annulus_diameter_arcsec) if annulus_diameter_arcsec is not None else None
-        aperture_diameter_pixel = aperture_diameter_arcsec / pixelscale
-        annulus_diameter_pixel = annulus_diameter_arcsec / pixelscale if annulus_diameter_arcsec is not None else None
+        for aperture_size in aperture_diameter_arcsec:
+            all_apertures.append(aperture_size)
+        if aperture_diameter_seeing is not None:
+            if target_img.seeing is not None:
+                aperture_diameter_seeing = np.atleast_1d(aperture_diameter_seeing)
+                for aperture_seeing_ratio in aperture_diameter_seeing:
+                    all_apertures.append(target_img.seeing * aperture_seeing_ratio)
+            else:
+                print("[WARNING] target_img.seeing is not defined. Using aperture_diameter_seeing is ignored.")
+        aperture_diameter_pixel = all_apertures / pixelscale
+        
+        all_annulus = []
+        if annulus_width_arcsec is not None:
+            for aperture_diameter in all_apertures:
+                annulus_diameter = aperture_diameter + annulus_width_arcsec
+                all_annulus.append(annulus_diameter)
+            print('ANNULUS applied')
+        annulus_diameter_pixel = all_annulus / pixelscale if all_annulus else None
 
         # Step 5: Source positions
         x_arr = np.atleast_1d(x_arr)
@@ -690,12 +726,6 @@ class AperturePhotometry:
 
             # Photometry on background-subtracted image
             phot_table = aperture_photometry(data, aperture, error=error, mask=mask)
-            
-            # Calculation for threshold (when error is defined)
-            if bkgrms is not None:
-                if i == 0:
-                    rms_tbl = aperture_photometry(bkgrms, aperture, mask=mask)
-                    results['SKYSIG'] = rms_tbl['aperture_sum'] / aperture.area
                 
             suffix_key = '' if i == 0 else '_%d'%i
             flux_key = f'FLUX_APER{suffix_key}'
@@ -705,7 +735,10 @@ class AperturePhotometry:
             annul_key = f'FLUX_ANNULUS{suffix_key}'
             magannul_key = f'MAG_ANNULUS{suffix_key}'
             npix_key = f'NPIX_APER{suffix_key}'
-            
+            skysig_key = f'SKYSIG_APER{suffix_key}'
+            ul5_key = f'UL5_APER{suffix_key}'
+            ul3_key = f'UL3_APER{suffix_key}'
+
             # Aperture area
             results[npix_key] = np.full(len(results), aperture.area)
 
@@ -731,6 +764,15 @@ class AperturePhotometry:
             if 'aperture_sum_err' in phot_table.colnames:
                 results[fluxerr_key] = phot_table['aperture_sum_err']
                 results[magerr_key] = 2.5 / np.log(10) * phot_table['aperture_sum_err'] / phot_table['aperture_sum']
+                
+            # Calculation for threshold (when error is defined)
+            if bkgrms is not None:
+                var_tbl = aperture_photometry(bkgrms**2, aperture, mask=mask)
+                results[skysig_key] = np.sqrt(var_tbl['aperture_sum'])
+                ul5_flux = 5 * results[skysig_key]
+                ul3_flux = 3 * results[skysig_key]
+                results[ul5_key] = -2.5 * np.log10(ul5_flux)
+                results[ul3_key] = -2.5 * np.log10(ul3_flux)
 
         cat_path = target_img.savepath.catalogpath.with_suffix('.circ.cat')
         target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
@@ -1029,28 +1071,4 @@ class AperturePhotometry:
             plt.show()
             
         plt.close()
-    
-
-# %%
-if __name__ == "__main__":
-    from ezphot.utils import DataBrowser
-    db = DataBrowser('scidata')
-    db.observatory = 'RASA36'
-    db.objname = 'NGC1566'
-    target_imgset = db.search('*com.fits', 'science')
-    target_imglist = target_imgset.target_images
-    target_img = target_imglist[0]
-    target_bkgrms = target_img.bkgrms
-    target_bkg = target_img.bkgmap
-    target_mask = None
-    sex_params = None
-    detection_sigma = 5
-    aperture_diameter_arcsec = [5, 7, 10]
-    aperture_diameter_seeing = [3.5, 4.5]  #
-    kron_factor = 1.5
-    saturation_level = 60000
-    save = False
-    verbose = True
-    visualize = True
-    save_fig = False
     

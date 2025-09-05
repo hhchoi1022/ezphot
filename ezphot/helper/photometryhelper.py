@@ -10,7 +10,7 @@ import signal
 import functools
 from datetime import datetime
 from pathlib import Path
-from typing import List, Union, Optional, Tuple, Literal
+from typing import List, Union, Optional, Tuple
 
 # External libraries
 import numpy as np
@@ -1473,7 +1473,7 @@ class PhotometryHelper(Configuration):
 
     def img_convolve(self,
                     target_img: Union[str, Path, np.ndarray],
-                    input_type: Literal['image', 'error'] = 'image',
+                    input_type: str = 'image',
                     kernel: str = 'gaussian',
                     target_header: Optional[Header] = None,
                     target_outpath: Optional[str] = None,

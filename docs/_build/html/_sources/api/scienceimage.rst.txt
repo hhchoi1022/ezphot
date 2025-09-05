@@ -9,6 +9,13 @@ Methods
 .. autofunction:: ezphot.imageobjects.ScienceImage.show
 .. autofunction:: ezphot.imageobjects.ScienceImage.run_ds9
 .. autofunction:: ezphot.imageobjects.ScienceImage.show_position
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_invalidmask
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_sourcemask
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_bkg
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_bkgrms
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_errormap
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation
+.. autofunction:: ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation
 .. autofunction:: ezphot.imageobjects.ScienceImage.load
 .. autofunction:: ezphot.imageobjects.ScienceImage.write
 .. autofunction:: ezphot.imageobjects.ScienceImage.remove

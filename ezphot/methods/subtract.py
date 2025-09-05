@@ -493,7 +493,6 @@ class Subtract:
 
             if np.sum(reprojected_reference_ivpmask.data == 0) < 20000:
                 self.helper.print('Reference image and target image are not overlapping enough for subtraction.', verbose)
-                failed_reference_images.append(i)
                 continue
             
             # Step 3. Update transient criteria based on the seeing of reprojected images
@@ -658,9 +657,8 @@ class Subtract:
                     pass
                 
             # Match the first photometry results with the reference catalog to reject variable sources
-            transient_tbl = None
+            transient_tbl = candidate_tbl.copy()
             if reject_variable_sources:
-                transient_tbl = candidate_tbl.copy()
                 transient_tbl.path = all_tbl.savepath.transientcatalogpath
                 if len(transient_tbl.data) > 0:
                     coord_first = SkyCoord(ra=transient_tbl.data['X_WORLD'],
@@ -770,30 +768,29 @@ class Subtract:
                 )
             
             if save_transient_figure:
-                if transient_tbl is not None:
-                    if len(transient_tbl.data) > 0:
-                        all_transients = transient_tbl.data[:show_transient_numbers]
-                        ra = all_transients['X_WORLD']
-                        dec = all_transients['Y_WORLD']
-                        idx = all_transients['NUMBER']
-                        self.show_transient_positions(
-                            science_img = subframe_target_img,
-                            reference_img = subframe_reference_img,
-                            subtracted_img = subframe_subtract_img,
-                            x_list = ra,
-                            y_list = dec,
-                            idx_list = idx,
-                            coord_type = 'coord',
-                            zoom_radius_pixel = 30,
-                            downsample = 1,
-                            ncols = 3,
-                            cmap = 'viridis',
-                            scale = 'zscale',
-                            subtitles = [f'Science', f'Reference', f'Subtracted'],
-                            transient_type = 'transient',
-                            save = save,
-                            visualize = visualize
-                        )
+                if len(transient_tbl.data) > 0:
+                    all_transients = transient_tbl.data[:show_transient_numbers]
+                    ra = all_transients['X_WORLD']
+                    dec = all_transients['Y_WORLD']
+                    idx = all_transients['NUMBER']
+                    self.show_transient_positions(
+                        science_img = subframe_target_img,
+                        reference_img = subframe_reference_img,
+                        subtracted_img = subframe_subtract_img,
+                        x_list = ra,
+                        y_list = dec,
+                        idx_list = idx,
+                        coord_type = 'coord',
+                        zoom_radius_pixel = 30,
+                        downsample = 1,
+                        ncols = 3,
+                        cmap = 'viridis',
+                        scale = 'zscale',
+                        subtitles = [f'Science', f'Reference', f'Subtracted'],
+                        transient_type = 'transient',
+                        save = save,
+                        visualize = visualize
+                    )
             if save_candidate_figure:
                 if len(candidate_tbl.data) > 0:
                     all_candidates = candidate_tbl.data[:show_candidate_numbers]
@@ -1098,6 +1095,7 @@ class Subtract:
     def get_referenceframe_from_image(self, 
                                       target_img: Union[ScienceImage],
                                       telname: str = None,
+                                      min_obsdate: Union[str, float, Time] = None,
                                       max_obsdate: Union[str, float, Time] = None,
                                       sort_key: Union[str, List[str]] = ['fraction', 'depth'],
                                       overlap_threshold: float = 0.5,
@@ -1153,6 +1151,7 @@ class Subtract:
                 ra_fov = target_img.fovx,
                 dec_fov = target_img.fovy,
                 telname = telname,
+                min_obsdate = min_obsdate,
                 max_obsdate = max_obsdate,
                 seeing_limit = cfg['seeing'],
                 depth_limit = cfg['depth'],
@@ -1196,6 +1195,7 @@ class Subtract:
                            ra_fov: float = 1.35,
                            dec_fov: float = 0.9,
                            telname: str = None,
+                           min_obsdate: str = None,
                            max_obsdate: str = None,
                            seeing_limit: float = None,
                            depth_limit: float = None,
@@ -1265,6 +1265,10 @@ class Subtract:
         mask &= all_referenceframe_tbl['filtername'] == filter_
         if telname is not None:
             mask &=  np.array([telname in str(row) for row in all_referenceframe_tbl['telname']])
+        if min_obsdate is not None:
+            obsdate_target = self.helper.flexible_time_parser(min_obsdate)
+            obs_times = Time(all_referenceframe_tbl['obsdate'], format='isot', scale='utc')
+            mask &= obs_times > obsdate_target
         if max_obsdate is not None:
             obsdate_target = self.helper.flexible_time_parser(max_obsdate)
             obs_times = Time(all_referenceframe_tbl['obsdate'], format='isot', scale='utc')
@@ -1672,7 +1676,6 @@ class Subtract:
             if target_ivpmask is None:
                 target_ivpmask = self.masking.mask_invalidpixel(
                     target_img = target_img,
-                    target_mask = None,
                     save = False,
                     verbose = verbose,
                     visualize = False,
@@ -1681,7 +1684,6 @@ class Subtract:
             if reference_ivpmask is None:
                 reference_ivpmask = self.masking.mask_invalidpixel(
                     target_img = reference_img,
-                    target_mask = None,
                     save = False,
                     verbose = verbose,
                     visualize = False,
@@ -1779,65 +1781,3 @@ class Subtract:
             subframe_reference_ivpmask.write()
         
         return subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp_path
-
-
-
-
-# %%
-if __name__ == "__main__":
-    from ezphot.utils import DataBrowser
-    self = TIPSubtraction()
-#%%
-if __name__ == "__main__":
-    databrowser = DataBrowser('scidata')
-    tile_id = 'T08262'
-    databrowser.objname = tile_id
-    databrowser.filter = 'r'
-    stacked_imgset = databrowser.search(
-        pattern = 'calib*202507*com.fits',
-        return_type = 'science'
-    )        
-    target_imglist = stacked_imgset.target_images
-    target_img = target_imglist[0]
-    target_bkg = target_img.bkgmap
-    reference_img = self.get_referenceframe_from_image(target_img)[0]
-    reference_imglist = [reference_img]
-    target_bkg: Background = None
-    detection_sigma: float = 5
-    aperture_diameter_arcsec: float = [5,7,10]
-    aperture_diameter_seeing: float = [3.5,4.5]
-    kron_factor = 1.5 
-    
-    target_transient_number: int = 5
-    reject_variable_sources: bool = True
-    negative_detection: bool = True
-    reverse_subtraction: bool = False
-    
-    save: bool = True
-    verbose: bool = True
-    visualize: bool = True
-    show_transient_numbers: int = 10
-    nrx: int = 1
-    nry: int = 1
-    nsx: int = 10
-    nsy: int = 10
-    ko: int = 3
-    bgo: int = 1
-    r: int = 10
-    hotpants_params = dict()
-    # result = self.find_transients(
-    #     target_img = target_img,
-    #     reference_imglist = reference_imglist,
-    #     target_bkg = None,
-    #     detection_sigma = 5,
-    #     aperture_diameter_arcsec = [5,7,10],
-    #     aperture_diameter_seeing = [3.5,4.5],
-    #     target_transient_number = 5,
-    #     reject_variable_sources = True,
-    #     negative_detection = True,
-    #     reverse_subtraction = False,
-    #     visualize = False,
-    # )
-
-
-# %%

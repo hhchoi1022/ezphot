@@ -39,9 +39,10 @@ class SkyCatalogHistory():
 
 class SkyCatalog:
     """
-    SkyCatalog class for querying reference catalogs
+    SkyCatalog class is used to query the sky catalog and get the catalog data.
     
     This class acts as an instance of reference catalog for a given object.
+    
     """
     def __init__(self,
                  objname : str = None,
@@ -95,7 +96,7 @@ class SkyCatalog:
         txt = f"SkyCatalog[objname = {self.objname}, type = {self.catalog_type}]"
         return txt
     
-    def query(self, catalog_name: str = 'APASS', verbose: bool = False):
+    def _query(self, catalog_name: str = 'APASS', verbose: bool = False):
         # APASS DR9
         def apass_query(ra_deg, dec_deg, rad_deg, maxmag = 20, minmag = 10, maxsources=100000):
             """
@@ -423,7 +424,7 @@ class SkyCatalog:
         else:
             try:
                 # Try query and save to catalog_archive
-                data = self.query(catalog_name = 'GAIA', verbose = verbose)
+                data = self._query(catalog_name = 'GAIA', verbose = verbose)
                 filename = f'{self.objname}_GAIA.csv'
                 catalog_file = os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type, filename)
                 os.makedirs(os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
@@ -458,7 +459,7 @@ class SkyCatalog:
         else:
             try:
                 # Try query and save to catalog_archive
-                data = self.query(catalog_name = 'APASS', verbose = verbose)
+                data = self._query(catalog_name = 'APASS', verbose = verbose)
                 filename = f'{self.objname}_APASS.csv'
                 catalog_file = os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type, filename)
                 os.makedirs(os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
@@ -493,7 +494,7 @@ class SkyCatalog:
         else:
             try:
                 # Try query and save to catalog_archive
-                data = self.query(catalog_name = 'PS1', verbose = verbose)
+                data = self._query(catalog_name = 'PS1', verbose = verbose)
                 filename = f'{self.objname}_PS1.csv'
                 catalog_file = os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type, filename)
                 os.makedirs(os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
@@ -528,7 +529,7 @@ class SkyCatalog:
         else:
             try:
                 # Try query and save to catalog_archive
-                data = self.query(catalog_name = 'SMSS', verbose = verbose)
+                data = self._query(catalog_name = 'SMSS', verbose = verbose)
                 filename = f'{self.objname}_SMSS.csv'
                 catalog_file = os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type, filename)
                 os.makedirs(os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
@@ -563,7 +564,7 @@ class SkyCatalog:
         else:
             try:
                 # Try query and save to catalog_archive
-                data = self.query(catalog_name = 'SDSS', verbose = verbose)
+                data = self._query(catalog_name = 'SDSS', verbose = verbose)
                 filename = f'{self.objname}_SDSS.csv'
                 catalog_file = os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type, filename)
                 os.makedirs(os.path.join(self.helper.config['CATALOG_DIR'], self.catalog_type), exist_ok = True)
@@ -756,14 +757,14 @@ if __name__ =='__main__':
     #C = SkyCatalog('T00000', catalog_type = 'GAIAXP')
     #print(C, "RA = %.2f Dec = %.2f, FOV_RA = %.2f, FOV_DEC = %.2f" % (C.ra, C.dec, C.fov_ra, C.fov_dec))
     # Gaia catalog of NGC1566 with FOV_RA = 1.3, FOV_DEC = 0.9
-    C = SkyCatalog('NGC1566', catalog_type = 'APASS', fov_ra = 3, fov_dec = 3)
+    #C = SkyCatalog('NGC1566', catalog_type = 'GAIAXP', fov_ra = 1, fov_dec = 1)
     # APASS catalog of given ra dec with FOV_RA = 1.3, FOV_DEC = 0.9
     ra = 10.68458
-    dec = 41.26917
+    dec = -41.26917
     catalog_type = 'APASS'
     fov_ra = 1.3
     fov_dec = 0.9
-    #self = SkyCatalog(ra = 10.68458, dec = 41.26917, catalog_type = 'APASS', fov_ra = 1.3, fov_dec = 0.9)
+    self = SkyCatalog(ra = ra, dec = dec, catalog_type = 'GAIAXP', fov_ra = 1.3, fov_dec = 0.9)
     # Once queried, the data is saved in catalog_archive, so it can be called without querying again
     # One can query reference sources with the mag_lower, mag_upper, and some keyword arguments. kwargs need to be list of [lower limit, upper limit]
     #reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)

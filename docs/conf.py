@@ -104,6 +104,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 autodoc_member_order = 'bysource'
 add_module_names = False
 autodoc_class_signature = 'separated'
+html_theme_options = {
+    "collapse_navigation": False,   # keep all toctrees visible
+    "sticky_navigation": True,
+}
 
 
 # -- Options for HTML output -------------------------------------------------

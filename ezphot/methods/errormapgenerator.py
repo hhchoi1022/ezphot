@@ -314,11 +314,11 @@ class ErrormapGenerator:
     def calculate_errormap_from_image(self,
                                       # Input parameters
                                       target_img: Union[ScienceImage, ReferenceImage],
-                                      target_mask: Optional[Mask] = None,
+                                      target_srcmask: Optional[Mask] = None,
+                                      target_ivpmask: Optional[Mask] = None,
                                       box_size: int = 128,
                                       filter_size: int = 3,
                                       errormap_type: str = 'bkgrms', # bkgrms or sourcerms
-                                      mode: str = 'sep', # sep or photutils
 
                                       # Others
                                       save: bool = True,
@@ -334,8 +334,10 @@ class ErrormapGenerator:
         ----------
         target_img : ScienceImage or ReferenceImage
             The target image to calculate the error map from.
-        target_mask : Mask, optional
-            The mask to use for the error map calculation.
+        target_srcmask : Mask, optional
+            The source mask to use for the error map calculation.
+        target_ivpmask : Mask, optional
+            The invalid pixel mask to use for the error map calculation.
         box_size : int, optional
             The size of the box for the background RMS estimation.
         filter_size : int, optional
@@ -362,31 +364,23 @@ class ErrormapGenerator:
         bkg : sep.Background or photutils.background.Background2D
             The background image instance from SEP or photutils.
         """
-        if mode.lower() == 'sep':
-            target_bkg, bkg = self.backgroundgenerator.estimate_with_sep(
-                target_img = target_img,
-                target_mask = target_mask,
-                box_size = box_size,
-                filter_size = filter_size,
-                save = False,
-                verbose = verbose,
-                visualize = False,
-                save_fig = False
-            )
-            # Calculate error map
-            bkg_rms_map = bkg.rms()
-        else:
-            target_bkg, bkg = self.backgroundgenerator.estimate_with_photutils(
-                target_img = target_img,
-                target_mask = target_mask,
-                box_size = box_size,
-                filter_size = filter_size,
-                save = False,
-                verbose = verbose,
-                visualize = False,
-                save_fig = False)
-            # Calculate error map
-            bkg_rms_map = bkg.background_rms
+        target_bkg, bkg = self.backgroundgenerator.estimate_with_sep(
+            target_img = target_img,
+            target_srcmask = target_srcmask,
+            target_ivpmask = target_ivpmask,
+            box_size = box_size,
+            filter_size = filter_size,
+            save = False,
+            verbose = verbose,
+            visualize = False,
+            save_fig = False
+        )
+
+        import numpy as np
+        # Calculate error map
+        bkg_rms_map = bkg.rms()
+        if target_ivpmask is not None:
+            bkg_rms_map[target_ivpmask.data] = np.nan
             
         if errormap_type.lower() == 'sourcerms':
             egain = target_img.egain
@@ -494,20 +488,3 @@ class ErrormapGenerator:
             plt.show()
         
         plt.close(fig)
-
-# %%
-if __name__ == "__main__":
-    from ezphot.imageobjects import ScienceImage
-    target_img = ScienceImage('/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/T17274/7DT15/g/calib_7DT15_T17274_20241122_061812_g_100.fits', load = True)
-    self = ErrormapGenerator()
-    result = self.calculate_errormap_from_image(
-        target_img = target_img,
-        target_mask = None,#target_img.sourcemask,
-        errormap_type = 'bkgrms',
-        mode = 'photutils',
-        save = False,
-        verbose = True,
-        visualize = True,
-    )
-    
-# %%

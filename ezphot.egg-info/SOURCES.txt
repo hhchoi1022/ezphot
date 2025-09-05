@@ -11,6 +11,7 @@ ezphot.egg-info/requires.txt
 ezphot.egg-info/top_level.txt
 ezphot/configuration/__init__.py
 ezphot/configuration/configuration.py
+ezphot/configuration/initailization.py
 ezphot/configuration/common/CCD.dat
 ezphot/configuration/common/calibdata.config
 ezphot/configuration/common/catalog.config
@@ -217,7 +218,6 @@ ezphot/imageobjects/dummyimage.py
 ezphot/imageobjects/errormap.py
 ezphot/imageobjects/imageset.py
 ezphot/imageobjects/mask.py
-ezphot/imageobjects/masterimage.py
 ezphot/imageobjects/referenceimage.py
 ezphot/imageobjects/scienceimage.py
 ezphot/methods/__init__.py

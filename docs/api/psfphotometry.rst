@@ -13,7 +13,3 @@ Methods
 .. autofunction:: ezphot.methods.PSFPhotometry.psf_photometry
 
 
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.psfphotometry.PSFPhotometry_properties.rst

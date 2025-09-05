@@ -1,5 +1,6 @@
 
 #%%
+import inspect
 from typing import Union, List
 from concurrent.futures import ProcessPoolExecutor
 
@@ -98,11 +99,31 @@ class ImageSet:
 
     def __repr__(self):
         txt = f"ImageSet[n_selected/n_images= {len(self.target_images)}/{len(self.images)}] \n"
-        txt += 'SELECT FILTER ============\n'
+        txt += 'SELECTED FILTER ============\n'
         for key, value in self._last_filter.items():
             prefix = "!" if self._last_mode == "exclude" and value is not None else ""
             txt += f"{prefix}{key:>11} = {value}\n"
         return txt
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
     
     def clear(self):
         """Clear the image set."""
@@ -453,20 +474,3 @@ class ImageSet:
             results = list(tqdm(executor.map(_load_refcatalog, self.target_images), total=len(self.target_images), desc='Loading refcatalog'))
         self._refcatalog = np.array(results)
         return self._refcatalog
-    
-        
-
-
-#%%
-
-if __name__ == "__main__":
-    from ezphot.helper import DataBrowser
-
-    import time
-    databrowser = DataBrowser('scidata')
-    databrowser.observatory = '7DT'
-    #databrowser.filter = ['g', 'r']
-    databrowser.objname = 'T22956'
-    databrowser.telname = '7DT16'
-    A = databrowser.search('calib*100.fits', return_type = 'science')
-# %%

@@ -13,7 +13,4 @@ Methods
 .. autofunction:: ezphot.methods.PhotometricCalibration.select_stars
 .. autofunction:: ezphot.methods.PhotometricCalibration.determine_reference_mag_range
 
-Properties
-----------
 
-.. include:: _generated/ezphot.methods.photometriccalibration.PhotometricCalibration_properties.rst

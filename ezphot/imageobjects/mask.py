@@ -1,4 +1,5 @@
 #%%
+import inspect
 import os
 import json
 from pathlib import Path
@@ -146,6 +147,26 @@ class Mask(DummyImage):
             f"  savedir     = {self.savedir}\n"
             f")"
         )
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
         
     def copy(self) -> "Mask":
         """
@@ -445,27 +466,23 @@ class Mask(DummyImage):
     def connected_files(self) -> set:
         """
         Return all associated files that would be deleted in `remove()` if remove_connected_files=True,
-        excluding the main FITS file (`self.path`).
-
+        excluding the main FITS file (`self.path`) and the `targetpath`.
         Only includes existing files, not directories.
-
-        Returns
-        -------
-        connected_files : set
-            All connected auxiliary files.
         """
         connected = set()
 
-        # Files in same directory that start with the same base name (excluding self.path)
         base_dir = self.path.parent
         base_name = self.path.name
+        protected = {self.path, self.savepath.targetpath}  # protect targetpath
+
+        # Files in same directory that start with the same base name (excluding self.path)
         for f in base_dir.iterdir():
-            if f.is_file() and f.name.startswith(base_name) and f != self.path:
+            if f.is_file() and f.name.startswith(base_name) and f not in protected:
                 connected.add(f)
 
-        # Files explicitly listed in savepath (excluding self.path)
+        # Files explicitly listed in savepath (excluding self.path and targetpath)
         for p in vars(self.savepath).values():
-            if isinstance(p, Path) and p.exists() and p.is_file() and p != self.path:
+            if isinstance(p, Path) and p.exists() and p.is_file() and p not in protected:
                 connected.add(p)
 
         return connected

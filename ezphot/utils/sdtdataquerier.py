@@ -53,7 +53,8 @@ class SDTDataQuerier:
         print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
         
     def sync_obsdata(self, 
-                     foldername: str):
+                     foldername: str,
+                     file_pattern: str = '*.fits'):
         """
         Syncs all FITS files from a given foldername in the source directory to the destination directory.
         
@@ -77,9 +78,10 @@ class SDTDataQuerier:
 
         # Step 3: Move all files to temporary storage in parallel
         with Pool(processes=len(telescope_ids)) as pool:
-            dest_folders = pool.starmap(self._run_obsrsync, [(tid, foldername) for tid in telescope_ids])
+            dest_folders = pool.starmap(self._run_obsrsync, [(tid, foldername, file_pattern) for tid in telescope_ids])
 
-    def sync_scidata(self, targetname : str):
+    def sync_scidata(self, targetname : str, 
+                     file_pattern: str = '*.fits'):
         """
         Syncs all FITS files from a given targetname in the source directory to the destination directory.
         
@@ -103,7 +105,7 @@ class SDTDataQuerier:
 
         # Step 3: Move all files to temporary storage in parallel
         with Pool(processes=len(telescope_ids)) as pool:
-            dest_folders = pool.starmap(self._run_scirsync, [(tid, targetname) for tid in telescope_ids])
+            dest_folders = pool.starmap(self._run_scirsync, [(tid, targetname, file_pattern) for tid in telescope_ids])
 
     def show_obssourcedata(self, 
                            foldername: str, 
@@ -119,11 +121,11 @@ class SDTDataQuerier:
         show_only_numbers : bool
             If True, return only the number of matched FITS files per telescope.
         pattern : str
-            Glob pattern to match FITS files (default: '*.fits').
+            Glob pattern to match FITS files (default: ``'*.fits'``).
 
         Returns
         -------
-        dict
+        fits_counts : dict
             Dictionary of {telescope_id: count or list of file paths}, sorted by telescope ID.
         """
         import glob
@@ -443,50 +445,96 @@ class SDTDataQuerier:
                 matched_folders.append(target)
         all_matched_folders = set(matched_folders)
         return sorted(all_matched_folders)
-            
-    def _run_obsrsync(self, telescope_id, foldername):
-        src_folder = os.path.join(self.helper.config['SDTDATA_OBSSOURCEDIR'], telescope_id, foldername)
-        dest_folder = os.path.join(self.helper.config['SDTDATA_OBSDESTDIR'], telescope_id, foldername)
+
+    def _run_obsrsync(self, telescope_id, foldername, file_pattern='*com.fits'):
+        """
+        Copy ONLY files matching file_pattern from src to dest (recursively).
+        """
+        src_folder  = os.path.join(self.helper.config['SDTDATA_OBSSOURCEDIR'], telescope_id, foldername)
+        dest_folder = os.path.join(self.helper.config['SDTDATA_OBSDESTDIR'],   telescope_id, foldername)
 
         if not os.path.exists(src_folder):
             print(f"Source folder does not exist: {src_folder}")
             return
-            
-        # Ensure destination directory exists
+
         os.makedirs(dest_folder, exist_ok=True)
 
-        # Rsync all files to the temporary location
-        cmd = ["rsync", "-av", "--progress", src_folder + "/", dest_folder + "/"]
-        print(f"Moving all files for {telescope_id} -> {dest_folder}")
-        subprocess.run(cmd)
+        # Normalize to list (support multiple patterns if needed)
+        includes = [file_pattern] if isinstance(file_pattern, str) else list(file_pattern or [])
 
-        return dest_folder
+        cmd = [
+            "rsync", "-av",
+            "--info=progress2",
+            "--no-inc-recursive",   # lowers memory on big trees
+            "--prune-empty-dirs",   # don't create empty dirs at dest
+            "--include", "*/"       # allow directory traversal
+        ]
+        for pat in includes:
+            cmd += ["--include", pat]
 
-    def _run_scirsync(self, telescope_id, targetname):
-        """
-        Moves all FITS files from a telescope's folder into a temporary directory.
+        # IMPORTANT: exclude everything else
+        cmd += ["--exclude", "*", src_folder + "/", dest_folder + "/"]
 
-        :param telescope_id: The specific telescope folder (e.g., '7DT01', '7DT02')
-        :param targetname: The folder containing FITS files.
-        """
-        src_folder = os.path.join(self.helper.config['SDTDATA_SCISOURCEDIR'], targetname, telescope_id)
-        dest_folder = os.path.join(self.helper.config['SDTDATA_SCIDESTDIR'], targetname, telescope_id)
-
-        if not os.path.exists(src_folder):
-            print(f"Source folder does not exist: {src_folder}")
-            return
-            
-        # Ensure destination directory exists
-        os.makedirs(dest_folder, exist_ok=True)
-
-        # Rsync all files to the temporary location
-        #cmd = ["rsync", "-av", "--progress", "--exclude", "*.png", "--exclude", "*.cat", src_folder + "/", dest_folder + "/"]
-        cmd = ["rsync", "-av", "--progress", "--exclude", "*.png", src_folder + "/", dest_folder + "/"]
-        print(f"Moving all files for {telescope_id} -> {dest_folder}")
-        subprocess.run(cmd)
-
+        print("Running:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
         return dest_folder
     
+    
+    def _run_scirsync(self, telescope_id, targetname, file_pattern='*com.fits'):
+        """
+        Copy ONLY files matching file_pattern from src to dest (recursively).
+        """
+        src_folder  = os.path.join(self.helper.config['SDTDATA_SCISOURCEDIR'], targetname, telescope_id)
+        dest_folder = os.path.join(self.helper.config['SDTDATA_SCIDESTDIR'],   targetname, telescope_id)
+
+        if not os.path.exists(src_folder):
+            print(f"Source folder does not exist: {src_folder}")
+            return
+
+        os.makedirs(dest_folder, exist_ok=True)
+
+        # Normalize to list (support multiple patterns if needed)
+        includes = [file_pattern] if isinstance(file_pattern, str) else list(file_pattern or [])
+
+        cmd = [
+            "rsync", "-av",
+            "--info=progress2",
+            "--no-inc-recursive",   # lowers memory on big trees
+            "--prune-empty-dirs",   # don't create empty dirs at dest
+            "--include", "*/"       # allow directory traversal
+        ]
+        for pat in includes:
+            cmd += ["--include", pat]
+
+        # IMPORTANT: exclude everything else
+        cmd += ["--exclude", "*", src_folder + "/", dest_folder + "/"]
+
+        print("Running:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
+        return dest_folder
+    
+
+#%%
+# Example usage:
+if __name__ == "__main__":
+    foldername = "2025"  # Add required folder keys
+    self = SDTDataQuerier()
+    #tbl = self.show_destdata('2025-02-10_gain0')
+    tile_id_list = set([
+    "T22956"
+    ])
+    folder_key = '*'
+    #self.sync_obsdata(foldername)
+    #data = self.show_scisourcedata(targetname)
+    import time
+    # for targetname in tile_id_list:
+    #     print(f"Syncing data for target: {targetname}")
+    #     self.sync_scidata(targetname = targetname)
+    #     time.sleep(10)
+    #sync_manager.sync_all_folders(folder_keys)
+    #a = self.show_obssourcefolder(folder_key)
+    #a = self.show_scisourcefolder(folder_key = '*')
+
 
 #%%
 # Example usage:

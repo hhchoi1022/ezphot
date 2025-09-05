@@ -14,7 +14,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm.contrib.concurrent import process_map
 
 from ezphot.helper import Helper
-from ezphot.imageobjects import ScienceImage, CalibrationImage, MasterImage, ReferenceImage, Errormap, Background
+from ezphot.imageobjects import ScienceImage, CalibrationImage, ReferenceImage, Errormap, Background
 from ezphot.methods import Reproject
 from ezphot.methods import BackgroundGenerator
 from ezphot.methods import PSFPhotometry
@@ -611,7 +611,7 @@ class Stack:
                 del combined_header[k]
 
         # Save combined image
-        # If CalibrationImage is input, Save it as MasterImage. This will be saved in the master_frame directory.
+        # If CalibrationImage is input, Save it as CalibrationImage. This will be saved in the master_frame directory.
         # Else, save it in the target_outpath.
         stack_instance =  type(target_imglist[0])(path = target_outpath, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = False)
         stack_instance.data = combined_data
@@ -883,7 +883,7 @@ class Stack:
             os.remove(imagestack_tmppath)
         
         if type(target_imglist[0]) == CalibrationImage:
-            stack_instance = MasterImage(path = target_outpath, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = True)
+            stack_instance = CalibrationImage(path = target_outpath, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = True)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
         else:
             stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = True)

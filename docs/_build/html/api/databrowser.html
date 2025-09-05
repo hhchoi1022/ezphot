@@ -42,11 +42,512 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Installation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/getstarted.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#loading-telescope-configurations">Loading Telescope Configurations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#adding-telescope-configurations-tbd">Adding Telescope Configurations (TBD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-data-directories">(Optional) Connecting Data Directories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-sky-catalogs">(Optional) Connecting Sky Catalogs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/loadimage.html">Loading Images</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#creating-a-scienceimage-instance">Creating a ScienceImage instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#accessing-data-and-header">Accessing Data and Header</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#inspecting-properties">Inspecting Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#working-with-save-paths">Working with Save Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#saving-and-removing-files">Saving and Removing Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#visualization">Visualization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/platesolving.html">Platesolving</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#astrometry-net-solution">Astrometry.net Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#scamp-solution">SCAMP Solution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/maskgeneration.html">Masking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#creating-a-maskgenerator">Creating a MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#invalid-pixel-mask">Invalid Pixel Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#source-mask">Source Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#circular-mask">Circular Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#cosmic-ray-mask">Cosmic Ray Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#output-of-the-maskgenerator">Output of the MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/backgroundgeneration.html">Background Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#creating-a-backgroundgenerator">Creating a BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#estimating-background-with-sep">Estimating Background with SEP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#subtracting-the-background">Subtracting the Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#the-background-instance">The Background Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/errormapgeneration.html">Error Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#creating-an-errormapgenerator">Creating an ErrormapGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-background-rms-from-image">Calculating Source/Background RMS from Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-rms-propagation">Calculating Source RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-background-rms-propagation">Calculating Background RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#the-errormap-instance">The Errormap Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometry.html">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#input-options">Input Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#detection-photometry-source-extractor-photometry">[Detection + Photometry] Source-Extractor photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-circular-aperture">[Forced photometry] Circular aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-elliptical-aperture">[Forced photometry] Elliptical Aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#notes">Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#basic-photometric-calibration">Basic Photometric Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-zeropoints">Applying Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-color-terms">Applying Color Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-magnitude-terms">Applying Magnitude Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#output">Output</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="methods.html">Methods</a></li>
-<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dataobjects.html">DataObjects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods.html">Methods</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="maskgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="maskgenerator.html#ezphot.methods.MaskGenerator"><code class="docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="maskgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="maskgenerator.html#ezphot.methods.MaskGenerator.mask_sources"><code class="docutils literal notranslate"><span class="pre">mask_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="maskgenerator.html#ezphot.methods.MaskGenerator.mask_circle"><code class="docutils literal notranslate"><span class="pre">mask_circle()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="maskgenerator.html#ezphot.methods.MaskGenerator.mask_invalidpixel"><code class="docutils literal notranslate"><span class="pre">mask_invalidpixel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="maskgenerator.html#ezphot.methods.MaskGenerator.mask_cosmicray"><code class="docutils literal notranslate"><span class="pre">mask_cosmicray()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundgenerator.html">BackgroundGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundgenerator.html#ezphot.methods.BackgroundGenerator"><code class="docutils literal notranslate"><span class="pre">BackgroundGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_sep"><code class="docutils literal notranslate"><span class="pre">estimate_with_sep()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_photutils"><code class="docutils literal notranslate"><span class="pre">estimate_with_photutils()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundgenerator.html#ezphot.methods.BackgroundGenerator.subtract_background"><code class="docutils literal notranslate"><span class="pre">subtract_background()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="errormapgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="errormapgenerator.html#ezphot.methods.errormapgenerator.ErrormapGenerator"><code class="docutils literal notranslate"><span class="pre">ErrormapGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="errormapgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_errormap_from_image"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_sourcerms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_sourcerms_from_propagation()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html">Preprocess</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#ezphot.methods.preprocess.Preprocess"><code class="docutils literal notranslate"><span class="pre">Preprocess</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.correct_bias"><code class="docutils literal notranslate"><span class="pre">correct_bias()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.correct_dark"><code class="docutils literal notranslate"><span class="pre">correct_dark()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.correct_flat"><code class="docutils literal notranslate"><span class="pre">correct_flat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.correct_bd"><code class="docutils literal notranslate"><span class="pre">correct_bd()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.correct_bdf"><code class="docutils literal notranslate"><span class="pre">correct_bdf()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.get_masterframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_masterframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.generate_masterframe"><code class="docutils literal notranslate"><span class="pre">generate_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="preprocess.html#ezphot.methods.Preprocess.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="platesolve.html">PlateSolve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="platesolve.html#ezphot.methods.Platesolve"><code class="docutils literal notranslate"><span class="pre">Platesolve</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="platesolve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="platesolve.html#ezphot.methods.Platesolve.solve_astrometry"><code class="docutils literal notranslate"><span class="pre">solve_astrometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="platesolve.html#ezphot.methods.Platesolve.solve_scamp"><code class="docutils literal notranslate"><span class="pre">solve_scamp()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html">AperturePhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#ezphot.methods.aperturephotometry.AperturePhotometry"><code class="docutils literal notranslate"><span class="pre">AperturePhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#ezphot.methods.AperturePhotometry.sex_photometry"><code class="docutils literal notranslate"><span class="pre">sex_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#ezphot.methods.AperturePhotometry.photutils_photometry"><code class="docutils literal notranslate"><span class="pre">photutils_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#ezphot.methods.AperturePhotometry.circular_photometry"><code class="docutils literal notranslate"><span class="pre">circular_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#ezphot.methods.AperturePhotometry.elliptical_photometry"><code class="docutils literal notranslate"><span class="pre">elliptical_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="psfphotometry.html">PSFPhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="psfphotometry.html#ezphot.methods.psfphotometry.PSFPhotometry"><code class="docutils literal notranslate"><span class="pre">PSFPhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="psfphotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="psfphotometry.html#ezphot.methods.PSFPhotometry.select_psfstars"><code class="docutils literal notranslate"><span class="pre">select_psfstars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psfphotometry.html#ezphot.methods.PSFPhotometry.extract_sources"><code class="docutils literal notranslate"><span class="pre">extract_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model"><code class="docutils literal notranslate"><span class="pre">build_epsf_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model_psfex"><code class="docutils literal notranslate"><span class="pre">build_epsf_model_psfex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psfphotometry.html#ezphot.methods.PSFPhotometry.psf_photometry"><code class="docutils literal notranslate"><span class="pre">psf_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html">PhotometricCalibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.photometriccalibration.PhotometricCalibration"><code class="docutils literal notranslate"><span class="pre">PhotometricCalibration</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.photometric_calibration"><code class="docutils literal notranslate"><span class="pre">photometric_calibration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_zp"><code class="docutils literal notranslate"><span class="pre">apply_zp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_color_terms"><code class="docutils literal notranslate"><span class="pre">apply_color_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_mag_terms"><code class="docutils literal notranslate"><span class="pre">apply_mag_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.select_stars"><code class="docutils literal notranslate"><span class="pre">select_stars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometriccalibration.html#ezphot.methods.PhotometricCalibration.determine_reference_mag_range"><code class="docutils literal notranslate"><span class="pre">determine_reference_mag_range()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="reproject.html">Reproject</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reproject.html#ezphot.methods.reproject.Reproject"><code class="docutils literal notranslate"><span class="pre">Reproject</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="reproject.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="reproject.html#ezphot.methods.Reproject.reproject"><code class="docutils literal notranslate"><span class="pre">reproject()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reproject.html#ezphot.methods.Reproject.align"><code class="docutils literal notranslate"><span class="pre">align()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stack.html">Stack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stack.html#ezphot.methods.stack.Stack"><code class="docutils literal notranslate"><span class="pre">Stack</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="stack.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="stack.html#ezphot.methods.Stack.stack_multiprocess"><code class="docutils literal notranslate"><span class="pre">stack_multiprocess()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="stack.html#ezphot.methods.Stack.stack_swarp"><code class="docutils literal notranslate"><span class="pre">stack_swarp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="stack.html#ezphot.methods.Stack.select_quality_images"><code class="docutils literal notranslate"><span class="pre">select_quality_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="stack.html#ezphot.methods.Stack.match_zeropoints"><code class="docutils literal notranslate"><span class="pre">match_zeropoints()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="stack.html#ezphot.methods.Stack.match_seeing"><code class="docutils literal notranslate"><span class="pre">match_seeing()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="subtract.html">Subtract</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="subtract.html#ezphot.methods.subtract.Subtract"><code class="docutils literal notranslate"><span class="pre">Subtract</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="subtract.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.find_transients"><code class="docutils literal notranslate"><span class="pre">find_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.subtract"><code class="docutils literal notranslate"><span class="pre">subtract()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.select_transients"><code class="docutils literal notranslate"><span class="pre">select_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.show_transient_positions"><code class="docutils literal notranslate"><span class="pre">show_transient_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.get_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.query_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">query_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="subtract.html#ezphot.methods.Subtract.select_reference_image"><code class="docutils literal notranslate"><span class="pre">select_reference_image()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="imageobjects.html">Imageobjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scienceimage.html">ScienceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage"><code class="docutils literal notranslate"><span class="pre">ScienceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ScienceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scienceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_invalidmask"><code class="docutils literal notranslate"><span class="pre">calculate_invalidmask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_sourcemask"><code class="docutils literal notranslate"><span class="pre">calculate_sourcemask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkg"><code class="docutils literal notranslate"><span class="pre">calculate_bkg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scienceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.to_referenceimage"><code class="docutils literal notranslate"><span class="pre">to_referenceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scienceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="calibrationimage.html">CalibrationImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage"><code class="docutils literal notranslate"><span class="pre">CalibrationImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage.__init__"><code class="docutils literal notranslate"><span class="pre">CalibrationImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="calibrationimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="calibrationimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="calibrationimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="referenceimage.html">ReferenceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage"><code class="docutils literal notranslate"><span class="pre">ReferenceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ReferenceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="referenceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="referenceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.to_scienceimage"><code class="docutils literal notranslate"><span class="pre">to_scienceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="referenceimage.html#ezphot.imageobjects.ReferenceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="referenceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="imageset.html">ImageSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="imageset.html#ezphot.imageobjects.imageset.ImageSet"><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="imageset.html#ezphot.imageobjects.imageset.ImageSet.__init__"><code class="docutils literal notranslate"><span class="pre">ImageSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="imageset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="imageset.html#ezphot.imageobjects.ImageSet.exclude_images"><code class="docutils literal notranslate"><span class="pre">exclude_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imageset.html#ezphot.imageobjects.ImageSet.select_images"><code class="docutils literal notranslate"><span class="pre">select_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imageset.html#ezphot.imageobjects.ImageSet.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imageset.html#ezphot.imageobjects.ImageSet.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="imageset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mask.html">Mask</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask"><code class="docutils literal notranslate"><span class="pre">Mask</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.mask.Mask.__init__"><code class="docutils literal notranslate"><span class="pre">Mask.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="mask.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.combine_mask"><code class="docutils literal notranslate"><span class="pre">combine_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="mask.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="mask.html#ezphot.imageobjects.Mask.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="mask.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="errormap.html">Errormap</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap"><code class="docutils literal notranslate"><span class="pre">Errormap</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.errormap.Errormap.__init__"><code class="docutils literal notranslate"><span class="pre">Errormap.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="errormap.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.to_rms"><code class="docutils literal notranslate"><span class="pre">to_rms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.to_weight"><code class="docutils literal notranslate"><span class="pre">to_weight()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="errormap.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="errormap.html#ezphot.imageobjects.Errormap.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="errormap.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="background.html">Background</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="background.html#ezphot.imageobjects.background.Background"><code class="docutils literal notranslate"><span class="pre">Background</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.background.Background.__init__"><code class="docutils literal notranslate"><span class="pre">Background.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="background.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="background.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="background.html#ezphot.imageobjects.Background.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="background.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dataobjects.html">DataObjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="catalog.html">Catalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog"><code class="docutils literal notranslate"><span class="pre">Catalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.catalog.Catalog.__init__"><code class="docutils literal notranslate"><span class="pre">Catalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalog.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.show_source"><code class="docutils literal notranslate"><span class="pre">show_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.apply_mask"><code class="docutils literal notranslate"><span class="pre">apply_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.to_stamp"><code class="docutils literal notranslate"><span class="pre">to_stamp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.to_region"><code class="docutils literal notranslate"><span class="pre">to_region()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalog.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalog.html#ezphot.dataobjects.Catalog.load_info"><code class="docutils literal notranslate"><span class="pre">load_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="catalogset.html">CatalogSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.catalogset.CatalogSet"><code class="docutils literal notranslate"><span class="pre">CatalogSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.catalogset.CatalogSet.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalogset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.search_catalogs"><code class="docutils literal notranslate"><span class="pre">search_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.merge_catalogs"><code class="docutils literal notranslate"><span class="pre">merge_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.exclude_catalogs"><code class="docutils literal notranslate"><span class="pre">exclude_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.select_catalogs"><code class="docutils literal notranslate"><span class="pre">select_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.add_catalogs"><code class="docutils literal notranslate"><span class="pre">add_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogset.html#ezphot.dataobjects.CatalogSet.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalogset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lightcurve.html">LightCurve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve"><code class="docutils literal notranslate"><span class="pre">LightCurve</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve.__init__"><code class="docutils literal notranslate"><span class="pre">LightCurve.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="lightcurve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lightcurve.html#ezphot.dataobjects.LightCurve.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lightcurve.html#ezphot.dataobjects.LightCurve.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lightcurve.html#ezphot.dataobjects.LightCurve.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="photometricspectrum.html">PhotometricSpectrum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum.__init__"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="photometricspectrum.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="skycat.html">SkyCatalog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="skycatalog.html">SkyCatalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog"><code class="docutils literal notranslate"><span class="pre">SkyCatalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="skycatalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="skycatalogutility.html">SkyCatalogUtility</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="skycatalogutility.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.get_catalogs"><code class="docutils literal notranslate"><span class="pre">get_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.select_reference_sources"><code class="docutils literal notranslate"><span class="pre">select_reference_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="skycatalogutility.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1 current"><a class="reference internal" href="utils.html">Utils</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">DataBrowser</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#ezphot.utils.databrowser.DataBrowser"><code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code></a><ul>
@@ -60,9 +561,53 @@
 <li class="toctree-l3"><a class="reference internal" href="#properties">Properties</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="catalogquerier.html">CatalogQuerier</a></li>
-<li class="toctree-l2"><a class="reference internal" href="imagequerier.html">ImageQuerier</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sdtdataquerier.html">SDTDataQuerier</a></li>
+<li class="toctree-l2"><a class="reference internal" href="catalogquerier.html">CatalogQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalogquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="catalogquerier.html#ezphot.utils.CatalogQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogquerier.html#ezphot.utils.CatalogQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="catalogquerier.html#ezphot.utils.CatalogQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="catalogquerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="imagequerier.html">ImageQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="imagequerier.html#ezphot.utils.imagequerier.ImageQuerier"><code class="docutils literal notranslate"><span class="pre">ImageQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="imagequerier.html#ezphot.utils.imagequerier.ImageQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">ImageQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="imagequerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="imagequerier.html#ezphot.utils.ImageQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imagequerier.html#ezphot.utils.ImageQuerier.check_coverage"><code class="docutils literal notranslate"><span class="pre">check_coverage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imagequerier.html#ezphot.utils.ImageQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="imagequerier.html#ezphot.utils.ImageQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="imagequerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sdtdataquerier.html">SDTDataQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sdtdataquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.sync_obsdata"><code class="docutils literal notranslate"><span class="pre">sync_obsdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcedata"><code class="docutils literal notranslate"><span class="pre">show_obssourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestdata"><code class="docutils literal notranslate"><span class="pre">show_obsdestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcefolder"><code class="docutils literal notranslate"><span class="pre">show_obssourcefolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestfolder"><code class="docutils literal notranslate"><span class="pre">show_obsdestfolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcedata"><code class="docutils literal notranslate"><span class="pre">show_scisourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scidestdata"><code class="docutils literal notranslate"><span class="pre">show_scidestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcefolder"><code class="docutils literal notranslate"><span class="pre">show_scisourcefolder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -97,21 +642,23 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="ezphot.utils.databrowser.DataBrowser">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataBrowser</span></span><a class="reference internal" href="../_modules/ezphot/utils/databrowser.html#DataBrowser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.utils.databrowser.DataBrowser" title="Link to this definition"></a></dt>
-<dd><p>DataBrowser is a class that provides a unified interface for searching and loading data from the telescope data directory.
-It provides</p>
-<p>1. Search for files matching the current filters and return them as different types of objects.
-Types of objects:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p>Imageset of ScienceImage</p></li>
-<li><p>Imageset of ReferenceImage</p></li>
-<li><p>Imageset of CalibrationImage</p></li>
-<li><p>List of Background</p></li>
-<li><p>List of Errormap</p></li>
-<li><p>List of Mask</p></li>
-<li><p>List of Catalog</p></li>
+<dd><p>DataBrowser is a class that provides a unified interface for searching and loading data
+from the telescope data directory.</p>
+<p>It provides:</p>
+<ol class="arabic">
+<li><p>Search for files matching the current filters and return them as different types of objects.</p>
+<p>Types of objects:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">ScienceImage</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">ReferenceImage</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">CalibrationImage</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">Background</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">Errormap</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code> of <code class="docutils literal notranslate"><span class="pre">Mask</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CatalogSet</span></code> of <code class="docutils literal notranslate"><span class="pre">Catalog</span></code></p></li>
 </ul>
-</div></blockquote>
+</li>
+</ol>
 <dl class="py method">
 <dt class="sig sig-object py" id="ezphot.utils.databrowser.DataBrowser.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">foldertype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ezphot/utils/databrowser.html#DataBrowser.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.utils.databrowser.DataBrowser.__init__" title="Link to this definition"></a></dt>
@@ -125,26 +672,29 @@ Types of objects:</p>
 <dt class="sig sig-object py" id="ezphot.utils.DataBrowser.search">
 <span class="sig-name descname"><span class="pre">search</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*.fits'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'path'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.utils.DataBrowser.search" title="Link to this definition"></a></dt>
 <dd><p>Search for FITS files matching the current attributes and return them grouped by telescope or as objects.</p>
-<p>This method will search for the files in the searchpath defined by the current filters (observatory, telkey, objname, telname, filter, obsdate).</p>
+<p>This method will search for the files in the searchpath defined by the current filters
+(observatory, telkey, objname, telname, filter, obsdate).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>pattern</strong> (<em>str</em>) – Filename pattern to match (e.g., ‘<a href="#id1"><span class="problematic" id="id2">*</span></a>.fits’).</p></li>
-<li><p><strong>return_type</strong> (<em>str</em>) – ‘path’, ‘science’, ‘reference’, ‘calibration’, ‘background’, ‘errormap’, ‘mask’ or ‘imginfo’ to convert paths to objects.</p></li>
+<li><p><strong>pattern</strong> (<em>str</em>) – Filename pattern to match (e.g., <code class="docutils literal notranslate"><span class="pre">'*.fits'</span></code>).</p></li>
+<li><p><strong>return_type</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">'path'</span></code>, <code class="docutils literal notranslate"><span class="pre">'science'</span></code>, <code class="docutils literal notranslate"><span class="pre">'reference'</span></code>, <code class="docutils literal notranslate"><span class="pre">'calibration'</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'background'</span></code>, <code class="docutils literal notranslate"><span class="pre">'errormap'</span></code>, <code class="docutils literal notranslate"><span class="pre">'mask'</span></code> or <code class="docutils literal notranslate"><span class="pre">'imginfo'</span></code>
+to convert paths to objects.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><p><strong>output</strong> –</p>
 <ul class="simple">
-<li><p>If return_type is ‘path’, returns dict[telname] = list of file paths.</p></li>
-<li><p>If return_type is ‘imginfo’, returns astropy.table.Table of imginfo.</p></li>
-<li><p>If return_type is ‘science’, ‘reference’, ‘calibration’, returns ImageSet.</p></li>
-<li><p>If return_type is ‘mask’, ‘background’, ‘errormap’, returns list of image objects.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">return_type``=</span></code>’path’<code class="docutils literal notranslate"><span class="pre">,</span> <span class="pre">returns</span> <span class="pre">``dict[telname]</span> <span class="pre">=</span> <span class="pre">list</span> <span class="pre">of</span> <span class="pre">file</span> <span class="pre">paths</span></code>.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">return_type``=</span></code>’imginfo’<code class="docutils literal notranslate"><span class="pre">,</span> <span class="pre">returns</span> <span class="pre">``astropy.table.Table</span></code> of imginfo.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">return_type``=</span></code>’science’<code class="docutils literal notranslate"><span class="pre">,</span> <span class="pre">``'reference'</span></code>, <code class="docutils literal notranslate"><span class="pre">'calibration'</span></code>, <code class="docutils literal notranslate"><span class="pre">'mask'</span></code>, <code class="docutils literal notranslate"><span class="pre">'background'</span></code>, <code class="docutils literal notranslate"><span class="pre">'errormap'</span></code>,  returns <code class="docutils literal notranslate"><span class="pre">'ImageSet'</span></code>.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">return_type``=</span></code>’catalog’<a href="#id1"><span class="problematic" id="id2">``</span></a>, returns CatalogSet.</p></li>
 </ul>
 </p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Dict, Table, <a class="reference internal" href="imageset.html#ezphot.imageobjects.imageset.ImageSet" title="ezphot.imageobjects.imageset.ImageSet">ImageSet</a>, or List</p>
+<dd class="field-odd"><p>Dict, Table, <a class="reference internal" href="imageset.html#ezphot.imageobjects.imageset.ImageSet" title="ezphot.imageobjects.imageset.ImageSet">ImageSet</a>, <a class="reference internal" href="catalogset.html#ezphot.dataobjects.catalogset.CatalogSet" title="ezphot.dataobjects.catalogset.CatalogSet">CatalogSet</a></p>
 </dd>
 </dl>
 </dd></dl>

@@ -13,7 +13,3 @@ Methods
 .. autofunction:: ezphot.methods.Stack.match_seeing
 
 
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.stack.Stack_properties.rst

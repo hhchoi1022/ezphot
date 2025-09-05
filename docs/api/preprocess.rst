@@ -15,8 +15,3 @@ Methods
 .. autofunction:: ezphot.methods.Preprocess.generate_masterframe
 .. autofunction:: ezphot.methods.Preprocess.get_masterframe
 
-
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.preprocess.Preprocess_properties.rst

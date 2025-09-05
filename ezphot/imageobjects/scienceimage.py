@@ -1,4 +1,5 @@
 #%%
+import inspect
 import json
 import os
 from pathlib import Path
@@ -9,7 +10,7 @@ from dataclasses import dataclass, asdict
 from astropy.time import Time
 from astropy.io import fits
 
-from ezphot.imageobjects import Logger, BaseImage
+from ezphot.imageobjects import Logger, BaseImage, Mask, Background, Errormap, CalibrationImage
 
 #%%
 # === Status Class ===
@@ -201,7 +202,26 @@ class ScienceImage(BaseImage):
             f")"
         )
         
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
 
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
+        
     def copy(self):
         """
         Return an in-memory deep copy of this ScienceImage instance,
@@ -261,7 +281,7 @@ class ScienceImage(BaseImage):
                remove_main: bool = True, 
                remove_connected_files: bool = True,
                skip_exts: list = [],
-               verbose: bool = False) -> dict:
+               verbose: bool = True) -> dict:
         """
         Remove the main FITS file and/or associated connected files.
 
@@ -312,7 +332,432 @@ class ScienceImage(BaseImage):
                 removed[str(f)] = try_remove(f)
 
         return removed
+        
+    def calculate_invalidmask(self,
+                              threshold_invalid_connection: int = 100000,
+                              save: bool = False,
+                              verbose: bool = True,
+                              visualize: bool = True,
+                              save_fig: bool = False
+                              ):
+        """ 
+        Calculate the invalid mask for this ScienceImage.
+        The invalid mask is a mask of pixels that are invalid (zero or nan value).
+        If save is True, the invalid mask is saved. Then, you can load the invalid mask with `self.invalidmask`.
+        
+        Parameters
+        ----------
+        threshold_invalid_connection : int
+            The threshold for invalid connection.
+        save : bool
+            If True, save the invalid mask.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the invalid mask.
+        save_fig : bool
+            If True, save the figure of the invalid mask.
+            
+        Returns
+        -------
+        target_ivpmask : Mask
+            The invalid mask.
+        """
+        from ezphot.methods import MaskGenerator
+        maskgenerator = MaskGenerator()
+        target_ivpmask = maskgenerator.mask_invalidpixel(
+            target_img = self,
+            threshold_invalid_connection= threshold_invalid_connection,
+            # Others
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig
+            )
+        return target_ivpmask
     
+    def calculate_sourcemask(self,
+                             target_srcmask: Mask = None,
+                             sigma: float = 5.0,
+                             mask_radius_factor: float = 3,
+                             saturation_level: float = 50000,
+                             save: bool = False,
+                             verbose: bool = True,
+                             visualize: bool = True,
+                             save_fig: bool = False
+                             ):
+        """ 
+        Calculate the source mask for this ScienceImage.
+        The source mask is a mask of pixels that are sources. Detection is made with global background and background RMS map.
+        If save is True, the source mask is saved. Then, you can load the source mask with `self.sourcemask`.
+        
+        Parameters
+        ----------  
+        target_srcmask : Mask
+            The source mask. 
+        sigma : float
+            The sigma for the source detection.
+        mask_radius_factor : float
+            The radius factor for the source detection.
+        saturation_level : float
+            The saturation level for the source detection.
+        save : bool
+            If True, save the source mask.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the source mask.
+        save_fig : bool
+            If True, save the figure of the source mask.
+            
+        Returns
+        -------
+        target_sourcemask : Mask
+            The source mask.
+        """
+        from ezphot.methods import MaskGenerator
+        maskgenerator = MaskGenerator()
+        target_sourcemask = maskgenerator.mask_sources(
+            target_img = self,
+            target_mask = target_srcmask,
+            sigma = sigma,
+            mask_radius_factor = mask_radius_factor,
+            saturation_level = saturation_level,
+
+            # Others
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig
+            )
+        return target_sourcemask
+
+    def calculate_bkg(self,
+                      target_srcmask: Mask = None,
+                      target_ivpmask: Mask = None,
+                      is_2D_bkg: bool = True,
+                      box_size: int = 64,
+                      filter_size: int = 3,
+                      save: bool = False,
+                      verbose: bool = True,
+                      visualize: bool = True,
+                      save_fig: bool = False):
+        """
+        Calculate the background map for this ScienceImage.
+        The background map is a map of the background level of the image.
+        If save is True, the background map is saved. Then, you can load the background map with `self.bkgmap`.
+        
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        target_ivpmask : Mask
+            The invalid mask.
+        is_2D_bkg : bool
+            If True, use 2D background estimation.
+        box_size : int
+            The box size for the background estimation.
+        filter_size : int
+            The filter size for the background estimation.
+        save : bool
+            If True, save the background map.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the background map.
+        save_fig : bool
+            If True, save the figure of the background map.
+        
+        Returns
+        -------
+        target_bkg : Background
+            The calculated background map.
+        """
+        from ezphot.methods import BackgroundGenerator
+        bkggenerator = BackgroundGenerator()
+        target_bkg, _ = bkggenerator.estimate_with_sep(
+            target_img = self,
+            target_srcmask = target_srcmask,
+            target_ivpmask = target_ivpmask,
+            is_2D_bkg = is_2D_bkg,
+            box_size = box_size,
+            filter_size = filter_size,
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig)
+
+        return target_bkg
+    
+    def calculate_bkgrms(self, 
+                         target_srcmask: Mask = None,
+                         target_ivpmask: Mask = None,
+                         box_size: int = 64,
+                         filter_size: int = 3,
+                         save: bool = False,
+                         verbose: bool = True,
+                         visualize: bool = True,
+                         save_fig: bool = False):
+        """
+        Calculate the background RMS map for this ScienceImage.
+        The background RMS map is a map of the background RMS level of the image.
+        If save is True, the background RMS map is saved. Then, you can load the background RMS map with `self.bkgrms`.
+        
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        target_ivpmask : Mask
+            The invalid mask.
+        box_size : int
+            The box size for the background RMS estimation.
+        filter_size : int
+            The filter size for the background RMS estimation.
+        save : bool
+            If True, save the background RMS map.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the background RMS map.
+        save_fig : bool
+            If True, save the figure of the background RMS map.
+        
+        Returns
+        -------
+        target_bkgrms : Errormap
+            The background RMS map.
+        """
+        from ezphot.methods import ErrormapGenerator
+        errormapgenerator = ErrormapGenerator()
+        target_bkgrms, _, _ = errormapgenerator.calculate_errormap_from_image(
+            target_img = self,  
+            target_srcmask = target_srcmask,
+            target_ivpmask = target_ivpmask,
+            box_size = box_size,
+            filter_size = filter_size,
+            erormap_type = 'bkgrms',
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig)
+        return target_bkgrms
+    
+    def calculate_bkgrms_from_propagation(self,
+                                          target_bkg: Background = None,
+                                          mbias: CalibrationImage = None,
+                                          mdark: CalibrationImage = None,
+                                          mflat: CalibrationImage = None,
+                                          mflaterr: Errormap = None,
+                                          ncombine: int = 1,
+                                          readout_noise: float = None,
+                                          save: bool = False,
+                                          verbose: bool = True,
+                                          visualize: bool = True,
+                                          save_fig: bool = False):
+        """
+        Calculate the background RMS map for this ScienceImage from the background map, bias frame, dark frame, and flat frame.
+        The background RMS map is a map of the background RMS level of the image. 
+        If save is True, the background RMS map is saved. Then, you can load the background RMS map with `self.bkgrms`.
+
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        target_ivpmask : Mask
+            The invalid mask.
+        mbias : CalibrationImage
+            The bias frame.
+        mdark : CalibrationImage
+            The dark frame.
+        mflat : CalibrationImage
+            The flat frame.
+        mflaterr : Errormap
+            The flat error map.
+        ncombine : int
+            The number of frames to combine.
+        readout_noise : float
+            The readout noise.
+        save : bool
+            If True, save the background RMS map.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the background RMS map.
+        save_fig : bool
+            If True, save the figure of the background RMS map.
+
+        Returns
+        -------
+        target_bkgrms : Errormap
+            The background RMS map.
+        """
+        
+        from ezphot.methods import Preprocess
+        preprocess = Preprocess()
+        # prepare the data
+        if target_bkg is None:
+            if self.bkgmap is None:
+                raise ValueError("Cannot calculate background RMS map: Input background map. OR Register background map with scienceimage.calculate_background(save = True) first.")
+            else:
+                target_bkg = self.bkgmap
+            
+        if mbias is None:
+            mbias_path = preprocess.get_masterframe_from_image(self, 'bias', 30)
+        if mdark is None:
+            mdark_path = preprocess.get_masterframe_from_image(self, 'dark', 30)
+        if mflat is None:
+            mflat_path = preprocess.get_masterframe_from_image(self, 'flat', 30)
+         
+        mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
+        mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
+        mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
+        if mbias is None or mdark is None or mflat is None:
+            raise ValueError("Cannot calculate background RMS: required calibration frames are missing.")
+
+        from ezphot.methods import ErrormapGenerator
+        errormapgenerator = ErrormapGenerator()
+        target_bkgrms = errormapgenerator.calculate_bkgrms_from_propagation(
+            target_bkg = target_bkg,
+            mbias_img = mbias,
+            mdark_img = mdark,
+            mflat_img = mflat,
+            mflaterr_img = mflaterr,
+            ncombine = ncombine,
+            readout_noise = readout_noise,
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig)
+                
+        return target_bkgrms
+        
+    def calculate_errormap(self, 
+                           target_srcmask: Mask = None,
+                           target_ivpmask: Mask = None,
+                           box_size: int = 64,
+                           filter_size: int = 3,
+                           save: bool = False,
+                           verbose: bool = True,
+                           visualize: bool = True,
+                           save_fig: bool = False):
+        """
+        Calculate the source RMS map for this ScienceImage.
+        The source RMS map is a map of the source RMS level of the image.
+        If save is True, the source RMS map is saved. Then, you can load the source RMS map with `self.sourcerms`.
+
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        target_ivpmask : Mask
+            The invalid mask.
+        box_size : int
+            The box size for the source RMS estimation.
+        filter_size : int
+            The filter size for the source RMS estimation.
+        save : bool
+            If True, save the source RMS map.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the source RMS map.
+        save_fig : bool
+            If True, save the figure of the source RMS map.
+
+        Returns
+        -------
+        target_sourcerms : Errormap
+            The source RMS map.
+        """
+        from ezphot.methods import ErrormapGenerator
+        errormapgenerator = ErrormapGenerator()
+        target_sourcerms = errormapgenerator.calculate_errormap_from_image(
+            target_img = self,  
+            target_srcmask = target_srcmask,
+            target_ivpmask = target_ivpmask,
+            box_size = box_size,
+            filter_size = filter_size,
+            erormap_type = 'sourcerms',
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig)
+        return target_sourcerms
+    
+    def calculate_errormap_from_propagation(self,
+                                            mbias: CalibrationImage = None,
+                                            mdark: CalibrationImage = None,
+                                            mflat: CalibrationImage = None,
+                                            mflaterr: Errormap = None,
+                                            save: bool = False,
+                                            verbose: bool = True,
+                                            visualize: bool = True,
+                                            save_fig: bool = False):
+        """
+        Calculate the source RMS map for this ScienceImage from the background map, bias frame, dark frame, and flat frame.
+        The source RMS map is a map of the source RMS level of the image.
+        If save is True, the source RMS map is saved. Then, you can load the source RMS map with `self.sourcerms`.
+
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        target_ivpmask : Mask
+            The invalid mask.
+        mbias : CalibrationImage
+            The bias frame.
+        mdark : CalibrationImage
+            The dark frame.
+        mflat : CalibrationImage
+            The flat frame.
+        mflaterr : Errormap
+            The flat error map.
+        save : bool
+            If True, save the source RMS map.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the source RMS map.
+        save_fig : bool
+            If True, save the figure of the source RMS map.
+
+        Returns
+        -------
+        target_sourcerms : Errormap
+            The source RMS map.
+        """
+        from ezphot.methods import Preprocess
+        preprocess = Preprocess()
+        # prepare the data
+
+        if mbias is None:
+            mbias_path = preprocess.get_masterframe_from_image(self, 'bias', 30)
+        if mdark is None:
+            mdark_path = preprocess.get_masterframe_from_image(self, 'dark', 30)
+        if mflat is None:
+            mflat_path = preprocess.get_masterframe_from_image(self, 'flat', 30)
+         
+        mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
+        mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
+        mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
+        if mbias is None or mdark is None or mflat is None:
+            raise ValueError("Cannot calculate source RMS: required calibration frames are missing.")
+
+        from ezphot.methods import ErrormapGenerator
+        errormapgenerator = ErrormapGenerator()
+        target_sourcerms = errormapgenerator.calculate_sourcerms_from_propagation(
+            target_img = self,
+            mbias_img = mbias,
+            mdark_img = mdark,
+            mflat_img = mflat,
+            mflaterr_img = mflaterr,
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig)
+            
+        return target_sourcerms
+        
     def to_referenceimage(self):
         """ Convert this ScienceImage to a ReferenceImage
         
@@ -548,6 +993,14 @@ class ScienceImage(BaseImage):
         return self._bkgrms
 
     @property
+    def invalidmask(self):
+        """Invalid mask of the image. If not exists, return None."""
+        if self._invalidmask is None and self.savepath.invalidmaskpath.exists():
+            from ezphot.imageobjects import Mask
+            self._invalidmask = Mask(self.savepath.invalidmaskpath, masktype='invalid', load=True)
+        return self._invalidmask
+    
+    @property
     def sourcemask(self):
         """Source mask of the image. If not exists, return None."""
         if self._srcmask is None and self.savepath.srcmaskpath.exists():
@@ -609,5 +1062,3 @@ class ScienceImage(BaseImage):
                 self.status.update('ASTROMETRY')
                 self.status.update('SCAMP')
                 #self.status.update('ZPCALC')
-
-            

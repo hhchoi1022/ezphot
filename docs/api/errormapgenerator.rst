@@ -11,7 +11,3 @@ Methods
 .. autofunction:: ezphot.methods.ErrormapGenerator.calculate_sourcerms_from_propagation
 
 
-Properties
-----------
-
-.. include:: _generated/ezphot.methods.errormapgenerator.ErrormapGenerator_properties.rst

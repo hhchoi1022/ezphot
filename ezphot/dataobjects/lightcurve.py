@@ -41,8 +41,8 @@ class LightCurve:
         source_catalogs : CatalogSet
             The source catalogs to use for the light curve.
         """
-        if not isinstance(source_catalogs, CatalogSet):
-            raise TypeError("source_catalogs must be an instance of CatalogSet")
+        # if not isinstance(source_catalogs, CatalogSet):
+        #     raise TypeError("source_catalogs must be an instance of CatalogSet")
         self.helper = Helper()
         self.source_catalogs = source_catalogs
         self.merged_catalog = None
@@ -247,7 +247,7 @@ class LightCurve:
             fig, ax = plt.subplots()
 
             # Title as J-name
-            coord = tbl['coord'][0] if 'coord' in tbl.colnames else SkyCoord(ra*u.deg, dec*u.deg)
+            coord = SkyCoord(ra*u.deg, dec*u.deg, unit ='deg')
             ra_str  = coord.ra.to_string(unit=u.hourangle, sep='', pad=True, precision=2)
             dec_str = coord.dec.to_string(sep='', alwayssign=True, pad=True, precision=1)
             jname = f'J{ra_str}{dec_str}'
@@ -375,8 +375,7 @@ class LightCurve:
                             dec_key: str = 'Y_WORLD',
                             flux_keys=['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4'], 
                             fluxerr_keys=['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4'], 
-                            matching_radius_arcsec=5.0, 
-                            fit_filter_key=None):
+                            matching_radius_arcsec=5.0):
         """
         Extract source information from the merged catalog.
         

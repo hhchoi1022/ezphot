@@ -293,9 +293,9 @@ def process_tile_filter(args, context):
             mdark_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp='DARK', max_days=60)[0]
             mflat_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp='FLAT', max_days=60)[0]
 
-            mbias = MasterImage(path=mbias_path['file'], telinfo=target_img.telinfo, load=True)
-            mdark = MasterImage(path=mdark_path['file'], telinfo=target_img.telinfo, load=True)
-            mflat = MasterImage(path=mflat_path['file'], telinfo=target_img.telinfo, load=True)
+            mbias = CalibrationImage(path=mbias_path['file'], telinfo=target_img.telinfo, load=True)
+            mdark = CalibrationImage(path=mdark_path['file'], telinfo=target_img.telinfo, load=True)
+            mflat = CalibrationImage(path=mflat_path['file'], telinfo=target_img.telinfo, load=True)
 
             _ = Preprocessor.correct_bdf(
                 target_img,
@@ -454,9 +454,9 @@ for tile_id in tile_ids:
     #     mbias_path = context['Preprocessor'].get_masterframe_from_image(target_img, imagetyp = 'BIAS', max_days = 60)[0]
     #     mdark_path = context['Preprocessor'].get_masterframe_from_image(target_img, imagetyp = 'DARK', max_days = 60)[0]
     #     mflat_path = context['Preprocessor'].get_masterframe_from_image(target_img, imagetyp = 'FLAT', max_days = 60)[0]
-    #     mbias = MasterImage(path = mbias_path['file'], telinfo = telinfo, load = True)
-    #     mdark = MasterImage(path = mdark_path['file'], telinfo = telinfo, load = True)
-    #     mflat = MasterImage(path = mflat_path['file'], telinfo = telinfo, load = True)
+    #     mbias = CalibrationImage(path = mbias_path['file'], telinfo = telinfo, load = True)
+    #     mdark = CalibrationImage(path = mdark_path['file'], telinfo = telinfo, load = True)
+    #     mflat = CalibrationImage(path = mflat_path['file'], telinfo = telinfo, load = True)
 
     #     status = dict()
     #     status['image'] = target_img.path

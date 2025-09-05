@@ -1,18 +1,15 @@
 
 #%%
+import inspect
 from pathlib import Path
 from tqdm import tqdm
 import pandas as pd
-from typing import Optional, Union, List
-from astropy.io import fits
+from typing import Union, List
 from astropy.time import Time
-from astropy.table import Table, vstack, join
-from astropy.coordinates import SkyCoord
-import astropy.units as u
+from astropy.table import Table
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 
-from ezphot.configuration import Configuration
 from ezphot.dataobjects import Catalog
 from ezphot.imageobjects import ScienceImage
 from ezphot.helper import Helper
@@ -72,6 +69,26 @@ class CatalogSet:
             prefix = "!" if self._last_mode == "exclude" and value is not None else ""
             txt += f"{prefix}{key:>11} = {value}\n"
         return txt
+
+    def help(self):
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
     
     def search_catalogs(self,
                         target_name: str,
@@ -608,25 +625,3 @@ if __name__ == "__main__":
         search_key=search_key,
         n_proc = 16
     )
-#%%
-if __name__ == "__main__":
-    self.select_sources(ra = 234.14732382, dec = 11.503295046, radius = 60)
-#%%
-if __name__ == "__main__":
-    self.select_catalogs(
-        filter = 'g'
-    )
-#%%
-if __name__ == "__main__":
-    result1= self.merge_catalogs_fast(
-        ra_key='X_WORLD',
-        dec_key='Y_WORLD',
-        join_type = 'outer'
-    )
-
-# %%
-if __name__ == '__main__':
-    result = self.merge_catalogs(
-        
-    )
-# %%

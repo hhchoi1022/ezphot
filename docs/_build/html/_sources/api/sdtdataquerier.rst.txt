@@ -14,9 +14,4 @@ Methods
 .. autofunction:: ezphot.utils.SDTDataQuerier.show_scisourcedata
 .. autofunction:: ezphot.utils.SDTDataQuerier.show_scidestdata
 .. autofunction:: ezphot.utils.SDTDataQuerier.show_scisourcefolder
-.. autofunction:: ezphot.utils.SDTDataQuerier.show_obsdestfolder
 
-Properties
-----------
-
-.. include:: _generated/ezphot.utils.sdtdataquerier.SDTDataQuerier_properties.rst

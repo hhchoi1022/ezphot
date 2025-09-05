@@ -85,8 +85,8 @@ mdark_path = Preprocessor.get_masterframe_from_image(
     target_img = init_img,
     imagetyp = 'DARK',
     max_days = 15)[0]['file']
-mbias = MasterImage(path=mbias_path, telinfo = telinfo, load=True)
-mdark = MasterImage(path=mdark_path, telinfo = telinfo, load=True)
+mbias = CalibrationImage(path=mbias_path, telinfo = telinfo, load=True)
+mdark = CalibrationImage(path=mdark_path, telinfo = telinfo, load=True)
 
 # Sort the keys of imginfo_all
 sorted_keys = sorted(imginfo_all.keys())
@@ -208,7 +208,7 @@ photometriccalibration_kwargs = dict(
 def imgprocess(target_path, telinfo):
     target_img = ScienceImage(path = target_path, telinfo = telinfo, load = True)
     mflat_path = Preprocessor.get_masterframe_from_image(target_img, imagetyp = 'FLAT', max_days = 60)[0]
-    mflat = MasterImage(path = mflat_path['file'], telinfo = telinfo, load = True)
+    mflat = CalibrationImage(path = mflat_path['file'], telinfo = telinfo, load = True)
 
     status = dict()
     status['image'] = target_img.path
