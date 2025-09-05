@@ -2,6 +2,7 @@ sphinx
 sphinx-rtd-theme
 myst-parser
 numpydoc
+sphinx-autodoc-typehints
 
 numpy
 astropy
