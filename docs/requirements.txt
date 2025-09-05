@@ -2,3 +2,7 @@ sphinx
 sphinx-rtd-theme
 myst-parser
 numpydoc
+
+numpy
+astropy
+photutils
