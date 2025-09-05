@@ -6,6 +6,9 @@
 
 ---
 
+**ezphot** is a high-level Python toolkit for **astronomical image processing and photometry**.  
+It provides astronomers and survey teams with an integrated framework to handle the entire imaging workflow ? from raw calibration to photometric analysis and transient detection ? using a clean, modular, and scalable architecture.
+
 ## Installation
 
 The latest stable release of **ezphot** is available on [PyPI](https://pypi.org/project/ezphot/).  
