@@ -5,6 +5,7 @@ numpydoc
 sphinx-autodoc-typehints
 ipykernel
 nbsphinx
+pandocfilters
 
 numpy
 astropy
