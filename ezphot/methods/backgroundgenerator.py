@@ -74,7 +74,7 @@ class BackgroundGenerator:
                           filter_size: int = 3,
   
                           # Others
-                          save: bool = True,
+                          save: bool = False,
                           verbose: bool = True,
                           visualize: bool = True,
                           save_fig: bool = False,
@@ -213,7 +213,7 @@ class BackgroundGenerator:
                                 bkg_estimator: str = 'sextractor', # 'mean', 'median', 'sextractor'
                                 
                                 # Others
-                                save: bool = True,
+                                save: bool = False,
                                 verbose: bool = True,
                                 visualize: bool = True,
                                 save_fig: bool = False):     
@@ -338,7 +338,7 @@ class BackgroundGenerator:
                             target_bkg: Background,
                             
                             # Other parameters
-                            save: bool = True,
+                            save: bool = False,
                             overwrite: bool = False,
                             visualize: bool = True,
                             save_fig: bool = False):
