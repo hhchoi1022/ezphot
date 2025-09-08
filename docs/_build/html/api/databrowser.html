@@ -16,6 +16,7 @@
       <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -124,7 +125,25 @@
 <li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-zeropoints">Applying Zeropoints</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-color-terms">Applying Color Terms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-magnitude-terms">Applying Magnitude Terms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#output">Output</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#basic-multiprocess-stacking">Basic Multiprocess Stacking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#stacking-with-swarp">Stacking with SWarp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#selecting-high-quality-images-to-stack">Selecting High-Quality Images to stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-zeropoints">Matching Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-seeing">Matching Seeing</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../example/preprocess.html">Load data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../example/preprocess.html#Image-preprocessing">Image preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#1.-Load-the-master-frames">1. Load the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#2.-Preprocess-with-the-master-frames">2. Preprocess with the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#Run-preprocess-for-all-target_images">Run preprocess for all target_images</a></li>
 </ul>
 </li>
 </ul>
@@ -641,7 +660,7 @@
 <h1>DataBrowser<a class="headerlink" href="#databrowser" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="ezphot.utils.databrowser.DataBrowser">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataBrowser</span></span><a class="reference internal" href="../_modules/ezphot/utils/databrowser.html#DataBrowser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.utils.databrowser.DataBrowser" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataBrowser</span></span><a class="reference internal" href="../_modules/ezphot/utils/databrowser.html#DataBrowser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ezphot.utils.databrowser.DataBrowser" title="Link to this definition"></a></dt>
 <dd><p>DataBrowser is a class that provides a unified interface for searching and loading data
 from the telescope data directory.</p>
 <p>It provides:</p>

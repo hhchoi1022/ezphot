@@ -211,6 +211,7 @@ class Errormap(DummyImage):
         os.makedirs(self.savepath.savedir, exist_ok=True)        
         hdu = fits.PrimaryHDU(data=self.data.astype(np.float32), header=self.header)
         hdu.writeto(self.savepath.savepath, overwrite=True)
+        print('Saved:', self.savepath.savepath)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath

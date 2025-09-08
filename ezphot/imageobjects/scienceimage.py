@@ -272,10 +272,12 @@ class ScienceImage(BaseImage):
             raise ValueError("Cannot save ScienceImage: save path is not defined.")
         os.makedirs(self.savepath.savedir, exist_ok=True)
         fits.writeto(self.savepath.savepath, self.data, self.header, overwrite=True)
+        print('Saved:', self.savepath.savepath)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath  # Update path to saved file
         self.loaded = True
+        
     
     def remove(self, 
                remove_main: bool = True, 
@@ -600,17 +602,17 @@ class ScienceImage(BaseImage):
                 raise ValueError("Cannot calculate background RMS map: Input background map. OR Register background map with scienceimage.calculate_background(save = True) first.")
             else:
                 target_bkg = self.bkgmap
-            
+        
+        mbias_path, mdark_path, mflat_path = None, None, None
         if mbias is None:
             mbias_path = preprocess.get_masterframe_from_image(self, 'bias', 30)
+            mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
         if mdark is None:
             mdark_path = preprocess.get_masterframe_from_image(self, 'dark', 30)
+            mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
         if mflat is None:
             mflat_path = preprocess.get_masterframe_from_image(self, 'flat', 30)
-         
-        mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
-        mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
-        mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
+            mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
         if mbias is None or mdark is None or mflat is None:
             raise ValueError("Cannot calculate background RMS: required calibration frames are missing.")
 
@@ -730,16 +732,16 @@ class ScienceImage(BaseImage):
         preprocess = Preprocess()
         # prepare the data
 
+        mbias_path, mdark_path, mflat_path = None, None, None
         if mbias is None:
             mbias_path = preprocess.get_masterframe_from_image(self, 'bias', 30)
+            mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
         if mdark is None:
             mdark_path = preprocess.get_masterframe_from_image(self, 'dark', 30)
+            mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
         if mflat is None:
             mflat_path = preprocess.get_masterframe_from_image(self, 'flat', 30)
-         
-        mbias = CalibrationImage(mbias_path[0]['file'], load=True) if mbias_path else None
-        mdark = CalibrationImage(mdark_path[0]['file'], load=True) if mdark_path else None
-        mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
+            mflat = CalibrationImage(mflat_path[0]['file'], load=True) if mflat_path else None
         if mbias is None or mdark is None or mflat is None:
             raise ValueError("Cannot calculate source RMS: required calibration frames are missing.")
 

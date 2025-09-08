@@ -258,6 +258,7 @@ class ReferenceImage(BaseImage):
             raise ValueError("Cannot save ScienceImage: save path is not defined.")
         os.makedirs(self.savepath.savedir, exist_ok=True)
         fits.writeto(self.savepath.savepath, self.data, self.header, overwrite=True)
+        print('Saved:', self.savepath.savepath)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath  # Update path to saved file

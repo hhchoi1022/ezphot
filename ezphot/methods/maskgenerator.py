@@ -206,7 +206,7 @@ class MaskGenerator():
         image_data, image_header = target_img.data, target_img.header
         sigma_clip = SigmaClip(sigma=sigma)
         threshold = detect_threshold(data = image_data, nsigma=sigma/np.sqrt(npixels), mask = target_mask.data, sigma_clip=sigma_clip)
-        segment_img = detect_sources(image_data, threshold, npixels=npixels) 
+        segment_img = detect_sources(image_data, threshold, npixels=npixels, mask = target_mask.data) 
         
         if segment_img:
             S = SourceCatalog(image_data, segment_img)

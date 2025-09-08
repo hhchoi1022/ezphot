@@ -54,7 +54,8 @@ class SDTDataQuerier:
         
     def sync_obsdata(self, 
                      foldername: str,
-                     file_pattern: str = '*.fits'):
+                     file_pattern: str = '*.fits',
+                     ignore_exists: bool = True):
         """
         Syncs all FITS files from a given foldername in the source directory to the destination directory.
         
@@ -65,6 +66,10 @@ class SDTDataQuerier:
         ----------
         foldername : str
             The foldername to sync.
+        file_pattern : str
+            The file pattern to sync.
+        ignore_exists : bool
+            If True, ignore the files that already exist in the destination directory.
         """
         # Step 1: Get telescope directories
         source_pattern = os.path.join(self.helper.config['SDTDATA_OBSSOURCEDIR'],"7DT??", foldername)
@@ -78,10 +83,11 @@ class SDTDataQuerier:
 
         # Step 3: Move all files to temporary storage in parallel
         with Pool(processes=len(telescope_ids)) as pool:
-            dest_folders = pool.starmap(self._run_obsrsync, [(tid, foldername, file_pattern) for tid in telescope_ids])
+            dest_folders = pool.starmap(self._run_obsrsync, [(tid, foldername, file_pattern, ignore_exists) for tid in telescope_ids])
 
     def sync_scidata(self, targetname : str, 
-                     file_pattern: str = '*.fits'):
+                     file_pattern: str = '*.fits',
+                     ignore_exists: bool = True):
         """
         Syncs all FITS files from a given targetname in the source directory to the destination directory.
         
@@ -92,6 +98,10 @@ class SDTDataQuerier:
         ----------
         targetname : str
             The target name to sync.
+        file_pattern : str
+            The file pattern to sync.
+        ignore_exists : bool
+            If True, ignore the files that already exist in the destination directory.
         """
         # Step 1: Get telescope directories
         source_pattern = os.path.join(self.helper.config['SDTDATA_SCISOURCEDIR'], targetname, "7DT??")
@@ -105,7 +115,7 @@ class SDTDataQuerier:
 
         # Step 3: Move all files to temporary storage in parallel
         with Pool(processes=len(telescope_ids)) as pool:
-            dest_folders = pool.starmap(self._run_scirsync, [(tid, targetname, file_pattern) for tid in telescope_ids])
+            dest_folders = pool.starmap(self._run_scirsync, [(tid, targetname, file_pattern, ignore_exists) for tid in telescope_ids])
 
     def show_obssourcedata(self, 
                            foldername: str, 
@@ -446,7 +456,7 @@ class SDTDataQuerier:
         all_matched_folders = set(matched_folders)
         return sorted(all_matched_folders)
 
-    def _run_obsrsync(self, telescope_id, foldername, file_pattern='*com.fits'):
+    def _run_obsrsync(self, telescope_id, foldername, file_pattern='*com.fits', ignore_exists=True):
         """
         Copy ONLY files matching file_pattern from src to dest (recursively).
         """
@@ -467,6 +477,7 @@ class SDTDataQuerier:
             "--info=progress2",
             "--no-inc-recursive",   # lowers memory on big trees
             "--prune-empty-dirs",   # don't create empty dirs at dest
+            "--ignore-existing" if ignore_exists else "",
             "--include", "*/"       # allow directory traversal
         ]
         for pat in includes:
@@ -480,7 +491,7 @@ class SDTDataQuerier:
         return dest_folder
     
     
-    def _run_scirsync(self, telescope_id, targetname, file_pattern='*com.fits'):
+    def _run_scirsync(self, telescope_id, targetname, file_pattern='*com.fits', ignore_exists=True):
         """
         Copy ONLY files matching file_pattern from src to dest (recursively).
         """
@@ -501,6 +512,7 @@ class SDTDataQuerier:
             "--info=progress2",
             "--no-inc-recursive",   # lowers memory on big trees
             "--prune-empty-dirs",   # don't create empty dirs at dest
+            "--ignore-existing" if ignore_exists else "",
             "--include", "*/"       # allow directory traversal
         ]
         for pat in includes:

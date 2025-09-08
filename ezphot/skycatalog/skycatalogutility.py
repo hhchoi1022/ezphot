@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 from astropy.io import ascii
+import astropy
 from shapely.geometry import box
 
 from ezphot.skycatalog import SkyCatalog

@@ -3,6 +3,7 @@ sphinx-rtd-theme
 myst-parser
 numpydoc
 sphinx-autodoc-typehints
+ipykernel
 
 numpy
 astropy

@@ -1,0 +1,2039 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Load data &mdash; ezphot 0.0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Methods" href="../api/methods.html" />
+    <link rel="prev" title="Stacking" href="../usage/stacking.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Installation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/getstarted.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#loading-telescope-configurations">Loading Telescope Configurations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#adding-telescope-configurations-tbd">Adding Telescope Configurations (TBD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-data-directories">(Optional) Connecting Data Directories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-sky-catalogs">(Optional) Connecting Sky Catalogs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/loadimage.html">Loading Images</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#creating-a-scienceimage-instance">Creating a ScienceImage instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#accessing-data-and-header">Accessing Data and Header</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#inspecting-properties">Inspecting Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#working-with-save-paths">Working with Save Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#saving-and-removing-files">Saving and Removing Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#visualization">Visualization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/platesolving.html">Platesolving</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#astrometry-net-solution">Astrometry.net Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#scamp-solution">SCAMP Solution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/maskgeneration.html">Masking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#creating-a-maskgenerator">Creating a MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#invalid-pixel-mask">Invalid Pixel Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#source-mask">Source Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#circular-mask">Circular Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#cosmic-ray-mask">Cosmic Ray Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#output-of-the-maskgenerator">Output of the MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/backgroundgeneration.html">Background Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#creating-a-backgroundgenerator">Creating a BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#estimating-background-with-sep">Estimating Background with SEP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#subtracting-the-background">Subtracting the Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#the-background-instance">The Background Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/errormapgeneration.html">Error Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#creating-an-errormapgenerator">Creating an ErrormapGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-background-rms-from-image">Calculating Source/Background RMS from Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-rms-propagation">Calculating Source RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-background-rms-propagation">Calculating Background RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#the-errormap-instance">The Errormap Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometry.html">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#input-options">Input Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#detection-photometry-source-extractor-photometry">[Detection + Photometry] Source-Extractor photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-circular-aperture">[Forced photometry] Circular aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-elliptical-aperture">[Forced photometry] Elliptical Aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#notes">Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#basic-photometric-calibration">Basic Photometric Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-zeropoints">Applying Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-color-terms">Applying Color Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-magnitude-terms">Applying Magnitude Terms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#basic-multiprocess-stacking">Basic Multiprocess Stacking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#stacking-with-swarp">Stacking with SWarp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#selecting-high-quality-images-to-stack">Selecting High-Quality Images to stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-zeropoints">Matching Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-seeing">Matching Seeing</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Load data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Image-preprocessing">Image preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#1.-Load-the-master-frames">1. Load the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#2.-Preprocess-with-the-master-frames">2. Preprocess with the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Run-preprocess-for-all-target_images">Run preprocess for all target_images</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/methods.html">Methods</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/maskgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator"><code class="docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/maskgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_sources"><code class="docutils literal notranslate"><span class="pre">mask_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_circle"><code class="docutils literal notranslate"><span class="pre">mask_circle()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_invalidpixel"><code class="docutils literal notranslate"><span class="pre">mask_invalidpixel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_cosmicray"><code class="docutils literal notranslate"><span class="pre">mask_cosmicray()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/backgroundgenerator.html">BackgroundGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator"><code class="docutils literal notranslate"><span class="pre">BackgroundGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/backgroundgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_sep"><code class="docutils literal notranslate"><span class="pre">estimate_with_sep()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_photutils"><code class="docutils literal notranslate"><span class="pre">estimate_with_photutils()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.subtract_background"><code class="docutils literal notranslate"><span class="pre">subtract_background()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/errormapgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.errormapgenerator.ErrormapGenerator"><code class="docutils literal notranslate"><span class="pre">ErrormapGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormapgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_errormap_from_image"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_sourcerms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_sourcerms_from_propagation()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/preprocess.html">Preprocess</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.preprocess.Preprocess"><code class="docutils literal notranslate"><span class="pre">Preprocess</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/preprocess.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bias"><code class="docutils literal notranslate"><span class="pre">correct_bias()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_dark"><code class="docutils literal notranslate"><span class="pre">correct_dark()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_flat"><code class="docutils literal notranslate"><span class="pre">correct_flat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bd"><code class="docutils literal notranslate"><span class="pre">correct_bd()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bdf"><code class="docutils literal notranslate"><span class="pre">correct_bdf()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.get_masterframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_masterframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.generate_masterframe"><code class="docutils literal notranslate"><span class="pre">generate_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/platesolve.html">PlateSolve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve"><code class="docutils literal notranslate"><span class="pre">Platesolve</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/platesolve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve.solve_astrometry"><code class="docutils literal notranslate"><span class="pre">solve_astrometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve.solve_scamp"><code class="docutils literal notranslate"><span class="pre">solve_scamp()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/aperturephotometry.html">AperturePhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.aperturephotometry.AperturePhotometry"><code class="docutils literal notranslate"><span class="pre">AperturePhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/aperturephotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.sex_photometry"><code class="docutils literal notranslate"><span class="pre">sex_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.photutils_photometry"><code class="docutils literal notranslate"><span class="pre">photutils_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.circular_photometry"><code class="docutils literal notranslate"><span class="pre">circular_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.elliptical_photometry"><code class="docutils literal notranslate"><span class="pre">elliptical_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/psfphotometry.html">PSFPhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.psfphotometry.PSFPhotometry"><code class="docutils literal notranslate"><span class="pre">PSFPhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/psfphotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.select_psfstars"><code class="docutils literal notranslate"><span class="pre">select_psfstars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.extract_sources"><code class="docutils literal notranslate"><span class="pre">extract_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model"><code class="docutils literal notranslate"><span class="pre">build_epsf_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model_psfex"><code class="docutils literal notranslate"><span class="pre">build_epsf_model_psfex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.psf_photometry"><code class="docutils literal notranslate"><span class="pre">psf_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/photometriccalibration.html">PhotometricCalibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.photometriccalibration.PhotometricCalibration"><code class="docutils literal notranslate"><span class="pre">PhotometricCalibration</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometriccalibration.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.photometric_calibration"><code class="docutils literal notranslate"><span class="pre">photometric_calibration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_zp"><code class="docutils literal notranslate"><span class="pre">apply_zp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_color_terms"><code class="docutils literal notranslate"><span class="pre">apply_color_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_mag_terms"><code class="docutils literal notranslate"><span class="pre">apply_mag_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.select_stars"><code class="docutils literal notranslate"><span class="pre">select_stars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.determine_reference_mag_range"><code class="docutils literal notranslate"><span class="pre">determine_reference_mag_range()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/reproject.html">Reproject</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/reproject.html#ezphot.methods.reproject.Reproject"><code class="docutils literal notranslate"><span class="pre">Reproject</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/reproject.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/reproject.html#ezphot.methods.Reproject.reproject"><code class="docutils literal notranslate"><span class="pre">reproject()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/reproject.html#ezphot.methods.Reproject.align"><code class="docutils literal notranslate"><span class="pre">align()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/stack.html">Stack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/stack.html#ezphot.methods.stack.Stack"><code class="docutils literal notranslate"><span class="pre">Stack</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/stack.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.stack_multiprocess"><code class="docutils literal notranslate"><span class="pre">stack_multiprocess()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.stack_swarp"><code class="docutils literal notranslate"><span class="pre">stack_swarp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.select_quality_images"><code class="docutils literal notranslate"><span class="pre">select_quality_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.match_zeropoints"><code class="docutils literal notranslate"><span class="pre">match_zeropoints()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.match_seeing"><code class="docutils literal notranslate"><span class="pre">match_seeing()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/subtract.html">Subtract</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/subtract.html#ezphot.methods.subtract.Subtract"><code class="docutils literal notranslate"><span class="pre">Subtract</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/subtract.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.find_transients"><code class="docutils literal notranslate"><span class="pre">find_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.subtract"><code class="docutils literal notranslate"><span class="pre">subtract()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.select_transients"><code class="docutils literal notranslate"><span class="pre">select_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.show_transient_positions"><code class="docutils literal notranslate"><span class="pre">show_transient_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.get_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.query_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">query_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.select_reference_image"><code class="docutils literal notranslate"><span class="pre">select_reference_image()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/imageobjects.html">Imageobjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/scienceimage.html">ScienceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage"><code class="docutils literal notranslate"><span class="pre">ScienceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ScienceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_invalidmask"><code class="docutils literal notranslate"><span class="pre">calculate_invalidmask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_sourcemask"><code class="docutils literal notranslate"><span class="pre">calculate_sourcemask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkg"><code class="docutils literal notranslate"><span class="pre">calculate_bkg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.to_referenceimage"><code class="docutils literal notranslate"><span class="pre">to_referenceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/calibrationimage.html">CalibrationImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage"><code class="docutils literal notranslate"><span class="pre">CalibrationImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage.__init__"><code class="docutils literal notranslate"><span class="pre">CalibrationImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/referenceimage.html">ReferenceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage"><code class="docutils literal notranslate"><span class="pre">ReferenceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ReferenceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.to_scienceimage"><code class="docutils literal notranslate"><span class="pre">to_scienceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/imageset.html">ImageSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.imageset.ImageSet"><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.imageset.ImageSet.__init__"><code class="docutils literal notranslate"><span class="pre">ImageSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.exclude_images"><code class="docutils literal notranslate"><span class="pre">exclude_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.select_images"><code class="docutils literal notranslate"><span class="pre">select_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/mask.html">Mask</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.mask.Mask"><code class="docutils literal notranslate"><span class="pre">Mask</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.mask.Mask.__init__"><code class="docutils literal notranslate"><span class="pre">Mask.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.combine_mask"><code class="docutils literal notranslate"><span class="pre">combine_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/errormap.html">Errormap</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.errormap.Errormap"><code class="docutils literal notranslate"><span class="pre">Errormap</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.errormap.Errormap.__init__"><code class="docutils literal notranslate"><span class="pre">Errormap.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.to_rms"><code class="docutils literal notranslate"><span class="pre">to_rms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.to_weight"><code class="docutils literal notranslate"><span class="pre">to_weight()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/background.html">Background</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.background.Background"><code class="docutils literal notranslate"><span class="pre">Background</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.background.Background.__init__"><code class="docutils literal notranslate"><span class="pre">Background.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/dataobjects.html">DataObjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalog.html">Catalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.catalog.Catalog"><code class="docutils literal notranslate"><span class="pre">Catalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.catalog.Catalog.__init__"><code class="docutils literal notranslate"><span class="pre">Catalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.show_source"><code class="docutils literal notranslate"><span class="pre">show_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.apply_mask"><code class="docutils literal notranslate"><span class="pre">apply_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.to_stamp"><code class="docutils literal notranslate"><span class="pre">to_stamp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.to_region"><code class="docutils literal notranslate"><span class="pre">to_region()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.load_info"><code class="docutils literal notranslate"><span class="pre">load_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalogset.html">CatalogSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet"><code class="docutils literal notranslate"><span class="pre">CatalogSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.search_catalogs"><code class="docutils literal notranslate"><span class="pre">search_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.merge_catalogs"><code class="docutils literal notranslate"><span class="pre">merge_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.exclude_catalogs"><code class="docutils literal notranslate"><span class="pre">exclude_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.select_catalogs"><code class="docutils literal notranslate"><span class="pre">select_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.add_catalogs"><code class="docutils literal notranslate"><span class="pre">add_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/lightcurve.html">LightCurve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve"><code class="docutils literal notranslate"><span class="pre">LightCurve</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve.__init__"><code class="docutils literal notranslate"><span class="pre">LightCurve.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/lightcurve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/photometricspectrum.html">PhotometricSpectrum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum.__init__"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometricspectrum.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/skycat.html">SkyCatalog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/skycatalog.html">SkyCatalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog"><code class="docutils literal notranslate"><span class="pre">SkyCatalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/skycatalogutility.html">SkyCatalogUtility</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.get_catalogs"><code class="docutils literal notranslate"><span class="pre">get_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.select_reference_sources"><code class="docutils literal notranslate"><span class="pre">select_reference_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/utils.html">Utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/databrowser.html">DataBrowser</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.databrowser.DataBrowser"><code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.databrowser.DataBrowser.__init__"><code class="docutils literal notranslate"><span class="pre">DataBrowser.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.DataBrowser.search"><code class="docutils literal notranslate"><span class="pre">search()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalogquerier.html">CatalogQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/imagequerier.html">ImageQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier"><code class="docutils literal notranslate"><span class="pre">ImageQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">ImageQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.check_coverage"><code class="docutils literal notranslate"><span class="pre">check_coverage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/sdtdataquerier.html">SDTDataQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/sdtdataquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.sync_obsdata"><code class="docutils literal notranslate"><span class="pre">sync_obsdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcedata"><code class="docutils literal notranslate"><span class="pre">show_obssourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestdata"><code class="docutils literal notranslate"><span class="pre">show_obsdestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcefolder"><code class="docutils literal notranslate"><span class="pre">show_obssourcefolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestfolder"><code class="docutils literal notranslate"><span class="pre">show_obsdestfolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcedata"><code class="docutils literal notranslate"><span class="pre">show_scisourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scidestdata"><code class="docutils literal notranslate"><span class="pre">show_scidestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcefolder"><code class="docutils literal notranslate"><span class="pre">show_scisourcefolder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Load data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/example/preprocess.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">SDTDataQuerier</span>
+</pre></div>
+</div>
+</div>
+<section id="Load-data">
+<h1>Load data<a class="headerlink" href="#Load-data" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you connected the database, you can easily sync the data from the database.</span>
+<span class="n">sdtquery</span> <span class="o">=</span> <span class="n">SDTDataQuerier</span><span class="p">()</span>
+<span class="n">sdtquery</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Help for SDTDataQuerier
+
+
+Public methods:
+- show_obsdestdata(foldername: str, show_only_numbers: bool = False, pattern: str = &#39;*.fits&#39;)
+- show_obsdestfolder(folder_key: str = &#39;*&#39;)
+- show_obssourcedata(foldername: str, show_only_numbers: bool = False, pattern: str = &#39;*.fits&#39;)
+- show_obssourcefolder(folder_key: str = &#39;*&#39;)
+- show_scidestdata(targetname: str, show_only_numbers: bool = False, key: str = &#39;filter&#39;, pattern: str = &#39;*.fits&#39;)
+- show_scisourcedata(targetname: str, show_only_numbers: bool = False, key: str = &#39;filter&#39;, file_pattern: str = &#39;*.fits&#39;)
+- show_scisourcefolder(folder_key: str = &#39;*&#39;)
+- sync_obsdata(foldername: str, file_pattern: str = &#39;*.fits&#39;, ignore_exists: bool = True)
+- sync_scidata(targetname: str, file_pattern: str = &#39;*.fits&#39;, ignore_exists: bool = True)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sdtquery</span><span class="o">.</span><span class="n">show_obssourcefolder</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Source directory: /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT??/*
+616 folders found.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[&#39;1994-10-26_1x1_gain2750&#39;,
+ &#39;2001-02-23_gain2750&#39;,
+ &#39;2023-00-00&#39;,
+ &#39;2023-00-01&#39;,
+ &#39;2023-00-02&#39;,
+ &#39;2023-00-03&#39;,
+ &#39;2023-10-09&#39;,
+ &#39;2023-10-10&#39;,
+ &#39;2023-10-11&#39;,
+ &#39;2023-10-12&#39;,
+ &#39;2023-10-13&#39;,
+ &#39;2023-10-14&#39;,
+ &#39;2023-10-15&#39;,
+ &#39;2023-10-16&#39;,
+ &#39;2023-10-17&#39;,
+ &#39;2023-10-18&#39;,
+ &#39;2023-10-19&#39;,
+ &#39;2023-10-20&#39;,
+ &#39;2023-10-22&#39;,
+ &#39;2023-10-23&#39;,
+ &#39;2023-10-24&#39;,
+ &#39;2023-10-25&#39;,
+ &#39;2023-10-26&#39;,
+ &#39;2023-10-27&#39;,
+ &#39;2023-10-28&#39;,
+ &#39;2023-10-30&#39;,
+ &#39;2023-10-31&#39;,
+ &#39;2023-11-01&#39;,
+ &#39;2023-11-02&#39;,
+ &#39;2023-11-03&#39;,
+ &#39;2023-11-04&#39;,
+ &#39;2023-11-05&#39;,
+ &#39;2023-11-06&#39;,
+ &#39;2023-11-07&#39;,
+ &#39;2023-11-08&#39;,
+ &#39;2023-11-10&#39;,
+ &#39;2023-11-11&#39;,
+ &#39;2023-11-12&#39;,
+ &#39;2023-11-13&#39;,
+ &#39;2023-11-14&#39;,
+ &#39;2023-11-15&#39;,
+ &#39;2023-11-16&#39;,
+ &#39;2023-11-17&#39;,
+ &#39;2023-11-17_ToO&#39;,
+ &#39;2023-11-18&#39;,
+ &#39;2023-11-18_ToO&#39;,
+ &#39;2023-11-19&#39;,
+ &#39;2023-11-20&#39;,
+ &#39;2023-11-21&#39;,
+ &#39;2023-11-22&#39;,
+ &#39;2023-11-23&#39;,
+ &#39;2023-11-24&#39;,
+ &#39;2023-11-25&#39;,
+ &#39;2023-11-26&#39;,
+ &#39;2023-11-27&#39;,
+ &#39;2023-11-28&#39;,
+ &#39;2023-11-29&#39;,
+ &#39;2023-11-30&#39;,
+ &#39;2023-12-01&#39;,
+ &#39;2023-12-02&#39;,
+ &#39;2023-12-03&#39;,
+ &#39;2023-12-04&#39;,
+ &#39;2023-12-05&#39;,
+ &#39;2023-12-06&#39;,
+ &#39;2023-12-07&#39;,
+ &#39;2023-12-08&#39;,
+ &#39;2023-12-08_morning_dark&#39;,
+ &#39;2023-12-09&#39;,
+ &#39;2023-12-10&#39;,
+ &#39;2023-12-10_flat&#39;,
+ &#39;2023-12-11&#39;,
+ &#39;2023-12-12&#39;,
+ &#39;2023-12-14&#39;,
+ &#39;2023-12-15&#39;,
+ &#39;2023-12-16&#39;,
+ &#39;2023-12-17&#39;,
+ &#39;2023-12-18&#39;,
+ &#39;2023-12-18_test&#39;,
+ &#39;2023-12-19&#39;,
+ &#39;2023-12-20&#39;,
+ &#39;2023-12-21&#39;,
+ &#39;2023-12-22&#39;,
+ &#39;2023-12-23&#39;,
+ &#39;2023-12-24&#39;,
+ &#39;2023-12-26&#39;,
+ &#39;2023-12-29&#39;,
+ &#39;2023-12-30&#39;,
+ &#39;2023-12-31&#39;,
+ &#39;2024-01-01&#39;,
+ &#39;2024-01-02&#39;,
+ &#39;2024-01-03&#39;,
+ &#39;2024-01-04&#39;,
+ &#39;2024-01-05&#39;,
+ &#39;2024-01-06&#39;,
+ &#39;2024-01-07&#39;,
+ &#39;2024-01-08&#39;,
+ &#39;2024-01-09&#39;,
+ &#39;2024-01-10&#39;,
+ &#39;2024-01-11&#39;,
+ &#39;2024-01-12&#39;,
+ &#39;2024-01-13&#39;,
+ &#39;2024-01-14&#39;,
+ &#39;2024-01-15&#39;,
+ &#39;2024-01-16&#39;,
+ &#39;2024-01-17&#39;,
+ &#39;2024-01-18&#39;,
+ &#39;2024-01-19&#39;,
+ &#39;2024-01-21&#39;,
+ &#39;2024-01-22&#39;,
+ &#39;2024-01-23&#39;,
+ &#39;2024-01-24&#39;,
+ &#39;2024-01-25&#39;,
+ &#39;2024-01-26&#39;,
+ &#39;2024-01-27&#39;,
+ &#39;2024-01-28&#39;,
+ &#39;2024-01-29&#39;,
+ &#39;2024-01-30&#39;,
+ &#39;2024-01-31&#39;,
+ &#39;2024-02-01&#39;,
+ &#39;2024-02-02&#39;,
+ &#39;2024-02-03&#39;,
+ &#39;2024-02-04&#39;,
+ &#39;2024-02-05&#39;,
+ &#39;2024-02-06&#39;,
+ &#39;2024-02-07&#39;,
+ &#39;2024-02-08&#39;,
+ &#39;2024-02-09&#39;,
+ &#39;2024-02-10&#39;,
+ &#39;2024-02-11&#39;,
+ &#39;2024-02-12&#39;,
+ &#39;2024-02-13&#39;,
+ &#39;2024-02-14&#39;,
+ &#39;2024-02-15&#39;,
+ &#39;2024-02-16&#39;,
+ &#39;2024-02-17&#39;,
+ &#39;2024-02-18&#39;,
+ &#39;2024-02-19&#39;,
+ &#39;2024-02-20&#39;,
+ &#39;2024-02-22&#39;,
+ &#39;2024-02-26&#39;,
+ &#39;2024-02-28&#39;,
+ &#39;2024-02-29&#39;,
+ &#39;2024-03-05&#39;,
+ &#39;2024-03-06&#39;,
+ &#39;2024-03-06_2x2&#39;,
+ &#39;2024-03-08_2x2&#39;,
+ &#39;2024-03-10&#39;,
+ &#39;2024-03-10_1x1_gain0&#39;,
+ &#39;2024-03-10_2x2&#39;,
+ &#39;2024-03-10_2x2_gain0&#39;,
+ &#39;2024-03-10_2x2_gain2750&#39;,
+ &#39;2024-03-12_1x1_gain2750&#39;,
+ &#39;2024-03-12_2x2_gain2750&#39;,
+ &#39;2024-03-12_gain2750&#39;,
+ &#39;2024-03-13_1x1_gain2750&#39;,
+ &#39;2024-03-13_2x2_gain2750&#39;,
+ &#39;2024-03-13_gain2750&#39;,
+ &#39;2024-03-21_gain2750&#39;,
+ &#39;2024-03-22_gain2750&#39;,
+ &#39;2024-03-23_gain2750&#39;,
+ &#39;2024-04-04_gain2750&#39;,
+ &#39;2024-04-09_gain2750&#39;,
+ &#39;2024-04-11_gain2750&#39;,
+ &#39;2024-04-12_gain2750&#39;,
+ &#39;2024-04-15_gain2750&#39;,
+ &#39;2024-04-16_gain2750&#39;,
+ &#39;2024-04-22_TEST_gain2750&#39;,
+ &#39;2024-04-22_ToO_gain2750&#39;,
+ &#39;2024-04-22_gain2750&#39;,
+ &#39;2024-04-23_gain2750&#39;,
+ &#39;2024-04-24_gain2750&#39;,
+ &#39;2024-04-26_gain2750&#39;,
+ &#39;2024-04-27_gain2750&#39;,
+ &#39;2024-04-28_gain2750&#39;,
+ &#39;2024-05-01_gain2750&#39;,
+ &#39;2024-05-02_gain2750&#39;,
+ &#39;2024-05-03_gain2750&#39;,
+ &#39;2024-05-08_gain2750&#39;,
+ &#39;2024-05-09_gain2750&#39;,
+ &#39;2024-05-11_gain2750&#39;,
+ &#39;2024-05-16_gain2750&#39;,
+ &#39;2024-05-17_gain2750&#39;,
+ &#39;2024-05-18_gain2750&#39;,
+ &#39;2024-05-25_gain2750&#39;,
+ &#39;2024-05-26_gain2750&#39;,
+ &#39;2024-05-27_gain2750&#39;,
+ &#39;2024-05-28_gain2750&#39;,
+ &#39;2024-06-06_gain2750&#39;,
+ &#39;2024-06-16_gain2750&#39;,
+ &#39;2024-06-28_gain2750&#39;,
+ &#39;2024-06-30_gain2750&#39;,
+ &#39;2024-07-01_gain0&#39;,
+ &#39;2024-07-01_gain2750&#39;,
+ &#39;2024-07-02_gain2750&#39;,
+ &#39;2024-07-03_gain2750&#39;,
+ &#39;2024-07-04_gain2750&#39;,
+ &#39;2024-07-06_gain2750&#39;,
+ &#39;2024-07-07_gain2750&#39;,
+ &#39;2024-07-08_gain2750&#39;,
+ &#39;2024-07-09_gain2750&#39;,
+ &#39;2024-07-10_gain2750&#39;,
+ &#39;2024-07-11_gain2750&#39;,
+ &#39;2024-07-12_gain2750&#39;,
+ &#39;2024-07-13_gain2750&#39;,
+ &#39;2024-07-14_gain2750&#39;,
+ &#39;2024-07-16_gain0&#39;,
+ &#39;2024-07-16_gain2750&#39;,
+ &#39;2024-07-21_gain2750&#39;,
+ &#39;2024-07-22_gain2750&#39;,
+ &#39;2024-07-23_gain2750&#39;,
+ &#39;2024-07-24_gain2750&#39;,
+ &#39;2024-07-25_gain2750&#39;,
+ &#39;2024-07-26_gain2750&#39;,
+ &#39;2024-07-27_gain2750&#39;,
+ &#39;2024-07-28_gain2750&#39;,
+ &#39;2024-07-29_gain2750&#39;,
+ &#39;2024-08-08_gain2750&#39;,
+ &#39;2024-08-09_gain2750&#39;,
+ &#39;2024-08-10_gain2750&#39;,
+ &#39;2024-08-11_gain2750&#39;,
+ &#39;2024-08-12_gain2750&#39;,
+ &#39;2024-08-13_gain2750&#39;,
+ &#39;2024-08-23_gain2750&#39;,
+ &#39;2024-08-24_gain2750&#39;,
+ &#39;2024-08-25_gain2750&#39;,
+ &#39;2024-08-30_gain0&#39;,
+ &#39;2024-08-30_gain2750&#39;,
+ &#39;2024-08-31_gain0&#39;,
+ &#39;2024-08-31_gain2750&#39;,
+ &#39;2024-09-02_ToO_gain2750&#39;,
+ &#39;2024-09-02_gain2750&#39;,
+ &#39;2024-09-03_gain2750&#39;,
+ &#39;2024-09-04_gain2750&#39;,
+ &#39;2024-09-05_gain2750&#39;,
+ &#39;2024-09-06_gain2750&#39;,
+ &#39;2024-09-07_gain2750&#39;,
+ &#39;2024-09-08_gain2750&#39;,
+ &#39;2024-09-10_gain2750&#39;,
+ &#39;2024-09-12_gain2750&#39;,
+ &#39;2024-09-13_gain2750&#39;,
+ &#39;2024-09-14_gain2750&#39;,
+ &#39;2024-09-15_gain2750&#39;,
+ &#39;2024-09-16_gain2750&#39;,
+ &#39;2024-09-17_gain2750&#39;,
+ &#39;2024-09-18_gain2750&#39;,
+ &#39;2024-09-19_gain2750&#39;,
+ &#39;2024-09-20_gain2750&#39;,
+ &#39;2024-09-21_gain2750&#39;,
+ &#39;2024-09-22_gain2750&#39;,
+ &#39;2024-09-23_gain2750&#39;,
+ &#39;2024-09-24_gain2750&#39;,
+ &#39;2024-09-25_gain2750&#39;,
+ &#39;2024-09-26_gain2750&#39;,
+ &#39;2024-09-27_gain2750&#39;,
+ &#39;2024-09-28_gain2750&#39;,
+ &#39;2024-09-29_gain2750&#39;,
+ &#39;2024-09-30_gain2750&#39;,
+ &#39;2024-10-01_gain2750&#39;,
+ &#39;2024-10-02_gain2750&#39;,
+ &#39;2024-10-03_gain2750&#39;,
+ &#39;2024-10-14_gain2750&#39;,
+ &#39;2024-10-15_gain2750&#39;,
+ &#39;2024-10-16_gain2750&#39;,
+ &#39;2024-10-17_gain2750&#39;,
+ &#39;2024-10-18_gain2750&#39;,
+ &#39;2024-10-19_gain2750&#39;,
+ &#39;2024-10-20_gain2750&#39;,
+ &#39;2024-10-21_gain2750&#39;,
+ &#39;2024-10-22_gain2750&#39;,
+ &#39;2024-10-23_gain2750&#39;,
+ &#39;2024-10-24_gain2750&#39;,
+ &#39;2024-10-25_gain2750&#39;,
+ &#39;2024-10-26_gain2750&#39;,
+ &#39;2024-10-27_gain2750&#39;,
+ &#39;2024-10-28_gain2750&#39;,
+ &#39;2024-10-29_gain2750&#39;,
+ &#39;2024-10-30_gain2750&#39;,
+ &#39;2024-10-31_gain2750&#39;,
+ &#39;2024-11-01_gain2750&#39;,
+ &#39;2024-11-02_gain2750&#39;,
+ &#39;2024-11-03_gain2750&#39;,
+ &#39;2024-11-04_gain2750&#39;,
+ &#39;2024-11-05_gain2750&#39;,
+ &#39;2024-11-06_gain2750&#39;,
+ &#39;2024-11-07_gain2750&#39;,
+ &#39;2024-11-08_gain2750&#39;,
+ &#39;2024-11-09_gain2750&#39;,
+ &#39;2024-11-10_gain2750&#39;,
+ &#39;2024-11-11_gain2750&#39;,
+ &#39;2024-11-12_gain2750&#39;,
+ &#39;2024-11-13_gain2750&#39;,
+ &#39;2024-11-14_gain2750&#39;,
+ &#39;2024-11-15_gain2750&#39;,
+ &#39;2024-11-16_gain2750&#39;,
+ &#39;2024-11-17_gain2750&#39;,
+ &#39;2024-11-18_gain2750&#39;,
+ &#39;2024-11-19_gain2750&#39;,
+ &#39;2024-11-20_gain2750&#39;,
+ &#39;2024-11-21_gain2750&#39;,
+ &#39;2024-11-22_gain2750&#39;,
+ &#39;2024-11-23_gain2750&#39;,
+ &#39;2024-11-24_gain2750&#39;,
+ &#39;2024-11-25_gain2750&#39;,
+ &#39;2024-11-26_gain2750&#39;,
+ &#39;2024-11-27_gain2750&#39;,
+ &#39;2024-11-28_gain2750&#39;,
+ &#39;2024-11-29_gain2750&#39;,
+ &#39;2024-12-01_gain2750&#39;,
+ &#39;2024-12-02_gain2750&#39;,
+ &#39;2024-12-03_gain2750&#39;,
+ &#39;2024-12-04_gain2750&#39;,
+ &#39;2024-12-05_gain2750&#39;,
+ &#39;2024-12-06_gain2750&#39;,
+ &#39;2024-12-07_gain2750&#39;,
+ &#39;2024-12-08_gain2750&#39;,
+ &#39;2024-12-09_gain2750&#39;,
+ &#39;2024-12-11_gain2750&#39;,
+ &#39;2024-12-12_gain2750&#39;,
+ &#39;2024-12-13_gain2750&#39;,
+ &#39;2024-12-14_gain2750&#39;,
+ &#39;2024-12-15_gain2750&#39;,
+ &#39;2024-12-16_gain2750&#39;,
+ &#39;2024-12-17_gain2750&#39;,
+ &#39;2024-12-18_gain2750&#39;,
+ &#39;2024-12-19_gain2750&#39;,
+ &#39;2024-12-20_gain2750&#39;,
+ &#39;2024-12-21_gain2750&#39;,
+ &#39;2024-12-23_gain2750&#39;,
+ &#39;2024-12-24_gain2750&#39;,
+ &#39;2024-12-25_gain2750&#39;,
+ &#39;2024-12-26_gain2750&#39;,
+ &#39;2024-12-27_gain2750&#39;,
+ &#39;2024-12-28_gain2750&#39;,
+ &#39;2024-12-29_gain2750&#39;,
+ &#39;2024-12-30_gain2750&#39;,
+ &#39;2024-12-31_gain2750&#39;,
+ &#39;2025-01-01_gain2750&#39;,
+ &#39;2025-01-02_gain2750&#39;,
+ &#39;2025-01-03_gain2750&#39;,
+ &#39;2025-01-04_gain2750&#39;,
+ &#39;2025-01-05_gain2750&#39;,
+ &#39;2025-01-06_gain2750&#39;,
+ &#39;2025-01-07_gain2750&#39;,
+ &#39;2025-01-09_gain2750&#39;,
+ &#39;2025-01-10_gain2750&#39;,
+ &#39;2025-01-11_gain2750&#39;,
+ &#39;2025-01-12_gain0&#39;,
+ &#39;2025-01-12_gain2750&#39;,
+ &#39;2025-01-13_gain0&#39;,
+ &#39;2025-01-13_gain2750&#39;,
+ &#39;2025-01-14_gain2750&#39;,
+ &#39;2025-01-15_gain0&#39;,
+ &#39;2025-01-15_gain2750&#39;,
+ &#39;2025-01-16_gain2750&#39;,
+ &#39;2025-01-17_gain0&#39;,
+ &#39;2025-01-17_gain2750&#39;,
+ &#39;2025-01-18_gain0&#39;,
+ &#39;2025-01-18_gain2750&#39;,
+ &#39;2025-01-19_gain0&#39;,
+ &#39;2025-01-19_gain2750&#39;,
+ &#39;2025-01-20_gain0&#39;,
+ &#39;2025-01-20_gain2750&#39;,
+ &#39;2025-01-21_gain0&#39;,
+ &#39;2025-01-22_gain0&#39;,
+ &#39;2025-01-22_gain2750&#39;,
+ &#39;2025-01-23_gain0&#39;,
+ &#39;2025-01-23_gain2750&#39;,
+ &#39;2025-01-25_gain0&#39;,
+ &#39;2025-01-25_gain2750&#39;,
+ &#39;2025-01-26_gain0&#39;,
+ &#39;2025-01-26_gain2750&#39;,
+ &#39;2025-01-27_gain0&#39;,
+ &#39;2025-01-27_gain2750&#39;,
+ &#39;2025-01-28_gain0&#39;,
+ &#39;2025-01-28_gain2750&#39;,
+ &#39;2025-01-29_gain0&#39;,
+ &#39;2025-01-29_gain2750&#39;,
+ &#39;2025-01-30_gain0&#39;,
+ &#39;2025-01-30_gain2750&#39;,
+ &#39;2025-01-31_gain0&#39;,
+ &#39;2025-01-31_gain2750&#39;,
+ &#39;2025-02-01_gain0&#39;,
+ &#39;2025-02-01_gain2750&#39;,
+ &#39;2025-02-02_gain0&#39;,
+ &#39;2025-02-02_gain2750&#39;,
+ &#39;2025-02-03_gain0&#39;,
+ &#39;2025-02-03_gain2750&#39;,
+ &#39;2025-02-04_gain0&#39;,
+ &#39;2025-02-04_gain2750&#39;,
+ &#39;2025-02-06_gain2750&#39;,
+ &#39;2025-02-07_gain2750&#39;,
+ &#39;2025-02-08_gain0&#39;,
+ &#39;2025-02-08_gain2750&#39;,
+ &#39;2025-02-09_gain2750&#39;,
+ &#39;2025-02-10_gain0&#39;,
+ &#39;2025-02-10_gain2750&#39;,
+ &#39;2025-02-11_gain2750&#39;,
+ &#39;2025-02-12_gain0&#39;,
+ &#39;2025-02-12_gain2750&#39;,
+ &#39;2025-02-13_gain0&#39;,
+ &#39;2025-02-13_gain2750&#39;,
+ &#39;2025-02-14_gain0&#39;,
+ &#39;2025-02-14_gain2750&#39;,
+ &#39;2025-02-15_gain0&#39;,
+ &#39;2025-02-15_gain2750&#39;,
+ &#39;2025-02-16_gain0&#39;,
+ &#39;2025-02-16_gain2750&#39;,
+ &#39;2025-02-17_gain0&#39;,
+ &#39;2025-02-17_gain2750&#39;,
+ &#39;2025-02-18_gain0&#39;,
+ &#39;2025-02-18_gain2750&#39;,
+ &#39;2025-02-19_gain0&#39;,
+ &#39;2025-02-19_gain2750&#39;,
+ &#39;2025-02-20_gain0&#39;,
+ &#39;2025-02-20_gain2750&#39;,
+ &#39;2025-02-21_gain0&#39;,
+ &#39;2025-02-21_gain2750&#39;,
+ &#39;2025-02-22_gain0&#39;,
+ &#39;2025-02-22_gain2750&#39;,
+ &#39;2025-02-23_gain0&#39;,
+ &#39;2025-02-23_gain2750&#39;,
+ &#39;2025-02-24_gain0&#39;,
+ &#39;2025-02-24_gain2750&#39;,
+ &#39;2025-02-25_gain0&#39;,
+ &#39;2025-02-25_gain2750&#39;,
+ &#39;2025-02-26_gain0&#39;,
+ &#39;2025-02-26_gain2750&#39;,
+ &#39;2025-02-27_gain0&#39;,
+ &#39;2025-02-28_gain0&#39;,
+ &#39;2025-02-28_gain2750&#39;,
+ &#39;2025-03-01_gain0&#39;,
+ &#39;2025-03-01_gain2750&#39;,
+ &#39;2025-03-02_gain0&#39;,
+ &#39;2025-03-02_gain2750&#39;,
+ &#39;2025-03-03_gain0&#39;,
+ &#39;2025-03-03_gain2750&#39;,
+ &#39;2025-03-04_gain0&#39;,
+ &#39;2025-03-04_gain2750&#39;,
+ &#39;2025-03-05_gain2750&#39;,
+ &#39;2025-03-06_gain0&#39;,
+ &#39;2025-03-06_gain2750&#39;,
+ &#39;2025-03-07_gain0&#39;,
+ &#39;2025-03-07_gain2750&#39;,
+ &#39;2025-03-08_gain2750&#39;,
+ &#39;2025-03-09_gain0&#39;,
+ &#39;2025-03-09_gain2750&#39;,
+ &#39;2025-03-10_gain0&#39;,
+ &#39;2025-03-10_gain2750&#39;,
+ &#39;2025-03-11_gain0&#39;,
+ &#39;2025-03-11_gain2750&#39;,
+ &#39;2025-03-12_gain0&#39;,
+ &#39;2025-03-12_gain2750&#39;,
+ &#39;2025-03-13_gain0&#39;,
+ &#39;2025-03-13_gain2750&#39;,
+ &#39;2025-03-14_gain0&#39;,
+ &#39;2025-03-14_gain2750&#39;,
+ &#39;2025-03-15_gain0&#39;,
+ &#39;2025-03-15_gain2750&#39;,
+ &#39;2025-03-16_gain0&#39;,
+ &#39;2025-03-16_gain2750&#39;,
+ &#39;2025-03-17_gain0&#39;,
+ &#39;2025-03-17_gain2750&#39;,
+ &#39;2025-03-18_gain0&#39;,
+ &#39;2025-03-18_gain2750&#39;,
+ &#39;2025-03-19_gain0&#39;,
+ &#39;2025-03-19_gain2750&#39;,
+ &#39;2025-03-20_gain2750&#39;,
+ &#39;2025-03-21_gain0&#39;,
+ &#39;2025-03-21_gain2750&#39;,
+ &#39;2025-03-22_gain0&#39;,
+ &#39;2025-03-22_gain2750&#39;,
+ &#39;2025-03-23_gain0&#39;,
+ &#39;2025-03-23_gain2750&#39;,
+ &#39;2025-03-24_gain0&#39;,
+ &#39;2025-03-24_gain2750&#39;,
+ &#39;2025-03-25_gain0&#39;,
+ &#39;2025-03-25_gain2750&#39;,
+ &#39;2025-03-27_gain0&#39;,
+ &#39;2025-03-27_gain2750&#39;,
+ &#39;2025-03-28_gain0&#39;,
+ &#39;2025-03-28_gain2750&#39;,
+ &#39;2025-03-29_gain2750&#39;,
+ &#39;2025-03-30_gain0&#39;,
+ &#39;2025-03-30_gain2750&#39;,
+ &#39;2025-03-31_gain0&#39;,
+ &#39;2025-03-31_gain2750&#39;,
+ &#39;2025-04-01_gain2750&#39;,
+ &#39;2025-04-02_gain2750&#39;,
+ &#39;2025-04-03_gain0&#39;,
+ &#39;2025-04-03_gain2750&#39;,
+ &#39;2025-04-04_gain0&#39;,
+ &#39;2025-04-04_gain2750&#39;,
+ &#39;2025-04-05_gain2750&#39;,
+ &#39;2025-04-06_gain2750&#39;,
+ &#39;2025-04-07_gain0&#39;,
+ &#39;2025-04-07_gain2750&#39;,
+ &#39;2025-04-08_gain2750&#39;,
+ &#39;2025-04-09_gain2750&#39;,
+ &#39;2025-04-11_gain2750&#39;,
+ &#39;2025-04-12_gain0&#39;,
+ &#39;2025-04-12_gain2750&#39;,
+ &#39;2025-04-13_gain2750&#39;,
+ &#39;2025-04-14_gain2750&#39;,
+ &#39;2025-04-15_gain0&#39;,
+ &#39;2025-04-15_gain2750&#39;,
+ &#39;2025-04-17_gain2750&#39;,
+ &#39;2025-04-18_gain2750&#39;,
+ &#39;2025-04-19_gain0&#39;,
+ &#39;2025-04-19_gain2750&#39;,
+ &#39;2025-04-20_gain2750&#39;,
+ &#39;2025-04-21_gain2750&#39;,
+ &#39;2025-04-22_gain2750&#39;,
+ &#39;2025-04-23_gain2750&#39;,
+ &#39;2025-04-24_gain2750&#39;,
+ &#39;2025-04-25_gain2750&#39;,
+ &#39;2025-04-26_gain2750&#39;,
+ &#39;2025-04-27_gain2750&#39;,
+ &#39;2025-04-28_gain2750&#39;,
+ &#39;2025-04-29_gain2750&#39;,
+ &#39;2025-05-01_gain2750&#39;,
+ &#39;2025-05-02_gain2750&#39;,
+ &#39;2025-05-03_gain2750&#39;,
+ &#39;2025-05-04_gain2750&#39;,
+ &#39;2025-05-05_gain2750&#39;,
+ &#39;2025-05-06_gain2750&#39;,
+ &#39;2025-05-07_gain2750&#39;,
+ &#39;2025-05-08_gain2750&#39;,
+ &#39;2025-05-09_gain2750&#39;,
+ &#39;2025-05-10_gain2750&#39;,
+ &#39;2025-05-11_gain2750&#39;,
+ &#39;2025-05-12_gain2750&#39;,
+ &#39;2025-05-13_gain2750&#39;,
+ &#39;2025-05-16_gain2750&#39;,
+ &#39;2025-05-19_gain2750&#39;,
+ &#39;2025-05-20_gain2750&#39;,
+ &#39;2025-05-21_gain2750&#39;,
+ &#39;2025-05-22_gain2750&#39;,
+ &#39;2025-05-23_gain2750&#39;,
+ &#39;2025-05-24_gain2750&#39;,
+ &#39;2025-05-25_gain2750&#39;,
+ &#39;2025-05-27_gain2750&#39;,
+ &#39;2025-05-28_gain2750&#39;,
+ &#39;2025-05-29_gain2750&#39;,
+ &#39;2025-05-30_gain2750&#39;,
+ &#39;2025-05-31_gain2750&#39;,
+ &#39;2025-06-01_gain2750&#39;,
+ &#39;2025-06-03_gain2750&#39;,
+ &#39;2025-06-04_gain2750&#39;,
+ &#39;2025-06-05_gain2750&#39;,
+ &#39;2025-06-08_gain2750&#39;,
+ &#39;2025-06-09_gain2750&#39;,
+ &#39;2025-06-10_gain2750&#39;,
+ &#39;2025-06-17_gain2750&#39;,
+ &#39;2025-06-18_gain2750&#39;,
+ &#39;2025-06-19_gain2750&#39;,
+ &#39;2025-06-20_gain2750&#39;,
+ &#39;2025-06-22_gain2750&#39;,
+ &#39;2025-06-23_gain2750&#39;,
+ &#39;2025-06-26_gain2750&#39;,
+ &#39;2025-06-27_gain2750&#39;,
+ &#39;2025-06-28_gain2750&#39;,
+ &#39;2025-06-29_gain2750&#39;,
+ &#39;2025-06-30_gain2750&#39;,
+ &#39;2025-07-02_gain2750&#39;,
+ &#39;2025-07-03_gain2750&#39;,
+ &#39;2025-07-04_gain2750&#39;,
+ &#39;2025-07-05_gain2750&#39;,
+ &#39;2025-07-06_gain2750&#39;,
+ &#39;2025-07-07_gain2750&#39;,
+ &#39;2025-07-08_gain2750&#39;,
+ &#39;2025-07-09_gain2750&#39;,
+ &#39;2025-07-10_gain2750&#39;,
+ &#39;2025-07-11_gain2750&#39;,
+ &#39;2025-07-12_gain2750&#39;,
+ &#39;2025-07-13_gain2750&#39;,
+ &#39;2025-07-14_gain2750&#39;,
+ &#39;2025-07-15_gain2750&#39;,
+ &#39;2025-07-16_gain2750&#39;,
+ &#39;2025-07-17_gain2750&#39;,
+ &#39;2025-07-18_gain2750&#39;,
+ &#39;2025-07-19_gain2750&#39;,
+ &#39;2025-07-21_gain2750&#39;,
+ &#39;2025-07-22_gain2750&#39;,
+ &#39;2025-07-23_gain2750&#39;,
+ &#39;2025-07-24_gain2750&#39;,
+ &#39;2025-07-25_gain2750&#39;,
+ &#39;2025-07-27_gain2750&#39;,
+ &#39;2025-07-28_gain2750&#39;,
+ &#39;2025-08-04_gain2750&#39;,
+ &#39;2025-08-05_gain2750&#39;,
+ &#39;2025-08-06_gain2750&#39;,
+ &#39;2025-08-07_gain2750&#39;,
+ &#39;2025-08-08_gain2750&#39;,
+ &#39;2025-08-09_gain2750&#39;,
+ &#39;2025-08-10_gain2750&#39;,
+ &#39;2025-08-11_gain2750&#39;,
+ &#39;2025-08-12_gain2750&#39;,
+ &#39;2025-08-13_gain2750&#39;,
+ &#39;2025-08-14_gain2750&#39;,
+ &#39;2025-08-15_gain2750&#39;,
+ &#39;2025-08-17_gain2750&#39;,
+ &#39;2025-08-19_gain2750&#39;,
+ &#39;2025-08-23_gain2750&#39;,
+ &#39;2025-08-24_gain2750&#39;,
+ &#39;2025-08-25_gain2750&#39;,
+ &#39;2025-08-26_gain2750&#39;,
+ &#39;2025-08-27_gain2750&#39;,
+ &#39;2025-08-28_gain2750&#39;,
+ &#39;2025-08-31_gain2750&#39;,
+ &#39;2025-09-01_gain2750&#39;,
+ &#39;2025-09-02_gain2750&#39;,
+ &#39;2025-09-03_gain2750&#39;,
+ &#39;2025-09-04_gain2750&#39;,
+ &#39;2025-09-05_gain2750&#39;,
+ &#39;2025-09-06_gain2750&#39;,
+ &#39;tmp&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sync_scidata method will run multiple rsync between Science Source directory and destination directory.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Source directory:&#39;</span><span class="p">,</span> <span class="n">sdtquery</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSSOURCEDIR&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Target directory:&#39;</span><span class="p">,</span> <span class="n">sdtquery</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SDTDATA_OBSDESTDIR&#39;</span><span class="p">])</span>
+<span class="n">obsdate_name</span> <span class="o">=</span> <span class="s1">&#39;2025-09-05_gain2750&#39;</span>
+<span class="n">sdtquery</span><span class="o">.</span><span class="n">sync_obsdata</span><span class="p">(</span><span class="n">foldername</span> <span class="o">=</span> <span class="n">obsdate_name</span><span class="p">,</span> <span class="n">file_pattern</span> <span class="o">=</span> <span class="s1">&#39;*T00290*.fits&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Source directory: /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata
+Target directory: /home/hhchoi1022/ezphot/data/obsdata/7DT
+Running: rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT01/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/
+Running:Running:Running:Running:Running:Running:Running:Running:Running:Running:         rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT07/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT06/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/ rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT03/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT08/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT13/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT16/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT14/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT11/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/
+
+rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT10/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *T00290*.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/obsdata/7DT12/2025-09-05_gain2750/ /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/
+
+
+
+
+
+
+
+building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... done
+./
+7DT16_20250905_233815_T00290_g_1x1_100.0s_0000.fits
+         32,768   0%    0.00kB/s    0:00:00  done
+./
+7DT12_20250905_233810_T00290_m850_1x1_100.0s_0000.fits
+done
+done
+./
+./
+7DT07_20250905_233811_T00290_m650_1x1_100.0s_0000.fits
+7DT01_20250905_233822_T00290_i_1x1_100.0s_0000.fits
+         32,768   0%    0.00kB/s    0:00:00  done
+./
+7DT08_20250905_233809_T00290_m700_1x1_100.0s_0000.fits
+         32,768   0%    0.00kB/s    0:00:00  done
+./
+done
+./
+7DT13_20250905_233810_T00290_m875_1x1_100.0s_0000.fits
+7DT03_20250905_233808_T00290_m450_1x1_100.0s_0000.fits
+done
+./
+         32,768   0%    0.00kB/s    0:00:00  7DT11_20250905_233817_T00290_m625_1x1_100.0s_0000.fits
+done
+./
+7DT10_20250905_233824_T00290_m800_1x1_100.0s_0000.fits
+         32,768   0%    0.00kB/s    0:00:00  done
+./
+done
+./
+7DT14_20250905_233825_T00290_m600_1x1_100.0s_0000.fits
+7DT06_20250905_233828_T00290_m550_1x1_100.0s_0000.fits
+    114,065,408  15%   54.38MB/s    0:00:11  xfr#1, to-chk=5/7)
+7DT12_20250905_233955_T00290_m850_1x1_100.0s_0001.fits
+
+7DT16_20250905_234000_T00290_g_1x1_100.0s_0001.fits
+    122,353,920  16%   55.08MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT01_20250905_234010_T00290_i_1x1_100.0s_0001.fits
+    122,353,920  16%   54.72MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT08_20250905_233955_T00290_m700_1x1_100.0s_0001.fits
+
+7DT07_20250905_233957_T00290_m650_1x1_100.0s_0001.fits
+    115,179,520  15%   54.88MB/s    0:00:11  xfr#1, to-chk=5/7)
+7DT13_20250905_233955_T00290_m875_1x1_100.0s_0001.fits
+
+7DT11_20250905_234002_T00290_m625_1x1_100.0s_0001.fits
+    122,353,920  16%   54.95MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT03_20250905_233954_T00290_m450_1x1_100.0s_0001.fits
+    122,353,920  16%   54.38MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT10_20250905_234011_T00290_m800_1x1_100.0s_0001.fits
+    122,353,920  16%   55.66MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT06_20250905_234015_T00290_m550_1x1_100.0s_0001.fits
+    122,353,920  16%   53.88MB/s    0:00:02 (xfr#1, to-chk=5/7)
+7DT14_20250905_234014_T00290_m600_1x1_100.0s_0001.fits
+    244,707,840  33%   53.86MB/s    0:00:04 (xfr#2, to-chk=4/7)
+7DT12_20250905_234140_T00290_m850_1x1_100.0s_0002.fits
+    244,707,840  33%   53.99MB/s    0:00:04 (xfr#2, to-chk=4/7)
+7DT16_20250905_234145_T00290_g_1x1_100.0s_0002.fits
+
+7DT11_20250905_234147_T00290_m625_1x1_100.0s_0002.fits
+    244,707,840  33%   53.19MB/s    0:00:04 (xfr#2, to-chk=4/7)
+7DT01_20250905_234157_T00290_i_1x1_100.0s_0002.fits
+
+7DT08_20250905_234140_T00290_m700_1x1_100.0s_0002.fits
+    244,707,840  33%   53.38MB/s    0:00:04 (xfr#2, to-chk=4/7)
+7DT03_20250905_234139_T00290_m450_1x1_100.0s_0002.fits
+
+7DT07_20250905_234142_T00290_m650_1x1_100.0s_0002.fits
+
+7DT13_20250905_234140_T00290_m875_1x1_100.0s_0002.fits
+
+7DT06_20250905_234202_T00290_m550_1x1_100.0s_0002.fits
+
+7DT10_20250905_234158_T00290_m800_1x1_100.0s_0002.fits
+    244,707,840  33%   52.70MB/s    0:00:04 (xfr#2, to-chk=4/7)
+7DT14_20250905_234202_T00290_m600_1x1_100.0s_0002.fits
+    367,061,760  50%   53.66MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT12_20250905_234506_T00290_m875_1x1_100.0s_0000.fits
+    367,061,760  50%   54.98MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT11_20250905_234513_T00290_m425_1x1_100.0s_0000.fits
+
+7DT06_20250905_234549_T00290_m575_1x1_100.0s_0000.fits
+    367,061,760  50%   53.07MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT16_20250905_234516_T00290_r_1x1_100.0s_0000.fits
+    367,061,760  50%   53.68MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT08_20250905_234508_T00290_m725_1x1_100.0s_0000.fits
+    367,061,760  50%   53.07MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT03_20250905_234508_T00290_m475_1x1_100.0s_0000.fits
+    367,061,760  50%   53.41MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT01_20250905_234542_T00290_m675_1x1_100.0s_0000.fits
+
+7DT13_20250905_234508_T00290_m400_1x1_100.0s_0000.fits
+    367,061,760  50%   52.71MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT07_20250905_234511_T00290_m525_1x1_100.0s_0000.fits
+    367,061,760  50%   52.94MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT10_20250905_234537_T00290_m825_1x1_100.0s_0000.fits
+    367,061,760  50%   53.16MB/s    0:00:06 (xfr#3, to-chk=3/7)
+7DT14_20250905_234551_T00290_m500_1x1_100.0s_0000.fits
+    489,415,680  66%   55.60MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT06_20250905_234736_T00290_m575_1x1_100.0s_0001.fits
+    489,415,680  66%   54.52MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT11_20250905_234659_T00290_m425_1x1_100.0s_0001.fits
+    489,415,680  66%   53.53MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT16_20250905_234702_T00290_r_1x1_100.0s_0001.fits
+
+7DT08_20250905_234653_T00290_m725_1x1_100.0s_0001.fits
+
+7DT12_20250905_234652_T00290_m875_1x1_100.0s_0001.fits
+    489,415,680  66%   53.83MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT01_20250905_234730_T00290_m675_1x1_100.0s_0001.fits
+
+7DT03_20250905_234653_T00290_m475_1x1_100.0s_0001.fits
+    489,415,680  66%   53.68MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT13_20250905_234653_T00290_m400_1x1_100.0s_0001.fits
+    489,415,680  66%   53.29MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT10_20250905_234724_T00290_m825_1x1_100.0s_0001.fits
+    489,415,680  66%   52.44MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT07_20250905_234656_T00290_m525_1x1_100.0s_0001.fits
+    489,415,680  66%   53.16MB/s    0:00:08 (xfr#4, to-chk=2/7)
+7DT14_20250905_234739_T00290_m500_1x1_100.0s_0001.fits
+    611,769,600  83%   57.63MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT06_20250905_234923_T00290_m575_1x1_100.0s_0002.fits
+    611,769,600  83%   56.20MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT12_20250905_234837_T00290_m875_1x1_100.0s_0002.fits
+    611,769,600  83%   56.41MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT11_20250905_234843_T00290_m425_1x1_100.0s_0002.fits
+    611,769,600  83%   55.65MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT16_20250905_234846_T00290_r_1x1_100.0s_0002.fits
+    611,769,600  83%   55.41MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT01_20250905_234918_T00290_m675_1x1_100.0s_0002.fits
+
+7DT13_20250905_234838_T00290_m400_1x1_100.0s_0002.fits
+
+7DT08_20250905_234838_T00290_m725_1x1_100.0s_0002.fits
+    611,769,600  83%   55.64MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT03_20250905_234839_T00290_m475_1x1_100.0s_0002.fits
+    611,769,600  83%   55.19MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT10_20250905_234911_T00290_m825_1x1_100.0s_0002.fits
+    611,769,600  83%   55.19MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT14_20250905_234928_T00290_m500_1x1_100.0s_0002.fits
+    611,769,600  83%   54.25MB/s    0:00:10 (xfr#5, to-chk=1/7)
+7DT07_20250905_234841_T00290_m525_1x1_100.0s_0002.fits
+    734,123,520 100%   54.94MB/s    0:00:12 (xfr#6, to-chk=0/7)
+
+sent 734,303,318 bytes  received 133 bytes  54,392,848.22 bytes/sec
+total size is 734,123,520  speedup is 1.00
+    734,123,520 100%   54.91MB/s    0:00:12 (xfr#6, to-chk=0/7)
+
+sent 734,303,323 bytes  received 133 bytes  54,392,848.59 bytes/sec
+total size is 734,123,520  speedup is 1.00
+    734,123,520 100%   54.89MB/s    0:00:12 (xfr#6, to-chk=0/7)
+
+sent 734,303,319 bytes  received 133 bytes  50,641,617.38 bytes/sec
+total size is 734,123,520  speedup is 1.00
+    734,123,520 100%   54.23MB/s    0:00:12 (xfr#6, to-chk=0/7)
+
+sent 734,303,311 bytes  received 133 bytes  50,641,616.83 bytes/sec
+total size is 734,123,520  speedup is 1.00
+
+
+sent 734,303,322 bytes  received 133 bytes  50,641,617.59 bytes/sec
+total size is 734,123,520  speedup is 1.00
+
+
+sent 734,303,306 bytes  received 133 bytes  50,641,616.48 bytes/sec
+total size is 734,123,520  speedup is 1.00
+
+
+sent 734,303,325 bytes  received 133 bytes  50,641,617.79 bytes/sec
+total size is 734,123,520  speedup is 1.00
+
+
+sent 734,303,320 bytes  received 133 bytes  50,641,617.45 bytes/sec
+total size is 734,123,520  speedup is 1.00
+    727,932,160  99%   55.78MB/s    0:00:00  xfr#6, to-chk=0/7)
+
+sent 734,303,320 bytes  received 133 bytes  50,641,617.45 bytes/sec
+total size is 734,123,520  speedup is 1.00
+
+
+sent 734,303,319 bytes  received 133 bytes  50,641,617.38 bytes/sec
+total size is 734,123,520  speedup is 1.00
+    734,123,520 100%   53.66MB/s    0:00:13 (xfr#6, to-chk=0/7)
+
+sent 734,303,326 bytes  received 133 bytes  50,641,617.86 bytes/sec
+total size is 734,123,520  speedup is 1.00
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Then, you can query your data with DataBrowser class.</span>
+<span class="c1"># Since the data is copied to your private directory ([&#39;SCIDATA_SCIDESTDIR&#39;](e.g. ~/ezphot/data/scidata by default) in configuration), you can use it as your own data.</span>
+<span class="c1"># You can also use it as a context for ezphot.</span>
+
+<span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;obsdata&#39;</span><span class="p">)</span>
+<span class="c1"># You can query the data with the below keys.</span>
+<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+observatory {&#39;7DT&#39;}
+telkey set()
+objname set()
+telname {&#39;7DT11&#39;, &#39;7DT01&#39;, &#39;7DT10&#39;, &#39;7DT03&#39;, &#39;7DT07&#39;, &#39;7DT08&#39;, &#39;7DT16&#39;, &#39;7DT14&#39;, &#39;7DT06&#39;, &#39;7DT12&#39;, &#39;7DT13&#39;}
+filter set()
+imgtype set()
+obsdate {&#39;2025-09-05_gain2750&#39;}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dbrowser</span><span class="o">.</span><span class="n">obsdate</span> <span class="o">=</span> <span class="n">obsdate_name</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;path&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 66 files matching &#39;/home/hhchoi1022/ezphot/data/obsdata/*/*/2025-09-05_gain2750/*.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[&#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_233955_T00290_m700_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234653_T00290_m725_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234508_T00290_m725_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234838_T00290_m725_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234140_T00290_m700_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_233809_T00290_m700_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_233808_T00290_m450_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234653_T00290_m475_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234508_T00290_m475_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_233954_T00290_m450_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234839_T00290_m475_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234139_T00290_m450_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_234549_T00290_m575_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_234923_T00290_m575_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_233828_T00290_m550_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_234736_T00290_m575_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_234015_T00290_m550_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750/7DT06_20250905_234202_T00290_m550_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_233955_T00290_m875_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_234653_T00290_m400_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_234508_T00290_m400_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_234838_T00290_m400_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_234140_T00290_m875_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750/7DT13_20250905_233810_T00290_m875_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_234837_T00290_m875_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_233955_T00290_m850_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_234140_T00290_m850_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_234652_T00290_m875_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_233810_T00290_m850_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750/7DT12_20250905_234506_T00290_m875_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_234158_T00290_m800_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_234724_T00290_m825_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_233824_T00290_m800_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_234011_T00290_m800_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_234911_T00290_m825_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750/7DT10_20250905_234537_T00290_m825_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_234511_T00290_m525_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_234656_T00290_m525_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_233957_T00290_m650_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_233811_T00290_m650_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_234142_T00290_m650_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750/7DT07_20250905_234841_T00290_m525_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_234516_T00290_r_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_233815_T00290_g_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_234145_T00290_g_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_234702_T00290_r_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_234000_T00290_g_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750/7DT16_20250905_234846_T00290_r_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_234157_T00290_i_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_234730_T00290_m675_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_234918_T00290_m675_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_234010_T00290_i_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_233822_T00290_i_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750/7DT01_20250905_234542_T00290_m675_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234014_T00290_m600_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234551_T00290_m500_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234202_T00290_m600_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234928_T00290_m500_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_233825_T00290_m600_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234739_T00290_m500_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234002_T00290_m625_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_233817_T00290_m625_1x1_100.0s_0000.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234659_T00290_m425_1x1_100.0s_0001.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234147_T00290_m625_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234843_T00290_m425_1x1_100.0s_0002.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234513_T00290_m425_1x1_100.0s_0000.fits&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you wish to get the ScienceImage object,</span>
+<span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+<span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
+<span class="c1"># If you wish to get the metadata table from the keys,</span>
+<span class="n">metadata_table</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;imginfo&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 66 files matching &#39;/home/hhchoi1022/ezphot/data/obsdata/*/*/2025-09-05_gain2750/*.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Science Images: 100%|██████████| 66/66 [00:00&lt;00:00, 93.15it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 66 files matching &#39;/home/hhchoi1022/ezphot/data/obsdata/*/*/2025-09-05_gain2750/*.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750
+Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT12/2025-09-05_gain2750
+Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT01/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750
+Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT16/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT07/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT06/2025-09-05_gain2750Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT13/2025-09-05_gain2750
+Loaded 6 FITS files from /home/hhchoi1022/ezphot/data/obsdata/7DT/7DT10/2025-09-05_gain2750
+
+
+
+
+
+
+Total FITS files combined: 6
+Total FITS files combined: 6
+Total FITS files combined: 6Total FITS files combined: 6
+
+Total FITS files combined: 6Total FITS files combined: 6
+
+Total FITS files combined: 6
+Total FITS files combined: 6
+Total FITS files combined: 6
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Collecting ImgInfo:   0%|          | 0/11 [00:00&lt;?, ?it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Total FITS files combined: 6
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Collecting ImgInfo: 100%|██████████| 11/11 [00:00&lt;00:00, 36969.03it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+Total FITS files combined: 6
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">metadata_table</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><i>Table length=66</i>
+<table id="table139934636562192" class="table-striped table-bordered table-condensed">
+<thead><tr><th>file</th><th>altitude</th><th>azimuth</th><th>ccd-temp</th><th>gain</th><th>filter</th><th>imgtype</th><th>exptime</th><th>obsdate</th><th>locdate</th><th>jd</th><th>mjd</th><th>binning</th><th>object</th><th>objctid</th><th>obsmode</th><th>specmode</th><th>note</th><th>telescop</th></tr></thead>
+<thead><tr><th>str121</th><th>str32</th><th>str32</th><th>str32</th><th>str21</th><th>str4</th><th>str5</th><th>str32</th><th>str23</th><th>str23</th><th>str32</th><th>str32</th><th>str21</th><th>str6</th><th>str32</th><th>str4</th><th>str7</th><th>str4</th><th>str5</th></tr></thead>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_233955_T00290_m700_1x1_100.0s_0001.fits</td><td>39.837596</td><td>179.72268</td><td>-10.0</td><td>2750</td><td>m700</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:39:55.000</td><td>2025-09-05 19:39:55.000</td><td>2460924.486053241</td><td>60923.98605324074</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234653_T00290_m725_1x1_100.0s_0001.fits</td><td>39.840043</td><td>180.091172</td><td>-10.0</td><td>2750</td><td>m725</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:46:53.000</td><td>2025-09-05 19:46:53.000</td><td>2460924.4908912037</td><td>60923.990891203706</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234508_T00290_m725_1x1_100.0s_0000.fits</td><td>39.840357</td><td>179.998559</td><td>-9.8</td><td>2750</td><td>m725</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:45:08.000</td><td>2025-09-05 19:45:08.000</td><td>2460924.489675926</td><td>60923.98967592593</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234838_T00290_m725_1x1_100.0s_0002.fits</td><td>39.83912</td><td>180.183768</td><td>-10.0</td><td>2750</td><td>m725</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:48:38.000</td><td>2025-09-05 19:48:38.000</td><td>2460924.4921064815</td><td>60923.992106481484</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_234140_T00290_m700_1x1_100.0s_0002.fits</td><td>39.839148</td><td>179.815416</td><td>-10.1</td><td>2750</td><td>m700</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:41:40.000</td><td>2025-09-05 19:41:40.000</td><td>2460924.4872685187</td><td>60923.98726851852</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT08/2025-09-05_gain2750/7DT08_20250905_233809_T00290_m700_1x1_100.0s_0000.fits</td><td>39.83547</td><td>179.629828</td><td>-9.8</td><td>2750</td><td>m700</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:38:09.000</td><td>2025-09-05 19:38:09.000</td><td>2460924.484826389</td><td>60923.984826388885</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT08</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_233808_T00290_m450_1x1_100.0s_0000.fits</td><td>39.820706</td><td>179.644698</td><td>-10.1</td><td>2750</td><td>m450</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:38:08.000</td><td>2025-09-05 19:38:08.000</td><td>2460924.4848148148</td><td>60923.984814814816</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT03</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234653_T00290_m475_1x1_100.0s_0001.fits</td><td>39.82478</td><td>180.107488</td><td>-10.0</td><td>2750</td><td>m475</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:46:53.000</td><td>2025-09-05 19:46:53.000</td><td>2460924.4908912037</td><td>60923.990891203706</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT03</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT03/2025-09-05_gain2750/7DT03_20250905_234508_T00290_m475_1x1_100.0s_0000.fits</td><td>39.825207</td><td>180.014533</td><td>-10.0</td><td>2750</td><td>m475</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:45:08.000</td><td>2025-09-05 19:45:08.000</td><td>2460924.489675926</td><td>60923.98967592593</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT03</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234202_T00290_m600_1x1_100.0s_0002.fits</td><td>39.823601</td><td>179.853116</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:42:02.000</td><td>2025-09-05 19:42:02.000</td><td>2460924.4875231483</td><td>60923.98752314815</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234928_T00290_m500_1x1_100.0s_0002.fits</td><td>39.822232</td><td>180.246067</td><td>-10.1</td><td>2750</td><td>m500</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:49:28.000</td><td>2025-09-05 19:49:28.000</td><td>2460924.4926851853</td><td>60923.992685185185</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_233825_T00290_m600_1x1_100.0s_0000.fits</td><td>39.820335</td><td>179.662379</td><td>-9.9</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:38:25.000</td><td>2025-09-05 19:38:25.000</td><td>2460924.485011574</td><td>60923.98501157408</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT14/2025-09-05_gain2750/7DT14_20250905_234739_T00290_m500_1x1_100.0s_0001.fits</td><td>39.823586</td><td>180.150701</td><td>-9.9</td><td>2750</td><td>m500</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:47:39.000</td><td>2025-09-05 19:47:39.000</td><td>2460924.491423611</td><td>60923.991423611114</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234002_T00290_m625_1x1_100.0s_0001.fits</td><td>39.82206</td><td>179.744821</td><td>-9.9</td><td>2750</td><td>m625</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:40:02.000</td><td>2025-09-05 19:40:02.000</td><td>2460924.486134259</td><td>60923.986134259256</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_233817_T00290_m625_1x1_100.0s_0000.fits</td><td>39.820108</td><td>179.652273</td><td>-10.1</td><td>2750</td><td>m625</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:38:17.000</td><td>2025-09-05 19:38:17.000</td><td>2460924.4849189813</td><td>60923.984918981485</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234659_T00290_m425_1x1_100.0s_0001.fits</td><td>39.823944</td><td>180.11177</td><td>-10.1</td><td>2750</td><td>m425</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:46:59.000</td><td>2025-09-05 19:46:59.000</td><td>2460924.4909606483</td><td>60923.990960648145</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234147_T00290_m625_1x1_100.0s_0002.fits</td><td>39.823463</td><td>179.837513</td><td>-10.1</td><td>2750</td><td>m625</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:41:47.000</td><td>2025-09-05 19:41:47.000</td><td>2460924.487349537</td><td>60923.987349537034</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234843_T00290_m425_1x1_100.0s_0002.fits</td><td>39.822916</td><td>180.20439</td><td>-9.9</td><td>2750</td><td>m425</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:48:43.000</td><td>2025-09-05 19:48:43.000</td><td>2460924.492164352</td><td>60923.992164351854</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/obsdata/7DT/7DT11/2025-09-05_gain2750/7DT11_20250905_234513_T00290_m425_1x1_100.0s_0000.fits</td><td>39.824364</td><td>180.019297</td><td>-9.9</td><td>2750</td><td>m425</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T23:45:13.000</td><td>2025-09-05 19:45:13.000</td><td>2460924.489733796</td><td>60923.9897337963</td><td>1</td><td>T00290</td><td>9473692bf1874a48a7492f0f1ad94624</td><td>Spec</td><td>specall</td><td>None</td><td>7DT11</td></tr>
+</table></div></div>
+</div>
+</section>
+<section id="Image-preprocessing">
+<h1>Image preprocessing<a class="headerlink" href="#Image-preprocessing" title="Link to this heading"></a></h1>
+<section id="1.-Load-the-master-frames">
+<h2>1. Load the master frames<a class="headerlink" href="#1.-Load-the-master-frames" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Preprocess</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibrationImage</span>
+
+<span class="n">preprocess</span> <span class="o">=</span> <span class="n">Preprocess</span><span class="p">()</span>
+<span class="n">preprocess</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
+
+<span class="n">mbias_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+<span class="n">mdark_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+<span class="n">mflat_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span> <span class="c1"># For flat frames, master frame is needed to specify by the filter</span>
+
+<span class="n">mbias</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mbias_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+<span class="n">mdark</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mdark_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+<span class="n">mflat</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mflat_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Help for Preprocess
+
+Public methods:
+- correct_bd(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, **kwargs)
+- correct_bdf(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, flat_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, **kwargs)
+- correct_bias(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, **kwargs)
+- correct_dark(target_img: ezphot.imageobjects.scienceimage.ScienceImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, **kwargs)
+- correct_flat(target_img: ezphot.imageobjects.scienceimage.ScienceImage, flat_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, **kwargs)
+- generate_masterframe(calib_imagelist: List[ezphot.imageobjects.calibrationimage.CalibrationImage], mbias: ezphot.imageobjects.calibrationimage.CalibrationImage = None, mdark: ezphot.imageobjects.calibrationimage.CalibrationImage = None, combine_type: str = &#39;median&#39;, n_proc: int = 4, clip_type: str = &#39;extrema&#39;, sigma: float = 3.0, nlow: int = 1, nhigh: int = 1, verbose: bool = True, save: bool = True, **kwargs)
+- get_masterframe(observatory: str = &#39;7DT&#39;, telkey: str = &#39;7DT_C361K_HIGH_1x1&#39;, telname: str = &#39;7DT02&#39;, imagetyp: str = &#39;BIAS&#39;, exptime: float = None, filter_: str = None, obsdate: str = None, max_days: float = 5)
+- get_masterframe_from_image(target_img: ezphot.imageobjects.scienceimage.ScienceImage, imagetyp: str = &#39;BIAS&#39;, max_days: float = 5)
+WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
+WARNING: XBINNING keyword not found in header. Assuming binning = 1.
+WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
+WARNING: XBINNING keyword not found in header. Assuming binning = 1.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mbias</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">mdark</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">mflat</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(&lt;Figure size 800x600 with 2 Axes&gt;,
+ &lt;Axes: title={&#39;center&#39;: &#39;20250723-nm700.fits&#39;}, xlabel=&#39;X pixel&#39;, ylabel=&#39;Y pixel&#39;&gt;)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_preprocess_12_1.png" src="../_images/example_preprocess_12_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_preprocess_12_2.png" src="../_images/example_preprocess_12_2.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_preprocess_12_3.png" src="../_images/example_preprocess_12_3.png" />
+</div>
+</div>
+</section>
+<section id="2.-Preprocess-with-the-master-frames">
+<h2>2. Preprocess with the master frames<a class="headerlink" href="#2.-Preprocess-with-the-master-frames" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">corrected_img</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">correct_bdf</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">bias_image</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
+    <span class="n">dark_image</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
+    <span class="n">flat_image</span> <span class="o">=</span> <span class="n">mflat</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">corrected_img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(&lt;Figure size 800x600 with 2 Axes&gt;,
+ &lt;Axes: title={&#39;center&#39;: &#39;7DT08_20250905_233955_T00290_m700_1x1_100.0s_0001.fits&#39;}, xlabel=&#39;X pixel&#39;, ylabel=&#39;Y pixel&#39;&gt;)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_preprocess_15_1.png" src="../_images/example_preprocess_15_1.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_preprocess_15_2.png" src="../_images/example_preprocess_15_2.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Save the corrected image.</span>
+<span class="n">corrected_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Run-preprocess-for-all-target_images">
+<h2>Run preprocess for all target_images<a class="headerlink" href="#Run-preprocess-for-all-target_images" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
+    <span class="n">mbias_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">mbias</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mbias_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+    <span class="n">mdark_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">mdark</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mdark_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+    <span class="n">mflat_tbl</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span> <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">mflat</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mflat_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+
+    <span class="n">preprocess</span><span class="o">.</span><span class="n">correct_bdf</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">bias_image</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
+        <span class="n">dark_image</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
+        <span class="n">flat_image</span> <span class="o">=</span> <span class="n">mflat</span><span class="p">,</span>
+        <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../usage/stacking.html" class="btn btn-neutral float-left" title="Stacking" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api/methods.html" class="btn btn-neutral float-right" title="Methods" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

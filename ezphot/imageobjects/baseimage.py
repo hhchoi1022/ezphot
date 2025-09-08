@@ -9,6 +9,7 @@ from astropy.io.fits import Header
 from astropy.time import Time
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
+import astropy.units as u
 
 from ezphot.configuration import Configuration
 from ezphot.helper import Helper
@@ -165,91 +166,128 @@ class BaseImage(Configuration):
         self.header
         
     def show(self, 
-             cmap='gray', 
-             scale='zscale', 
-             downsample=4, 
-             figsize=(8, 6), 
-             title=None, 
-             save_path: str = False,
-             close_fig: bool = False):
+            coord_type: str = "pixel",
+            cmap='gray', 
+            scale='zscale', 
+            downsample=4, 
+            figsize=(8, 6), 
+            title=None, 
+            save_path: str = False,
+            close_fig: bool = False):
         """
-        Visualize the FITS image using slicing-based downsampling and scaling.
-
-        Parameters
-        ----------
-        cmap : str, optional
-            Matplotlib colormap. Default is 'gray'.
-        scale : str, optional
-            Scaling method. Default is 'zscale'.
-        downsample : int, optional
-            Step size for downsampling via slicing. Default is 4.
-        figsize : tuple, optional
-            Matplotlib figure size. Default is (8, 6).
-        title : str, optional
-            Plot title. Default is None.
-        save_path : str, optional
-            Path to save the figure. Default is None.
-        close_fig : bool, optional
-            If True, close the figure after saving. Default is False.
+        Visualize the FITS image with optional WCS overlay and downsampling.
         """
+        import numpy as np
         import matplotlib.pyplot as plt
         from astropy.visualization import ZScaleInterval, MinMaxInterval
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        from astropy import units as u
 
-        data = self.data
-        if data is None:
+        # ----------------------------
+        # 1. Prepare data and WCS
+        # ----------------------------
+        if self.data is None:
             print("WARNING: Image data is not loaded. Please load the image first.")
             return
-        
-        # Handle NaN and inf
-        data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # Store original shape before slicing
-        ny, nx = data.shape
+        data = np.nan_to_num(self.data, nan=0.0, posinf=0.0, neginf=0.0)
+        w = getattr(self, "wcs", None)
 
-        # Downsampling using slicing
         if downsample > 1:
             data = data[::downsample, ::downsample]
+            if coord_type == "coord" and w is not None:
+                w = w.deepcopy()
+                if w.wcs.has_cd():
+                    w.wcs.cd *= downsample
+                elif w.wcs.has_pc():
+                    w.wcs.cdelt *= downsample
+                else:
+                    w.wcs.cdelt *= downsample
+                w.wcs.crpix = (w.wcs.crpix - 1) / downsample + 1
 
-        # Scaling
-        if scale == 'zscale':
-            interval = ZScaleInterval()
-        elif scale == 'minmax':
-            interval = MinMaxInterval()
-        else:
-            print(f"Invalid scale option: {scale}. Use 'zscale' or 'minmax'.")
-            return
-
+        # ----------------------------
+        # 2. Prepare visualization
+        # ----------------------------
+        interval = ZScaleInterval() if scale == 'zscale' else MinMaxInterval()
         vmin, vmax = interval.get_limits(data)
 
-        # Plot image
-        fig, ax = plt.subplots(figsize=figsize)
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)  # colorbar axis
+        use_wcs = (coord_type == "coord" and w is not None)
 
+        # ----------------------------
+        # 3. Plotting
+        # ----------------------------
+        if use_wcs:
+            try:
+                fig, ax = plt.subplots(figsize=figsize, subplot_kw={'projection': w})
+                ax.grid(color='white', ls='dotted')
+
+                # Force decimal degree ticks with 0.1 degree spacing
+                lon, lat = ax.coords[0], ax.coords[1]
+                lon.set_format_unit(u.deg)
+                lat.set_format_unit(u.deg)
+                
+                lon.set_major_formatter('d.dd')  # RA with 4 decimals
+                lat.set_major_formatter('d.d')    # Dec with 3 decimals
+                
+                # Set grid spacing to get exactly 5 grid lines for each axis
+                # Calculate spacing based on field of view
+                fov_ra = self.fovx  # Field of view in RA (degrees)
+                fov_dec = self.fovy  # Field of view in Dec (degrees)
+                
+                # Correct RA spacing for declination (RA lines converge toward poles)
+                center = self.center
+                if center['dec'] is not None:
+                    dec_rad = np.radians(center['dec'])
+                    ra_spacing = (fov_ra / 4) / np.cos(dec_rad)
+                else:
+                    ra_spacing = fov_ra / 4
+                
+                dec_spacing = fov_dec / 4
+                
+                lon.set_ticks(spacing=ra_spacing * u.deg)
+                lat.set_ticks(spacing=dec_spacing * u.deg)
+                
+                # Rotate x-axis tick labels by 45 degrees
+                ax.tick_params(axis='x', rotation=45)
+
+                ax.set_xlabel("RA [deg]")
+                ax.set_ylabel("Dec [deg]")
+            except Exception as e:
+                print(f"WARNING: WCS plotting failed ({e}). Falling back to pixel coords.")
+                fig, ax = plt.subplots(figsize=figsize)
+                use_wcs = False
+        else:
+            fig, ax = plt.subplots(figsize=figsize)
+
+        # Show image
         img = ax.imshow(data, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
 
-        # Set original pixel ticks
-        yticks = np.linspace(0, data.shape[0]-1, num=6, dtype=int)
-        xticks = np.linspace(0, data.shape[1]-1, num=6, dtype=int)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels((yticks * downsample).astype(int))
-        ax.set_xticks(xticks)
-        ax.set_xticklabels((xticks * downsample).astype(int))
+        # Colorbar
+        cbar = fig.colorbar(img, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
+        cbar.set_label("Pixel value")
 
+        # Pixel coordinate ticks
+        if not use_wcs:
+            yticks = np.linspace(0, data.shape[0]-1, num=6, dtype=int)
+            xticks = np.linspace(0, data.shape[1]-1, num=6, dtype=int)
+            ax.set_yticks(yticks)
+            ax.set_yticklabels((yticks * downsample).astype(int))
+            ax.set_xticks(xticks)
+            ax.set_xticklabels((xticks * downsample).astype(int))
+            ax.set_xlabel("X pixel")
+            ax.set_ylabel("Y pixel")
+
+        # Title
         ax.set_title(title or self.path.name)
-        fig.colorbar(img, cax=cax, label='Pixel value')  # colorbar on the matched axis
 
         plt.tight_layout()
         if save_path:
             plt.savefig(save_path, dpi=300)
             print(f"Saved: {save_path}")
-        
         if close_fig:
             plt.close(fig)
-        
+
         return fig, ax
-        
+
     def show_position(self,
                     x: float,
                     y: float,
@@ -747,6 +785,8 @@ class BaseImage(Configuration):
         """WCS information of the image."""
         try:
             wcs = WCS(self._header)
+            if self.imgtype.upper() in ['BIAS', 'DARK', 'FLAT']:
+                raise ValueError("WCS is not available for bias, dark, or flat images.")
             return wcs
         except:
             return None

@@ -227,6 +227,7 @@ class Mask(DummyImage):
 
         # Write to disk
         hdu.writeto(self.savepath.savepath, overwrite=True)
+        print('Saved:', self.savepath.savepath)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath

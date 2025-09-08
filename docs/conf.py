@@ -96,7 +96,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
-    'myst_parser'
+    'myst_parser',
+    "nbsphinx"   # <-- add this
 ]
 
 templates_path = ['_templates']

@@ -18,7 +18,6 @@ Welcome to EZPhot documentation!
    installation/installation
    installation/getstarted
    
-
 .. toctree::
    :maxdepth: 2
    :caption: Usage:
@@ -31,6 +30,13 @@ Welcome to EZPhot documentation!
    usage/photometry
    usage/photometriccalibration
    usage/stacking
+  
+.. toctree::
+   :maxdepth: 1
+   :caption: Example
+
+   example/preprocess
+
 
 .. toctree::
    :maxdepth: 2
