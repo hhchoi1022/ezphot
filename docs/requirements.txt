@@ -4,6 +4,7 @@ myst-parser
 numpydoc
 sphinx-autodoc-typehints
 ipykernel
+nbsphinx
 
 numpy
 astropy
