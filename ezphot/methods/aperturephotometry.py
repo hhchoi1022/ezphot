@@ -170,7 +170,7 @@ class AperturePhotometry:
             raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
         
         if not target_img.is_saved:
-            target_img.write()
+            target_img.write(verbose = False)
         
         # If sex_params is None, use default parameters
         if sex_params is None:
@@ -204,7 +204,7 @@ class AperturePhotometry:
         remove_bkgrms = False
         if target_bkgrms is not None:
             if not target_bkgrms.is_saved:
-                target_bkgrms.write()
+                target_bkgrms.write(verbose = False)
                 remove_bkgrms = True
             bkgrms_path = target_bkgrms.savepath.savepath
         else:
@@ -214,7 +214,7 @@ class AperturePhotometry:
         remove_mask = False
         if target_mask is not None:
             if not target_mask.is_saved:
-                target_mask.write()
+                target_mask.write(verbose = False)
                 remove_mask = True
             mask_path = target_mask.savepath.savepath
         else:
@@ -338,9 +338,9 @@ class AperturePhotometry:
         target_catalog.data = catalog
         
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
         else:
-            target_catalog.remove()
+            target_catalog.remove(verbose = verbose)
         
         if visualize:
             save_path = None
@@ -567,9 +567,9 @@ class AperturePhotometry:
         target_catalog.data = catalog
         
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
         else:
-            target_catalog.remove()
+            target_catalog.remove(verbose = verbose)
             
         if visualize:
             save_path = None
@@ -599,6 +599,7 @@ class AperturePhotometry:
                             
                             # Other paramters
                             save: bool = True,
+                            verbose: bool = True,
                             visualize: bool = True,
                             save_fig: bool = False,
                             **kwargs
@@ -779,9 +780,9 @@ class AperturePhotometry:
         target_catalog.data = results
         
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
         else:
-            target_catalog.remove()
+            target_catalog.remove(verbose = verbose)
         
         if visualize:
             save_path = None
@@ -812,6 +813,7 @@ class AperturePhotometry:
                               target_bkgrms: Optional[Errormap] = None,
                               # Other parameters
                               save: bool = True,
+                              verbose: bool = True,
                               visualize: bool = True,
                               save_fig: bool = False,
                               **kwargs
@@ -971,9 +973,9 @@ class AperturePhotometry:
         target_catalog.data = results
         
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
         else:
-            target_catalog.remove()
+            target_catalog.remove(verbose = verbose)
         
         if visualize:
             save_path = None

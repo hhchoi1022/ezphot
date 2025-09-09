@@ -58,7 +58,7 @@ class PhotometricCalibration:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def photometric_calibration(self,
                                 target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
@@ -315,7 +315,7 @@ class PhotometricCalibration:
         matched_ref = all_references[ref_indices]
         filtered_catalog.data = matched_obj
         if save_refcat:
-            filtered_catalog.write()
+            filtered_catalog.write(verbose = verbose)
 
         # Update the target image header
         update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
@@ -534,7 +534,7 @@ class PhotometricCalibration:
         target_img.update_status('ZPCALC')
         
         # Write the target image 
-        target_img.write() 
+        target_img.write(verbose = verbose) 
         
         if visualize or save_fig:            
             zp_median = zp_info[magnitude_key]['ZP_median']
@@ -652,13 +652,14 @@ class PhotometricCalibration:
                 plt.close()
         
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
         return target_img, target_catalog, filtered_catalog
     
     def apply_zp(self,
                 target_img: Union[ScienceImage, ReferenceImage],
                 target_catalog: Catalog,
-                save: bool = True) -> Table:
+                save: bool = True,
+                verbose: bool = True) -> Table:
         """
         Apply photometric zeropoint corrections using values saved in the FITS header.
         Adds MAGSKY_*, ZP_*, ZPERR_*, UL3_*, UL5_* columns to target_catalog.
@@ -702,7 +703,7 @@ class PhotometricCalibration:
             ul5_key_sky = ul5_key.replace('UL5_', 'UL5SKY_')
 
             if zp_key not in header:
-                print(f"[WARNING] {zp_key} not in header. Skipping {mag_key}")
+                self.helper.print(f"[WARNING] {zp_key} not in header. Skipping {mag_key}", True)
                 continue
 
             zp = header[zp_key]
@@ -730,7 +731,7 @@ class PhotometricCalibration:
                 target_catalog_data[zperr_key] = header[zperr_key]
 
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
             
         return target_catalog
     
@@ -771,7 +772,8 @@ class PhotometricCalibration:
             return a * x + b
         
         # 0. Cross-match catalogs
-        catalog_dataset = CatalogDataset([target_catalog, comparison_catalog])
+        from ezphot.dataobjects import CatalogSet
+        catalog_dataset = CatalogSet([target_catalog, comparison_catalog])
         magsky_key_all = [col for col in target_catalog.data.colnames if col.startswith('MAGSKY_')]
         mag_key_all = [col.replace('MAGSKY_','MAG_') for col in magsky_key_all]
         merged_catalog, merged_metadata = catalog_dataset.merge_catalogs(max_distance_second = max_distance_second, join_type = 'outer', data_keys = magsky_key_all)
@@ -791,7 +793,7 @@ class PhotometricCalibration:
             # Calculate color term
             if slope_key_try1 in header and intercept_key_try1 in header:
                 slope = header[slope_key_try1]
-                intercept = header[intercept_key_try]
+                intercept = header[intercept_key_try1]
                 color = target_catalog_data[magsky_filter_1_key] - target_catalog_data[magsky_filter_2_key]
                 color_key = f'{filter_1_key}-{filter_2_key}'
             elif slope_key_try2 in header and intercept_key_try2 in header:
@@ -811,7 +813,7 @@ class PhotometricCalibration:
             target_catalog.data[color_key] = color
         
         if save:
-            target_catalog.write()    
+            target_catalog.write(verbose = verbose)    
 
         return target_catalog
             
@@ -871,7 +873,7 @@ class PhotometricCalibration:
             target_catalog_data[magterm_key] = mag_term
             
         if save:
-            target_catalog.write()
+            target_catalog.write(verbose = verbose)
             
         return target_catalog
 
@@ -1144,7 +1146,7 @@ class PhotometricCalibration:
             plt.close()
             
         if save:
-            filtered_catalog.write()
+            filtered_catalog.write(verbose = verbose)
             self.helper.print(f"[INFO] Filtered catalog saved to {filtered_catalog.savepath.savepath}", verbose)
     
         return filtered_catalog, filter_info, seeing

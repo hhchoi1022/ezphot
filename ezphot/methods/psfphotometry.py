@@ -83,7 +83,7 @@ class PSFPhotometry:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def select_psfstars(self,
                         target_catalog: Table,
@@ -161,7 +161,7 @@ class PSFPhotometry:
             
             if fwhm_key not in sources.keys():
                 visualize = False
-                print(f"Warning: '{fwhm_key}' not found in sources. Visualization disabled.")
+                self.helper.print(f"Warning: '{fwhm_key}' not found in sources. Visualization disabled.", verbose)
             if visualize:
                 plt.figure(dpi=300)
                 plt.xlabel(mag_key)
@@ -280,7 +280,7 @@ class PSFPhotometry:
                     plt.xlim(np.min(valid_mag) - 0.5, np.max(valid_mag) + 0.5)
                 else:
                     # No valid data to set xlim
-                    print("Warning: No valid magnitudes for setting xlim.")
+                    self.helper.print("Warning: No valid magnitudes for setting xlim.", verbose)
             return filtered_catalog
 
         # ---------- Global Mode ----------
@@ -293,10 +293,10 @@ class PSFPhotometry:
 
             if result is None:
                 if verbose:
-                    print("No suitable stars found (global mode).")
+                    self.helper.print("No suitable stars found (global mode).", verbose)
                 return Table()
             if verbose:
-                print(f"Selected {len(result)} stars from {len(target_catalog)} candidates (global mode).")
+                self.helper.print(f"Selected {len(result)} stars from {len(target_catalog)} candidates (global mode).", verbose)
             return result
 
         # ---------- Grid Mode ----------
@@ -338,7 +338,7 @@ class PSFPhotometry:
         self.helper.print(f"Selected {len(result_tbl)} stars from {len(target_catalog)} candidates (grid mode).", verbose)
 
         if visualize:
-            self._visualize_objects(target_img, result_tbl, size=2000)
+            self._visualize_objects(target_catalog.target_img, result_tbl, size=2000)
         return result_tbl
 
     #TODO CHANGE EXTRACT SOURCES TO FIND PEAKS OR MAKE ANOTHER METHOD TO FIND PEAKS
@@ -576,7 +576,7 @@ class PSFPhotometry:
             epsf_model.x_0 = nx / 2
             epsf_model.y_0 = ny / 2
             if verbose:
-                print(f"Built global EPSF from {len(fitted_stars)} stars.")
+                self.helper.print(f"Built global EPSF from {len(fitted_stars)} stars.", verbose)
             if visualize:
                 self._visualize_epsf_stars_and_model(epsf_model, fitted_stars)
                 self._visualize_epsf_residuals(epsf_model, fitted_stars, num_show = num_show)
@@ -617,7 +617,7 @@ class PSFPhotometry:
                         
                         if len(stars) < min_stars_per_grid:
                             if verbose:
-                                print(f"Grid ({i},{j}): Only {len(stars)} stars extracted, marking for fallback.")
+                                self.helper.print(f"Grid ({i},{j}): Only {len(stars)} stars extracted, marking for fallback.", verbose)
                             failed_grids.append((i, j))
                             failed_stars.append(fitted_stars)
                             continue
@@ -626,10 +626,10 @@ class PSFPhotometry:
                         epsf_stars_dict[(i, j)] = fitted_stars
 
                         if verbose:
-                            print(f"Grid ({i},{j}): EPSF built from {len(fitted_stars)} stars.")
+                            self.helper.print(f"Grid ({i},{j}): EPSF built from {len(fitted_stars)} stars.", verbose)
 
                     except Exception as e:
-                        print(f"Grid ({i},{j}) failed: {e}")
+                        self.helper.print(f"Grid ({i},{j}) failed: {e}", verbose)
                         failed_grids.append((i, j))
                         failed_stars.append(fitted_stars)
                         continue
@@ -661,11 +661,11 @@ class PSFPhotometry:
                         epsf_stars_dict[(i, j)] = fitted_stars
                         neighbor_found = True
                         if verbose:
-                            print(f"Grid ({i},{j}): Fallback to inner neighbor ({ni},{nj})")
+                            self.helper.print(f"Grid ({i},{j}): Fallback to inner neighbor ({ni},{nj})", verbose)
                         break
 
                 if not neighbor_found and verbose:
-                    print(f"Grid ({i},{j}): No valid inner neighbors found for fallback.")
+                    self.helper.print(f"Grid ({i},{j}): No valid inner neighbors found for fallback.", verbose)
 
             from collections import OrderedDict
 
@@ -761,12 +761,12 @@ class PSFPhotometry:
         
         if target_mask is not None:
             if not target_mask.is_exists:
-                target_mask.write()
+                target_mask.write(verbose = verbose)
 
         # Step 2: Set error map
         if target_bkgrms is not None:
             if not target_bkgrms.is_exists:
-                target_bkgrms.write()
+                target_bkgrms.write(verbose = verbose)
 
         # FOR SExtractor
         psfex_sexparams = dict()
@@ -851,7 +851,7 @@ class PSFPhotometry:
                 epsf_stars_dict[(i, j)] = []
 
         if verbose:
-            print(f"Assigned PSFEx EPSF models from {num_grids}x{num_grids} grid (shape {psf_data.shape}).")
+            self.helper.print(f"Assigned PSFEx EPSF models from {num_grids}x{num_grids} grid (shape {psf_data.shape}).", verbose)
             
         if visualize:
             self._visualize_epsf_stars_and_model_grid(epsf_model_dict=epsf_model_dict, epsf_stars_dict=epsf_stars_dict)

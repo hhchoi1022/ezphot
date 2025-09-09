@@ -62,7 +62,7 @@ class Preprocess:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def get_masterframe_from_image(self,
                                    target_img: ScienceImage or CalibrationImage,
@@ -109,7 +109,8 @@ class Preprocess:
                         exptime: float = None,
                         filter_: str = None,
                         obsdate: str = None,
-                        max_days: float = 5):
+                        max_days: float = 5,
+                        verbose: bool = True):
         """
         Get master frame from the image.
         
@@ -150,7 +151,7 @@ class Preprocess:
             if masterframe_summary_path.exists():
                 all_masterframe_tbl = ascii.read(masterframe_summary_path, format='fixed_width')
             else:
-                print(f"[WARNING] Master frame summary file not found: {masterframe_summary_path}")
+                self.helper.print(f"[WARNING] Master frame summary file not found: {masterframe_summary_path}", verbose)
                 return 
             self._cached_masterframe_tbl = all_masterframe_tbl
 
@@ -160,7 +161,7 @@ class Preprocess:
             raise FileNotFoundError("No calibration frame metadata found.")
         
         if obsdate is None:
-            print('No obsdate provided. Returning None')
+            self.helper.print('No obsdate provided. Returning None', verbose)
             return
 
         # === Base mask ===
@@ -212,7 +213,7 @@ class Preprocess:
             delta_t = all_masterframe_tbl['time_difference']
             within_range = delta_t < max_days
             if not np.any(within_range):
-                print("No calibration frame found within max_days.")
+                self.helper.print("No calibration frame found within max_days.", verbose)
                 return None
             sub_mask = within_range
 
@@ -223,7 +224,7 @@ class Preprocess:
         filtered_tbl['file'] = [str((base_dir / Path(fname))) for fname in filtered_tbl['file']]
 
         if len(filtered_tbl) == 0:
-            print("No calibration frame found with the specified criteria.")
+            self.helper.print("No calibration frame found with the specified criteria.", verbose)
             return None
 
         filtered_tbl.sort('time_difference')
@@ -234,6 +235,7 @@ class Preprocess:
                     bias_image: CalibrationImage, 
                     dark_image: CalibrationImage, flat_image: CalibrationImage,
                     save : bool = False,
+                    verbose: bool = True,
                     **kwargs
                     ):
         """
@@ -325,7 +327,7 @@ class Preprocess:
         # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         # flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
-            calib_image.write()
+            calib_image.write(verbose = verbose)
         return calib_image
     
     def _correct_bdf(self, tgt_data : CCDData, bias_data : CCDData, dark_data : CCDData, flat_data : CCDData):
@@ -338,6 +340,7 @@ class Preprocess:
                    bias_image: CalibrationImage, 
                    dark_image: CalibrationImage, 
                    save : bool = False,
+                   verbose: bool = True,
                    **kwargs
                    ):
         """
@@ -407,7 +410,7 @@ class Preprocess:
         # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
         # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
-            calib_image.write()
+            calib_image.write(verbose = verbose)
         
         return calib_image
     
@@ -419,6 +422,7 @@ class Preprocess:
     def correct_bias(self, target_img: ScienceImage or CalibrationImage, 
                      bias_image: CalibrationImage,
                      save : bool = False,
+                     verbose: bool = True,
                      **kwargs
                      ):
         """
@@ -478,7 +482,7 @@ class Preprocess:
         # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
         # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
-            calib_image.write()
+            calib_image.write(verbose = verbose)
         return calib_image
 
     
@@ -489,6 +493,7 @@ class Preprocess:
     def correct_dark(self, target_img: ScienceImage or CalibrationImage, 
                      dark_image: CalibrationImage, 
                      save : bool = False,
+                     verbose: bool = True,
                      **kwargs
                      ):
         """
@@ -545,7 +550,7 @@ class Preprocess:
         # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
         # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
-            calib_image.write()
+            calib_image.write(verbose = verbose)
         return calib_image
 
     def _correct_dark(self, tgt_data : CCDData, dark_data : CCDData):
@@ -554,6 +559,7 @@ class Preprocess:
     
     def correct_flat(self, target_img: ScienceImage, flat_image: CalibrationImage,
                      save : bool = False,
+                     verbose: bool = True,
                      **kwargs
                      ):
         """
@@ -609,7 +615,7 @@ class Preprocess:
         # calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
         # flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
-            calib_image.write()
+            calib_image.write(verbose = verbose)
         return calib_image
         
     def _correct_flat(self, tgt_data : CCDData, flat_data : CCDData):
@@ -731,7 +737,7 @@ class Preprocess:
                     master_files[key]['BIAS'] = new_bias
                                 
                 if save:
-                    new_bias.write()
+                    new_bias.write(verbose = verbose)
                 
             if not master_files[key]['DARK']:
                 if not master_files[key]['BIAS']:
@@ -774,7 +780,7 @@ class Preprocess:
                         master_files[key]['DARK'][exptime_name] = new_dark
 
                         if save:
-                            new_dark.write()
+                            new_dark.write(verbose = verbose)
                         
                         del b_darkimagelist
                         gc.collect()       
@@ -835,179 +841,9 @@ class Preprocess:
                             verbose = verbose)    
                         master_files[key]['FLAT'][filter_name] = new_flat
                         if save:
-                            new_flat.write()
+                            new_flat.write(verbose = verbose)
                         
                         del db_flatimagelist
                         gc.collect()    
             
         return master_files
-
-    # def generate_bpmask(self, data, output, n_sigma=5, header=None):
-    #     """
-    #     Expects 2D cupy array as data (master dark)
-    #     Func to generate hot pixel mask.
-    #     Bad pixel criterion set by J.H. Bae
-    #     """
-    #     # from astropy.stats import sigma_clipped_stats
-    #     # from eclaire.stats import sigma_clipped_stats
-
-    #     # if self.queue:
-    #     #     self.queue.log_memory_stats(f"After loading {dtype} data")
-
-    #     # mean, median, std = sigma_clipped_stats(data, sigma=3, maxiters=5) # astropy
-    #     # median, std = sigma_clipped_stats(data, reduce="median", width=3, iters=5) # eclaire
-    #     mean, median, std = sigma_clipped_stats_cupy(data, sigma=3, maxiters=5)
-
-    #     hot_mask = cp.abs(data - median) > n_sigma * std  # 1 for bad, 0 for okay
-    #     hot_mask = cp.asnumpy(hot_mask).astype("uint8")
-
-    #     # # Save the file
-    #     # newhdu = fits.PrimaryHDU(hot_mask)
-
-    #     # Use CompImageHDU for less disk consumption
-    #     newhdu = fits.CompImageHDU(data=hot_mask)
-
-    #     # Create a primary HDU as placeholder
-    #     primary_hdu = fits.PrimaryHDU()
-
-    #     if header:
-    #         # for card in header.cards:
-    #         #     # skip certain keywords
-    #         #     if card.keyword in ("BITPIX", "NAXIS", "NAXIS1", "NAXIS2"):
-    #         #         continue
-    #         #     newhdu.header.append(card)
-    #         for key in [
-    #             "INSTRUME",
-    #             "GAIN",
-    #             "EXPTIME",
-    #             "EXPOSURE",
-    #             "JD",
-    #             "MJD",
-    #             "DATE-OBS",
-    #             "DATE-LOC",
-    #             "XBINNING",
-    #             "YBINNING",
-    #         ]:
-    #             newhdu.header[key] = header[key]
-    #         # newhdu.header.add_comment("Above header is from the first dark frame")
-    #         newhdu.header["COMMENT"] = "Header inherited from first dark frame"
-    #     newhdu.header["NHOTPIX"] = (np.sum(hot_mask), "Number of hot pixels.")
-    #     # newhdu.header['NDARKIMG'] = (len(bias_sub_dark_names), 'Number of bias subtracted dark images used in sigma-clipped mean combine.')
-    #     # newhdu.header['EXPTIME'] = dark_hdr['EXPTIME']
-    #     # newhdu.header['COMMENT'] = 'Stable hot pixel mask image. Algorithm produced by J.H.Bae on 20250117.'
-    #     newhdu.header["SIGMAC"] = (n_sigma, "HP threshold in clipped sigma")
-    #     newhdu.header["BADPIX"] = (1, "Pixel Value for Bad pixels")
-
-    #     # newhdul = fits.HDUList([newhdu])
-    #     newhdul = fits.HDUList([primary_hdu, newhdu])
-    #     newhdul.writeto(output, overwrite=True)
-
-    #     # if self.queue:
-    #     #     self.queue.log_memory_stats(f"After saving {dtype}")
-
-    # def interpolate_masked_pixels_gpu_vectorized_weight(
-    #     image,
-    #     mask,
-    #     weight=None,
-    #     window=1,
-    #     method="median",
-    #     badpix=1,
-    # ):
-    #     """Interpolate masked pixels in image (and optional weight map) using a mean filter.
-
-    #     Args:
-    #         image (cp.ndarray): 2D input image.
-    #         mask (cp.ndarray): Binary mask (1 = masked, 0 = valid) when badpix=1.
-    #         weight (cp.ndarray, optional): Pixel weight map. If None, unweighted mean is used. It must be 1/VARIANCE.
-    #         window (int): Radius of square window.
-    #         method (str): Interpolation method. Options are "inverse_variance" or "median".
-
-    #     Returns:
-    #         interpolated_image (cp.ndarray): Image with interpolated masked pixels.
-    #         interpolated_weight (cp.ndarray): Weight map with interpolated weights.
-    #     """
-    #     import cupy as cp
-
-    #     H, W = image.shape
-    #     assert image.shape == mask.shape
-    #     if weight is not None:
-    #         assert weight.shape == image.shape
-
-    #     result = image.copy()
-    #     weight_result = weight.copy() if weight is not None else None  # cp.ones_like(image)
-
-    #     ys, xs = cp.where(mask == badpix)
-    #     N = ys.shape[0]
-    #     if N == 0:
-    #         return result, weight_result
-
-    #     # Create patch offsets
-    #     dy, dx = cp.meshgrid(
-    #         cp.arange(-window, window + 1), cp.arange(-window, window + 1), indexing="ij"
-    #     )
-    #     dy = dy.ravel()
-    #     dx = dx.ravel()
-
-    #     patch_ys = ys[:, None] + dy[None, :]
-    #     patch_xs = xs[:, None] + dx[None, :]
-
-    #     # Mask out-of-bound locations
-    #     in_bounds = (patch_ys >= 0) & (patch_ys < H) & (patch_xs >= 0) & (patch_xs < W)
-
-    #     # Clip for safe indexing
-    #     patch_ys_safe = cp.clip(patch_ys, 0, H - 1)
-    #     patch_xs_safe = cp.clip(patch_xs, 0, W - 1)
-    #     flat_indices = patch_ys_safe * W + patch_xs_safe
-
-    #     flat_image = image.ravel()
-    #     flat_mask = mask.ravel()
-    #     patch_vals = flat_image[flat_indices]
-    #     patch_mask = flat_mask[flat_indices]
-
-    #     valid = (patch_mask == 1 - badpix) & in_bounds
-
-    #     if weight is not None:
-    #         flat_weight = weight.ravel()
-    #         patch_weights = flat_weight[flat_indices]
-
-    #         patch_weights = cp.where(valid, patch_weights, 0)
-    #         patch_vals = cp.where(valid, patch_vals, cp.nan)
-
-    #         if method == "inverse_variance":
-    #             weighted_sum = cp.sum(patch_weights * patch_vals, axis=1)
-    #             weight_total = cp.sum(patch_weights, axis=1)
-
-    #             # if weight_total == 0, val is 0
-    #             interp_vals = cp.where(weight_total > 0, weighted_sum / weight_total, 0)
-    #             interp_weights = weight_total  # assuming weight = 1/var
-
-    #         elif method == "median":
-    #             # Compute median and MAD
-    #             interp_vals = cp.nanmedian(patch_vals, axis=1)
-
-    #             # Handle NaNs safely by using cp.isclose (for float stability)
-    #             mask = cp.isclose(patch_vals, interp_vals[:, None], equal_nan=True)
-
-    #             # For multiple matches per row, take first match
-    #             def first_match_per_row(data, mask):
-    #                 idx = cp.argmax(mask, axis=1)  # index of first True in each row
-    #                 row_idx = cp.arange(mask.shape[0])
-    #                 return data[row_idx, idx]
-
-    #             interp_weights = first_match_per_row(patch_weights, mask)
-
-    #         # Fill interpolated values and weights
-    #         result[ys, xs] = interp_vals
-    #         weight_result[ys, xs] = interp_weights
-
-    #         return result, weight_result
-
-    #     else:
-    #         patch_vals = cp.where(valid, patch_vals, cp.nan)
-    #         interp_vals = cp.nanmedian(patch_vals, axis=1)
-
-    #         result[ys, xs] = interp_vals
-    #         return result  
-
-
-# %%

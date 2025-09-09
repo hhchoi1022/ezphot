@@ -59,7 +59,7 @@ class Reproject:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def align(self,
               target_img: Union[ScienceImage, ReferenceImage],
@@ -110,7 +110,7 @@ class Reproject:
             reference_det = np.linalg.det(reference_img.wcs.pixel_scale_matrix)
             if np.sign(target_det) != np.sign(reference_det):
                 if verbose:
-                    print("[WARNING] Target and reference images have opposite handedness (flip/mirror). Flipping the target image.")
+                    self.helper.print("[WARNING] Target and reference images have opposite handedness (flip/mirror). Flipping the target image.", verbose)
                 target_data, target_header = self._flip_image(target_data, target_header, flip='fliplr')
                 
         flip_modes = dict(original = None, 
@@ -121,7 +121,7 @@ class Reproject:
         for label, flip_mode in flip_modes.items():
             try:
                 if verbose:
-                    print(f"[INFO] Trying astroalign with {label} image...")
+                    self.helper.print(f"[INFO] Trying astroalign with {label} image...", verbose)
 
                 flipped_data, flipped_header = self._flip_image(
                     data = target_data, 
@@ -139,11 +139,11 @@ class Reproject:
                 )
                 success = True
                 if verbose:
-                    print(f"[SUCCESS] Alignment succeeded with {label} image.")
+                    self.helper.print(f"[SUCCESS] Alignment succeeded with {label} image.", verbose)
                 break
             except Exception as e:
                 if verbose:
-                    print(f"[FAILURE] Astroalign failed with {label} image: {e}")
+                    self.helper.print(f"[FAILURE] Astroalign failed with {label} image: {e}", verbose)
             
         if not overwrite:      
             aligned_path = target_img.savepath.alignpath
@@ -170,7 +170,7 @@ class Reproject:
                 verbose = verbose)[0]
 
         if save:
-            target_img.write()
+            target_img.write(verbose = verbose)
 
         return target_img
 
@@ -230,14 +230,14 @@ class Reproject:
         # If target_img is not saved, save it to the savepath
         target_img = target_img.copy()
         if target_img.is_exists is False:
-            target_img.write()
+            target_img.write(verbose = verbose)
         # If target_errormap is not saved, save it to the savepath
 
         if target_errormap is not None:
             if target_errormap.emaptype == 'bkgrms':
                 target_errormap.to_weight()
         if target_errormap is not None and target_errormap.is_exists is False:
-            target_errormap.write()
+            target_errormap.write(verbose = verbose)
 
         original_header = target_img.header
         target_path = target_img.path
@@ -312,7 +312,7 @@ class Reproject:
                 remove_main = True, 
                 remove_connected_files = True,
                 skip_exts = [],
-                verbose = False)
+                verbose = verbose)
             target_errormap.to_rms()
 
         else:
@@ -320,11 +320,11 @@ class Reproject:
         
         if not save:
             reprojected_img.data
-            reprojected_img.remove()
+            reprojected_img.remove(verbose = verbose)
         else:
-            reprojected_img.write()
+            reprojected_img.write(verbose = verbose)
             if target_errormap is not None:
-                target_errormap.write()
+                target_errormap.write(verbose = verbose)
         
         target_ivpmask = None
         if return_ivpmask:
@@ -339,7 +339,7 @@ class Reproject:
                 save_fig = False
             )
             if save:
-                target_ivpmask.write()
+                target_ivpmask.write(verbose = verbose)
             
         return reprojected_img, target_errormap, target_ivpmask
     

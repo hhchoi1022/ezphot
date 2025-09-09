@@ -137,7 +137,7 @@ class MaskGenerator():
         target_mask.add_status("invalid_mask", **event_details)
 
         if save:
-            target_mask.write()
+            target_mask.write(verbose = verbose)
 
         # Visualize the mask
         if visualize or save_fig:
@@ -199,6 +199,8 @@ class MaskGenerator():
         """
         if target_mask is None:
             target_mask = Mask(target_img.savepath.srcmaskpath, masktype = 'source', load=False)
+            if target_mask.is_exists:
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
         self.helper.print(f"Masking source... [sigma = {sigma}, mask_radius_factor = {mask_radius_factor}]", verbose)
@@ -265,8 +267,8 @@ class MaskGenerator():
             
             # Save mask
             if save:
-                target_mask.write()
-            
+                target_mask.write(verbose = verbose)
+
             # Visualize
             if visualize or save_fig:
                 save_path = None
@@ -346,6 +348,8 @@ class MaskGenerator():
                 target_mask = Mask(target_img.savepath.submaskpath, masktype = mask_type, load=False)
             else:
                 self.helper.print(f"Unknown mask type: {mask_type}. Using 'invalid' as default.", verbose)
+            if target_mask.is_exists:
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
 
@@ -395,7 +399,7 @@ class MaskGenerator():
         
         # Save mask
         if save:
-            target_mask.write()
+            target_mask.write(verbose = verbose)
         
         # Visualize
         if visualize or save_fig:
@@ -480,6 +484,8 @@ class MaskGenerator():
         # Perform cosmic ray detection and cleaning
         if target_mask is None:
             target_mask = Mask(target_img.savepath.crmaskpath, masktype = 'cosmicray', load=False)
+            if target_mask.is_exists:
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
         # Load information from target_img
@@ -492,7 +498,7 @@ class MaskGenerator():
         if psffwhm is None:
             psffwhm = 2 / target_img.telinfo['pixelscale']
         
-        self.print(f'Detecting cosmic ray... [sigma = {sigclip}, n_iter = {niter}, mode = {fsmode}]', verbose)
+        self.helper.print(f'Detecting cosmic ray... [sigma = {sigclip}, n_iter = {niter}, mode = {fsmode}]', verbose)
         new_mask, clean_image = cr.detect_cosmics(
             target_img.data, gain=gain, readnoise=readnoise, 
             sigclip=sigclip, sigfrac=sigfrac, 
@@ -531,7 +537,7 @@ class MaskGenerator():
         
         # Save mask
         if save:
-            target_mask.write()
+            target_mask.write(verbose = verbose)
         
         # Visualize
         if visualize or save_fig:

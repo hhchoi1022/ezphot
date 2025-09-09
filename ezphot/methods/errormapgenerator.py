@@ -162,7 +162,7 @@ class ErrormapGenerator:
         target_errormap.add_status("error_propagation", **event_details)
         
         if save:
-            target_errormap.write()
+            target_errormap.write(verbose = verbose)
         
         if save_fig or visualize:
             save_path = None
@@ -295,7 +295,7 @@ class ErrormapGenerator:
         target_errormap.add_status("error_propagation", **event_details)
         
         if save:
-            target_errormap.write()
+            target_errormap.write(verbose = verbose)
 
         if save_fig or visualize:
             save_path = None
@@ -412,7 +412,7 @@ class ErrormapGenerator:
         target_errormap.add_status("sourcemask", **event_details)
         
         if save:
-            target_errormap.write()
+            target_errormap.write(verbose = verbose)
         
         if save_fig or visualize:
             save_path = None
@@ -464,7 +464,7 @@ class ErrormapGenerator:
             
         n = len(panels)
         if n == 0:
-            print("Nothing to visualize.")
+            self.helper.print("Nothing to visualize.", True)
             return
 
         fig, axes = plt.subplots(1, n, figsize=(6 * n, 6))

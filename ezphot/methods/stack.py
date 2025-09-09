@@ -164,9 +164,9 @@ def _scale_worker(args) -> Tuple:
         scaled_errormap.add_status('zpscale', key=zp_key, ref_zp=ref_zp, scale_zp=delta_zp, scale_factor=scale_factor)
 
     if save:
-        scaled_img.write()
+        scaled_img.write(verbose = False)  # Worker function, no verbose output
         if scaled_errormap:
-            scaled_errormap.write()
+            scaled_errormap.write(verbose = False)  # Worker function, no verbose output
 
     return scaled_img, scaled_errormap
 
@@ -238,7 +238,9 @@ class Combiner:
                                 verbose=True,
                                 **kwargs):
         if verbose:
-            print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes")
+            from ezphot.helper import Helper
+            helper = Helper()
+            helper.print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes", verbose)
 
         stack = np.stack(image_list)
         bkgrms_stack = np.stack(bkgrms_list) if bkgrms_list is not None else None
@@ -314,7 +316,7 @@ class Stack:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines), True)
 
     def stack_multiprocess(self,
                            target_imglist: Union[List[ScienceImage], List[CalibrationImage]],
@@ -546,12 +548,12 @@ class Stack:
         for target_imglist in [subbkg_imglist, scaled_imglist, convolved_imglist, coadd_imglist]:
             if target_imglist:
                 for target_img in target_imglist:
-                    target_img.remove()
+                    target_img.remove(verbose = verbose)
                     
         for target_bkgrmslist in [scaled_bkgrmslist, convolved_bkgrmslist, coadd_bkgrmslist]:
             if target_bkgrmslist:
                 for target_bkgrms in target_bkgrmslist:
-                    target_bkgrms.remove()
+                    target_bkgrms.remove(verbose = verbose)
                 
         # Combine the image stack
         if clip_type is 'extrema':
@@ -625,8 +627,8 @@ class Stack:
             stack_bkgrms_instance.header = combined_header
         
         if save:
-            stack_instance.write()
-            stack_bkgrms_instance.write() if stack_bkgrms_instance is not None else None
+            stack_instance.write(verbose = verbose)
+            stack_bkgrms_instance.write(verbose = verbose) if stack_bkgrms_instance is not None else None
 
         self.combiner.close_pool()
         return stack_instance, stack_bkgrms_instance
@@ -771,7 +773,7 @@ class Stack:
         iterator = tqdm(target_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else target_imglist
         for target_img in iterator:
             if not target_img.is_exists:
-                target_img.write()
+                target_img.write(verbose = verbose)
                 remove_image.append(True)
             else:
                 remove_image.append(False)
@@ -787,13 +789,13 @@ class Stack:
                 if target_errormap.emaptype.lower() != 'weight':
                     target_errormap.to_weight()
                     if not target_errormap.is_exists:
-                        target_errormap.write()
+                        target_errormap.write(verbose = verbose)
                         remove_errormap.append(True)
                     else:
                         remove_errormap.append(False)
                 else:
                     if not target_errormap.is_exists:
-                        target_errormap.write()
+                        target_errormap.write(verbose = verbose)
                         remove_errormap.append(True)
                     else:
                         remove_errormap.append(False)
@@ -903,24 +905,24 @@ class Stack:
         stack_weight_instance.add_status('stack_swarp', **event_details_kwargs)
         
         if save:
-            stack_instance.write()
-            stack_weight_instance.write() if stack_weight_instance is not None else None
+            stack_instance.write(verbose = verbose)
+            stack_weight_instance.write(verbose = verbose) if stack_weight_instance is not None else None
             self.helper.print(f"Stacked image saved to {stack_instance.path}", verbose)
             self.helper.print(f"Stacked weight map saved to {stack_weight_instance.path}", verbose)
         else:
             stack_instance.load()
             stack_weight_instance.load()
-            stack_instance.remove()
-            stack_weight_instance.remove() if stack_weight_instance is not None else None
+            stack_instance.remove(verbose = verbose)
+            stack_weight_instance.remove(verbose = verbose) if stack_weight_instance is not None else None
         
         if any(remove_errormap):
             for remove_key, target_errormap in zip(remove_errormap, target_errormaplist):
                 if remove_key:
-                    target_errormap.remove()
+                    target_errormap.remove(verbose = verbose)
         if any(remove_image):
             for remove_key, target_img in zip(remove_image, target_imglist):
                 if remove_key:
-                    target_img.remove()
+                    target_img.remove(verbose = verbose)
                 
         return stack_instance, stack_weight_instance
     
@@ -1256,7 +1258,9 @@ class Stack:
             raise ValueError(f"Invalid method: {method}")
 
         if verbose:
-            print(f"[match_zeropoints] Reference ZP: {ref_zp:.3f} using '{method}'")
+            from ezphot.helper import Helper
+            helper = Helper()
+            helper.print(f"[match_zeropoints] Reference ZP: {ref_zp:.3f} using '{method}'", verbose)
 
         # Prepare tasks
         tasks = [
@@ -1386,9 +1390,9 @@ class Stack:
                     matched_errormaplist.append(matched_errormap)
 
                 if save:
-                    matched_img.write()
+                    matched_img.write(verbose = verbose)
                     if matched_errormaplist is not None:
-                        matched_errormap.write()
+                        matched_errormap.write(verbose = verbose)
                 
                 self.helper.print(f"Skipping convolution for {target_img.path.name} (already matches reference seeing with the tolerenace {tolerance}arcsec) [diff = {seeing_diff}arcsec]", verbose)
                 continue
@@ -1466,9 +1470,9 @@ class Stack:
                 matched_errormaplist.append(matched_errormap)
             
             if save:
-                matched_img.write()
+                matched_img.write(verbose = verbose)
                 if matched_errormaplist is not None and target_errormap is not None:
-                    matched_errormap.write()
+                    matched_errormap.write(verbose = verbose)
         
         self.helper.print(f"Successfully matched seeing for {len(matched_imglist)} images", verbose)
         return matched_imglist, matched_errormaplist

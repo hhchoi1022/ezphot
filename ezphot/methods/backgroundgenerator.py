@@ -189,7 +189,7 @@ class BackgroundGenerator:
         target_bkg.add_status("background_sep", **event_details_kwargs)
 
         if save:
-            target_bkg.write()
+            target_bkg.write(verbose = verbose)
         
         if visualize or save_fig:
             save_path = None
@@ -319,8 +319,8 @@ class BackgroundGenerator:
         target_bkg.add_status("background_sep", **event_details_kwargs)
 
         if save:
-            target_bkg.write()
-        
+            target_bkg.write(verbose = verbose)
+
         if save_fig or visualize:
             save_path = None
             if save_fig:
@@ -338,8 +338,9 @@ class BackgroundGenerator:
                             target_bkg: Background,
                             
                             # Other parameters
-                            save: bool = False,
                             overwrite: bool = False,
+                            save: bool = False,
+                            verbose: bool = True,
                             visualize: bool = True,
                             save_fig: bool = False):
         """
@@ -351,10 +352,12 @@ class BackgroundGenerator:
             The target image to subtract the background from.
         target_bkg : ezphot.imageobjects.Background
             The background image to subtract from the target image.
-        save : bool, optional
-            Whether to save the subtracted image.
         overwrite : bool, optional
             Whether to overwrite the target image.
+        save : bool, optional
+            Whether to save the subtracted image.
+        verbose : bool, optional
+            Whether to print verbose output.
         visualize : bool, optional
             Whether to visualize the subtracted image.
         save_fig : bool, optional
@@ -394,7 +397,7 @@ class BackgroundGenerator:
         
         # Step 4: Save the image
         if save:
-            target_img.write()
+            target_img.write(verbose = verbose)
         
         if visualize or save_fig:
             save_path = None

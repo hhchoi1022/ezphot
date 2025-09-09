@@ -201,7 +201,7 @@ class Mask(DummyImage):
 
         return new_instance
  
-    def write(self, compress : bool = False):
+    def write(self, compress : bool = False, verbose: bool = True):
         """Write MaskImage data to savepath.
         
         Parameters
@@ -227,7 +227,7 @@ class Mask(DummyImage):
 
         # Write to disk
         hdu.writeto(self.savepath.savepath, overwrite=True)
-        print('Saved:', self.savepath.savepath)
+        self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath
@@ -237,7 +237,7 @@ class Mask(DummyImage):
             remove_main: bool = True, 
             remove_connected_files: bool = True,
             skip_exts: list = ['.png', '.cat'],
-            verbose: bool = False) -> dict:
+            verbose: bool = True) -> dict:
         """
         Remove the main FITS file and/or associated connected files.
 

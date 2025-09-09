@@ -108,7 +108,7 @@ class BaseImage(Configuration):
         self.path = new_path
         print(f"Renamed {old_path} to {new_path}")
 
-    def clear(self, clear_data: bool = True, clear_header: bool = False):
+    def clear(self, clear_data: bool = True, clear_header: bool = False, verbose: bool = True):
         """Clear the image data and/or header from memory.
         
         Parameters
@@ -122,6 +122,7 @@ class BaseImage(Configuration):
             self._data = None
         if clear_header:
             self._header = Header()
+        self.helper.print("Cleared data and/or header from memory.", verbose)
 
     def update_header(self, **kwargs):
         """Update FITS header values using known key variants.

@@ -347,7 +347,7 @@ class Catalog:
 
         return new_instance
     
-    def write(self, format = 'ascii'):
+    def write(self, format = 'ascii', verbose: bool = True):
         """
         Write catalog data to the savepath (self.savepath.savepath).
         
@@ -369,6 +369,7 @@ class Catalog:
 
         # Write to disk
         self.data.write(self.savepath.savepath, format=format, overwrite=True)
+        self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
         self.save_info()
         
     def remove(self, 

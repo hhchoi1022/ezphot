@@ -195,7 +195,7 @@ class Errormap(DummyImage):
 
         return new_instance
 
-    def write(self):
+    def write(self, verbose: bool = True):
         """Save Errormap to FITS file.
         
         Parameters
@@ -211,7 +211,7 @@ class Errormap(DummyImage):
         os.makedirs(self.savepath.savedir, exist_ok=True)        
         hdu = fits.PrimaryHDU(data=self.data.astype(np.float32), header=self.header)
         hdu.writeto(self.savepath.savepath, overwrite=True)
-        print('Saved:', self.savepath.savepath)
+        self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
         self.save_status()
         self.save_info()
         self.path = self.savepath.savepath

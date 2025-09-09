@@ -84,7 +84,7 @@ class Subtract:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def subtract(self,
                  target_img: ScienceImage,
@@ -208,12 +208,12 @@ class Subtract:
         subframe_subtract_mask.path = subframe_subtract_img.savepath.invalidmaskpath
         
         if save:
-            subframe_subtract_img.write()
-            fullframe_subtract_mask.write()
-            subframe_subtract_mask.write()
+            subframe_subtract_img.write(verbose = verbose)
+            fullframe_subtract_mask.write(verbose = verbose)
+            subframe_subtract_mask.write(verbose = verbose)
         else:
             subframe_subtract_img.data
-            subframe_subtract_img.remove()
+            subframe_subtract_img.remove(verbose = verbose)
             
         if visualize:
             subframe_subtract_img.show()
@@ -432,7 +432,7 @@ class Subtract:
         for i, reference_img in tqdm(enumerate(reference_imglist), total=len(reference_imglist), desc="Subtraction Progress"):
             reference_img_temp = reference_img.copy()
             reference_img_temp.path = reference_img.savedir / (uuid.uuid4().hex + '.fits')
-            reference_img_temp.write()
+            reference_img_temp.write(verbose = verbose)
             
             # Step 2: Reproject reference images to reprojected_target_img
             reprojected_reference_img, reprojected_reference_ivpmask = self._reproject_to_target(
@@ -443,7 +443,7 @@ class Subtract:
             )
             
             reference_img_temp.clear()
-            reference_img_temp.remove(remove_main = True, remove_connected_files = True, skip_exts = [''])
+            reference_img_temp.remove(remove_main = True, remove_connected_files = True, skip_exts = [''], verbose = verbose)
             #reference_img.clear()
             #reprojected_reference_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
             
@@ -556,10 +556,10 @@ class Subtract:
                 r = r,
                 **hotpants_params)
             
-            reprojected_reference_img.remove(remove_main = True, remove_connected_files = True)
-            subframe_target_img.remove(remove_main = False, remove_connected_files = True)
-            subframe_reference_img.remove(remove_main = False, remove_connected_files = True)
-            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'])
+            reprojected_reference_img.remove(remove_main = True, remove_connected_files = True, verbose = verbose)
+            subframe_target_img.remove(remove_main = False, remove_connected_files = True, verbose = verbose)
+            subframe_reference_img.remove(remove_main = False, remove_connected_files = True, verbose = verbose)
+            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask'], verbose = verbose)
             final_subtraction_mask.combine_mask(fullframe_subtract_mask.data, operation='add')
             
             output_name = subframe_target_img.savepath.savepath.name
@@ -613,7 +613,7 @@ class Subtract:
             all_tbl = all_catalog.copy()  
             candidate_tbl = selected_catalog.copy()
 
-            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask', '.transient', '.candidate', '.cat'])
+            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_exts = ['.invalidmask', '.transient', '.candidate', '.cat'], verbose = verbose)
 
             # Step 7: negative image & Photometry
             if negative_detection:
@@ -639,7 +639,7 @@ class Subtract:
                 )
 
                 # Remove
-                negative_subframe_subtract_img.remove()
+                negative_subframe_subtract_img.remove(verbose = verbose)
                 
                 # Only keep the unmatched sources from the first photometry step
                 if len(tbl_second.data) > 0:
@@ -816,7 +816,7 @@ class Subtract:
                         visualize = visualize
                         )
                             
-            final_subtraction_mask.write()
+            final_subtraction_mask.write(verbose = verbose)
             all_catalogs.append(all_tbl)
             candidate_catalogs.append(candidate_tbl)
             transient_catalogs.append(transient_tbl)
@@ -923,18 +923,18 @@ class Subtract:
         target_catalog.data = target_catalog_data
         
         if verbose:
-            print(f"Filtering sources based on criteria:")
-            print(f"SNR > {snr_lower}: {np.sum(snr_lower_idx)}")
-            print(f"{fwhm_key} > {fwhm_lower} and FWHM < {fwhm_upper}: {np.sum(fwhm_lower_idx & fwhm_upper_idx)}")
-            print(f"{flag_key} < {flag_upper}: {np.sum(flag_upper_idx)}")
-            print(f"{maskflag_key} < {maskflag_upper}: {np.sum(maskflag_upper_idx)}")
-            print(f"{classstar_key} > {class_star_lower}: {np.sum(classstar_lower_idx)}")
-            print(f"{elongation_key} < {elongation_upper}: {np.sum(elongation_upper_idx)}")
-            print(f'Sources with all criteria met: {np.sum(all_idx)}')
+            self.helper.print(f"Filtering sources based on criteria:", verbose)
+            self.helper.print(f"SNR > {snr_lower}: {np.sum(snr_lower_idx)}", verbose)
+            self.helper.print(f"{fwhm_key} > {fwhm_lower} and FWHM < {fwhm_upper}: {np.sum(fwhm_lower_idx & fwhm_upper_idx)}", verbose)
+            self.helper.print(f"{flag_key} < {flag_upper}: {np.sum(flag_upper_idx)}", verbose)
+            self.helper.print(f"{maskflag_key} < {maskflag_upper}: {np.sum(maskflag_upper_idx)}", verbose)
+            self.helper.print(f"{classstar_key} > {class_star_lower}: {np.sum(classstar_lower_idx)}", verbose)
+            self.helper.print(f"{elongation_key} < {elongation_upper}: {np.sum(elongation_upper_idx)}", verbose)
+            self.helper.print(f'Sources with all criteria met: {np.sum(all_idx)}', verbose)
 
         if save:
-            target_catalog.write()
-            candidate_catalog.write()
+            target_catalog.write(verbose = verbose)
+            candidate_catalog.write(verbose = verbose)
         
         return target_catalog, candidate_catalog
         
@@ -1072,7 +1072,7 @@ class Subtract:
             for im in ax.get_images():
                 vmin, vmax = im.get_clim()
                 if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
-                    print(f"[FIX] Invalid clim in axis {ax}, resetting.")
+                    self.helper.print(f"[FIX] Invalid clim in axis {ax}, resetting.", True)
                     data = im.get_array()
                     vmin, vmax = np.nanmin(data), np.nanmax(data)
                     if vmin == vmax:  # flat image
@@ -1131,7 +1131,7 @@ class Subtract:
         """
         if max_obsdate is None:
             max_obsdate = target_img.obsdate
-            print(f"No max_obsdate provided, using target image's obsdate instead ({max_obsdate}).")
+            self.helper.print(f"No max_obsdate provided, using target image's obsdate instead ({max_obsdate}).", True)
 
         # Define fallback attempts
         attempt_configs = [
@@ -1163,7 +1163,7 @@ class Subtract:
                 break  # success
                     
         if reference_frames is None:
-            print("No reference frames found for the target image.")
+            self.helper.print("No reference frames found for the target image.", True)
             return None
 
         # Normalize to list
@@ -1282,9 +1282,9 @@ class Subtract:
         
         if len(filtered_tbl) == 0:
             try:
-                print(f"No reference frames matched the filtering criteria. [Depth > %.1f, Seeing < %.1f, Obsdate <= %s]" %(depth_limit, seeing_limit, obsdate_target))
+                self.helper.print(f"No reference frames matched the filtering criteria. [Depth > %.1f, Seeing < %.1f, Obsdate <= %s]" %(depth_limit, seeing_limit, obsdate_target), True)
             except:
-                print(f"No reference frames matched the filtering criteria.Obsdate <= %s" % max_obsdate)
+                self.helper.print(f"No reference frames matched the filtering criteria.Obsdate <= %s" % max_obsdate, True)
             return None
         else:
             pass
@@ -1317,7 +1317,7 @@ class Subtract:
                 fractions.append(frac)
 
         if len(matched_rows) == 0:
-            print(f"No reference frames found overlapping RA={ra}, Dec={dec} with FOV=({ra_fov}, {dec_fov})")
+            self.helper.print(f"No reference frames found overlapping RA={ra}, Dec={dec} with FOV=({ra_fov}, {dec_fov})", True)
             return None
 
         # Build final table with overlap fractions
@@ -1775,9 +1775,9 @@ class Subtract:
             subframe_reference_img.show()
         
         if save:
-            subframe_target_img.write()
-            subframe_reference_img.write()
-            subframe_target_ivpmask.write() 
-            subframe_reference_ivpmask.write()
+            subframe_target_img.write(verbose = verbose)
+            subframe_reference_img.write(verbose = verbose)
+            subframe_target_ivpmask.write(verbose = verbose) 
+            subframe_reference_ivpmask.write(verbose = verbose)
         
         return subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp_path

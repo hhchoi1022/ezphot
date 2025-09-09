@@ -52,7 +52,7 @@ class Platesolve:
 
         # Final plain text output
         help_text = ""
-        print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
+        self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
     def solve_astrometry(self,
                          # Input parameters
@@ -110,7 +110,6 @@ class Platesolve:
                     # Other parameters
                     overwrite: bool = True,
                     verbose: bool = True,
-                    **kwargs
                     ):
         """
         Solve astrometry using SCAMP.
