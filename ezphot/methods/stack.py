@@ -14,7 +14,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm.contrib.concurrent import process_map
 
 from ezphot.helper import Helper
-from ezphot.imageobjects import ScienceImage, CalibrationImage, ReferenceImage, Errormap, Background
+from ezphot.imageobjects import ScienceImage, CalibrationImage, ReferenceImage, Errormap, Background 
 from ezphot.methods import Reproject
 from ezphot.methods import BackgroundGenerator
 from ezphot.methods import PSFPhotometry
@@ -107,7 +107,8 @@ def _subtract_background_worker(args):
         target_bkg=target_bkg,
         save=True, 
         overwrite=False,
-        visualize=False
+        visualize=False,
+        verbose=False
     )
     return result
 
@@ -238,9 +239,7 @@ class Combiner:
                                 verbose=True,
                                 **kwargs):
         if verbose:
-            from ezphot.helper import Helper
-            helper = Helper()
-            helper.print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes", verbose)
+            print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes")
 
         stack = np.stack(image_list)
         bkgrms_stack = np.stack(bkgrms_list) if bkgrms_list is not None else None
@@ -266,18 +265,8 @@ class Combiner:
                     total=len(patch_args),
                     desc="Combining...",
                     ncols=80,
-                    bar_format="{l_bar}{bar}| {elapsed}") if verbose else pool.imap_unordered(worker_wrapper, patch_args)
+                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else pool.imap_unordered(worker_wrapper, patch_args)
         )
-        # else:
-        #     # Fallback to temporary pool
-        #     with Pool(processes=self.n_proc) as pool:
-        #         results = list(
-        #             tqdm(pool.imap_unordered(worker_wrapper, patch_args),
-        #                  total=len(patch_args),
-        #                  desc="Combining...",
-        #                  ncols=80,
-        #                  bar_format="{l_bar}{bar}| {elapsed}") if verbose else pool.imap_unordered(worker_wrapper, patch_args)
-        #         )
 
         for i_start, i_end, j_start, j_end, patch_result, patch_bkgrms in results:
             combined[i_start:i_end, j_start:j_end] = patch_result
@@ -354,8 +343,7 @@ class Stack:
                            
                            # Other parameters
                            verbose: bool = True,
-                           save: bool = True,
-                           **kwargs):
+                           save: bool = True):
         """
         Stack a list of images.
         
@@ -447,7 +435,11 @@ class Stack:
                 target_imglist = process_map(_subtract_background_worker, input_list, max_workers=n_proc, desc="Subtracting background...")
             else:
                 with Pool(processes=n_proc) as pool:
-                    target_imglist = pool.map(_subtract_background_worker, input_list)
+                    target_imglist = list(tqdm(pool.imap(_subtract_background_worker, input_list), 
+                                              total=len(input_list), 
+                                              desc="Subtracting background...",
+                                              ncols=80,
+                                              bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
 
             # Clean up memory
             for target_img in target_imglist:
@@ -509,17 +501,32 @@ class Stack:
         coadd_imglist = None
         coadd_bkgrmslist = None
         if resample:
-            task_args = [
-                (img, bkgrms, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale)
-                for img, bkgrms in zip(target_imglist, target_bkgrmslist or [None] * len(target_imglist))
-            ]
+            if target_bkgrmslist is None:
+                task_args = [
+                    (img, None, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale)
+                    for img in target_imglist
+                ]
             
-            if verbose:
-                results = process_map(_reproject_worker, task_args, max_workers=n_proc, desc="Performing image reprojection...")
-            else:
                 with Pool(processes=n_proc) as pool:
-                    results = pool.map(_reproject_worker, task_args)
+                    results = list(tqdm(pool.imap(_reproject_worker, task_args), 
+                                        total=len(task_args), 
+                                        desc="Performing image reprojection...",
+                                        ncols=80,
+                                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
+                
+            else:
+                task_args = [
+                    (img, bkgrms, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale)
+                    for img, bkgrms in zip(target_imglist, target_bkgrmslist)
+                ]
             
+                with Pool(processes=n_proc) as pool:
+                    results = list(tqdm(pool.imap(_reproject_worker, task_args), 
+                                        total=len(task_args), 
+                                        desc="Performing image/bkgrms reprojection...",
+                                        ncols=80,
+                                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
+                
             coadd_imglist, coadd_bkgrmslist =  zip(*results)
             if target_bkgrmslist is None:
                 coadd_bkgrmslist = None
@@ -532,7 +539,7 @@ class Stack:
         image_datalist = []
         image_hdrlist = []
         
-        iterator = tqdm(coadd_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else coadd_imglist
+        iterator = tqdm(coadd_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else coadd_imglist
         for img in iterator:
             image_datalist.append(img.data)
             image_hdrlist.append(img.header)
@@ -540,7 +547,7 @@ class Stack:
         bkgrms_datalist = None
         if coadd_bkgrmslist is not None:
             bkgrms_datalist = []
-            iterator = tqdm(coadd_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else coadd_bkgrmslist
+            iterator = tqdm(coadd_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else coadd_bkgrmslist
             for target_bkgrms in iterator:
                 bkgrms_datalist.append(target_bkgrms.data)
         
@@ -770,7 +777,7 @@ class Stack:
         image_pathlist = []
         image_hdrlist = []
         remove_image = []
-        iterator = tqdm(target_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else target_imglist
+        iterator = tqdm(target_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_imglist
         for target_img in iterator:
             if not target_img.is_exists:
                 target_img.write(verbose = verbose)
@@ -784,7 +791,7 @@ class Stack:
         remove_errormap = []
         if target_errormaplist is not None:
             weight_pathlist = []
-            iterator = tqdm(target_errormaplist, desc="Loading target weight maps...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else target_errormaplist
+            iterator = tqdm(target_errormaplist, desc="Loading target weight maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_errormaplist
             for target_errormap in iterator:
                 if target_errormap.emaptype.lower() != 'weight':
                     target_errormap.to_weight()
@@ -991,7 +998,7 @@ class Stack:
         depthlist = []
         ellipticitylist = []
         obsdatelist = []
-        iterator = tqdm(target_imglist, desc="Querying images...", ncols=80, bar_format="{l_bar}{bar}| {elapsed}") if verbose else target_imglist
+        iterator = tqdm(target_imglist, desc="Querying images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_imglist
         for target_img in iterator:
             seeinglist.append(target_img.header.get(seeing_key, None))
             depthlist.append(target_img.header.get(depth_key, None))
@@ -1268,11 +1275,8 @@ class Stack:
             for img, errormap in zip(target_imglist, target_errormaplist or [None] * len(target_imglist))
         ]
         # Run with process_map
-        if verbose:
-            desc = "Matching ZP..."
-        else:
-            desc = None
-        results = process_map(_scale_worker, tasks, desc=desc, max_workers=n_proc)
+        results = process_map(_scale_worker, tasks, desc="Matching ZP...", max_workers=n_proc, 
+                            ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
         scaled_imglist, scaled_errormaplist = zip(*results)
 
         return list(scaled_imglist), list(scaled_errormaplist) if target_errormaplist else None
@@ -1476,4 +1480,54 @@ class Stack:
         
         self.helper.print(f"Successfully matched seeing for {len(matched_imglist)} images", verbose)
         return matched_imglist, matched_errormaplist
+# %%
+if __name__ == "__main__":
+    from ezphot.utils import DataBrowser
+    dbrowser = DataBrowser('scidata')
+    target_name = 'T00528'
+    dbrowser.objname = target_name
+    dbrowser.telname = '7DT16'
+    dbrowser.filter = 'r'
+    target_imgset = dbrowser.search('calib*100.fits', return_type = 'science')
+    target_imglist = target_imgset.target_images
+    target_bkgrmslist = target_imgset.bkgrms
+    target_bkglist = target_imgset.bkgmap
+    self = Stack()
+    
+    # Parameters for stack_multiprocess
+    target_outpath = None
+    bkgrms_outpath = None
+    combine_type = 'median'
+    n_proc = 16
+    
+    # Clip parameters
+    clip_type = None
+    sigma = 3.0
+    nlow = 1
+    nhigh = 1
+    
+    # Resample parameters
+    resample = True
+    resample_type = 'LANCZOS3'
+    center_ra = None
+    center_dec = None
+    pixel_scale = None
+    x_size = None
+    y_size = None
+    
+    # Scale parameters
+    scale = True
+    scale_type = 'min'
+    zp_key = 'ZP_APER_1'
+    
+    # Convolution parameters
+    convolve = False
+    seeing_key = 'SEEING'
+    kernel = 'gaussian'
+    
+    # Other parameters
+    verbose = True
+    save = True
+    
+    
 # %%

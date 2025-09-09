@@ -294,7 +294,7 @@ class MaskGenerator():
                     x_position: float = None,
                     y_position: float = None,
                     radius_arcsec: float = None,
-                    unit: str = 'deg',
+                    unit: str = 'coord',
                     
                     # Others
                     save: bool = False,
@@ -320,7 +320,7 @@ class MaskGenerator():
         radius_arcsec : float, optional
             The radius of the circular mask in arcseconds.
         unit : str, optional
-            The unit of the radius. ['deg', 'pixel']
+            The unit of the radius. ['coord', 'pixel']
         save : bool, optional
             Whether to save the circular mask.
         verbose : bool, optional
@@ -353,7 +353,7 @@ class MaskGenerator():
         else:
             self.helper.print("External mask is loaded.", verbose)
 
-        if unit == 'deg':
+        if unit == 'coord':
             if target_img.header is None:
                 raise ValueError("Header is required for RA/Dec conversion.")
             w = WCS(target_img.header)

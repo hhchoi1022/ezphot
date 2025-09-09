@@ -36,6 +36,7 @@ Welcome to EZPhot documentation!
    :caption: Example
 
    example/preprocess
+   example/backgroundestimation
    example/imagestacking
 
 
