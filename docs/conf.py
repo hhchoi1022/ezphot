@@ -110,6 +110,11 @@ html_theme_options = {
     "sticky_navigation": True,
 }
 
+# -- HTML meta tags --------------------------------------------------------
+html_meta = {
+    "google-site-verification": "EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI",
+}
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
