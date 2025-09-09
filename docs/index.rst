@@ -37,7 +37,7 @@ Welcome to EZPhot documentation!
 
    example/preprocess
    example/backgroundestimation
-   example/imagestacking
+   example/stacking
 
 
 .. toctree::
