@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>&lt;no title&gt; &mdash; ezphot 0.0.7 documentation</title>
+  <title>Photometric Calibration &mdash; ezphot 0.2.5 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -14,7 +14,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../_static/documentation_options.js?v=cb850272"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -140,11 +140,49 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="preprocess.html">Load data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="preprocess.html#Image-preprocessing">Image preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-master-frames">1. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Preprocess-with-the-master-frames">2. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#Run-preprocess-for-all-target_images">Run preprocess for all target_images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-data">1. Load the data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="backgroundestimation.html">Background estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backgroundestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundestimation.html#2.-Background-Estimation">2. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundestimation.html#2.1.-Basic-Background-Estimation">2.1. Basic Background Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundestimation.html#2.2.-Advanced-Background-Estimation">2.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.3.-Re-generation-of-Background-Map-with-Source-Mask">2.2.3. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#3.-Background-Estimation">3. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#3.1.-Background-estimation">3.1. Background estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#3.2.-Advanced-Background-Estimation">3.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="stacking.html#3.2.1.-Automatic-Source-Mask-Generation">3.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="stacking.html#3.2.2.-Re-generation-of-Background-Map-with-Source-Mask">3.2.2. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#4.-Image-stacking">4. Image stacking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -646,9 +684,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">&lt;no title&gt;</li>
+      <li class="breadcrumb-item active">Photometric Calibration</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/example/photometry.ipynb.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/example/photometriccalibration.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -656,35 +694,20 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+  <section id="Photometric-Calibration">
+<h1>Photometric Calibration<a class="headerlink" href="#Photometric-Calibration" title="Link to this heading"></a></h1>
+<section id="1.-Load-data">
+<h2>1. Load data<a class="headerlink" href="#1.-Load-data" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaskGenerator</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">tile_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;T00528&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00464&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00465&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00527&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00529&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00595&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00463&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00596&#39;</span><span class="p">,</span>
-             <span class="s1">&#39;T00405&#39;</span><span class="p">]</span>
-<span class="n">target_imglist</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="n">tile_list</span><span class="p">:</span>
-    <span class="n">databrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
-    <span class="n">databrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="n">tile</span>
-    <span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
-    <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">databrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
-    <span class="n">target_imglist</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span><span class="p">)</span>
+<span class="n">databrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
+<span class="n">databrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+<span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
+<span class="n">target_imgset</span> <span class="o">=</span> <span class="n">databrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+<span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
 </pre></div>
 </div>
 </div>
@@ -693,137 +716,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 54 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 54/54 [00:00&lt;00:00, 96.68it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 36 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00464/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 36/36 [00:00&lt;00:00, 110.28it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 39 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00465/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 39/39 [00:00&lt;00:00, 80.97it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 27 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00527/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-
-Loading Science Images: 100%|██████████| 27/27 [00:00&lt;00:00, 91.08it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 24 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00529/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 24/24 [00:00&lt;00:00, 97.99it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 15 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00595/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-
-Loading Science Images: 100%|██████████| 15/15 [00:00&lt;00:00, 81.38it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 12 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00463/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 12/12 [00:00&lt;00:00, 71.20it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 12 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00596/*/r/*100.fits&#39;
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 12/12 [00:00&lt;00:00, 64.06it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[INFO] Found 6 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00405/*/r/*100.fits&#39;
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/r/*100.fits&#39;
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -831,11 +724,11 @@ Loading Science Images: 100%|██████████| 12/12 [00:00&lt;00:
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 6/6 [00:00&lt;00:00, 37.67it/s]
+Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 106.75it/s]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -844,44 +737,20 @@ Loading Science Images: 100%|██████████| 6/6 [00:00&lt;00:00
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 (&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250902_074905_r_100.fits&#39;}&gt;)
+ &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.fits&#39;}&gt;)
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_photometry_2_1.png" src="../_images/example_photometry_2_1.png" />
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span><span class="o">.</span><span class="n">show_position</span><span class="p">(</span><span class="mf">325.38</span><span class="p">,</span> <span class="o">-</span><span class="mf">77.4</span><span class="p">,</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(&lt;Figure size 600x600 with 1 Axes&gt;, &lt;Axes: title={&#39;center&#39;: &#39;True&#39;}&gt;)
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/example_photometry_3_1.png" src="../_images/example_photometry_3_1.png" />
+<img alt="../_images/example_photometriccalibration_3_1.png" src="../_images/example_photometriccalibration_3_1.png" />
 </div>
 </div>
 <div class="nbinput nblast docutils container">
@@ -1903,6 +1772,8 @@ WARNING: XBINNING keyword not found in header. Assuming binning = 1.
 </pre></div>
 </div>
 </div>
+</section>
+</section>
 
 
            </div>

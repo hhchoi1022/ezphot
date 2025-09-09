@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ezphot.methods.stack &mdash; ezphot 0.0.7 documentation</title>
+  <title>ezphot.methods.stack &mdash; ezphot 0.2.5 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=bbaf98b3"></script>
+      <script src="../../../_static/documentation_options.js?v=cb850272"></script>
       <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -136,11 +136,49 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../example/preprocess.html">Load data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../example/preprocess.html#Image-preprocessing">Image preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#1.-Load-the-master-frames">1. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#2.-Preprocess-with-the-master-frames">2. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#Run-preprocess-for-all-target_images">Run preprocess for all target_images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example/preprocess.html">Preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#1.-Load-the-data">1. Load the data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example/backgroundestimation.html">Background estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/backgroundestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/backgroundestimation.html#2.-Background-Estimation">2. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/backgroundestimation.html#2.1.-Basic-Background-Estimation">2.1. Basic Background Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/backgroundestimation.html#2.2.-Advanced-Background-Estimation">2.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../example/backgroundestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../example/backgroundestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../example/backgroundestimation.html#2.2.3.-Re-generation-of-Background-Map-with-Source-Mask">2.2.3. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../example/stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/stacking.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/stacking.html#3.-Background-Estimation">3. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#3.1.-Background-estimation">3.1. Background estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#3.2.-Advanced-Background-Estimation">3.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../example/stacking.html#3.2.1.-Automatic-Source-Mask-Generation">3.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../example/stacking.html#3.2.2.-Re-generation-of-Background-Map-with-Source-Mask">3.2.2. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../example/stacking.html#4.-Image-stacking">4. Image stacking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../example/stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -669,7 +707,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm.contrib.concurrent</span><span class="w"> </span><span class="kn">import</span> <span class="n">process_map</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">CalibrationImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">,</span> <span class="n">Errormap</span><span class="p">,</span> <span class="n">Background</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span><span class="p">,</span> <span class="n">CalibrationImage</span><span class="p">,</span> <span class="n">ReferenceImage</span><span class="p">,</span> <span class="n">Errormap</span><span class="p">,</span> <span class="n">Background</span> 
 <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Reproject</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">BackgroundGenerator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">PSFPhotometry</span>
@@ -762,7 +800,8 @@
         <span class="n">target_bkg</span><span class="o">=</span><span class="n">target_bkg</span><span class="p">,</span>
         <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> 
         <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">visualize</span><span class="o">=</span><span class="kc">False</span>
+        <span class="n">visualize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">result</span>
 
@@ -819,9 +858,9 @@
         <span class="n">scaled_errormap</span><span class="o">.</span><span class="n">add_status</span><span class="p">(</span><span class="s1">&#39;zpscale&#39;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">zp_key</span><span class="p">,</span> <span class="n">ref_zp</span><span class="o">=</span><span class="n">ref_zp</span><span class="p">,</span> <span class="n">scale_zp</span><span class="o">=</span><span class="n">delta_zp</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="n">scale_factor</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
-        <span class="n">scaled_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="n">scaled_img</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>  <span class="c1"># Worker function, no verbose output</span>
         <span class="k">if</span> <span class="n">scaled_errormap</span><span class="p">:</span>
-            <span class="n">scaled_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+            <span class="n">scaled_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>  <span class="c1"># Worker function, no verbose output</span>
 
     <span class="k">return</span> <span class="n">scaled_img</span><span class="p">,</span> <span class="n">scaled_errormap</span>
 
@@ -919,18 +958,8 @@
                     <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">patch_args</span><span class="p">),</span>
                     <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Combining...&quot;</span><span class="p">,</span>
                     <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
-                    <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">worker_wrapper</span><span class="p">,</span> <span class="n">patch_args</span><span class="p">)</span>
+                    <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span><span class="n">worker_wrapper</span><span class="p">,</span> <span class="n">patch_args</span><span class="p">)</span>
         <span class="p">)</span>
-        <span class="c1"># else:</span>
-        <span class="c1">#     # Fallback to temporary pool</span>
-        <span class="c1">#     with Pool(processes=self.n_proc) as pool:</span>
-        <span class="c1">#         results = list(</span>
-        <span class="c1">#             tqdm(pool.imap_unordered(worker_wrapper, patch_args),</span>
-        <span class="c1">#                  total=len(patch_args),</span>
-        <span class="c1">#                  desc=&quot;Combining...&quot;,</span>
-        <span class="c1">#                  ncols=80,</span>
-        <span class="c1">#                  bar_format=&quot;{l_bar}{bar}| {elapsed}&quot;) if verbose else pool.imap_unordered(worker_wrapper, patch_args)</span>
-        <span class="c1">#         )</span>
 
         <span class="k">for</span> <span class="n">i_start</span><span class="p">,</span> <span class="n">i_end</span><span class="p">,</span> <span class="n">j_start</span><span class="p">,</span> <span class="n">j_end</span><span class="p">,</span> <span class="n">patch_result</span><span class="p">,</span> <span class="n">patch_bkgrms</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
             <span class="n">combined</span><span class="p">[</span><span class="n">i_start</span><span class="p">:</span><span class="n">i_end</span><span class="p">,</span> <span class="n">j_start</span><span class="p">:</span><span class="n">j_end</span><span class="p">]</span> <span class="o">=</span> <span class="n">patch_result</span>
@@ -971,7 +1000,7 @@
 
         <span class="c1"># Final plain text output</span>
         <span class="n">help_text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Help for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">help_text</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">Public methods:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Help for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">help_text</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">Public methods:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">stack_multiprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                            <span class="n">target_imglist</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">ScienceImage</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">CalibrationImage</span><span class="p">]],</span>
@@ -1009,8 +1038,7 @@
                            
                            <span class="c1"># Other parameters</span>
                            <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                           <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                           <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                           <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Stack a list of images.</span>
 <span class="sd">        </span>
@@ -1102,7 +1130,11 @@
                 <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">process_map</span><span class="p">(</span><span class="n">_subtract_background_worker</span><span class="p">,</span> <span class="n">input_list</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">n_proc</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Subtracting background...&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">n_proc</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-                    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_subtract_background_worker</span><span class="p">,</span> <span class="n">input_list</span><span class="p">)</span>
+                    <span class="n">target_imglist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_subtract_background_worker</span><span class="p">,</span> <span class="n">input_list</span><span class="p">),</span> 
+                                              <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">input_list</span><span class="p">),</span> 
+                                              <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Subtracting background...&quot;</span><span class="p">,</span>
+                                              <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+                                              <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">))</span>
 
             <span class="c1"># Clean up memory</span>
             <span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
@@ -1164,17 +1196,32 @@
         <span class="n">coadd_imglist</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">coadd_bkgrmslist</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">resample</span><span class="p">:</span>
-            <span class="n">task_args</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">bkgrms</span><span class="p">,</span> <span class="n">resample_type</span><span class="p">,</span> <span class="n">center_ra</span><span class="p">,</span> <span class="n">center_dec</span><span class="p">,</span> <span class="n">x_size</span><span class="p">,</span> <span class="n">y_size</span><span class="p">,</span> <span class="n">pixel_scale</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">img</span><span class="p">,</span> <span class="n">bkgrms</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">target_bkgrmslist</span> <span class="ow">or</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">))</span>
-            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">target_bkgrmslist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">task_args</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">resample_type</span><span class="p">,</span> <span class="n">center_ra</span><span class="p">,</span> <span class="n">center_dec</span><span class="p">,</span> <span class="n">x_size</span><span class="p">,</span> <span class="n">y_size</span><span class="p">,</span> <span class="n">pixel_scale</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">target_imglist</span>
+                <span class="p">]</span>
             
-            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-                <span class="n">results</span> <span class="o">=</span> <span class="n">process_map</span><span class="p">(</span><span class="n">_reproject_worker</span><span class="p">,</span> <span class="n">task_args</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">n_proc</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Performing image reprojection...&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
                 <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">n_proc</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-                    <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_reproject_worker</span><span class="p">,</span> <span class="n">task_args</span><span class="p">)</span>
+                    <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_reproject_worker</span><span class="p">,</span> <span class="n">task_args</span><span class="p">),</span> 
+                                        <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">task_args</span><span class="p">),</span> 
+                                        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Performing image reprojection...&quot;</span><span class="p">,</span>
+                                        <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+                                        <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">))</span>
+                
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">task_args</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">bkgrms</span><span class="p">,</span> <span class="n">resample_type</span><span class="p">,</span> <span class="n">center_ra</span><span class="p">,</span> <span class="n">center_dec</span><span class="p">,</span> <span class="n">x_size</span><span class="p">,</span> <span class="n">y_size</span><span class="p">,</span> <span class="n">pixel_scale</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">img</span><span class="p">,</span> <span class="n">bkgrms</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">target_bkgrmslist</span><span class="p">)</span>
+                <span class="p">]</span>
             
+                <span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">n_proc</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+                    <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_reproject_worker</span><span class="p">,</span> <span class="n">task_args</span><span class="p">),</span> 
+                                        <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">task_args</span><span class="p">),</span> 
+                                        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Performing image/bkgrms reprojection...&quot;</span><span class="p">,</span>
+                                        <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+                                        <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">))</span>
+                
             <span class="n">coadd_imglist</span><span class="p">,</span> <span class="n">coadd_bkgrmslist</span> <span class="o">=</span>  <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">results</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">target_bkgrmslist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">coadd_bkgrmslist</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1187,7 +1234,7 @@
         <span class="n">image_datalist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">image_hdrlist</span> <span class="o">=</span> <span class="p">[]</span>
         
-        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">coadd_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">coadd_imglist</span>
+        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">coadd_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">coadd_imglist</span>
         <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
             <span class="n">image_datalist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
             <span class="n">image_hdrlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">header</span><span class="p">)</span>
@@ -1195,7 +1242,7 @@
         <span class="n">bkgrms_datalist</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">coadd_bkgrmslist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">bkgrms_datalist</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">coadd_bkgrmslist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target bkgrms maps...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">coadd_bkgrmslist</span>
+            <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">coadd_bkgrmslist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target bkgrms maps...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">coadd_bkgrmslist</span>
             <span class="k">for</span> <span class="n">target_bkgrms</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
                 <span class="n">bkgrms_datalist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target_bkgrms</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
         
@@ -1203,12 +1250,12 @@
         <span class="k">for</span> <span class="n">target_imglist</span> <span class="ow">in</span> <span class="p">[</span><span class="n">subbkg_imglist</span><span class="p">,</span> <span class="n">scaled_imglist</span><span class="p">,</span> <span class="n">convolved_imglist</span><span class="p">,</span> <span class="n">coadd_imglist</span><span class="p">]:</span>
             <span class="k">if</span> <span class="n">target_imglist</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
-                    <span class="n">target_img</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                    <span class="n">target_img</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                     
         <span class="k">for</span> <span class="n">target_bkgrmslist</span> <span class="ow">in</span> <span class="p">[</span><span class="n">scaled_bkgrmslist</span><span class="p">,</span> <span class="n">convolved_bkgrmslist</span><span class="p">,</span> <span class="n">coadd_bkgrmslist</span><span class="p">]:</span>
             <span class="k">if</span> <span class="n">target_bkgrmslist</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">target_bkgrms</span> <span class="ow">in</span> <span class="n">target_bkgrmslist</span><span class="p">:</span>
-                    <span class="n">target_bkgrms</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                    <span class="n">target_bkgrms</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                 
         <span class="c1"># Combine the image stack</span>
         <span class="k">if</span> <span class="n">clip_type</span> <span class="ow">is</span> <span class="s1">&#39;extrema&#39;</span><span class="p">:</span>
@@ -1282,8 +1329,8 @@
             <span class="n">stack_bkgrms_instance</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">combined_header</span>
         
         <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
-            <span class="n">stack_instance</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
-            <span class="n">stack_bkgrms_instance</span><span class="o">.</span><span class="n">write</span><span class="p">()</span> <span class="k">if</span> <span class="n">stack_bkgrms_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
+            <span class="n">stack_bkgrms_instance</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span> <span class="k">if</span> <span class="n">stack_bkgrms_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">combiner</span><span class="o">.</span><span class="n">close_pool</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">stack_instance</span><span class="p">,</span> <span class="n">stack_bkgrms_instance</span>
@@ -1425,10 +1472,10 @@
         <span class="n">image_pathlist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">image_hdrlist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">remove_image</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_imglist</span>
+        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_imglist</span>
         <span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">target_img</span><span class="o">.</span><span class="n">is_exists</span><span class="p">:</span>
-                <span class="n">target_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                <span class="n">target_img</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                 <span class="n">remove_image</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">remove_image</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
@@ -1439,18 +1486,18 @@
         <span class="n">remove_errormap</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">target_errormaplist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">weight_pathlist</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_errormaplist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target weight maps...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_errormaplist</span>
+            <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_errormaplist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading target weight maps...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_errormaplist</span>
             <span class="k">for</span> <span class="n">target_errormap</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">emaptype</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;weight&#39;</span><span class="p">:</span>
                     <span class="n">target_errormap</span><span class="o">.</span><span class="n">to_weight</span><span class="p">()</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">is_exists</span><span class="p">:</span>
-                        <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                        <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                         <span class="n">remove_errormap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">remove_errormap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">target_errormap</span><span class="o">.</span><span class="n">is_exists</span><span class="p">:</span>
-                        <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                        <span class="n">target_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                         <span class="n">remove_errormap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">remove_errormap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
@@ -1560,24 +1607,24 @@
         <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">add_status</span><span class="p">(</span><span class="s1">&#39;stack_swarp&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">event_details_kwargs</span><span class="p">)</span>
         
         <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
-            <span class="n">stack_instance</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
-            <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">write</span><span class="p">()</span> <span class="k">if</span> <span class="n">stack_weight_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
+            <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span> <span class="k">if</span> <span class="n">stack_weight_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Stacked image saved to </span><span class="si">{</span><span class="n">stack_instance</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Stacked weight map saved to </span><span class="si">{</span><span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">stack_instance</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
             <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
-            <span class="n">stack_instance</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
-            <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span> <span class="k">if</span> <span class="n">stack_weight_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">stack_instance</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
+            <span class="n">stack_weight_instance</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span> <span class="k">if</span> <span class="n">stack_weight_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
         
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">remove_errormap</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">remove_key</span><span class="p">,</span> <span class="n">target_errormap</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">remove_errormap</span><span class="p">,</span> <span class="n">target_errormaplist</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">remove_key</span><span class="p">:</span>
-                    <span class="n">target_errormap</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                    <span class="n">target_errormap</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">remove_image</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">remove_key</span><span class="p">,</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">remove_image</span><span class="p">,</span> <span class="n">target_imglist</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">remove_key</span><span class="p">:</span>
-                    <span class="n">target_img</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                    <span class="n">target_img</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                 
         <span class="k">return</span> <span class="n">stack_instance</span><span class="p">,</span> <span class="n">stack_weight_instance</span>
     
@@ -1646,7 +1693,7 @@
         <span class="n">depthlist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ellipticitylist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">obsdatelist</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Querying images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{elapsed}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_imglist</span>
+        <span class="n">iterator</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Querying images...&quot;</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">target_imglist</span>
         <span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
             <span class="n">seeinglist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">seeing_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
             <span class="n">depthlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">depth_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
@@ -1913,7 +1960,9 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid method: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[match_zeropoints] Reference ZP: </span><span class="si">{</span><span class="n">ref_zp</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> using &#39;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.helper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Helper</span>
+            <span class="n">helper</span> <span class="o">=</span> <span class="n">Helper</span><span class="p">()</span>
+            <span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[match_zeropoints] Reference ZP: </span><span class="si">{</span><span class="n">ref_zp</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> using &#39;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
 
         <span class="c1"># Prepare tasks</span>
         <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
@@ -1921,11 +1970,8 @@
             <span class="k">for</span> <span class="n">img</span><span class="p">,</span> <span class="n">errormap</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">,</span> <span class="n">target_errormaplist</span> <span class="ow">or</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">))</span>
         <span class="p">]</span>
         <span class="c1"># Run with process_map</span>
-        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-            <span class="n">desc</span> <span class="o">=</span> <span class="s2">&quot;Matching ZP...&quot;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">desc</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">process_map</span><span class="p">(</span><span class="n">_scale_worker</span><span class="p">,</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="n">desc</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">n_proc</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">process_map</span><span class="p">(</span><span class="n">_scale_worker</span><span class="p">,</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Matching ZP...&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">n_proc</span><span class="p">,</span> 
+                            <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{l_bar}{bar}</span><span class="s2">| </span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}</span><span class="s2"> [</span><span class="si">{elapsed}</span><span class="s2">]&quot;</span><span class="p">)</span>
         <span class="n">scaled_imglist</span><span class="p">,</span> <span class="n">scaled_errormaplist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">results</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">scaled_imglist</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">scaled_errormaplist</span><span class="p">)</span> <span class="k">if</span> <span class="n">target_errormaplist</span> <span class="k">else</span> <span class="kc">None</span>
@@ -2043,9 +2089,9 @@
                     <span class="n">matched_errormaplist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matched_errormap</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
-                    <span class="n">matched_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                    <span class="n">matched_img</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">matched_errormaplist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">matched_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                        <span class="n">matched_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                 
                 <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping convolution for </span><span class="si">{</span><span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (already matches reference seeing with the tolerenace </span><span class="si">{</span><span class="n">tolerance</span><span class="si">}</span><span class="s2">arcsec) [diff = </span><span class="si">{</span><span class="n">seeing_diff</span><span class="si">}</span><span class="s2">arcsec]&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
                 <span class="k">continue</span>
@@ -2123,13 +2169,63 @@
                 <span class="n">matched_errormaplist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matched_errormap</span><span class="p">)</span>
             
             <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
-                <span class="n">matched_img</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                <span class="n">matched_img</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">matched_errormaplist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_errormap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">matched_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+                    <span class="n">matched_errormap</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">)</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Successfully matched seeing for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">matched_imglist</span><span class="p">)</span><span class="si">}</span><span class="s2"> images&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">matched_imglist</span><span class="p">,</span> <span class="n">matched_errormaplist</span></div>
 
+<span class="c1"># %%</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
+    <span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
+    <span class="n">target_name</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+    <span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="n">target_name</span>
+    <span class="n">dbrowser</span><span class="o">.</span><span class="n">telname</span> <span class="o">=</span> <span class="s1">&#39;7DT16&#39;</span>
+    <span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
+    <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;calib*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
+    <span class="n">target_bkgrmslist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">bkgrms</span>
+    <span class="n">target_bkglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">bkgmap</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+    
+    <span class="c1"># Parameters for stack_multiprocess</span>
+    <span class="n">target_outpath</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">bkgrms_outpath</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">combine_type</span> <span class="o">=</span> <span class="s1">&#39;median&#39;</span>
+    <span class="n">n_proc</span> <span class="o">=</span> <span class="mi">16</span>
+    
+    <span class="c1"># Clip parameters</span>
+    <span class="n">clip_type</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">nlow</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">nhigh</span> <span class="o">=</span> <span class="mi">1</span>
+    
+    <span class="c1"># Resample parameters</span>
+    <span class="n">resample</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">resample_type</span> <span class="o">=</span> <span class="s1">&#39;LANCZOS3&#39;</span>
+    <span class="n">center_ra</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">center_dec</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">pixel_scale</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">x_size</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">y_size</span> <span class="o">=</span> <span class="kc">None</span>
+    
+    <span class="c1"># Scale parameters</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">scale_type</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span>
+    <span class="n">zp_key</span> <span class="o">=</span> <span class="s1">&#39;ZP_APER_1&#39;</span>
+    
+    <span class="c1"># Convolution parameters</span>
+    <span class="n">convolve</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">seeing_key</span> <span class="o">=</span> <span class="s1">&#39;SEEING&#39;</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="s1">&#39;gaussian&#39;</span>
+    
+    <span class="c1"># Other parameters</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    
 <span class="c1"># %%</span>
 </pre></div>
 

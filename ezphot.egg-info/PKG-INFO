@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ezphot
-Version: 0.2.4
+Version: 0.2.5
 Summary: Easy and flexible photometry toolkit in Python, from preprocessing to analysis, for various telescopes.
 Author: Hyeonho Choi
 Classifier: Programming Language :: Python :: 3

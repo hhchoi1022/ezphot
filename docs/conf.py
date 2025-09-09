@@ -85,7 +85,7 @@ def setup(app):
 project = 'ezphot'
 copyright = '2025, Hyeonho Choi'
 author = 'Hyeonho Choi'
-release = '0.0.7'
+release = '0.2.5'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -114,7 +114,6 @@ html_theme_options = {
 html_meta = {
     "google-site-verification": "EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI",
 }
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
