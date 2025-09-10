@@ -265,7 +265,7 @@ class Combiner:
                     total=len(patch_args),
                     desc="Combining...",
                     ncols=80,
-                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else pool.imap_unordered(worker_wrapper, patch_args)
+                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
         )
 
         for i_start, i_end, j_start, j_end, patch_result, patch_bkgrms in results:
