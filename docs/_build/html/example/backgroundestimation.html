@@ -23,8 +23,11 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Stacking" href="stacking.html" />
-    <link rel="prev" title="Preprocessing" href="preprocess.html" /> 
+    <link rel="next" title="Aperture Photometry" href="aperturephotometry.html" />
+    <link rel="prev" title="Preprocessing" href="preprocess.html" />
+ 
+<meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
+
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -161,6 +164,11 @@
 </li>
 </ul>
 </li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="aperturephotometry.html">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
@@ -901,16 +909,12 @@ Masking source... [sigma = 5.0, mask_radius_factor = 2]
 <section id="2.2.2.-Manual-Mask-Generation">
 <h4>2.2.2. Manual Mask Generation<a class="headerlink" href="#2.2.2.-Manual-Mask-Generation" title="Link to this heading"></a></h4>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you wish to add manual source mask to reject the extended sources when background modeling,</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaskGenerator</span>
-<span class="n">maskgen</span> <span class="o">=</span> <span class="n">MaskGenerator</span><span class="p">()</span>
-<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">maskgen</span><span class="o">.</span><span class="n">mask_circle</span><span class="p">(</span>
-    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
     <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">mask_type</span> <span class="o">=</span> <span class="s1">&#39;source&#39;</span><span class="p">,</span>
     <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
     <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
     <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
@@ -938,14 +942,12 @@ Added circular mask at (325.37, -77.39) with radius 300arcsec
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Or If you wish to add manual source mask to the existing source mask,</span>
-<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">maskgen</span><span class="o">.</span><span class="n">mask_circle</span><span class="p">(</span>
-    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
     <span class="n">target_mask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
-    <span class="n">mask_type</span> <span class="o">=</span> <span class="s1">&#39;source&#39;</span><span class="p">,</span>
     <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.07</span><span class="p">,</span>
     <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.093</span><span class="p">,</span>
     <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
@@ -1115,7 +1117,7 @@ Loading Backgrounds: 100%|██████████| 90/90 [00:00&lt;00:00,
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="preprocess.html" class="btn btn-neutral float-left" title="Preprocessing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="stacking.html" class="btn btn-neutral float-right" title="Stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="aperturephotometry.html" class="btn btn-neutral float-right" title="Aperture Photometry" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

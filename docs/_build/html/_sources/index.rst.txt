@@ -37,6 +37,7 @@ Welcome to EZPhot documentation!
 
    example/preprocess
    example/backgroundestimation
+   example/aperturephotometry
    example/stacking
 
 

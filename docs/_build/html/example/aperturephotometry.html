@@ -22,7 +22,12 @@
       <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Stacking" href="stacking.html" />
+    <link rel="prev" title="Background estimation" href="backgroundestimation.html" />
+ 
+<meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
+
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -139,7 +144,7 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-data">1. Load the data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
@@ -159,6 +164,11 @@
 </li>
 </ul>
 </li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
@@ -714,7 +724,7 @@
 <span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
 <span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
 <span class="n">dbrowser</span><span class="o">.</span><span class="n">telname</span> <span class="o">=</span> <span class="s1">&#39;7DT16&#39;</span>
-<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;g&#39;</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
 <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
 <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
 </pre></div>
@@ -725,7 +735,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/g/*100.fits&#39;
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/r/*100.fits&#39;
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -733,8 +743,350 @@
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 90/90 [00:01&lt;00:00, 81.26it/s]
+Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 97.42it/s]
 </pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">target_img</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="s1">&#39;coord&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(&lt;Figure size 800x600 with 2 Axes&gt;,
+ &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.fits&#39;}&gt;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_4_1.png" src="../_images/example_aperturephotometry_4_1.png" />
+</div>
+</div>
+</section>
+<section id="2.-Aperture-Photometry">
+<h2>2. Aperture Photometry<a class="headerlink" href="#2.-Aperture-Photometry" title="Link to this heading"></a></h2>
+<p>As you did with source-extractor, you can do photometry easily.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">AperturePhotometry</span>
+<span class="n">aperturephot</span> <span class="o">=</span> <span class="n">AperturePhotometry</span><span class="p">()</span>
+<span class="n">aperturephot</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Help for AperturePhotometry
+
+Public methods:
+- circular_photometry(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage], x_arr: Union[float, list, numpy.ndarray], y_arr: Union[float, list, numpy.ndarray], aperture_diameter_arcsec: Union[float, list] = [5, 7, 10], aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], annulus_width_arcsec: Union[float, list] = None, unit: str = &#39;pixel&#39;, target_bkg: Optional[ezphot.imageobjects.background.Background] = None, target_mask: Union[str, pathlib.Path, numpy.ndarray] = None, target_bkgrms: Optional[ezphot.imageobjects.errormap.Errormap] = None, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, **kwargs)
+- elliptical_photometry(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage], x_arr: Union[float, list, numpy.ndarray], y_arr: Union[float, list, numpy.ndarray], sma_arr: Union[float, list, numpy.ndarray], smi_arr: Union[float, list, numpy.ndarray], theta_arr: Union[float, list, numpy.ndarray], unit: str = &#39;pixel&#39;, annulus_ratio: float = None, target_bkg: Optional[ezphot.imageobjects.background.Background] = None, target_mask: Union[str, pathlib.Path, numpy.ndarray] = None, target_bkgrms: Optional[ezphot.imageobjects.errormap.Errormap] = None, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, **kwargs)
+- photutils_photometry(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage, ezphot.imageobjects.calibrationimage.CalibrationImage], target_bkg: Optional[ezphot.imageobjects.background.Background] = None, target_bkgrms: Optional[ezphot.imageobjects.errormap.Errormap] = None, target_mask: Optional[ezphot.imageobjects.mask.Mask] = None, detection_sigma: float = 1.5, aperture_diameter_arcsec: Union[float, list] = [5, 7, 10], kron_factor: float = 2.5, minarea_pixels: int = 5, calc_accurate_fwhm: bool = True, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, **kwargs)
+- run_photometry(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage, ezphot.imageobjects.calibrationimage.CalibrationImage], target_bkg: Optional[ezphot.imageobjects.background.Background] = None, target_bkgrms: Optional[ezphot.imageobjects.errormap.Errormap] = None, target_mask: Optional[ezphot.imageobjects.mask.Mask] = None, sex_params: dict = None, detection_sigma: float = 5, aperture_diameter_arcsec: Union[float, list] = [5, 7, 10], aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], saturation_level: float = 60000, kron_factor: float = 2.5, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, **kwargs)
+- sex_photometry(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage, ezphot.imageobjects.calibrationimage.CalibrationImage], target_bkg: Optional[ezphot.imageobjects.background.Background] = None, target_bkgrms: Optional[ezphot.imageobjects.errormap.Errormap] = None, target_mask: Optional[ezphot.imageobjects.mask.Mask] = None, sex_params: dict = None, detection_sigma: float = 5, aperture_diameter_arcsec: Union[float, list] = [5, 7, 10], aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], saturation_level: float = 60000, kron_factor: float = 2.5, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, **kwargs)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">sex_photometry</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sex_params</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">detection_sigma</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">aperture_diameter_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+    <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">3.5</span><span class="p">,</span> <span class="mf">4.5</span><span class="p">],</span>
+    <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">60000</span><span class="p">,</span>
+    <span class="n">kron_factor</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_8_0.png" src="../_images/example_aperturephotometry_8_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_8_1.png" src="../_images/example_aperturephotometry_8_1.png" />
+</div>
+</div>
+<p>The output will be Catalog instance, which has information about the exposure and catalog data. For more detail, see :ref:<code class="docutils literal notranslate"><span class="pre">catalog</span></code></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Info ============================================
+  path: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.cat
+  target_img: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits
+  obsdate: 2025-09-05T00:04:08.000
+  filter: r
+  exptime: 100.0
+  depth: 18.917
+  seeing: 2.36567556
+  catalog_type: all
+  ra: 326.2506400247
+  dec: -77.26445076037
+  fov_ra: 1.35
+  fov_dec: 0.9
+  objname: T00528
+  observatory: 7DT
+  telname: 7DT16
+  aperture_diameter_arcsec: None
+===================================================
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;exptime: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">exptime</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;filter: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">filter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;telname: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">telname</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;objname: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">objname</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;ra: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">ra</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;dec: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">dec</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+exptime:  100.0
+filter:  r
+telname:  7DT16
+objname:  T00528
+ra:  326.2506400247
+dec:  -77.26445076037
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><i>Table length=4999</i>
+<table id="table140677324511568" class="table-striped table-bordered table-condensed">
+<thead><tr><th>NUMBER</th><th>FLUX_AUTO</th><th>FLUXERR_AUTO</th><th>FLUX_APER</th><th>FLUX_APER_1</th><th>FLUX_APER_2</th><th>FLUX_APER_3</th><th>FLUX_APER_4</th><th>FLUXERR_APER</th><th>FLUXERR_APER_1</th><th>FLUXERR_APER_2</th><th>FLUXERR_APER_3</th><th>FLUXERR_APER_4</th><th>MAG_AUTO</th><th>MAGERR_AUTO</th><th>MAG_APER</th><th>MAG_APER_1</th><th>MAG_APER_2</th><th>MAG_APER_3</th><th>MAG_APER_4</th><th>MAGERR_APER</th><th>MAGERR_APER_1</th><th>MAGERR_APER_2</th><th>MAGERR_APER_3</th><th>MAGERR_APER_4</th><th>FWHM_IMAGE</th><th>FWHM_WORLD</th><th>X_IMAGE</th><th>Y_IMAGE</th><th>XWIN_IMAGE</th><th>YWIN_IMAGE</th><th>X_WORLD</th><th>Y_WORLD</th><th>ALPHA_J2000</th><th>DELTA_J2000</th><th>FLAGS</th><th>CLASS_STAR</th><th>THRESHOLD</th><th>A_IMAGE</th><th>B_IMAGE</th><th>ELONGATION</th><th>ELLIPTICITY</th><th>KRON_RADIUS</th><th>FLUX_RADIUS</th><th>THETA_IMAGE</th><th>THETA_WORLD</th><th>THETA_SKY</th><th>THETA_J2000</th><th>BACKGROUND</th><th>FLUX_MAX</th><th>ISOAREA_IMAGE</th><th>SKYSIG</th><th>SKYVAL</th><th>DETECT_THRESH</th><th>NPIX_AUTO</th><th>NPIX_APER</th><th>PIXSIZE_APER</th><th>NPIX_APER_1</th><th>PIXSIZE_APER_1</th><th>NPIX_APER_2</th><th>PIXSIZE_APER_2</th><th>NPIX_APER_3</th><th>PIXSIZE_APER_3</th><th>NPIX_APER_4</th><th>PIXSIZE_APER_4</th></tr></thead>
+<thead><tr><th></th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>pix</th><th>deg</th><th>pix</th><th>pix</th><th>pix</th><th>pix</th><th>deg</th><th>deg</th><th>deg</th><th>deg</th><th></th><th></th><th>ct</th><th>pix</th><th>pix</th><th></th><th></th><th></th><th>pix</th><th>deg</th><th>deg</th><th>deg</th><th>deg</th><th>ct</th><th>ct</th><th>pix2</th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th></tr></thead>
+<thead><tr><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>str7</th><th>str1</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th></tr></thead>
+<tr><td>1</td><td>3474970.0</td><td>4121.366</td><td>2614184.0</td><td>3123566.0</td><td>3389806.0</td><td>3274942.0</td><td>3417686.0</td><td>3280.912</td><td>3645.505</td><td>3935.1</td><td>3786.016</td><td>3986.333</td><td>-16.3524</td><td>0.0013</td><td>-16.0433</td><td>-16.2366</td><td>-16.3254</td><td>-16.288</td><td>-16.3343</td><td>0.0014</td><td>0.0013</td><td>0.0013</td><td>0.0013</td><td>0.0013</td><td>6.81</td><td>0.0009596373</td><td>465.399</td><td>85.0836</td><td>466.1606</td><td>86.0496</td><td>323.34446643</td><td>-77.669369721</td><td>323.3444664</td><td>-77.6693697</td><td>4</td><td>0.98</td><td>127.2467</td><td>3.738</td><td>3.275</td><td>1.141</td><td>0.124</td><td>3.5</td><td>3.334</td><td>72.05</td><td>69.59</td><td>20.41</td><td>20.41</td><td>0.683493</td><td>74826.42</td><td>765</td><td>79.7884</td><td>0</td><td>3</td><td>471.1254472737662</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>2</td><td>4683292.0</td><td>4698.114</td><td>3680859.0</td><td>4237371.0</td><td>4550494.0</td><td>4407084.0</td><td>4591606.0</td><td>3868.563</td><td>4208.255</td><td>4488.833</td><td>4340.829</td><td>4541.944</td><td>-16.6764</td><td>0.0011</td><td>-16.4149</td><td>-16.5677</td><td>-16.6451</td><td>-16.6104</td><td>-16.6549</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>5.26</td><td>0.0007412169</td><td>9107.2539</td><td>75.121</td><td>9108.3396</td><td>76.0409</td><td>329.05032246</td><td>-77.706008552</td><td>329.0503225</td><td>-77.7060086</td><td>4</td><td>1.0</td><td>131.1449</td><td>3.594</td><td>3.529</td><td>1.019</td><td>0.018</td><td>3.5</td><td>3.202</td><td>-61.01</td><td>-66.17</td><td>-23.83</td><td>-23.83</td><td>4.247592</td><td>77110.84</td><td>921</td><td>79.7884</td><td>0</td><td>3</td><td>488.1077379113834</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>3</td><td>89170.51</td><td>1388.597</td><td>79127.55</td><td>86329.8</td><td>93204.63</td><td>89297.84</td><td>94107.69</td><td>950.3466</td><td>1224.837</td><td>1653.531</td><td>1405.845</td><td>1749.46</td><td>-12.3756</td><td>0.0169</td><td>-12.2458</td><td>-12.3404</td><td>-12.4236</td><td>-12.3771</td><td>-12.4341</td><td>0.013</td><td>0.0154</td><td>0.0193</td><td>0.0171</td><td>0.0202</td><td>4.03</td><td>0.0005685684</td><td>8996.9189</td><td>33.0811</td><td>8997.8257</td><td>34.1069</td><td>328.97806299</td><td>-77.712246785</td><td>328.978063</td><td>-77.7122468</td><td>0</td><td>0.983</td><td>131.299</td><td>2.036</td><td>2.004</td><td>1.016</td><td>0.015</td><td>3.99</td><td>2.382</td><td>66.81</td><td>64.67</td><td>25.33</td><td>25.33</td><td>4.700016</td><td>4257.846</td><td>91</td><td>79.7884</td><td>0</td><td>3</td><td>204.0662364375781</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4</td><td>2756657.0</td><td>3645.594</td><td>2342736.0</td><td>2596341.0</td><td>2738630.0</td><td>2673359.0</td><td>2758030.0</td><td>3116.256</td><td>3353.08</td><td>3599.24</td><td>3462.755</td><td>3651.51</td><td>-16.101</td><td>0.0014</td><td>-15.9243</td><td>-16.0359</td><td>-16.0938</td><td>-16.0676</td><td>-16.1015</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>4.47</td><td>0.0006300149</td><td>8536.9443</td><td>23.8746</td><td>8537.9367</td><td>24.8449</td><td>328.67459584</td><td>-77.714705528</td><td>328.6745958</td><td>-77.7147055</td><td>6</td><td>0.997</td><td>128.0749</td><td>3.03</td><td>2.939</td><td>1.031</td><td>0.03</td><td>3.5</td><td>2.622</td><td>-62.62</td><td>-64.59</td><td>-25.41</td><td>-25.41</td><td>11.41325</td><td>72875.21</td><td>604</td><td>79.7884</td><td>0</td><td>3</td><td>342.71110397436064</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>5</td><td>87377.32</td><td>1566.148</td><td>67211.56</td><td>80716.19</td><td>88600.88</td><td>83654.29</td><td>89874.65</td><td>911.5572</td><td>1194.924</td><td>1592.146</td><td>1372.914</td><td>1658.686</td><td>-12.3535</td><td>0.0195</td><td>-12.0686</td><td>-12.2674</td><td>-12.3686</td><td>-12.3062</td><td>-12.3841</td><td>0.0147</td><td>0.0161</td><td>0.0195</td><td>0.0178</td><td>0.02</td><td>5.72</td><td>0.0008061111</td><td>8541.2021</td><td>7.9232</td><td>8542.3495</td><td>8.5887</td><td>328.67753218</td><td>-77.716938624</td><td>328.6775322</td><td>-77.7169386</td><td>19</td><td>0.918</td><td>128.1826</td><td>2.64</td><td>2.196</td><td>1.202</td><td>0.168</td><td>4.07</td><td>3.114</td><td>-52.32</td><td>-52.12</td><td>-37.88</td><td>-37.88</td><td>14.56685</td><td>3090.468</td><td>110</td><td>79.7884</td><td>0</td><td>3</td><td>301.6997524247501</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>6</td><td>1475390.0</td><td>2762.326</td><td>1260206.0</td><td>1404172.0</td><td>1478984.0</td><td>1445435.0</td><td>1487576.0</td><td>2325.781</td><td>2538.055</td><td>2780.725</td><td>2643.369</td><td>2833.368</td><td>-15.4223</td><td>0.002</td><td>-15.2511</td><td>-15.3686</td><td>-15.4249</td><td>-15.4</td><td>-15.4312</td><td>0.002</td><td>0.002</td><td>0.002</td><td>0.002</td><td>0.0021</td><td>4.59</td><td>0.0006468092</td><td>4741.1069</td><td>25.3899</td><td>4742.0573</td><td>26.3767</td><td>326.16186051</td><td>-77.710687194</td><td>326.1618605</td><td>-77.7106872</td><td>0</td><td>0.984</td><td>119.1225</td><td>2.873</td><td>2.629</td><td>1.093</td><td>0.085</td><td>3.5</td><td>2.613</td><td>55.51</td><td>54.03</td><td>35.97</td><td>35.97</td><td>3.94823</td><td>54295.38</td><td>407</td><td>79.7884</td><td>0</td><td>3</td><td>290.6780067665762</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>7</td><td>20022.93</td><td>1328.113</td><td>15838.0</td><td>19364.29</td><td>20521.77</td><td>20059.28</td><td>20788.85</td><td>750.5794</td><td>1028.623</td><td>1442.969</td><td>1205.866</td><td>1534.174</td><td>-10.7538</td><td>0.072</td><td>-10.4993</td><td>-10.7175</td><td>-10.7805</td><td>-10.7558</td><td>-10.7946</td><td>0.0515</td><td>0.0577</td><td>0.0764</td><td>0.0653</td><td>0.0801</td><td>8.7</td><td>0.001226384</td><td>1947.6616</td><td>24.5248</td><td>1948.6483</td><td>25.294</td><td>324.31558562</td><td>-77.69268597</td><td>324.3155856</td><td>-77.692686</td><td>0</td><td>0.159</td><td>120.7508</td><td>2.025</td><td>1.754</td><td>1.155</td><td>0.134</td><td>4.81</td><td>3.101</td><td>72.08</td><td>69.79</td><td>20.21</td><td>20.21</td><td>-0.3824342</td><td>590.8799</td><td>48</td><td>79.7884</td><td>0</td><td>3</td><td>258.16338213746826</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>8</td><td>5965024.0</td><td>5121.857</td><td>4373238.0</td><td>5447238.0</td><td>5851234.0</td><td>5693215.0</td><td>5889262.0</td><td>4200.022</td><td>4730.053</td><td>4987.194</td><td>4869.417</td><td>5024.493</td><td>-16.939</td><td>0.0009</td><td>-16.602</td><td>-16.8404</td><td>-16.9181</td><td>-16.8884</td><td>-16.9252</td><td>0.001</td><td>0.0009</td><td>0.0009</td><td>0.0009</td><td>0.0009</td><td>8.95</td><td>0.00126119</td><td>327.0762</td><td>6.0824</td><td>327.8633</td><td>6.5563</td><td>323.24994345</td><td>-77.678873355</td><td>323.2499435</td><td>-77.6788734</td><td>28</td><td>0.998</td><td>112.1141</td><td>3.665</td><td>3.404</td><td>1.077</td><td>0.071</td><td>3.5</td><td>3.66</td><td>37.88</td><td>35.76</td><td>54.24</td><td>54.24</td><td>15.54534</td><td>77961.02</td><td>764</td><td>79.7884</td><td>0</td><td>3</td><td>480.11966210737944</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>9</td><td>16177.1</td><td>1215.76</td><td>12863.05</td><td>14804.94</td><td>16909.53</td><td>16081.89</td><td>17295.55</td><td>734.1324</td><td>1006.993</td><td>1420.154</td><td>1184.687</td><td>1511.119</td><td>-10.5223</td><td>0.0816</td><td>-10.2734</td><td>-10.426</td><td>-10.5703</td><td>-10.5158</td><td>-10.5948</td><td>0.062</td><td>0.0739</td><td>0.0912</td><td>0.08</td><td>0.0949</td><td>6.45</td><td>0.00090878</td><td>3722.0791</td><td>22.2937</td><td>3722.993</td><td>23.2826</td><td>325.48721704</td><td>-77.706011036</td><td>325.487217</td><td>-77.706011</td><td>0</td><td>0.394</td><td>119.1988</td><td>1.75</td><td>1.564</td><td>1.119</td><td>0.106</td><td>5.09</td><td>2.776</td><td>28.76</td><td>26.61</td><td>63.39</td><td>63.39</td><td>-1.278709</td><td>623.094</td><td>36</td><td>79.7884</td><td>0</td><td>3</td><td>222.7718106721216</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr><td>4991</td><td>607708.5</td><td>2026.919</td><td>515113.8</td><td>577713.4</td><td>611449.4</td><td>596075.3</td><td>615544.5</td><td>1578.144</td><td>1787.386</td><td>2074.188</td><td>1908.331</td><td>2138.69</td><td>-14.4592</td><td>0.0036</td><td>-14.2798</td><td>-14.4043</td><td>-14.4659</td><td>-14.4383</td><td>-14.4731</td><td>0.0033</td><td>0.0034</td><td>0.0037</td><td>0.0035</td><td>0.0038</td><td>4.82</td><td>0.000678877</td><td>4839.167</td><td>5884.0903</td><td>4839.9402</td><td>5885.4598</td><td>326.32892914</td><td>-76.885386734</td><td>326.3289291</td><td>-76.8853867</td><td>0</td><td>0.984</td><td>117.7711</td><td>2.852</td><td>2.541</td><td>1.122</td><td>0.109</td><td>3.5</td><td>2.654</td><td>-55.13</td><td>-55.56</td><td>-34.44</td><td>-34.44</td><td>-0.7860662</td><td>23219.36</td><td>294</td><td>79.7884</td><td>0</td><td>3</td><td>278.8946270702436</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4992</td><td>149147.0</td><td>1374.12</td><td>129342.4</td><td>144732.1</td><td>153275.4</td><td>149121.4</td><td>154018.4</td><td>993.8237</td><td>1229.842</td><td>1591.134</td><td>1381.661</td><td>1670.758</td><td>-12.934</td><td>0.01</td><td>-12.7794</td><td>-12.9014</td><td>-12.9637</td><td>-12.9339</td><td>-12.9689</td><td>0.0083</td><td>0.0092</td><td>0.0113</td><td>0.0101</td><td>0.0118</td><td>4.74</td><td>0.0006675225</td><td>1998.8502</td><td>5778.1401</td><td>1999.7109</td><td>5779.3021</td><td>324.56312151</td><td>-76.883849041</td><td>324.5631215</td><td>-76.883849</td><td>0</td><td>0.983</td><td>118.5498</td><td>2.454</td><td>2.203</td><td>1.114</td><td>0.102</td><td>3.51</td><td>2.611</td><td>-54.6</td><td>-56.58</td><td>-33.42</td><td>-33.42</td><td>0.8413329</td><td>5443.322</td><td>138</td><td>79.7884</td><td>0</td><td>3</td><td>209.24407109913918</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4993</td><td>4522.715</td><td>546.186</td><td>4999.807</td><td>4089.494</td><td>3977.724</td><td>4429.798</td><td>3940.126</td><td>723.1104</td><td>1001.731</td><td>1424.073</td><td>1182.504</td><td>1514.78</td><td>-9.1385</td><td>0.1312</td><td>-9.2474</td><td>-9.0292</td><td>-8.9991</td><td>-9.116</td><td>-8.9888</td><td>0.1571</td><td>0.266</td><td>0.3888</td><td>0.2899</td><td>0.4175</td><td>6.15</td><td>0.0008672432</td><td>1406.2003</td><td>5897.707</td><td>1407.2109</td><td>5898.802</td><td>324.20111242</td><td>-76.862187401</td><td>324.2011124</td><td>-76.8621874</td><td>0</td><td>0.436</td><td>120.9763</td><td>1.135</td><td>0.938</td><td>1.209</td><td>0.173</td><td>3.59</td><td>1.897</td><td>35.63</td><td>33.8</td><td>56.2</td><td>56.2</td><td>3.15288</td><td>392.1877</td><td>12</td><td>79.7884</td><td>0</td><td>3</td><td>43.105974707544966</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4994</td><td>23920.11</td><td>1240.33</td><td>21144.37</td><td>22801.06</td><td>25797.73</td><td>23530.58</td><td>25809.58</td><td>751.7536</td><td>1017.661</td><td>1427.011</td><td>1191.379</td><td>1514.187</td><td>-10.9469</td><td>0.0563</td><td>-10.813</td><td>-10.8949</td><td>-11.029</td><td>-10.9291</td><td>-11.0295</td><td>0.0386</td><td>0.0485</td><td>0.0601</td><td>0.055</td><td>0.0637</td><td>5.57</td><td>0.0007856092</td><td>2285.0442</td><td>5989.7632</td><td>2285.9921</td><td>5990.8447</td><td>324.74757256</td><td>-76.856282897</td><td>324.7475726</td><td>-76.8562829</td><td>0</td><td>0.823</td><td>118.5006</td><td>1.937</td><td>1.677</td><td>1.155</td><td>0.134</td><td>4.77</td><td>2.591</td><td>-23.45</td><td>-25.29</td><td>-64.71</td><td>-64.71</td><td>0.6414696</td><td>1013.537</td><td>52</td><td>79.7884</td><td>0</td><td>3</td><td>232.1931022884569</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4995</td><td>8229.453</td><td>1195.881</td><td>6314.545</td><td>7397.768</td><td>9270.208</td><td>7383.319</td><td>9191.801</td><td>734.8729</td><td>1018.825</td><td>1447.567</td><td>1200.677</td><td>1539.567</td><td>-9.7884</td><td>0.1578</td><td>-9.5009</td><td>-9.6728</td><td>-9.9177</td><td>-9.6706</td><td>-9.9085</td><td>0.1264</td><td>0.1496</td><td>0.1696</td><td>0.1766</td><td>0.1819</td><td>6.76</td><td>0.0009526712</td><td>1046.7087</td><td>5932.2144</td><td>1047.803</td><td>5933.5696</td><td>323.98071083</td><td>-76.854157464</td><td>323.9807108</td><td>-76.8541575</td><td>0</td><td>0.484</td><td>122.5373</td><td>1.57</td><td>0.816</td><td>1.924</td><td>0.48</td><td>7.24</td><td>3.241</td><td>-56.39</td><td>-58.74</td><td>-31.26</td><td>-31.26</td><td>1.419196</td><td>288.6383</td><td>10</td><td>79.7884</td><td>0</td><td>3</td><td>210.96811197760297</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4996</td><td>11707.98</td><td>1213.778</td><td>8506.026</td><td>11048.68</td><td>12974.53</td><td>11890.34</td><td>12759.15</td><td>710.757</td><td>985.2302</td><td>1396.836</td><td>1160.305</td><td>1484.033</td><td>-10.1712</td><td>0.1126</td><td>-9.8243</td><td>-10.1083</td><td>-10.2827</td><td>-10.188</td><td>-10.2646</td><td>0.0907</td><td>0.0968</td><td>0.1169</td><td>0.106</td><td>0.1263</td><td>8.33</td><td>0.001174601</td><td>3863.8501</td><td>5664.209</td><td>3864.8941</td><td>5665.2304</td><td>325.71796853</td><td>-76.911983744</td><td>325.7179685</td><td>-76.9119837</td><td>0</td><td>0.587</td><td>117.3451</td><td>1.618</td><td>1.231</td><td>1.314</td><td>0.239</td><td>6.12</td><td>3.068</td><td>-40.76</td><td>-41.69</td><td>-48.31</td><td>-48.31</td><td>-0.4803265</td><td>406.5421</td><td>24</td><td>79.7884</td><td>0</td><td>3</td><td>234.36312874092212</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4997</td><td>19469.11</td><td>1099.756</td><td>16680.27</td><td>19285.18</td><td>18696.46</td><td>19132.71</td><td>19059.5</td><td>782.9484</td><td>1072.69</td><td>1506.744</td><td>1257.208</td><td>1601.253</td><td>-10.7234</td><td>0.0613</td><td>-10.5555</td><td>-10.7131</td><td>-10.6794</td><td>-10.7044</td><td>-10.7003</td><td>0.051</td><td>0.0604</td><td>0.0875</td><td>0.0714</td><td>0.0912</td><td>6.7</td><td>0.0009443088</td><td>8610.6045</td><td>5912.9639</td><td>8611.5177</td><td>5914.1054</td><td>328.67078686</td><td>-76.885388011</td><td>328.6707869</td><td>-76.885388</td><td>0</td><td>0.88</td><td>126.3422</td><td>1.84</td><td>1.72</td><td>1.07</td><td>0.065</td><td>3.99</td><td>2.76</td><td>-46.99</td><td>-46.82</td><td>-43.18</td><td>-43.18</td><td>-0.8400435</td><td>744.8463</td><td>44</td><td>79.7884</td><td>0</td><td>3</td><td>158.2857921381322</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4998</td><td>13559.4</td><td>1159.195</td><td>12035.99</td><td>13381.08</td><td>14991.75</td><td>13661.97</td><td>15471.02</td><td>724.6043</td><td>994.6836</td><td>1403.677</td><td>1168.35</td><td>1492.038</td><td>-10.3306</td><td>0.0928</td><td>-10.2012</td><td>-10.3162</td><td>-10.4396</td><td>-10.3388</td><td>-10.4738</td><td>0.0654</td><td>0.0807</td><td>0.1017</td><td>0.0929</td><td>0.1047</td><td>6.64</td><td>0.0009357748</td><td>5500.7568</td><td>5613.9233</td><td>5501.7271</td><td>5614.9605</td><td>326.73694632</td><td>-76.92561058</td><td>326.7369463</td><td>-76.9256106</td><td>0</td><td>0.62</td><td>117.7878</td><td>1.74</td><td>1.475</td><td>1.18</td><td>0.152</td><td>5.08</td><td>2.66</td><td>-43.53</td><td>-43.87</td><td>-46.13</td><td>-46.13</td><td>0.3810162</td><td>518.6997</td><td>33</td><td>79.7884</td><td>0</td><td>3</td><td>208.07435921659646</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>4999</td><td>24172.43</td><td>1200.911</td><td>20186.59</td><td>22460.34</td><td>25822.33</td><td>24241.36</td><td>26160.2</td><td>747.8528</td><td>1014.61</td><td>1421.597</td><td>1188.623</td><td>1508.834</td><td>-10.9583</td><td>0.054</td><td>-10.7627</td><td>-10.8785</td><td>-11.03</td><td>-10.9614</td><td>-11.0441</td><td>0.0402</td><td>0.0491</td><td>0.0598</td><td>0.0532</td><td>0.0626</td><td>5.12</td><td>0.0007212997</td><td>5538.0859</td><td>5692.2075</td><td>5539.0241</td><td>5693.2788</td><td>326.76112807</td><td>-76.914689536</td><td>326.7611281</td><td>-76.9146895</td><td>0</td><td>0.937</td><td>118.1406</td><td>1.853</td><td>1.588</td><td>1.167</td><td>0.143</td><td>4.87</td><td>2.565</td><td>-73.14</td><td>-73.77</td><td>-16.23</td><td>-16.23</td><td>0.36509</td><td>962.8569</td><td>46</td><td>79.7884</td><td>0</td><td>3</td><td>219.2470267521143</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+</table></div></div>
+</div>
+<p>If you do not input target_bkg and target_bkgrms, this code calculate the background/RMS map as source-extractor does.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span><span class="o">.</span><span class="n">show_source</span><span class="p">(</span>
+    <span class="n">target_ra</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
+    <span class="n">target_dec</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
+    <span class="n">downsample</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="n">zoom_radius_pixel</span> <span class="o">=</span> <span class="mi">600</span><span class="p">,</span>
+    <span class="n">matching_radius_arcsec</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_14_0.png" src="../_images/example_aperturephotometry_14_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_14_1.png" src="../_images/example_aperturephotometry_14_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
+    <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">600</span><span class="p">,</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">mask_radius_factor</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">50000</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">target_ivpmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_invalidmask</span><span class="p">(</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">TypeError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[8]</span><span class="ansi-green-fg">, line 1</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> target_srcmask = <span class="ansi-yellow-bg">target_img</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">calculate_circularmask</span><span class="ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">      2</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_srcmask</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">None</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      3</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-green-fg ansi-yellow-bg">325.37</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      4</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">-</span><span class="ansi-green-fg ansi-yellow-bg">77.393</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      5</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-green-fg ansi-yellow-bg">600</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      6</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">coord</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      7</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">False</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      8</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">True</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">      9</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">True</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">     10</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save_fig</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">False</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">     11</span> <span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">     12</span> target_srcmask = target_img.calculate_sourcemask(
+<span class="ansi-green-fg">     13</span>     target_srcmask = target_srcmask,
+<span class="ansi-green-fg">     14</span>     sigma = <span class="ansi-green-fg">5</span>,
+<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">     20</span>     save_fig = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
+<span class="ansi-green-fg">     21</span> )
+<span class="ansi-green-fg">     22</span> target_ivpmask = target_img.calculate_invalidmask(
+<span class="ansi-green-fg">     23</span>     save = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
+<span class="ansi-green-fg">     24</span>     verbose = <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
+<span class="ansi-green-fg">     25</span>     visualize = <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
+<span class="ansi-green-fg">     26</span>     save_fig = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
+<span class="ansi-green-fg">     27</span> )
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">//home/hhchoi1022/code/ezphot/ezphot/imageobjects/scienceimage.py:425</span>, in <span class="ansi-cyan-fg">ScienceImage.calculate_circularmask</span><span class="ansi-blue-fg">(self, target_srcmask, x_position, y_position, radius_arcsec, unit, save, verbose, visualize, save_fig)</span>
+<span class="ansi-green-fg">    423</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-blue-intense-fg ansi-bold">ezphot</span><span class="ansi-blue-intense-fg ansi-bold">.</span><span class="ansi-blue-intense-fg ansi-bold">methods</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> MaskGenerator
+<span class="ansi-green-fg">    424</span> maskgenerator = MaskGenerator()
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">425</span> target_sourcemask = <span class="ansi-yellow-bg">maskgenerator</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">mask_sources</span><span class="ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">    426</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_img</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg" style="color: rgb(0,135,0)">self</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    427</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_mask</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">target_srcmask</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    428</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">mask_type</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">source</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    429</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    430</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    431</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    432</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    433</span> <span class="ansi-yellow-bg">    </span>
+<span class="ansi-green-fg">    434</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg" style="color: rgb(95,135,135)"># Others</span>
+<span class="ansi-green-fg">    435</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    436</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    437</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    438</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save_fig</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">save_fig</span>
+<span class="ansi-green-fg">    439</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    440</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> target_sourcemask
+
+<span class="ansi-red-fg">TypeError</span>: MaskGenerator.mask_sources() got an unexpected keyword argument &#39;mask_type&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkg</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="n">target_ivpmask</span><span class="p">,</span>
+    <span class="n">is_2D_bkg</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">box_size</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+    <span class="n">filter_size</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+External mask is loaded.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_16_1.png" src="../_images/example_aperturephotometry_16_1.png" />
+</div>
 </div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -750,7 +1102,10 @@ Loading Science Images: 100%|██████████| 90/90 [00:01&lt;00:
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="backgroundestimation.html" class="btn btn-neutral float-left" title="Background estimation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="stacking.html" class="btn btn-neutral float-right" title="Stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
