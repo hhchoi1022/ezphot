@@ -183,7 +183,8 @@ class PhotometricCalibration:
             dec = target_img.dec,
             fov_ra = target_img.fovx,
             fov_dec = target_img.fovy,
-            catalog_type = catalog_type
+            catalog_type = catalog_type,
+            verbose = verbose
         )
         if len(catalogs) == 0:
             raise ValueError("No catalogs found in the given coordinates.")

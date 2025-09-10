@@ -1070,16 +1070,16 @@ class ScienceImage(BaseImage):
     def catalog(self):
         """Source catalog of the image. If not exists, return None."""
         if self._cat is None and self.savepath.catalogpath.exists():
-            from ezphot.skycatalog import TIPCatalog
-            self._cat = TIPCatalog(self.savepath.catalogpath, catalog_type='all', load=True)
+            from ezphot.dataobjects import Catalog
+            self._cat = Catalog(self.savepath.catalogpath, catalog_type='all', load=True)
         return self._cat
 
     @property
     def refcatalog(self):
         """Reference catalog of the image. If not exists, return None."""
         if self._refcat is None and self.savepath.refcatalogpath.exists():
-            from ezphot.skycatalog import TIPCatalog
-            self._refcat = TIPCatalog(self.savepath.refcatalogpath, catalog_type='reference', load=True)
+            from ezphot.dataobjects import Catalog
+            self._refcat = Catalog(self.savepath.refcatalogpath, catalog_type='reference', load=True)
         return self._refcat
 
     def _check_status(self):

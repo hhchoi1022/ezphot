@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import List, Tuple, Optional
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from astropy.io import ascii
@@ -9,6 +10,7 @@ import astropy
 from shapely.geometry import box
 
 from ezphot.skycatalog import SkyCatalog
+from ezphot.helper import Helper
 
 #%%
 
@@ -25,7 +27,8 @@ class SkyCatalogUtility:
         catalog_archive_path : Optional[str], optional
             Path to the catalog archive summary file. If not provided, the path will be set to the catalog_dir in the config.
         """
-        self.catalog_archive_path = Path(catalog_archive_path) if catalog_archive_path else self.config['CATALOG_DIR'] / 'catalog_summary.ascii_fixed_width'
+        self.helper = Helper()
+        self.catalog_archive_path = Path(catalog_archive_path) if catalog_archive_path else Path(self.helper.config['CATALOG_DIR']) / 'catalog_summary.ascii_fixed_width'
 
     def get_catalogs(self,
                      ra: float,
@@ -99,23 +102,23 @@ class SkyCatalogUtility:
             tile_poly = make_sky_rectangle(row['ra'], row['dec'], row['fov_ra'], row['fov_dec'])
             if tile_poly.intersects(target_poly):
                 intersection_fraction = tile_poly.intersection(target_poly).area / target_poly.area
-                print(f"Catalog {row['objname']} intersection fraction: {intersection_fraction:.2f}")
+                self.helper.print(f"Catalog {row['objname']} intersection fraction: {intersection_fraction:.2f}", verbose)
                 if intersection_fraction >= fraction_criteria:
                     filtered_rows.append(row)
 
         # Parallel load
-        with ProcessPoolExecutor(max_workers=6) as executor:
-            catalogs = list(executor.map(self._load_catalog_worker, filtered_rows))
+        # with ThreadPoolExecutor(max_workers=6) as executor:
+        #     catalogs = list(executor.map(self._load_catalog_worker, filtered_rows))
+        catalogs = [self._load_catalog_worker(row) for row in filtered_rows]
 
-        if verbose:
-            if catalogs:
-                print(f"Found {len(catalogs)} catalogs matching the region (fraction > {fraction_criteria}).")
-            else:
-                print("No catalogs found.")
+        if catalogs:
+            self.helper.print(f"Found {len(catalogs)} catalogs matching the region (fraction > {fraction_criteria}).", verbose)
+        else:
+            self.helper.print("No catalogs found.", verbose)
         
         if query_when_not_archived:
             if len(catalogs) == 0:
-                skycatalog = SkyCatalog(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type, overlapped_fraction = fraction_criteria)
+                skycatalog = SkyCatalog(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type, overlapped_fraction = fraction_criteria, verbose = verbose)
                 catalogs = [skycatalog]
 
         return catalogs
@@ -179,7 +182,8 @@ class SkyCatalogUtility:
         return SkyCatalog(objname=row['objname'],
                           catalog_type=row['cat_type'],
                           fov_ra=row['fov_ra'],
-                          fov_dec=row['fov_dec'])
+                          fov_dec=row['fov_dec'],
+                          verbose = False)
 # %%
 if __name__ == "__main__":
     # Example usage

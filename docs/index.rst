@@ -39,6 +39,7 @@ Welcome to EZPhot documentation!
    example/backgroundestimation
    example/backgroundrmsestimation
    example/aperturephotometry
+   example/photometriccalibration
    example/stacking
 
 

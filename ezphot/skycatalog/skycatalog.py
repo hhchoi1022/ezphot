@@ -709,7 +709,7 @@ class SkyCatalog:
             coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
 
             try:
-                catinfo = self._get_cataloginfo_by_coord(coord = coord, fov_ra = fov_ra, fov_dec = fov_dec, overlapped_fraction = overlapped_fraction)
+                catinfo = self._get_cataloginfo_by_coord(coord = coord, fov_ra = fov_ra, fov_dec = fov_dec, overlapped_fraction = self.overlapped_fraction)
                 self.objname = catinfo['objname'][0]
                 self.ra = catinfo['ra'][0]
                 self.dec = catinfo['dec'][0]
