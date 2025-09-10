@@ -1,4 +1,4 @@
-sphinx
+sphinx<8
 sphinx-rtd-theme
 myst-parser
 numpydoc
