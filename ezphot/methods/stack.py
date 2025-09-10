@@ -1270,10 +1270,16 @@ class Stack:
             helper.print(f"[match_zeropoints] Reference ZP: {ref_zp:.3f} using '{method}'", verbose)
 
         # Prepare tasks
-        tasks = [
-            (img, errormap, ref_zp, zp_key, save, overwrite)
-            for img, errormap in zip(target_imglist, target_errormaplist or [None] * len(target_imglist))
-        ]
+        if target_errormaplist is not None:
+            tasks = [
+                (img, errormap, ref_zp, zp_key, save, overwrite)
+                for img, errormap in zip(target_imglist, target_errormaplist)
+            ]
+        else:
+            tasks = [
+                (img, None, ref_zp, zp_key, save, overwrite)
+                for img in target_imglist
+            ]
         # Run with process_map
         results = process_map(_scale_worker, tasks, desc="Matching ZP...", max_workers=n_proc, 
                             ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
@@ -1486,8 +1492,7 @@ if __name__ == "__main__":
     dbrowser = DataBrowser('scidata')
     target_name = 'T00528'
     dbrowser.objname = target_name
-    dbrowser.telname = '7DT16'
-    dbrowser.filter = 'r'
+    dbrowser.filter = 'm600'
     target_imgset = dbrowser.search('calib*100.fits', return_type = 'science')
     target_imglist = target_imgset.target_images
     target_bkgrmslist = target_imgset.bkgrms
