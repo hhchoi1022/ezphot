@@ -378,6 +378,68 @@ class ScienceImage(BaseImage):
             )
         return target_ivpmask
     
+    def calculate_circularmask(self,
+                               target_srcmask: Mask = None,
+                               x_position: float = None,
+                               y_position: float = None,
+                               radius_arcsec: float = None,
+                               unit = 'coord',
+                               save: bool = False,
+                               verbose: bool = True,
+                               visualize: bool = True,
+                               save_fig: bool = False
+                               ):
+        """
+        Calculate the circular mask for this ScienceImage.
+        The circular mask is a mask of pixels that are within a circular region.
+        If save is True, the circular mask is saved. Then, you can load the circular mask with `self.circularmask`.
+        
+        Parameters
+        ----------
+        target_srcmask : Mask
+            The source mask.
+        x_position : float
+            The x position of the center of the circular mask.
+        y_position : float
+            The y position of the center of the circular mask.
+        radius_arcsec : float
+            The radius of the circular mask in arcseconds.
+        unit : str
+            The unit of the x and y position. 'coord' for coordinate, 'pixel' for pixel.
+        save : bool 
+            If True, save the circular mask.
+        verbose : bool
+            If True, print verbose output.
+        visualize : bool
+            If True, visualize the circular mask.
+        save_fig : bool
+            If True, save the figure of the circular mask.
+        
+        Returns 
+        -------
+        target_circularmask : Mask
+            The circular mask.
+        """
+        from ezphot.methods import MaskGenerator
+        maskgenerator = MaskGenerator()
+        target_sourcemask = maskgenerator.mask_circle(
+            target_img = self,
+            target_mask = target_srcmask,
+            mask_type = 'source',
+            x_position = x_position,
+            y_position = y_position,
+            radius_arcsec = radius_arcsec,
+            unit = unit,
+            
+            # Others
+            save = save,
+            verbose = verbose,
+            visualize = visualize,
+            save_fig = save_fig
+            )
+        return target_sourcemask
+        
+    
     def calculate_sourcemask(self,
                              target_srcmask: Mask = None,
                              sigma: float = 5.0,

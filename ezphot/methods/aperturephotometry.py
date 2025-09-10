@@ -192,6 +192,7 @@ class AperturePhotometry:
                 overwrite = False,
                 visualize = visualize,
                 save_fig = save_fig,
+                verbose = verbose
             )
             saturation_level -= target_bkg.info.BKGVALU
             img_path = target_img_sub.savepath.savepath
@@ -346,7 +347,7 @@ class AperturePhotometry:
             save_path = None
             if save_fig:
                 save_path = str(target_catalog.path) + '.png'
-            self._visualize_objects(target_img=target_img, 
+            self._visualize_objects(target_img=target_img_sub, 
                                     objects=target_catalog.data, 
                                     size=1000, 
                                     save_path = save_path,
@@ -356,8 +357,7 @@ class AperturePhotometry:
             [remove_subbkg, remove_bkgrms, remove_mask],
             [target_img_sub, target_bkgrms, target_mask]):
             if remove_trigger:
-                print('Removing', remove_object)
-                remove_object.remove()
+                remove_object.remove(verbose = verbose)
         
         return target_catalog
     
@@ -582,7 +582,7 @@ class AperturePhotometry:
                                     show = visualize)
             
         if target_bkg is not None:
-            target_img_sub.remove()
+            target_img_sub.remove(verbose = verbose)
         return target_catalog
         
     def circular_photometry(self,
@@ -795,7 +795,7 @@ class AperturePhotometry:
                                     show = visualize)  
         
         if target_bkg is not None:
-            target_img_sub.remove()
+            target_img_sub.remove(verbose = verbose)
                   
         return target_catalog
 
