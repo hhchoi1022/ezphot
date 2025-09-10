@@ -97,8 +97,9 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
     'myst_parser',
-    "nbsphinx",
-    "sphinx_sitemap"
+    "myst_nb",
+    "sphinx_sitemap",
+    "sphinx_rtd_theme"
 ]
 
 templates_path = ['_templates']
