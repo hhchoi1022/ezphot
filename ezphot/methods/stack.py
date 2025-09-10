@@ -1285,7 +1285,7 @@ class Stack:
                             ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
         scaled_imglist, scaled_errormaplist = zip(*results)
 
-        return list(scaled_imglist), list(scaled_errormaplist) if target_errormaplist else None
+        return list(scaled_imglist), list(scaled_errormaplist)
     
     def match_seeing(self,
                      target_imglist: List[Union[ScienceImage, CalibrationImage]],
