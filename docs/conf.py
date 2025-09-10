@@ -96,7 +96,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
-    "myst_nb",
+    "myst_parser",
+    "nbsphinx",
     "sphinx_sitemap",
     "sphinx_rtd_theme"
 ]

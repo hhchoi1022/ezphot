@@ -6,8 +6,8 @@ ipykernel
 nbsphinx
 pandocfilters
 sphinx-sitemap
-myst-nb
-
+myst-parser
+nbsphinx
 numpy
 astropy
 photutils
