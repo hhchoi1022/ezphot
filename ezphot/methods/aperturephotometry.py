@@ -862,7 +862,7 @@ class AperturePhotometry:
 
         # Step 1: Background subtraction
         if target_bkg is not None:
-            target_img = self.background.subtract_backgrkound(
+            target_img = self.background.subtract_background(
                 target_img=target_img,
                 target_bkg=target_bkg,
                 save = False,
@@ -1053,6 +1053,12 @@ class AperturePhotometry:
                 if 'A_IMAGE' in obj.colnames and 'B_IMAGE' in obj.colnames:
                     a = float(obj['A_IMAGE'])
                     b = float(obj['B_IMAGE'])
+                    theta = float(obj['THETA_IMAGE']) if 'THETA_IMAGE' in obj.colnames else 0.0
+                    patch = Ellipse((dx_local, dy_local), width=6*a, height=6*b, angle=theta,
+                                    edgecolor='lime', facecolor='none', linewidth=1.5, alpha=0.6)
+                elif 'SMA_IMAGE' in obj.colnames and 'SMI_IMAGE' in obj.colnames:
+                    a = float(obj['SMA_IMAGE'])
+                    b = float(obj['SMI_IMAGE'])
                     theta = float(obj['THETA_IMAGE']) if 'THETA_IMAGE' in obj.colnames else 0.0
                     patch = Ellipse((dx_local, dy_local), width=6*a, height=6*b, angle=theta,
                                     edgecolor='lime', facecolor='none', linewidth=1.5, alpha=0.6)

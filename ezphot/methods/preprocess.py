@@ -84,13 +84,16 @@ class Preprocess:
             
         Returns
         -------
-        master_frames : Table
+        master_img : CalibrationImage
+            The master frame image.
+        master_frames_tbl : Table
             Metadata of the master frame(s) found.
         """
+        from ezphot.imageobjects import CalibrationImage
         if not target_img.is_header_loaded:
             target_img.header
 
-        master_frames = self.get_masterframe(
+        master_frames_tbl = self.get_masterframe(
             observatory= target_img.observatory,
             telkey = target_img.telkey,
             telname = target_img.telname,
@@ -99,7 +102,10 @@ class Preprocess:
             filter_ = target_img.filter,
             obsdate = target_img.obsdate,
             max_days = max_days)
-        return master_frames
+        
+        master_img = CalibrationImage(master_frames_tbl[0]['file']) if master_frames_tbl else None
+        
+        return master_img, master_frames_tbl
         
     def get_masterframe(self,
                         observatory: str = '7DT',

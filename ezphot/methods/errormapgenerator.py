@@ -454,7 +454,7 @@ class ErrormapGenerator:
         if target_bkg is not None:
             bkg_map_small = downsample(target_bkg.data)
             vmin, vmax = interval.get_limits(bkg_map_small)
-            panels.append((bkg_map_small, dict(cmap='viridis', vmin=vmin, vmax=vmax)))
+            panels.append((bkg_map_small, dict(cmap='Greys_r', vmin=vmin, vmax=vmax)))
             titles.append("2D Background")
 
         error_map_small = downsample(target_errormap.data)

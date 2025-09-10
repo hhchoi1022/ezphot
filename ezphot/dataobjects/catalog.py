@@ -2,6 +2,7 @@
 import os
 import json
 import logging
+import inspect
 from pathlib import Path
 from typing import Union, Optional
 
@@ -124,15 +125,24 @@ class Catalog:
         return f"Catalog( N_selected/N_sources = {self.nselected}/{self.nsources}, is_exists={self.is_exists}, catalog_type={self.catalog_type}, path={self.path})"
     
     def help(self):
-        """Print available public methods and their docstrings."""
-        print(f"\n Help for {self.__class__.__name__}\n" + "="*40)
-        for attr_name in dir(self):
-            if attr_name.startswith("_"):
-                continue  # Skip dunder and private
-            attr = getattr(self, attr_name)
-            if callable(attr):
-                doc = attr.__doc__.strip() if attr.__doc__ else "No documentation."
-                print(f"{attr_name}()\n  >>> {doc}\n")
+        # Get all public methods from the class, excluding `help`
+        methods = [
+            (name, obj)
+            for name, obj in inspect.getmembers(self.__class__, inspect.isfunction)
+            if not name.startswith("_") and name != "help"
+        ]
+
+        # Build plain text list with parameters
+        lines = []
+        for name, func in methods:
+            sig = inspect.signature(func)
+            params = [str(p) for p in sig.parameters.values() if p.name != "self"]
+            sig_str = f"({', '.join(params)})" if params else "()"
+            lines.append(f"- {name}{sig_str}")
+
+        # Final plain text output
+        help_text = ""
+        print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
                 
     def select_sources(self,
                        x: Union[float, list, np.ndarray],
@@ -452,8 +462,8 @@ class Catalog:
         ny, nx = mask.shape
         
         # Round or convert positions to int for indexing
-        x = np.round(self.data['X_IMAGE']).astype(int)
-        y = np.round(self.data['Y_IMAGE']).astype(int)
+        x = np.round(self.data[x_key]).astype(int)
+        y = np.round(self.data[y_key]).astype(int)
         
         # Ensure coordinates are within image bounds
         valid = (x >= 0) & (x < nx) & (y >= 0) & (y < ny)

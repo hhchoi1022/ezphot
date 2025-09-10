@@ -292,8 +292,12 @@ class BaseImage(Configuration):
     def show_position(self,
                     x: float,
                     y: float,
+                    radius_arcsec: float = None,
+                    a_arcsec: float = None,
+                    b_arcsec: float = None,
+                    theta_deg: float = None,
                     coord_type: str = 'pixel',
-                    downsample: int = 4,
+                    downsample: int = 1,
                     zoom_radius_pixel: int = 100,
                     cmap: str = 'gray',
                     scale: str = 'zscale',
@@ -310,6 +314,14 @@ class BaseImage(Configuration):
             X-coordinate (pixel or RA)
         y : float
             Y-coordinate (pixel or Dec)
+        radius_arcsec : float, optional
+            Radius of the circle in arcseconds. Default is None.
+        a_arcsec : float, optional
+            Semi-major axis of the ellipse in arcseconds. Default is None.
+        b_arcsec : float, optional
+            Semi-minor axis of the ellipse in arcseconds. Default is None.
+        theta_deg : float, optional
+            Position angle of the ellipse in degrees. Default is None.
         coord_type : str, optional
             'pixel' or 'coord'. Default is 'pixel'.
         downsample : int, optional
@@ -361,6 +373,10 @@ class BaseImage(Configuration):
         y_min = max(0, y_pix - zoom_radius_pixel)
         y_max = min(data.shape[0], y_pix + zoom_radius_pixel)
         size = x_max - x_min
+        if radius_arcsec is None:
+            radius = size * (0.08/downsample)
+        else:
+            radius = radius_arcsec / np.mean(self.pixelscale)
         cutout = data[y_min:y_max:downsample, x_min:x_max:downsample]
 
         # Scaling
@@ -374,10 +390,18 @@ class BaseImage(Configuration):
             fig = ax.figure
 
         ax.imshow(cutout, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
-        ax.add_patch(Circle(
-            ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
-            radius=size * (0.08/downsample), edgecolor='red', facecolor='none', linewidth=0.5
-        ))
+        if a_arcsec is not None and b_arcsec is not None and theta_deg is not None:
+            from matplotlib.patches import Ellipse
+            ax.add_patch(Ellipse(
+                ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
+                width=6*a_arcsec/np.mean(self.pixelscale), height=6*b_arcsec/np.mean(self.pixelscale), angle=theta_deg,
+                edgecolor='red', facecolor='none', linewidth=0.5
+            ))
+        else:
+            ax.add_patch(Circle(
+                ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
+                radius=radius, edgecolor='red', facecolor='none', linewidth=0.5
+            ))
         ax.axis('off')
         ax.set_aspect('auto')  # ? Avoid square enforcement
 
