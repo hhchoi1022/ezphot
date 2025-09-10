@@ -6,6 +6,7 @@ sphinx-autodoc-typehints
 ipykernel
 nbsphinx
 pandocfilters
+sphinx-sitemap
 
 numpy
 astropy
