@@ -1,6 +1,28 @@
-/* Global override: make every code block green */
+/* RST and standard code blocks */
 div.highlight pre,
 code {
-    background-color: #e6ffe6 !important;  /* light green background */
-    color: #003300 !important;             /* dark green text */
+    background-color: #e6ffe6 !important;
+    color: #003300 !important;
 }
+
+/* Jupyter Notebook inputs (nbsphinx) */
+div.nbinput .highlight pre,
+div.nbinput code {
+    background-color: #e6ffe6 !important;
+    color: #003300 !important;
+}
+
+/* Jupyter Notebook outputs (nbsphinx) */
+div.nboutput .highlight pre,
+div.nboutput code {
+    background-color: #e6ffe6 !important;
+    color: #003300 !important;
+}
+
+/* MyST-NB style cells */
+div.cell_input pre,
+div.cell_output pre {
+    background-color: #e6ffe6 !important;
+    color: #003300 !important;
+}
+
