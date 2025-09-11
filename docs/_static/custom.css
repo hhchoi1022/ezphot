@@ -1,28 +1,29 @@
-/* RST and standard code blocks */
-div.highlight pre,
-code {
-    background-color: #e6ffe6 !important;
-    color: #003300 !important;
-}
-
-/* Jupyter Notebook inputs (nbsphinx) */
-div.nbinput .highlight pre,
-div.nbinput code {
-    background-color: #e6ffe6 !important;
-    color: #003300 !important;
-}
-
-/* Jupyter Notebook outputs (nbsphinx) */
-div.nboutput .highlight pre,
-div.nboutput code {
-    background-color: #e6ffe6 !important;
-    color: #003300 !important;
-}
-
-/* MyST-NB style cells */
-div.cell_input pre,
-div.cell_output pre {
-    background-color: #e6ffe6 !important;
-    color: #003300 !important;
-}
-
+/* -----------------------
+   Standard RST code blocks
+   ----------------------- */
+   div.highlight pre,
+   code {
+       background-color: #e6ffe6 !important;  /* light green */
+       color: #003300 !important;             /* dark green text */
+   }
+   
+   /* -----------------------
+      Jupyter Notebook INPUT cells
+      ----------------------- */
+   div.nbinput .highlight pre,
+   div.nbinput code,
+   div.cell_input pre {
+       background-color: #e6ffe6 !important;  /* light green */
+       color: #003300 !important;
+   }
+   
+   /* -----------------------
+      Jupyter Notebook OUTPUT cells
+      ----------------------- */
+   div.nboutput .highlight pre,
+   div.nboutput code,
+   div.cell_output pre {
+       background-color: #f9f9f9 !important;  /* light gray */
+       color: #000000 !important;             /* normal black */
+   }
+   

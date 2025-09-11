@@ -7,8 +7,9 @@ from .mask import Mask
 from .background import Background
 from .errormap import Errormap
 from .calibrationimage import CalibrationImage
+from .masterimage import MasterImage
 from .scienceimage import ScienceImage
 from .referenceimage import ReferenceImage
 from .imageset import ImageSet
 
-__all__ = ["BaseImage", "DummyImage", "Logger", "Mask", 'Background', 'Errormap', "CalibrationImage", "ScienceImage",  "ReferenceImage", 'ImageSet']
+__all__ = ["BaseImage", "DummyImage", "Logger", "Mask", 'Background', 'Errormap', "CalibrationImage", "MasterImage", "ScienceImage",  "ReferenceImage", 'ImageSet']
