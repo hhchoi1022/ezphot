@@ -1,0 +1,6 @@
+/* Global override: make every code block green */
+div.highlight pre,
+code {
+    background-color: #e6ffe6 !important;  /* light green background */
+    color: #003300 !important;             /* dark green text */
+}
