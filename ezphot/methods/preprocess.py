@@ -16,7 +16,7 @@ import ccdproc
 from ccdproc import CCDData
 
 from ezphot.helper import Helper
-from ezphot.imageobjects import ScienceImage, CalibrationImage
+from ezphot.imageobjects import ScienceImage, CalibrationImage, MasterImage
 from ezphot.methods import Stack
 
 
@@ -89,7 +89,7 @@ class Preprocess:
         master_frames_tbl : Table
             Metadata of the master frame(s) found.
         """
-        from ezphot.imageobjects import CalibrationImage
+        from ezphot.imageobjects import MasterImage
         if not target_img.is_header_loaded:
             target_img.header
 
@@ -103,7 +103,7 @@ class Preprocess:
             obsdate = target_img.obsdate,
             max_days = max_days)
         
-        master_img = CalibrationImage(master_frames_tbl[0]['file']) if master_frames_tbl else None
+        master_img = MasterImage(master_frames_tbl[0]['file']) if master_frames_tbl else None
         
         return master_img, master_frames_tbl
         
@@ -238,8 +238,9 @@ class Preprocess:
         return filtered_tbl
 
     def correct_bdf(self, target_img: ScienceImage, 
-                    bias_image: CalibrationImage, 
-                    dark_image: CalibrationImage, flat_image: CalibrationImage,
+                    bias_image: Union[CalibrationImage, MasterImage], 
+                    dark_image: Union[CalibrationImage, MasterImage], 
+                    flat_image: Union[CalibrationImage, MasterImage],
                     save : bool = False,
                     verbose: bool = True,
                     **kwargs
@@ -251,11 +252,11 @@ class Preprocess:
         ----------
         target_img : ScienceImage
             The target image to correct bias, dark, and flat.
-        bias_image : CalibrationImage
+        bias_image : CalibrationImage or MasterImage
             The bias image to correct bias, dark, and flat.
-        dark_image : CalibrationImage
+        dark_image : CalibrationImage or MasterImage
             The dark image to correct bias, dark, and flat.
-        flat_image : CalibrationImage
+        flat_image : CalibrationImage or MasterImage
             The flat image to correct bias, dark, and flat.
         save : bool, optional
             Whether to save the corrected image.
@@ -343,8 +344,8 @@ class Preprocess:
         return fdbcalib_data
     
     def correct_bd(self, target_img: ScienceImage, 
-                   bias_image: CalibrationImage, 
-                   dark_image: CalibrationImage, 
+                   bias_image: Union[CalibrationImage, MasterImage], 
+                   dark_image: Union[CalibrationImage, MasterImage], 
                    save : bool = False,
                    verbose: bool = True,
                    **kwargs
@@ -356,9 +357,9 @@ class Preprocess:
         ----------
         target_img : ScienceImage   
             The target image to correct bias and dark.
-        bias_image : CalibrationImage
+        bias_image : CalibrationImage or MasterImage
             The bias image to correct bias and dark.
-        dark_image : CalibrationImage
+        dark_image : CalibrationImage or MasterImage
             The dark image to correct bias and dark.
         save : bool, optional
             Whether to save the corrected image.
@@ -426,7 +427,7 @@ class Preprocess:
         return dbcalib_data
         
     def correct_bias(self, target_img: ScienceImage or CalibrationImage, 
-                     bias_image: CalibrationImage,
+                     bias_image: Union[CalibrationImage, MasterImage],
                      save : bool = False,
                      verbose: bool = True,
                      **kwargs
@@ -438,7 +439,7 @@ class Preprocess:
         ----------
         target_img : ScienceImage or CalibrationImage
             The target image to correct bias.
-        bias_image : CalibrationImage
+        bias_image : CalibrationImage or MasterImage
             The bias image to correct bias.
         save : bool, optional
             Whether to save the corrected image.
@@ -497,7 +498,7 @@ class Preprocess:
         return calib_data
     
     def correct_dark(self, target_img: ScienceImage or CalibrationImage, 
-                     dark_image: CalibrationImage, 
+                     dark_image: Union[CalibrationImage, MasterImage], 
                      save : bool = False,
                      verbose: bool = True,
                      **kwargs
@@ -509,7 +510,7 @@ class Preprocess:
         ----------
         target_img : ScienceImage or CalibrationImage
             The target image to correct dark.
-        dark_image : CalibrationImage
+        dark_image : CalibrationImage or MasterImage
             The dark image to correct dark.
         save : bool, optional
             Whether to save the corrected image.
@@ -563,7 +564,7 @@ class Preprocess:
         calib_data = ccdproc.subtract_dark(tgt_data, dark_data, scale = True, exposure_time = 'EXPTIME', exposure_unit = u.second)
         return calib_data
     
-    def correct_flat(self, target_img: ScienceImage, flat_image: CalibrationImage,
+    def correct_flat(self, target_img: ScienceImage, flat_image: Union[CalibrationImage, MasterImage],
                      save : bool = False,
                      verbose: bool = True,
                      **kwargs
@@ -575,7 +576,7 @@ class Preprocess:
         ----------
         target_img : ScienceImage
             The target image to correct flat.
-        flat_image : CalibrationImage
+        flat_image : CalibrationImage or MasterImage    
             The flat image to correct flat.
         save : bool, optional
             Whether to save the corrected image.
@@ -629,8 +630,8 @@ class Preprocess:
         return calib_data
     
     def generate_masterframe(self, calib_imagelist : List[CalibrationImage], 
-                             mbias : Union[CalibrationImage or List[CalibrationImage]] = None,
-                             mdark : Union[CalibrationImage or List[CalibrationImage]] = None,
+                             mbias : Union[CalibrationImage or List[CalibrationImage], MasterImage, List[MasterImage]] = None,
+                             mdark : Union[CalibrationImage or List[CalibrationImage], MasterImage, List[MasterImage]] = None,
                              
                              # Combine parameters
                              combine_type: str = 'median',
@@ -652,9 +653,9 @@ class Preprocess:
         ----------
         calib_imagelist : List[CalibrationImage]
             The list of calibration images to generate master frames from.
-        mbias : Union[CalibrationImage or List[CalibrationImage]], optional
+        mbias : Union[CalibrationImage or List[CalibrationImage], MasterImage, List[MasterImage]], optional
             The master bias image to use for bias correction.
-        mdark : Union[CalibrationImage or List[CalibrationImage]], optional
+        mdark : Union[CalibrationImage or List[CalibrationImage], MasterImage, List[MasterImage]], optional
             The master dark image to use for dark correction.
         combine_type : str, optional
             The type of combination to use for the master frames.
@@ -681,7 +682,7 @@ class Preprocess:
             The master frames.
         """
         
-        def empty_memory(imagelist : Union[CalibrationImage or List[CalibrationImage]]):
+        def empty_memory(imagelist : Union[CalibrationImage or List[CalibrationImage], MasterImage, List[MasterImage]]):
             if isinstance(imagelist, CalibrationImage):
                 imagelist = [imagelist]
             for image in imagelist:
@@ -698,13 +699,13 @@ class Preprocess:
             master_files[key] = dict(BIAS = None, DARK = dict(), FLAT = dict())
         
         if mbias:
-            if isinstance(mbias, CalibrationImage):
+            if isinstance(mbias, CalibrationImage) or isinstance(mbias, MasterImage):
                 mbias = [mbias]
             for bias in mbias:
                 bias_key = (str(bias.binning), str(bias.gain))
                 master_files[bias_key]['BIAS'] = bias
         if mdark:
-            if isinstance(mdark, CalibrationImage):
+            if isinstance(mdark, CalibrationImage) or isinstance(mdark, MasterImage):
                 mdark = [mdark]
             for dark in mdark:
                 header = dark.header

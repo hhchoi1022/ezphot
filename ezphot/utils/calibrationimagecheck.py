@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 
-class calibrationimagecheck(Helper):
+class MasterFrameGroupping(Helper):
     """
     Check if the calibration image is valid.
     """
@@ -23,7 +23,7 @@ class calibrationimagecheck(Helper):
         super().__init__()
         self._cached_masterframe_tbl = None
         
-    def load_masterframe_info(self):
+    def _load_masterframe_info(self):
 
         # Load summary tables
         masterframe_summary_path = Path(self.config['CALIBDATA_MASTERDIR']) / 'summary.ascii_fixed_width'
@@ -32,23 +32,8 @@ class calibrationimagecheck(Helper):
         else:
             print(f"[WARNING] Master frame summary file not found: {masterframe_summary_path}")
             return
-        
-    def check_flat(self):
-        """
-        Check if the flat field images are valid.
-        """
-        self.load_masterframe_info()
-        flat_tbl = self._cached_masterframe_tbl[self._cached_masterframe_tbl['imagetyp'] == 'FLAT']
-        
-        flat_tbl_groups = flat_tbl.group_by(['filtername', 'telname']).groups
-        
-        for flat_tbl_group in flat_tbl_groups:
-            flat_tbl_group.sort('obsdate')
-            
-        print(f"Found {len(flat_tbl)} valid flat field images.")
-        print(flat_tbl)
          
-    def process_group(self, args):
+    def _process_group(self, args):
         group, max_diff_threshold_init, adaptive_threshold, analyze_filter = args
         from astropy.io import fits
         import numpy as np
@@ -169,16 +154,15 @@ class calibrationimagecheck(Helper):
         
         return group
 
-    def analyze_flat_patterns_memory_safe(
+    def run(
         self,
         max_diff_threshold_init=0.0005,
-        min_group_size=3,
         adaptive_threshold=True,
         analyze_filter: str = 'g',
         n_process=4,
         update: bool = True
         ):
-        self.load_masterframe_info()
+        self._load_masterframe_info()
         if 'group_id' not in self._cached_masterframe_tbl.colnames:
             self._cached_masterframe_tbl['group_id'] = -1
             
@@ -195,7 +179,7 @@ class calibrationimagecheck(Helper):
         with mp.get_context("fork").Pool(processes=n_process) as pool:
             results = []
             with tqdm(total=len(task_list), desc="Processing groups") as pbar:
-                for result in pool.imap_unordered(self.process_group, task_list):
+                for result in pool.imap_unordered(self._process_group, task_list):
                     results.append(result)
                     pbar.update(1)
 
@@ -217,7 +201,7 @@ class calibrationimagecheck(Helper):
 
 #%%
 if __name__ == "__main__":
-    self = calibrationimagecheck()
+    self = MasterFrameGroupping()
     max_diff_threshold_init=0.0005
     min_group_size=3
     adaptive_threshold=True

@@ -96,7 +96,7 @@ class Catalog:
         """
         path = Path(path)
         
-        if catalog_type not in ['all', 'reference', 'valid', 'transient', 'forced']:
+        if catalog_type not in ['all', 'reference', 'valid', 'transient', 'candidate', 'forced']:
             raise ValueError(f"Invalid catalog type: {catalog_type}")
         self.helper = Helper()
         self.is_loaded = False

@@ -607,7 +607,6 @@ class Subtract:
                 elongation_key = 'ELONGATION',
                 verbose = verbose,
                 save = save,
-                return_only_transient = True,
             )
             
             all_tbl = all_catalog.copy()  
@@ -657,9 +656,9 @@ class Subtract:
                     pass
                 
             # Match the first photometry results with the reference catalog to reject variable sources
-            transient_tbl = candidate_tbl.copy()
+            transient_tbl = Catalog(path = candidate_tbl.savepath.transientcatalogpath, catalog_type = 'transient', load = False)
+            transient_tbl.data = candidate_tbl.data
             if reject_variable_sources:
-                transient_tbl.path = all_tbl.savepath.transientcatalogpath
                 if len(transient_tbl.data) > 0:
                     coord_first = SkyCoord(ra=transient_tbl.data['X_WORLD'],
                                         dec=transient_tbl.data['Y_WORLD'],
@@ -669,6 +668,7 @@ class Subtract:
                                             unit = 'deg')
                     matched_first, matched_second, unmatched_first = self.helper.cross_match(coord_first, coord_second, subtract_seeing)
                     transient_tbl.data = transient_tbl.data[unmatched_first]
+                    self.helper.print(f"Found {len(transient_tbl.data)} transients after variable source rejection.", verbose)
                 
             # # Step 8: reverse subtraction (reference_img - target_img)
             # if reverse_subtraction:
@@ -726,7 +726,6 @@ class Subtract:
             #         elongation_key = 'ELONGATION',
             #         verbose = verbose,
             #         save = save,
-            #         return_only_transient = True
             #     )
 
             #     # Remove 
@@ -845,8 +844,7 @@ class Subtract:
                             classstar_key: str = 'CLASS_STAR',
                             elongation_key: str = 'ELONGATION',
                             verbose: bool = True,
-                            save: bool = True,
-                            return_only_transient: bool = True):
+                            save: bool = True):
         """
         Select valid sources from the catalog based on SNR, flags, class star, and elongation.
         
@@ -886,8 +884,6 @@ class Subtract:
             Whether to print verbose output.
         save : bool, optional
             Whether to save the catalog.
-        return_only_transient : bool, optional
-            Whether to return only the transient catalog.
 
         Returns
         -------
@@ -918,7 +914,7 @@ class Subtract:
         target_catalog_data['FLAG_Transient'] = all_idx
         # Update the flags
         
-        candidate_catalog = Catalog(path = target_catalog.savepath.candidatecatalogpath, catalog_type = 'transient', load = False)
+        candidate_catalog = Catalog(path = target_catalog.savepath.candidatecatalogpath, catalog_type = 'candidate', load = False)
         candidate_catalog.data = target_catalog_data[all_idx]
         target_catalog.data = target_catalog_data
         
@@ -1366,7 +1362,10 @@ class Subtract:
                 return ref_table
 
             ref_table = assign_groups(ref_table, overlap_threshold=group_overlap_threshold)
-
+        
+        file_abspath = [Path(self.helper.config['REFDATA_DIR']) / Path(row['file']) for row in ref_table]
+        ref_table['file'] = file_abspath
+        
         return ref_table
     
     def query_referenceframe_from_image(self,
@@ -1781,3 +1780,50 @@ class Subtract:
             subframe_reference_ivpmask.write(verbose = verbose)
         
         return subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp_path
+
+# %%
+if __name__ == '__main__':
+    from ezphot.utils import DataBrowser
+    databrowser = DataBrowser('scidata')
+    databrowser.observatory = '7DT'
+    databrowser.objname = 'T00528'
+    databrowser.filter = 'r'
+    target_imgset = databrowser.search(pattern = 'calib*100.com.fits', return_type = 'science')
+    target_imgset.select_images(obs_start = '2025-08-30')
+    target_imglist = target_imgset.target_images
+    self = Subtract()
+    # Test for find_transients
+    # Define parameters
+    target_img = target_imglist[0]
+    reference_img = self.get_referenceframe_from_image(target_imglist[0])[0]
+    reference_imglist = [reference_img]
+    target_bkg = None
+    detection_sigma = 5
+    aperture_diameter_arcsec = [5, 7, 10]
+    aperture_diameter_seeing = [3.5, 4.5]
+    kron_factor = 2.5
+    catalog_type = 'GAIAXP'
+    target_transient_number = 5
+    reject_variable_sources = False
+    negative_detection = True
+    reverse_subtraction = False
+    save = True
+    verbose = True
+    visualize = True
+    save_transient_figure = True
+    save_candidate_figure = True
+    show_transient_numbers = 100
+    show_candidate_numbers = 100
+    iu = 60000
+    il = -10000
+    tu = 60000
+    tl = -10000
+    nrx = 1
+    nry = 1
+    nsx = 10
+    nsy = 10
+    ko = 3
+    bgo = 1
+    r = 10
+    hotpants_params = {}
+# %%

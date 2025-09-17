@@ -1,5 +1,6 @@
 #%%
 import logging
+import re
 from pathlib import Path
 from typing import Union
 
@@ -609,37 +610,44 @@ class BaseImage(Configuration):
         for key in self._key_variants['MJD']:
             if key in header:
                 return Time(header[key], format = 'mjd').isot
-        return None
+        # If not found, estimate from filename
+        try:
+            name = self.path.stem
+            # Try YYYYMMDD or YYYY-MM-DD or YYYY_MM_DD
+            m = re.search(r'(?<!\d)(20\d{2})[-_]?([01]\d)[-_]?([0-3]\d)(?!\d)', name)
+            if m:
+                year = int(m.group(1))
+                month = int(m.group(2))
+                day = int(m.group(3))
+            else:
+                # Try YYMMDD or YY-MM-DD or YY_MM_DD
+                m = re.search(r'(?<!\d)(\d{2})[-_]?([01]\d)[-_]?([0-3]\d)(?!\d)', name)
+                if m:
+                    yy = int(m.group(1))
+                    year = 2000 + yy
+                    month = int(m.group(2))
+                    day = int(m.group(3))
+                else:
+                    return None
+
+            # Basic validation of month/day ranges
+            if not (1 <= month <= 12 and 1 <= day <= 31):
+                return None
+
+            datestr = f"{year:04d}-{month:02d}-{day:02d}T00:00:00"
+            return Time(datestr, format='isot', scale='utc').isot
+        except Exception:
+            return None
     
     @property
     def mjd(self):
         """Modified Julian date of the observation."""
-        header = self._header
-        for key in self._key_variants['MJD']:
-            if key in header:
-                return float(header[key])
-        for key in self._key_variants['JD']:
-            if key in header:
-                return Time(header[key], format = 'jd').mjd
-        for key in self._key_variants['DATE-OBS']:
-            if key in header:
-                return Time(header[key], format = 'isot', scale = 'utc').mjd
-        return None
+        return Time(self.obsdate, format='isot').mjd
     
     @property
     def jd(self):
         """Julian date of the observation."""
-        header = self._header
-        for key in self._key_variants['JD']:
-            if key in header:
-                return float(header[key])
-        for key in self._key_variants['MJD']:
-            if key in header:
-                return Time(header[key], format = 'mjd').jd
-        for key in self._key_variants['DATE-OBS']:
-            if key in header:
-                return Time(header[key], format = 'isot', scale = 'utc').jd
-        return None
+        return Time(self.obsdate, format='isot').jd
 
     @property
     def exptime(self):
@@ -928,7 +936,7 @@ class BaseImage(Configuration):
             'SKYVAL': ['SKYVAL', 'SKY_VAL'],
             'ZP': ['ZP_AUTO', 'ZP_2'],
             'ZPERR': ['ZPERR_AUTO', 'EZP_2'],
-            'DEPTH': ['UL5_APER_2', 'UL5_2'],
+            'DEPTH': ['UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5_4'],
             # Path information
             'SAVEPATH': ['SAVEPATH'],
             'BIASPATH': ['BIASPATH'],

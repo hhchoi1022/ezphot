@@ -339,13 +339,15 @@ class ReferenceImage(BaseImage):
         scienceimage.header = self.header.copy() if self.header is not None else None
         return scienceimage
 
-    def register(self):
+    def register(self,
+                 verbose: bool = True):
         """
         Register the reference image to the reference data directory.
         
         Parameters
         ----------
-        None
+        verbose : bool
+            If True, print the registration result
 
         Returns
         -------
@@ -360,9 +362,10 @@ class ReferenceImage(BaseImage):
             target_img: Union[ReferenceImage],
             output_table = f'{self.config["REFDATA_DIR"]}/summary.ascii_fixed_width',
             format = 'ascii.fixed_width',
+            verbose: bool = True
             ):
             if not target_img.is_saved:
-                print(f"Target image {target_img.path.name} does not exist.")
+                self.helper.print(f"Target image {target_img.path.name} does not exist.", verbose)
                 return
                     
             # Initialize new row dictionary
@@ -390,9 +393,9 @@ class ReferenceImage(BaseImage):
                 try:
                     existing_table = Table.read(output_table, format=format)
                     existing_paths = set(str(f) for f in existing_table['file'])
-                    print(f"Loaded {len(existing_table)} existing entries from summary.")
+                    self.helper.print(f"Loaded {len(existing_table)} existing entries from summary.", verbose)
                 except Exception as e:
-                    print(f"Warning: Failed to read existing summary file: {e}")
+                    self.helper.print(f"Warning: Failed to read existing summary file: {e}", verbose)
             else:
                 row_types = ['str', 'str', 'str', 'str', 
                                 'float64', 'float64', 'float64', 'float64', 
@@ -402,15 +405,15 @@ class ReferenceImage(BaseImage):
                 existing_paths = set()
             
             target_path_str = str(target_img.savepath.savepath.resolve())
-            if target_path_str in existing_paths:
-                print(f"Skipping {target_path_str}, already processed.")
+            file_rel_str = str(target_img.savepath.savepath.relative_to(summary_path.parent))
+            if file_rel_str in existing_paths:
+                self.helper.print(f"Skipping {target_path_str}, already processed.", verbose)
                 return
             else:
-                print(f"Processing {target_path_str}...")
+                self.helper.print(f"Processing {target_path_str}...", verbose)
                 try:
-                    file_path_str = target_path_str
                     center_info = target_img.center
-                    rows['file'].append(file_path_str)
+                    rows['file'].append(file_rel_str)
                     rows['observatory'].append(target_img.observatory)
                     rows['telkey'].append(target_img.telkey)
                     rows['ra'].append(center_info['ra'])
@@ -428,7 +431,7 @@ class ReferenceImage(BaseImage):
                     rows['file_size_bytes'].append(float(file_stat.st_size))
                     rows['modified_time'].append(Time.now().isot)
                 except (IndexError, ValueError, AttributeError) as e:
-                    print(f"Skipping {target_path_str}: {e}")
+                    self.helper.print(f"Skipping {target_path_str}: {e}", verbose)
             
             # Build and write updated table
             if len(rows['file']) > 0:
@@ -438,15 +441,47 @@ class ReferenceImage(BaseImage):
                 else:
                     full_table = new_table
             else:
-                print("No new rows to add.")
+                self.helper.print("No new rows to add.", verbose)
                 return
 
             full_table.sort(['observatory', 'telkey', 'objname', 'filtername', 'depth'])
             full_table.write(output_table, format=format, overwrite=True)
-            print(f"Saved {len(full_table)} total rows to {output_table} in format '{format}'")
+            self.helper.print(f"Saved {len(full_table)} total rows to {output_table} in format '{format}'", verbose)
     
         # Update the reference summary with the new reference image
-        update_reference_summary(self)
+        update_reference_summary(self, verbose=verbose)
+    
+    def deregister(self,
+                   verbose: bool = True):
+        """
+        Deregister the reference image from the reference data directory.
+        
+        Parameters
+        ----------
+        verbose : bool
+            If True, print the deregistration result
+        
+        Returns
+        -------
+        None
+        """
+        from astropy.table import Table, vstack
+        import numpy as np
+        
+        summary_path = Path(f'{self.config["REFDATA_DIR"]}/summary.ascii_fixed_width')
+        if summary_path.exists():
+            table = Table.read(summary_path, format='ascii.fixed_width')
+            table = table[table['file'] != str(self.savepath.savepath.relative_to(summary_path.parent))]
+            table.write(summary_path, format='ascii.fixed_width', overwrite=True)
+            self.remove(
+                remove_main = True,
+                remove_connected_files = True,
+                skip_exts = [],
+                verbose = verbose
+            )
+            self.helper.print(f"Deregistered {self.savepath.savepath} from {summary_path}", verbose)
+        else:
+            self.helper.print(f"Summary file {summary_path} does not exist.", verbose)
 
     def load_status(self):
         """ Load processing status from a JSON file.
@@ -732,3 +767,5 @@ class ReferenceImage(BaseImage):
                 #self.status.update('ZPCALC')
 
         #self.save_status() 
+
+# %%

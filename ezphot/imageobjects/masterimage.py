@@ -302,6 +302,7 @@ class MasterImage(BaseImage):
         # Remove main FITS file
         if remove_main and self.path and self.path.is_file():
             removed[str(self.path)] = try_remove(self.path)
+            self.deregister()
 
         # Remove connected files
         if remove_connected_files:
@@ -313,6 +314,143 @@ class MasterImage(BaseImage):
                 removed[str(f)] = try_remove(f)
 
         return removed
+    
+    def register(self,
+                 verbose: bool = True):
+        """
+        Register the master image to the masterimage directory.
+        
+        Parameters
+        ----------
+        verbose : bool
+            If True, print the registration result
+
+        Returns
+        -------
+        None
+        """
+        from astropy.table import Table, vstack
+        import numpy as np
+        
+        # Save the master image to the masterimage directory
+        if not self.is_saved:
+            self.write()
+        
+        def update_summary(
+            target_img: Union[MasterImage],
+            output_table = f'{self.config["CALIBDATA_MASTERDIR"]}/summary.ascii_fixed_width',
+            format = 'ascii.fixed_width',
+            verbose: bool = True
+            ):
+            if not target_img.is_saved:
+                self.helper.print(f"Target image {target_img.path.name} does not exist.", verbose)
+                return
+                    
+            # Initialize new row dictionary
+            rows = {
+                'file': [],
+                'observatory': [],
+                'telkey': [],
+                'telname': [],
+                'imagetyp': [],
+                'file_size_bytes': [],
+                'modified_time': [],
+                'exptime': [],
+                'obsdate': [],
+                'filtername': [],
+                'group_id': []
+            }   
+            
+            summary_path = Path(output_table)
+            if summary_path.exists():
+                try:
+                    existing_table = Table.read(output_table, format=format)
+                    existing_paths = set(str(f) for f in existing_table['file'])
+                    self.helper.print(f"Loaded {len(existing_table)} existing entries from summary.", verbose)
+                except Exception as e:
+                    self.helper.print(f"Warning: Failed to read existing summary file: {e}", verbose)
+            else:
+                row_types = ['str', 'str', 'str', 'str', 
+                                'str', 'float64', 'str', 'float64', 
+                                'str', 'str', 'float64']
+                existing_table = Table(names = rows.keys(), dtype = row_types)
+                existing_paths = set()
+            
+            file_rel_str = str(target_img.savepath.savepath.relative_to(summary_path.parent))
+            if file_rel_str in existing_paths:
+                self.helper.print(f"Skipping {file_rel_str}, already processed.", verbose)
+                return
+            else:
+                self.helper.print(f"Processing {file_rel_str}...", verbose)
+                close_group_tbl = existing_table[(existing_table['telname'] == target_img.telname) & (existing_table['imagetyp'] == target_img.imgtype) & (existing_table['group_id'] != -1)]
+                if len(close_group_tbl) > 0:
+                    close_group_tbl['time_difference'] = np.abs(Time(close_group_tbl['obsdate'], format='isot').mjd - Time(target_img.obsdate, format='isot').mjd)
+                    close_group_tbl.sort('time_difference')
+                    close_group_id = close_group_tbl['group_id'][0]
+                
+                else:
+                    close_group_id = -1
+                    
+                try:
+                    center_info = target_img.center
+                    rows['file'].append(file_rel_str)
+                    rows['observatory'].append(target_img.observatory)
+                    rows['telkey'].append(target_img.telkey)
+                    rows['telname'].append(target_img.telname)
+                    rows['imagetyp'].append(target_img.imgtype)
+                    rows['exptime'].append(target_img.exptime)
+                    rows['obsdate'].append(target_img.obsdate)
+                    rows['filtername'].append(target_img.filter)
+                    rows['group_id'].append(close_group_id)  # Placeholder for group_id if not applicable
+                    file_stat = target_img.savepath.savepath.stat()
+                    rows['file_size_bytes'].append(float(file_stat.st_size))
+                    rows['modified_time'].append(Time.now().isot)
+                except (IndexError, ValueError, AttributeError) as e:
+                    self.helper.print(f"Skipping {file_rel_str}: {e}", verbose)
+            
+            # Build and write updated table
+            if len(rows['file']) > 0:
+                new_table = Table(rows)
+                if existing_table is not None:
+                    full_table = vstack([existing_table, new_table])
+                else:
+                    full_table = new_table
+            else:
+                self.helper.print("No new rows to add.", verbose)
+                return
+
+            full_table.sort(['observatory', 'telname', 'imagetyp'])
+            full_table.write(output_table, format=format, overwrite=True)
+            self.helper.print(f"Saved {len(full_table)} total rows to {output_table} in format '{format}'", verbose)
+    
+        # Update the reference summary with the new reference image
+        update_summary(self, verbose=verbose)
+    
+    def deregister(self,
+                   verbose: bool = True):
+        """
+        Deregister the master image from the masterimage directory.
+        
+        Parameters
+        ----------
+        verbose : bool
+            If True, print the deregistration result
+        
+        Returns
+        -------
+        None
+        """
+        from astropy.table import Table, vstack
+        import numpy as np
+        
+        summary_path = Path(f'{self.config["CALIBDATA_MASTERDIR"]}/summary.ascii_fixed_width')
+        if summary_path.exists():
+            table = Table.read(summary_path, format='ascii.fixed_width')
+            table = table[table['file'] != str(self.savepath.savepath.relative_to(summary_path.parent))]
+            table.write(summary_path, format='ascii.fixed_width', overwrite=True)
+            self.helper.print(f"Deregistered {self.savepath.savepath} from {summary_path}", verbose)
+        else:
+            self.helper.print(f"Summary file {summary_path} does not exist.", verbose)
     
     def load_status(self):
         """ Load processing status from a JSON file.
@@ -485,3 +623,13 @@ class MasterImage(BaseImage):
 
     def _check_status(self):
         pass
+
+# %%
+if __name__ == "__main__":
+    path = '/home/hhchoi1022/ezphot/data/mcalibdata/gppy/7DT/7DT_C361K_HIGH_1x1/7DT16/flat/20250723-nz.fits'
+    master_img = MasterImage(path)
+    self = master_img
+    self.register()
+
+    
+# %%

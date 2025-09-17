@@ -336,7 +336,6 @@ class ImageQuerier(HIPS2FITS):
               objname: str = None,
               rotation_angle: float = 0.0,
               verbose: bool = True,
-              resigster: bool = False,
               n_processes: int = 4):
         """
         Run HiPS2FITS queries with split tiles using multiprocessing.
@@ -595,19 +594,18 @@ class ImageQuerier(HIPS2FITS):
 # Example usage:
 if __name__ == "__main__":
     import glob
-    self = ImageQuerier(catalog_key='SkyMapper/SMSS1/u')
+    self = ImageQuerier(catalog_key='SkyMapper/SMSS4/r')
 
     
     from astropy.io import fits
     from ezphot.imageobjects import ScienceImage
     from ezphot.helper import Helper
     from ezphot.utils import DataBrowser
-    tile_id = 'NGC1566'
+    tile_id = 'T00528'
     databrowser = DataBrowser('scidata')
-    databrowser.observatory = 'KCT'
-    databrowser.objname = 'NGC1566'
-    databrowser.filter = 'i'
-    target_imgset = databrowser.search(f'Calib*.fits', 'science')
+    databrowser.filter = 'r'
+    databrowser.objname = tile_id
+    target_imgset = databrowser.search(f'calib*.fits', 'science')
     target_img = target_imgset.target_images[0]
     telinfo = target_img.telinfo
     width = target_img.naxis1
