@@ -412,7 +412,7 @@ class ImageQuerier(HIPS2FITS):
             IMAGETYP = 'LIGHT',
             OBSDATE = Time('2001-01-01T00:00:00').isot,  # Placeholder date
             SEEING = 2.0,
-            UL5_APER_2 = 21.0
+            UL5SKY_APER_2 = 21.0
         )
         stack_instance.header.update(**update_header_kwargs)
         if np.max(stack_instance.data) < 1e3:

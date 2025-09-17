@@ -142,9 +142,18 @@ for i,target_img in enumerate(target_imglist):
 target_imglist[0].to_referenceimage().register()
 # %%
 
+
+#%%
+tile = S250830bp_TILES[0]
+databrowser = DataBrowser('scidata')
+databrowser.observatory = '7DT'
+databrowser.objname = tile
+databrowser.filter = 'r'
+target_imgset = databrowser.search(pattern = 'calib*100.com.fits', return_type = 'science')
+target_imgset.select_images(obs_start = '2025-08-31')
+target_imglist = target_imgset.target_images
 from ezphot.utils import ImageQuerier
 imgquerier = ImageQuerier(catalog_key = 'SkyMapper/SMSS4/r')
-#%%
 import numpy as np
 ref_img = imgquerier.query(
     width = target_imglist[0].naxis1,
@@ -155,13 +164,17 @@ ref_img = imgquerier.query(
     telinfo = target_imglist[0].telinfo,
     save_path = None,
     objname = target_imglist[0].objname,
+    n_processes = 2
 )
+ref_img.header['UL5SKY_APER_2'] = 99
+ref_img.register()
 #%%
+ref_img.register()
 #%%
 from ezphot.methods import Subtract
 subtract = Subtract()
 #%%
-tile = S250830bp_TILES[3]
+tile = S250830bp_TILES[1]
 databrowser = DataBrowser('scidata')
 databrowser.observatory = '7DT'
 databrowser.objname = tile
@@ -170,6 +183,16 @@ target_imgset = databrowser.search(pattern = 'calib*100.com.fits', return_type =
 target_imgset.select_images(obs_start = '2025-08-31')
 target_imglist = target_imgset.target_images
 ref_img = subtract.get_referenceframe_from_image(target_imglist[0])[0]
+#%%
+obsdates = [target_img.obsdate for target_img in target_imglist]
+depths = [target_img.depth for target_img in target_imglist]
+seeing = [target_img.seeing for target_img in target_imglist]
+sort_idx = np.argsort(obsdates)
+target_imglist = [target_imglist[i] for i in sort_idx]
+obsdates = [obsdates[i] for i in sort_idx]
+depths = [depths[i] for i in sort_idx]w
+seeing = [seeing[i] for i in sort_idx]
+
 # %%
 for target_img in target_imglist:
     result = subtract.find_transients(
@@ -185,7 +208,7 @@ for target_img in target_imglist:
         reject_variable_sources = True,
         negative_detection = True,
         reverse_subtraction = False,
-        save = True,gusgh1020
+        save = True,
         verbose = False,
         visualize = True,
         save_transient_figure = True,
@@ -205,5 +228,31 @@ for target_img in target_imglist:
         r = 10,
 )
 # %%
-target_imglist[1].show()
+tile = 'T00597'
+databrowser = DataBrowser('scidata')
+databrowser.observatory = '7DT'
+databrowser.objname = tile
+databrowser.filter = 'r'
+target_catalogset = databrowser.search(pattern = '*candidate', return_type = 'catalog')
+target_cataloglist = target_catalogset.target_catalogs
+# %%
+
+#%%
+from ezphot.imageobjects import ScienceImage, ReferenceImage
+sub_img = target_cataloglist[0].target_img
+sci_img = ScienceImage(str(sub_img.path).replace('sub_', 'sci_'))
+ref_img = ReferenceImage(str(sub_img.path).replace('sub_', 'ref_'))
+
+#%%
+radec = '330.58675, -74.97364'
+ra, dec = radec.split(',')
+subtract.show_transient_positions(
+    sci_img,
+    ref_img,
+    sub_img,
+    [float(ra)],
+    [float(dec)],
+    coord_type = 'coord',
+    zoom_radius_pixel = 80,
+)
 # %%
