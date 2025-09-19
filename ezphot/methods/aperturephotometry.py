@@ -928,7 +928,7 @@ class AperturePhotometry:
         fluxes, fluxerrs, areas = [], [], []
         apertures = []
         for xi, yi, smai, smii, thetai in zip(x, y, sma_image, smi_image, theta):
-            aperture = EllipticalAperture((xi, yi), a=smai, b=smii, theta=thetai)
+            aperture = f ((xi, yi), a=smai, b=smii, theta=thetai)
             apertures.append(aperture)
             tbl = aperture_photometry(data, aperture, error=error, mask=mask)
             fluxes.append(tbl['aperture_sum'][0])

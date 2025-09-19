@@ -77,7 +77,11 @@ class BaseImage(Configuration):
         self.helper = Helper()
         self.path = path
         if telinfo is None:
-            telinfo = self.helper.estimate_telinfo(self.path)
+            try:
+                telinfo = self.helper.estimate_telinfo(self.path)
+            except:
+                raise NotImplementedError("WARNING: Telescope information is not found in the configuration (~/ezphot/config/common/CCD.dat). Please provide telinfo manually.")
+            
         self.telinfo = telinfo
         self.telkey = self._get_telkey()
         # Initialize or load status
@@ -801,7 +805,7 @@ class BaseImage(Configuration):
             fovx = pixscale[0] * self.naxis1 / 3600  # Convert to degrees
             return float('%.3f' % fovx)
         else:
-            return float('%.3f' %(self.telinfo['pixelscale'] * self.telinfo['x'] / 3600))
+            return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis1 / 3600))
     
     @property
     def fovy(self):
@@ -811,7 +815,7 @@ class BaseImage(Configuration):
             fovy = pixscale[1] * self.naxis2 / 3600  # Convert to degrees
             return float('%.3f' % fovy)
         else:
-            return float('%.3f' %(self.telinfo['pixelscale'] * self.telinfo['y'] / 3600))
+            return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis2 / 3600))
     
     @property
     def wcs(self):

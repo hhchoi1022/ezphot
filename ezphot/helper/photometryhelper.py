@@ -356,6 +356,7 @@ class PhotometryHelper(Configuration):
                          path: Union[str, Path],
                          update_header: bool = True):
         path = Path(path)
+        get_telinfo_from_file = False
         # For 7DT
         if '7DT' in str(path):
             header = fits.getheader(path)
@@ -379,6 +380,8 @@ class PhotometryHelper(Configuration):
                     binning = 2
             else:
                 binning = 1
+            get_telinfo_from_file = True
+                
         # For KCT
         elif 'KCT' in str(path):
             header = fits.getheader(path)
@@ -390,6 +393,7 @@ class PhotometryHelper(Configuration):
                     ccd = 'ASI1600MM'
             readoutmode = None
             binning = 1
+            get_telinfo_from_file = True
         
         # For RASA36
         elif 'RASA' in str(path):
@@ -415,6 +419,7 @@ class PhotometryHelper(Configuration):
 
                     if update_header:
                         header['CAMMODE'] = readoutmode
+            get_telinfo_from_file = True
         
         elif ('LSGT' in str(path)) or ('sophia' in str(path).lower()):
             telescope = 'LSGT'
@@ -427,16 +432,20 @@ class PhotometryHelper(Configuration):
                         ccd = 'ASI1600MM'
             readoutmode = None
             binning = 1
+            get_telinfo_from_file = True
             
         elif ('CBNUO' in str(path)):
             telescope = 'CBNUO'
             ccd = 'STX16803'
             binning = 1
             readoutmode = 'None'
-
-                
-        telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
-        return telinfo
+            get_telinfo_from_file = True
+        
+        if get_telinfo_from_file:
+            telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
+            return telinfo
+        else:
+            raise NotImplementedError("WARNING: Telescope information is not found in the configuration (~/ezphot/config/common/CCD.dat). Please provide telinfo manually.")
 
     def get_telinfo(self,
                     telescope: Optional[str] = None, 

@@ -463,3 +463,5 @@ class DataBrowser:
             print(f"[WARNING] list_available failed: {e}")
 
         return result
+
+# %%

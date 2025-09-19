@@ -70,8 +70,9 @@ Working with Save Paths
 .. code-block:: python
 
     # Access save paths
+    print(sci.path)                # Path to the science image
     print(sci.savedir)             # Path to the save directory
-    print(sci.savepath.savepath)   # Path to the saved FITS
+    print(sci.savepath.savepath)   # Path to the savepath of the image 
     print(sci.savepath.statuspath) # Path to status JSON
     print(sci.savepath.infopath)   # Path to info JSON
     print(sci.savepath.catalogpath)# Path to source catalog
@@ -121,11 +122,11 @@ Show a zoomed region around a position
 .. code-block:: python
 
     # Display a region around pixel coordinates (x=1024, y=1024)
-    sci.show_position(x_position=1024, y_position=1024, zoom_radius=50)
+    sci.show_position(x=1024, y=1024, zoom_radius_arcsec=50)
 
     # Or around sky coordinates (RA, Dec in degrees)
-    sci.show_position(x_position=150.114, y_position=2.205,
-                      coord_type="coord", zoom_radius=30)
+    sci.show_position(x=150.114, y=2.205,
+                      coord_type="coord", zoom_radius_arcsec=30)
 
 The ``show_position`` method is useful for checking sources, transients, or calibration
 stars in either pixel or sky coordinates.

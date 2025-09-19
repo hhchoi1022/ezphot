@@ -1087,7 +1087,6 @@ class Subtract:
             plt.close()
         return fig, axes
 
-    
     def get_referenceframe_from_image(self, 
                                       target_img: Union[ScienceImage],
                                       telname: str = None,
