@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Photometric Calibration &mdash; ezphot 0.2.5 documentation</title>
+  <title>Photometric Calibration &mdash; ezphot 0.3.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=044e0a3f" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb850272"></script>
+      <script src="../_static/documentation_options.js?v=e259d695"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -23,6 +24,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Stacking" href="stacking.html" />
+    <link rel="prev" title="Aperture Photometry" href="aperturephotometry.html" />
  
 <meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
 
@@ -71,6 +74,52 @@
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/dataquery.html">Data Query with DataBrowser</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#supported-data-types">Supported Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#import-and-initialize">Import and Initialize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-folder-types">Available Folder Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#filtering-data">Filtering Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#set-search-attributes">Set Search Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#view-current-filters">View Current Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#searching-and-loading-data">Searching and Loading Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#basic-search">Basic Search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#load-as-different-object-types">Load as Different Object Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#science-images">Science Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#reference-images">Reference Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#calibration-images">Calibration Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#background-images">Background Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#error-maps">Error Maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#masks">Masks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#catalogs">Catalogs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#image-information">Image Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#practical-examples">Practical Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-1-load-science-images-for-photometry">Example 1: Load Science Images for Photometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-2-load-reference-and-calibration-data">Example 2: Load Reference and Calibration Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-3-search-with-multiple-filters">Example 3: Search with Multiple Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#advanced-features">Advanced Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-keys">Available Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#help-and-documentation">Help and Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#search-in-specific-folders">Search in Specific Folders</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#tips-for-efficient-usage">Tips for Efficient Usage</a></li>
 </ul>
 </li>
 </ul>
@@ -142,12 +191,19 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-data">1. Load the data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#1.1.-Sync-Data-with-SDTDataQuerier-(Optional)">1.1. Sync Data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#🔎-1.2.-Query-Data-with-DataBrowser">🔎 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Preprocessing">2. Preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.1.-Load-master-frames">2.1. Load master frames</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.2.-Apply-Correction">2.2. Apply Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.3.-Batch-Process-All-Target-Images">2.3. Batch Process All Target Images</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="backgroundestimation.html">Background estimation</a><ul>
@@ -164,15 +220,59 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="backgroundrmsestimation.html">Background RMS Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#2.-Background-RMS-Estimation">2. Background RMS Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.1.-Basic-Background-RMS-Estimation">2.1. Basic Background RMS Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.2.-Background-RMS-Estimation-with-source-masking">2.2. Background RMS Estimation with source masking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">2.2.3. Re-generation of Background RMS Map with Source Mask</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.3.-Background-RMS-Estimation-with-Error-Propagation">2.3. Background RMS Estimation with Error Propagation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.1.-Loading-the-Master-Calibration-Frames">2.3.1. Loading the Master Calibration Frames</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.2.-Background-RMS-Calculation-with-Error-Propagation">2.3.2. Background RMS Calculation with Error Propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="aperturephotometry.html">Aperture Photometry</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#1.-Load-Data">1. Load Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#3.-Aperture-Photometry-with-Background-and-Background-RMS">3. Aperture Photometry with Background and Background RMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#4.-Forced-Aperture-Photometry">4. Forced Aperture Photometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.1.-Circular-Aperture-Forced-Photometry">4.1. Circular Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Circular-Apertures:">When to Use Circular Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Key-Parameters:">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Point-Source-Coordinates">Point Source Coordinates</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.2.-Elliptical-Aperture-Forced-Photometry">4.2. Elliptical Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Elliptical-Apertures:">When to Use Elliptical Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#id2">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Extended-Source-Parameters">Extended Source Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#2.-Photometric-Calibration">2. Photometric Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#2.1.-Load-Source-Catalog">2.1. Load Source Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#2.2.-Run-Calibration">2.2. Run Calibration</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="stacking.html#1.-Load-Data">1. Load Data</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#1.2.-Query-Data-with-DataBrowser">1.2. Query Data with DataBrowser</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
@@ -189,6 +289,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.4.-Image-stacking-with-the-selected-image">4.4. Image stacking with the selected image</a></li>
 </ul>
 </li>
 </ul>
@@ -343,6 +444,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.query_referenceframe"><code class="docutils literal notranslate"><span class="pre">query_referenceframe()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
@@ -704,23 +808,47 @@
              
   <section id="Photometric-Calibration">
 <h1>Photometric Calibration<a class="headerlink" href="#Photometric-Calibration" title="Link to this heading"></a></h1>
-<section id="1.-Load-data">
-<h2>1. Load data<a class="headerlink" href="#1.-Load-data" title="Link to this heading"></a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<p>This notebook demonstrates how to perform photometric calibration using reference catalogs to convert instrumental magnitudes to standard magnitudes.</p>
+<section id="1.-Load-Data">
+<h2>1. Load Data<a class="headerlink" href="#1.-Load-Data" title="Link to this heading"></a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code> to query and filter synced data for photometric analysis.</p>
+<p>Filter data for:</p>
+<ul class="simple">
+<li><p><strong>Target</strong>: T00528</p></li>
+<li><p><strong>Filter</strong>: r-band</p></li>
+<li><p><strong>Pattern</strong>: <code class="docutils literal notranslate"><span class="pre">*100.fits</span></code> (100-second exposures)</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
 <span class="n">databrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
 <span class="n">databrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
-<span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
+<span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
 <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">databrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
 <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
 </pre></div>
 </div>
 </div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 95.45it/s]
+</pre></div></div>
+</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -729,151 +857,418 @@
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 (&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.fits&#39;}&gt;)
+ &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT14_T00528_20250906_025855_m600_100.fits&#39;}&gt;)
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/example_photometriccalibration_3_1.png" src="../_images/example_photometriccalibration_3_1.png" />
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
-    <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
-    <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.39</span><span class="p">,</span>
-    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
-    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
-    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span>
-<span class="p">)</span>
-<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
-    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
-    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
-    <span class="n">visualize</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">,</span>
-    <span class="n">save_fig</span> <span class="o">=</span> <span class="n">save_fig</span>
-<span class="p">)</span>
-<span class="n">target_img</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-<span class="n">target_srcmask</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Added circular mask at (325.37, -77.39) with radius 500arcsec
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <img alt="../_images/example_photometriccalibration_4_1.png" src="../_images/example_photometriccalibration_4_1.png" />
 </div>
 </div>
+</section>
+<section id="2.-Photometric-Calibration">
+<h2>2. Photometric Calibration<a class="headerlink" href="#2.-Photometric-Calibration" title="Link to this heading"></a></h2>
+<p>Convert instrumental magnitudes to standard magnitudes using reference catalogs. A photometric catalog is required - see the <code class="docutils literal notranslate"><span class="pre">Aperture</span> <span class="pre">Photometry</span></code> example.</p>
+<section id="2.1.-Load-Source-Catalog">
+<h3>2.1. Load Source Catalog<a class="headerlink" href="#2.1.-Load-Source-Catalog" title="Link to this heading"></a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">AperturePhotometry</span>
+<span class="n">target_catalog</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">catalog</span> <span class="c1"># You can access to the catalog after running aperture photometry with save = True</span>
+
+<span class="n">aperturephot</span> <span class="o">=</span> <span class="n">AperturePhotometry</span><span class="p">()</span>
+<span class="n">aperturephot</span><span class="o">.</span><span class="n">sex_photometry</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
+    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgrms</span><span class="p">,</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">detection_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">aperture_dismater_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+    <span class="n">aperture_dismater_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">3.5</span><span class="p">,</span> <span class="mf">4.5</span><span class="p">],</span>
+    <span class="n">kron_factor</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="c1"># To load the catalog as attribute of target_img instance, save = True is required.</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_7_1.png" src="../_images/example_photometriccalibration_7_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Start SExtractor process...=====================
+RUN COMMAND: source-extractor /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits -c /home/hhchoi1022/ezphot/config/common/sextractor/7DT_C361K_HIGH_1x1.sexconfig -BACK_TYPE MANUAL -SEEING_FWHM 3.19 -PIXEL_SCALE 0.5064013569110675 -PHOT_APERTURES 9.90,13.86,19.80,22.14,28.46 -SATUR_LEVEL 59596.19854736328 -PHOT_AUTOPARAMS 2.5,3.5 -CATALOG_NAME /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.cat -WEIGHT_GAIN N -WEIGHT_IMAGE /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.bkgrms -WEIGHT_TYPE MAP_RMS
+SExtractor process finished=====================
+Output path: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.cat
+Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.cat
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_7_3.png" src="../_images/example_photometriccalibration_7_3.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[REMOVE] /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits
+[REMOVE] /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits.status
+[REMOVE] /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits.info
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Catalog( N_selected/N_sources = None/2440, is_exists=True, catalog_type=all, path=/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.cat)
+</pre></div></div>
+</div>
+</section>
+<section id="2.2.-Run-Calibration">
+<h3>2.2. Run Calibration<a class="headerlink" href="#2.2.-Run-Calibration" title="Link to this heading"></a></h3>
+<p>Use <code class="docutils literal notranslate"><span class="pre">PhotometricCalibration</span></code> to calibrate your catalog and update the image headers.</p>
+<p><strong>Process:</strong></p>
+<ol class="arabic simple">
+<li><p>Load reference catalog from archive</p></li>
+<li><p>Match reference sources to target catalog</p></li>
+<li><p>Select isolated point sources using quality criteria</p></li>
+<li><p>Calculate zero points for each aperture</p></li>
+<li><p>Update catalog and image headers</p></li>
+</ol>
+<p><strong>Updated Headers:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">SEEING</span></code>, <code class="docutils literal notranslate"><span class="pre">SKYSIG</span></code>, <code class="docutils literal notranslate"><span class="pre">ZP_*</span></code> (zero points)</p></li>
+</ul>
+<p><strong>Updated Columns:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER</span></code> → <code class="docutils literal notranslate"><span class="pre">MAGSKY_APER</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER_1</span></code> → <code class="docutils literal notranslate"><span class="pre">MAGSKY_APER_1</span></code></p></li>
+<li><p>etc.</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhotometricCalibration</span>
+<span class="n">photcal</span> <span class="o">=</span> <span class="n">PhotometricCalibration</span><span class="p">()</span>
+<span class="n">photcal</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 19</span>
-<span class="ansi-green-fg">      3</span> target_srcmask = <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>
-<span class="ansi-green-fg">      4</span> target_srcmask = masking.mask_circle(
-<span class="ansi-green-fg">      5</span>     target_img = target_img,
-<span class="ansi-green-fg">      6</span>     target_mask = <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>,
-<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">     14</span>     save_fig = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>
-<span class="ansi-green-fg">     15</span> )
-<span class="ansi-green-fg">     16</span> target_srcmask = target_img.calculate_sourcemask(
-<span class="ansi-green-fg">     17</span>     target_srcmask = target_srcmask,
-<span class="ansi-green-fg">     18</span>     save = <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
-<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">19</span>     verbose = <span class="ansi-yellow-bg">verbose</span>,
-<span class="ansi-green-fg">     20</span>     visualize = visualize,
-<span class="ansi-green-fg">     21</span>     save_fig = save_fig
-<span class="ansi-green-fg">     22</span> )
-<span class="ansi-green-fg">     23</span> target_img.clear()
-<span class="ansi-green-fg">     24</span> target_srcmask.clear()
+Help for PhotometricCalibration
 
-<span class="ansi-red-fg">NameError</span>: name &#39;verbose&#39; is not defined
+Public methods:
+- apply_color_terms(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage], target_catalog: ezphot.dataobjects.catalog.Catalog, comparison_catalog: ezphot.dataobjects.catalog.Catalog, max_distance_second: float = 1.0, save: bool = True, verbose: bool = False)
+- apply_mag_terms(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage], target_catalog: ezphot.dataobjects.catalog.Catalog, save: bool = True, verbose: bool = False)
+- apply_zp(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage], target_catalog: ezphot.dataobjects.catalog.Catalog, save: bool = True, verbose: bool = True)
+- determine_reference_mag_range(target_catalog: ezphot.dataobjects.catalog.Catalog, bin_width=0.5, sigma_clip=5, magnitude_key=&#39;MAG_AUTO&#39;, zp_key=&#39;ZP_AUTO&#39;, fwhm_key=&#39;FWHM_IMAGE&#39;, verbose=True, visualize=False, save_fig=False)
+- photometric_calibration(target_img: Union[ezphot.imageobjects.scienceimage.ScienceImage, ezphot.imageobjects.referenceimage.ReferenceImage, ezphot.imageobjects.calibrationimage.CalibrationImage], target_catalog: ezphot.dataobjects.catalog.Catalog, catalog_type: str = &#39;GAIAXP&#39;, max_distance_second: float = 1.0, calculate_color_terms: bool = True, calculate_mag_terms: bool = True, mag_lower: float = 13, mag_upper: float = 15, dynamic_mag_range: bool = True, classstar_lower: float = 0.8, elongation_upper: float = 1.7, elongation_sigma: float = 5, fwhm_lower: float = 1, fwhm_sigma: float = 5, flag_upper: int = 1, maskflag_upper: int = 1, inner_fraction: float = 0.7, isolation_radius: float = 10.0, magnitude_key: str = &#39;MAG_AUTO&#39;, fwhm_key: str = &#39;FWHM_IMAGE&#39;, x_key: str = &#39;X_IMAGE&#39;, y_key: str = &#39;Y_IMAGE&#39;, classstar_key: str = &#39;CLASS_STAR&#39;, elongation_key: str = &#39;ELONGATION&#39;, flag_key: str = &#39;FLAGS&#39;, maskflag_key: str = &#39;IMAFLAGS_ISO&#39;, save: bool = True, verbose: bool = True, visualize: bool = True, save_fig: bool = False, save_refcat: bool = True, **kwargs)
+- select_stars(target_catalog: ezphot.dataobjects.catalog.Catalog, mag_lower: float = None, mag_upper: float = None, classstar_lower: float = 0.8, elongation_upper: float = 1.5, elongation_sigma: float = 5, fwhm_lower: float = 1, fwhm_upper: float = 15, fwhm_sigma: float = 5, flag_upper: int = 1, maskflag_upper: int = 1, inner_fraction: float = 0.7, isolation_radius: float = 5.0, save: bool = False, verbose: bool = True, visualize: bool = True, save_fig: bool = False, magnitude_key: str = &#39;MAG_AUTO&#39;, fwhm_key: str = &#39;FWHM_IMAGE&#39;, x_key: str = &#39;X_IMAGE&#39;, y_key: str = &#39;Y_IMAGE&#39;, classstar_key: str = &#39;CLASS_STAR&#39;, elongation_key: str = &#39;ELONGATION&#39;, flag_key: str = &#39;FLAGS&#39;, maskflag_key: str = &#39;IMAFLAGS_ISO&#39;)
 </pre></div></div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkg</span><span class="p">(</span>
-    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">sourcemask</span><span class="p">,</span>
-    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">is_2D_bkg</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">box_size</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
-    <span class="n">filter_size</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
-    <span class="n">visualize</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">,</span>
-    <span class="n">save_fig</span> <span class="o">=</span> <span class="n">save_fig</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span><span class="p">,</span> <span class="n">target_catalog_all</span><span class="p">,</span> <span class="n">target_catalog_ref</span> <span class="o">=</span> <span class="n">photcal</span><span class="o">.</span><span class="n">photometric_calibration</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">target_catalog</span> <span class="o">=</span> <span class="n">target_catalog</span><span class="p">,</span>
+    <span class="n">catalog_type</span> <span class="o">=</span> <span class="s1">&#39;GAIAXP&#39;</span><span class="p">,</span> <span class="c1"># GAIAXP or APASS or PS1 or SMSS or SDSS</span>
+    <span class="n">max_distance_second</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">calculate_color_terms</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">calculate_mag_terms</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">mag_lower</span> <span class="o">=</span> <span class="mi">13</span><span class="p">,</span>
+    <span class="n">mag_upper</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span>
+    <span class="n">dynamic_mag_range</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">classstar_lower</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">elongation_upper</span> <span class="o">=</span> <span class="mf">1.7</span><span class="p">,</span>
+    <span class="n">elongation_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">fwhm_lower</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">fwhm_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">flag_upper</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">maskflag_upper</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">inner_fraction</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">isolation_radius</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+    <span class="n">magnitude_key</span> <span class="o">=</span> <span class="s1">&#39;MAG_AUTO&#39;</span><span class="p">,</span>
+    <span class="n">fwhm_key</span> <span class="o">=</span> <span class="s1">&#39;FWHM_IMAGE&#39;</span><span class="p">,</span>
+    <span class="n">x_key</span> <span class="o">=</span> <span class="s1">&#39;X_IMAGE&#39;</span><span class="p">,</span>
+    <span class="n">y_key</span> <span class="o">=</span> <span class="s1">&#39;Y_IMAGE&#39;</span><span class="p">,</span>
+    <span class="n">classstar_key</span> <span class="o">=</span> <span class="s1">&#39;CLASS_STAR&#39;</span><span class="p">,</span>
+    <span class="n">elongation_key</span> <span class="o">=</span> <span class="s1">&#39;ELONGATION&#39;</span><span class="p">,</span>
+    <span class="n">flag_key</span> <span class="o">=</span> <span class="s1">&#39;FLAGS&#39;</span><span class="p">,</span>
+    <span class="n">maskflag_key</span> <span class="o">=</span> <span class="s1">&#39;IMAFLAGS_ISO&#39;</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">save_refcat</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="p">)</span>
-<span class="n">target_img</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-<span class="n">target_bkg</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 <br/></pre></div>
 </div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_0.png" src="../_images/example_photometriccalibration_10_0.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_1.png" src="../_images/example_photometriccalibration_10_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_2.png" src="../_images/example_photometriccalibration_10_2.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_3.png" src="../_images/example_photometriccalibration_10_3.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_4.png" src="../_images/example_photometriccalibration_10_4.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_5.png" src="../_images/example_photometriccalibration_10_5.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_6.png" src="../_images/example_photometriccalibration_10_6.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_7.png" src="../_images/example_photometriccalibration_10_7.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_photometriccalibration_10_8.png" src="../_images/example_photometriccalibration_10_8.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;SEEING: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;SEEING&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;SKYSIG: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;SKYSIG&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;ZP_APER_1: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;ZP_APER_1&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;ZP_APER_2: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;ZP_APER_2&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;UL5SKY_APER_1: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;UL5SKY_APER_1&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;UL5SKY_APER_2: &#39;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;UL5SKY_APER_2&#39;</span><span class="p">])</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+SEEING:  3.015620080405407
+SKYSIG:  39.7305
+ZP_APER_1:  26.302696857378585
+ZP_APER_2:  26.41774918536101
+UL5SKY_APER_1:  17.837091470084452
+UL5SKY_APER_2:  17.564888898102517
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;MAG_AUTO&#39;</span><span class="p">,</span> <span class="s1">&#39;MAGSKY_AUTO&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><i>Table length=2440</i>
+<table id="table140653206324624" class="table-striped table-bordered table-condensed">
+<thead><tr><th>MAG_AUTO</th><th>MAGSKY_AUTO</th></tr></thead>
+<thead><tr><th>float64</th><th>float64</th></tr></thead>
+<tr><td>-11.466</td><td>14.975660202152492</td></tr>
+<tr><td>-11.528</td><td>14.91366020215249</td></tr>
+<tr><td>-11.3204</td><td>15.121260202152492</td></tr>
+<tr><td>-13.6693</td><td>12.772360202152491</td></tr>
+<tr><td>-9.6095</td><td>16.83216020215249</td></tr>
+<tr><td>-9.1888</td><td>17.25286020215249</td></tr>
+<tr><td>-10.2136</td><td>16.22806020215249</td></tr>
+<tr><td>-9.7048</td><td>16.736860202152492</td></tr>
+<tr><td>-11.2518</td><td>15.189860202152492</td></tr>
+<tr><td>...</td><td>...</td></tr>
+<tr><td>-10.0525</td><td>16.38916020215249</td></tr>
+<tr><td>-10.3742</td><td>16.06746020215249</td></tr>
+<tr><td>-11.4789</td><td>14.962760202152491</td></tr>
+<tr><td>-11.2904</td><td>15.151260202152491</td></tr>
+<tr><td>-11.7191</td><td>14.722560202152492</td></tr>
+<tr><td>-9.6288</td><td>16.812860202152493</td></tr>
+<tr><td>-9.3632</td><td>17.078460202152492</td></tr>
+<tr><td>-8.9984</td><td>17.44326020215249</td></tr>
+<tr><td>-9.0874</td><td>17.35426020215249</td></tr>
+<tr><td>-11.5875</td><td>14.85416020215249</td></tr>
+</table></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Preprocess</span>
-<span class="n">preprocessor</span> <span class="o">=</span> <span class="n">Preprocess</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibrationImage</span>
-    <span class="n">bias_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run for all target_imglist with multiprocessing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">photometriccalibration</span><span class="p">(</span><span class="n">target_img</span><span class="p">):</span>
+    <span class="n">photcal</span><span class="o">.</span><span class="n">photometric_calibration</span><span class="p">(</span>
         <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
-        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;bias&#39;</span><span class="p">,</span>
-        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">100</span>
-    <span class="p">)</span>
-    <span class="n">dark_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
-        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
-        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;dark&#39;</span><span class="p">,</span>
-        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">100</span>
-    <span class="p">)</span>
-    <span class="n">flat_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
-        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
-        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;flat&#39;</span><span class="p">,</span>
-        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">100</span>
-    <span class="p">)</span>
-    <span class="n">mbias</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">bias_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
-    <span class="n">mdark</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">dark_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
-    <span class="n">mflat</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">flat_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
-    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms_from_propagation</span><span class="p">(</span>
-        <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
-        <span class="n">mbias</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
-        <span class="n">mdark</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
-        <span class="n">mflat</span> <span class="o">=</span> <span class="n">mflat</span><span class="p">,</span>
-        <span class="n">mflaterr</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">ncombine</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="n">readout_noise</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">telinfo</span><span class="p">[</span><span class="s1">&#39;readnoise&#39;</span><span class="p">],</span>
+        <span class="n">target_catalog</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">catalog</span><span class="p">,</span>
+        <span class="n">catalog_type</span> <span class="o">=</span> <span class="s1">&#39;GAIAXP&#39;</span><span class="p">,</span> <span class="c1"># GAIAXP or APASS or PS1 or SMSS or SDSS</span>
+        <span class="n">max_distance_second</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">calculate_color_terms</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">calculate_mag_terms</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">mag_lower</span> <span class="o">=</span> <span class="mi">13</span><span class="p">,</span>
+        <span class="n">mag_upper</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span>
+        <span class="n">dynamic_mag_range</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">classstar_lower</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+        <span class="n">elongation_upper</span> <span class="o">=</span> <span class="mf">1.7</span><span class="p">,</span>
+        <span class="n">elongation_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">fwhm_lower</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">fwhm_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">flag_upper</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">maskflag_upper</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">inner_fraction</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">isolation_radius</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">magnitude_key</span> <span class="o">=</span> <span class="s1">&#39;MAG_AUTO&#39;</span><span class="p">,</span>
+        <span class="n">fwhm_key</span> <span class="o">=</span> <span class="s1">&#39;FWHM_IMAGE&#39;</span><span class="p">,</span>
+        <span class="n">x_key</span> <span class="o">=</span> <span class="s1">&#39;X_IMAGE&#39;</span><span class="p">,</span>
+        <span class="n">y_key</span> <span class="o">=</span> <span class="s1">&#39;Y_IMAGE&#39;</span><span class="p">,</span>
+        <span class="n">classstar_key</span> <span class="o">=</span> <span class="s1">&#39;CLASS_STAR&#39;</span><span class="p">,</span>
+        <span class="n">elongation_key</span> <span class="o">=</span> <span class="s1">&#39;ELONGATION&#39;</span><span class="p">,</span>
+        <span class="n">flag_key</span> <span class="o">=</span> <span class="s1">&#39;FLAGS&#39;</span><span class="p">,</span>
+        <span class="n">maskflag_key</span> <span class="o">=</span> <span class="s1">&#39;IMAFLAGS_ISO&#39;</span><span class="p">,</span>
         <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span><span class="p">,</span>
-        <span class="n">visualize</span> <span class="o">=</span> <span class="n">visualize</span><span class="p">,</span>
-        <span class="n">save_fig</span> <span class="o">=</span> <span class="n">save_fig</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visualize</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">save_refcat</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="p">)</span>
+
+<span class="c1"># for target_img in tqdm(target_imglist, desc=&quot;Photometric Calibration...&quot;):</span>
+<span class="c1">#     photometriccalibration(target_img)</span>
+
+<span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+    <span class="c1"># Use tqdm with imap to show progress</span>
+    <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">photometriccalibration</span><span class="p">,</span> <span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Photometric Calibration...&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Photometric Calibration...: 100%|██████████| 90/90 [00:20&lt;00:00,  4.31it/s]
+</pre></div></div>
+</div>
+<p>After calculation of Catalog with save option as “TRUE”, you can access to the catalogs easily from <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">databrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+<span class="n">databrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
+<span class="n">target_catalogset</span> <span class="o">=</span> <span class="n">databrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*.cat&#39;</span><span class="p">,</span> <span class="s1">&#39;catalog&#39;</span><span class="p">)</span>
+<span class="n">target_cataloglist</span> <span class="o">=</span> <span class="n">target_catalogset</span><span class="o">.</span><span class="n">target_catalogs</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*.cat&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Catalogs: 100%|██████████| 90/90 [00:00&lt;00:00, 110.93it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">target_catalog</span> <span class="ow">in</span> <span class="n">target_cataloglist</span><span class="p">[:</span><span class="mi">10</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Number of sources: &#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_catalog</span><span class="o">.</span><span class="n">data</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
@@ -882,923 +1277,29 @@ Added circular mask at (325.37, -77.39) with radius 500arcsec
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
-WARNING: GAIN keyword not found in header. Assuming HIGH readout mode.
-WARNING: XBINNING keyword not found in header. Assuming binning = 1.
+Number of sources:  2015
+Number of sources:  2173
+Number of sources:  3128
+Number of sources:  2295
+Number of sources:  3270
+Number of sources:  2673
+Number of sources:  2619
+Number of sources:  3812
+Number of sources:  3237
+Number of sources:  3251
 </pre></div></div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
-</div>
+</section>
 </section>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aperturephotometry.html" class="btn btn-neutral float-left" title="Aperture Photometry" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="stacking.html" class="btn btn-neutral float-right" title="Stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

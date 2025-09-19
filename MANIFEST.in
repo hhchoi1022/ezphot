@@ -4,5 +4,6 @@ include LICENSE
 recursive-include ezphot/configuration *
 recursive-include ezphot/utils *
 prune docs/_build
+prune ezphot/analysis
 global-exclude *.py[cod] __pycache__/* *.so
 

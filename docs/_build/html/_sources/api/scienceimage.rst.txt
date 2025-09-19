@@ -16,6 +16,9 @@ Methods
 .. autofunction:: ezphot.imageobjects.ScienceImage.calculate_errormap
 .. autofunction:: ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation
 .. autofunction:: ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation
+.. autofunction:: ezphot.imageobjects.ScienceImage.get_masterframe
+.. autofunction:: ezphot.imageobjects.ScienceImage.get_referenceframe
+.. autofunction:: ezphot.imageobjects.ScienceImage.query_referenceframe
 .. autofunction:: ezphot.imageobjects.ScienceImage.load
 .. autofunction:: ezphot.imageobjects.ScienceImage.write
 .. autofunction:: ezphot.imageobjects.ScienceImage.remove

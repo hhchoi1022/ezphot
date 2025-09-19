@@ -63,12 +63,14 @@ This information is collected from both FITS headers and telescope configuration
 Working with Save Paths
 -----------------------
 
-`ScienceImage` automatically generates a structured save path for all
-connected products (status files, masks, catalogs, background maps, etc.).
+.. important::
+   `ScienceImage` automatically generates a structured save path for all
+   connected products (status files, masks, catalogs, background maps, etc.).
 
 .. code-block:: python
 
     # Access save paths
+    print(sci.savedir)             # Path to the save directory
     print(sci.savepath.savepath)   # Path to the saved FITS
     print(sci.savepath.statuspath) # Path to status JSON
     print(sci.savepath.infopath)   # Path to info JSON
@@ -89,7 +91,9 @@ Save the current image to disk (including status and info):
 
     sci.write()
 
-This will save the current data and header of the instance to ``savepath.savepath``.
+.. note::
+    This will save the current data and header of the instance to ``savepath.savepath``, not to the current path.
+
 
 Remove the main FITS file and/or all associated products:
 

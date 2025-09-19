@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stacking &mdash; ezphot 0.2.5 documentation</title>
+  <title>Stacking &mdash; ezphot 0.3.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=044e0a3f" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb850272"></script>
+      <script src="../_static/documentation_options.js?v=e259d695"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -24,7 +25,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Methods" href="../api/methods.html" />
-    <link rel="prev" title="Aperture Photometry" href="aperturephotometry.html" />
+    <link rel="prev" title="Photometric Calibration" href="photometriccalibration.html" />
  
 <meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
 
@@ -73,6 +74,52 @@
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/dataquery.html">Data Query with DataBrowser</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#supported-data-types">Supported Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#import-and-initialize">Import and Initialize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-folder-types">Available Folder Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#filtering-data">Filtering Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#set-search-attributes">Set Search Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#view-current-filters">View Current Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#searching-and-loading-data">Searching and Loading Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#basic-search">Basic Search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#load-as-different-object-types">Load as Different Object Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#science-images">Science Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#reference-images">Reference Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#calibration-images">Calibration Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#background-images">Background Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#error-maps">Error Maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#masks">Masks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#catalogs">Catalogs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#image-information">Image Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#practical-examples">Practical Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-1-load-science-images-for-photometry">Example 1: Load Science Images for Photometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-2-load-reference-and-calibration-data">Example 2: Load Reference and Calibration Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-3-search-with-multiple-filters">Example 3: Search with Multiple Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#advanced-features">Advanced Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-keys">Available Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#help-and-documentation">Help and Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#search-in-specific-folders">Search in Specific Folders</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#tips-for-efficient-usage">Tips for Efficient Usage</a></li>
 </ul>
 </li>
 </ul>
@@ -146,10 +193,17 @@
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-data">1. Load the data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#1.1.-Sync-Data-with-SDTDataQuerier-(Optional)">1.1. Sync Data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#🔎-1.2.-Query-Data-with-DataBrowser">🔎 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Preprocessing">2. Preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.1.-Load-master-frames">2.1. Load master frames</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.2.-Apply-Correction">2.2. Apply Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.3.-Batch-Process-All-Target-Images">2.3. Batch Process All Target Images</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="backgroundestimation.html">Background estimation</a><ul>
@@ -166,15 +220,59 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="backgroundrmsestimation.html">Background RMS Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#2.-Background-RMS-Estimation">2. Background RMS Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.1.-Basic-Background-RMS-Estimation">2.1. Basic Background RMS Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.2.-Background-RMS-Estimation-with-source-masking">2.2. Background RMS Estimation with source masking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">2.2.3. Re-generation of Background RMS Map with Source Mask</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.3.-Background-RMS-Estimation-with-Error-Propagation">2.3. Background RMS Estimation with Error Propagation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.1.-Loading-the-Master-Calibration-Frames">2.3.1. Loading the Master Calibration Frames</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.2.-Background-RMS-Calculation-with-Error-Propagation">2.3.2. Background RMS Calculation with Error Propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="aperturephotometry.html">Aperture Photometry</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#1.-Load-Data">1. Load Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#3.-Aperture-Photometry-with-Background-and-Background-RMS">3. Aperture Photometry with Background and Background RMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#4.-Forced-Aperture-Photometry">4. Forced Aperture Photometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.1.-Circular-Aperture-Forced-Photometry">4.1. Circular Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Circular-Apertures:">When to Use Circular Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Key-Parameters:">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Point-Source-Coordinates">Point Source Coordinates</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.2.-Elliptical-Aperture-Forced-Photometry">4.2. Elliptical Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Elliptical-Apertures:">When to Use Elliptical Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#id2">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Extended-Source-Parameters">Extended Source Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#2.-Photometric-Calibration">2. Photometric Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.1.-Load-Source-Catalog">2.1. Load Source Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.2.-Run-Calibration">2.2. Run Calibration</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Stacking</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#1.-Load-Data">1. Load Data</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#1.2.-Query-Data-with-DataBrowser">1.2. Query Data with DataBrowser</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#2.-Check-Your-Images">2. Check Your Images</a></li>
@@ -191,6 +289,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#4.1.-Image-stacking">4.1. Image stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#4.4.-Image-stacking-with-the-selected-image">4.4. Image stacking with the selected image</a></li>
 </ul>
 </li>
 </ul>
@@ -345,6 +444,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.query_referenceframe"><code class="docutils literal notranslate"><span class="pre">query_referenceframe()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
@@ -750,8 +852,8 @@ Public methods:
 - sync_scidata(targetname: str, file_pattern: str = &#39;*.fits&#39;, ignore_exists: bool = True)
 </pre></div></div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sync_scidata method will run multiple rsync between Science Source directory and destination directory.</span>
@@ -765,95 +867,13 @@ Public methods:
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Source directory: /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750
-Target directory: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1
-Running:Running:Running:Running:Running:Running:Running:Running:Running:Running:Running:Running:        rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT10/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT10/   rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT06/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT06/ rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT07/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT07/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT11/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT11/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT15/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT15/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT01/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT01/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT14/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT12/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT12/
-rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT16/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT08/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT08/rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT13/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT13/
-
-
-rsync -av --info=progress2 --no-inc-recursive --prune-empty-dirs --ignore-existing --include */ --include *.fits --exclude * /home/hhchoi1022/ezphot/data/connecteddata/7DT/processed_1x1_gain2750/T00528/7DT03/ /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT03/
-
-
-
-
-
-
-
-building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... building file list ... done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-              0   0%    0.00kB/s    0:00:00 (xfr#0, to-chk=0/211)
-
-sent 8,342 bytes  received 12 bytes  5,569.33 bytes/sec
-total size is 49,041,109,440  speedup is 5,870,374.60
-
-
-sent 8,312 bytes  received 12 bytes  5,549.33 bytes/sec
-total size is 49,041,135,360  speedup is 5,891,534.76
-
-
-sent 8,325 bytes  received 12 bytes  5,558.00 bytes/sec
-total size is 49,041,123,840  speedup is 5,882,346.63
-
-
-
-
-sent 8,058 bytes  received 12 bytes  5,380.00 bytes/sec
-total size is 49,041,129,600  speedup is 6,076,967.73
-sent 8,352 bytes  received 12 bytes  5,576.00 bytes/sec
-total size is 49,041,132,480  speedup is 5,863,358.74
-
-
-sent 8,297 bytes  received 12 bytes  5,539.33 bytes/sec
-total size is 49,041,132,480  speedup is 5,902,170.23
-
-
-sent 8,351 bytes  received 12 bytes  5,575.33 bytes/sec
-total size is 48,796,430,400  speedup is 5,834,799.76
-
-
-sent 8,388 bytes  received 12 bytes  5,600.00 bytes/sec
-total size is 49,041,135,360  speedup is 5,838,230.40
-
-
-sent 8,365 bytes  received 12 bytes  5,584.67 bytes/sec
-total size is 49,041,109,440  speedup is 5,854,256.83
-
-
-sent 8,350 bytes  received 12 bytes  5,574.67 bytes/sec
-total size is 49,041,129,600  speedup is 5,864,760.77
-              0   0%    0.00kB/s    0:00:00 (xfr#0, to-chk=0/111)r/
-              0   0%    0.00kB/s    0:00:00 (xfr#0, to-chk=0/211)
-
-sent 4,069 bytes  received 12 bytes  1,632.40 bytes/sec
-total size is 25,613,104,320  speedup is 6,276,183.37
-
-
-sent 7,763 bytes  received 19 bytes  3,112.80 bytes/sec
-total size is 49,041,135,360  speedup is 6,301,867.82
-</pre></div></div>
-</div>
 <p><strong>🔄 Sync Progress</strong>: The rsync process copies FITS files from the source directory to your local destination directory.</p>
 </section>
-<section id="🔍-1.2.-Query-Data-with-DataBrowser">
-<h3>🔍 1.2. Query Data with DataBrowser<a class="headerlink" href="#🔍-1.2.-Query-Data-with-DataBrowser" title="Link to this heading"></a></h3>
+<section id="1.2.-Query-Data-with-DataBrowser">
+<h3>1.2. Query Data with DataBrowser<a class="headerlink" href="#1.2.-Query-Data-with-DataBrowser" title="Link to this heading"></a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code> class allows us to query and filter our synced data. Here we’ll explore the available keys and their values to understand what data we have access to.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Then, you can query your data with DataBrowser class.</span>
@@ -865,7 +885,7 @@ total size is 49,041,135,360  speedup is 6,301,867.82
 <span class="c1"># You can query the data with the below keys.</span>
 <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-<br/></pre></div>
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -875,9 +895,9 @@ total size is 49,041,135,360  speedup is 6,301,867.82
 <div class="highlight"><pre>
 observatory {&#39;7DT&#39;}
 telkey {&#39;7DT_C361K_HIGH_1x1&#39;}
-objname {&#39;T07169&#39;, &#39;T08297&#39;, &#39;T15696&#39;, &#39;T01580&#39;, &#39;T11622&#39;, &#39;T13824&#39;, &#39;T13280&#39;, &#39;T11573&#39;, &#39;T11704&#39;, &#39;T11882&#39;, &#39;T14574&#39;, &#39;T11764&#39;, &#39;T06914&#39;, &#39;T09040&#39;, &#39;T00311&#39;, &#39;T02452&#39;, &#39;T13560&#39;, &#39;T13520&#39;, &#39;T03580&#39;, &#39;T02349&#39;, &#39;T07128&#39;, &#39;T22614&#39;, &#39;T09543&#39;, &#39;T05018&#39;, &#39;T09041&#39;, &#39;T10856&#39;, &#39;T23736&#39;, &#39;T08679&#39;, &#39;T03458&#39;, &#39;T04237&#39;, &#39;T09373&#39;, &#39;T03209&#39;, &#39;T25223&#39;, &#39;T21610&#39;, &#39;T12053&#39;, &#39;T01631&#39;, &#39;T00405&#39;, &#39;T23977&#39;, &#39;T03377&#39;, &#39;T16683&#39;, &#39;T00595&#39;, &#39;T10452&#39;, &#39;T03768&#39;, &#39;T21742&#39;, &#39;T00463&#39;, &#39;T10413&#39;, &#39;T16724&#39;, &#39;T00915&#39;, &#39;T21343&#39;, &#39;T06467&#39;, &#39;T04803&#39;, &#39;T13559&#39;, &#39;T10627&#39;, &#39;T06269&#39;, &#39;T21733&#39;, &#39;T00596&#39;, &#39;T13825&#39;, &#39;T13558&#39;, &#39;T24735&#39;, &#39;T00409&#39;, &#39;T02874&#39;, &#39;T03704&#39;, &#39;T01161&#39;, &#39;T23488&#39;, &#39;T00465&#39;, &#39;T00529&#39;, &#39;T03073&#39;, &#39;T24804&#39;, &#39;T03364&#39;, &#39;T24028&#39;, &#39;T00290&#39;, &#39;T02535&#39;, &#39;T09370&#39;, &#39;T05376&#39;, &#39;T25303&#39;, &#39;T03051&#39;, &#39;T14918&#39;, &#39;T11112&#39;, &#39;T25043&#39;, &#39;T10228&#39;, &#39;T00527&#39;, &#39;T12732&#39;, &#39;T23968&#39;, &#39;T15434&#39;, &#39;T00464&#39;, &#39;T13257&#39;, &#39;T13496&#39;, &#39;T08643&#39;, &#39;T14943&#39;, &#39;T21330&#39;, &#39;T05634&#39;, &#39;T23189&#39;, &#39;T13823&#39;, &#39;T13541&#39;, &#39;T23142&#39;, &#39;T03263&#39;, &#39;T00577&#39;, &#39;T23132&#39;, &#39;T03198&#39;, &#39;T13707&#39;, &#39;T13722&#39;, &#39;T17321&#39;, &#39;T02072&#39;, &#39;T12165&#39;, &#39;T11109&#39;, &#39;T22924&#39;, &#39;T05281&#39;, &#39;T14479&#39;, &#39;T14354&#39;, &#39;T12025&#39;, &#39;T07389&#39;, &#39;T24225&#39;, &#39;T13072&#39;, &#39;T01428&#39;, &#39;T13557&#39;, &#39;T01933&#39;, &#39;T11971&#39;, &#39;T19684&#39;, &#39;T25337&#39;, &#39;T11621&#39;, &#39;T05107&#39;, &#39;T02595&#39;, &#39;T01501&#39;, &#39;T24558&#39;, &#39;T00486&#39;, &#39;T05004&#39;, &#39;T11148&#39;, &#39;T11898&#39;, &#39;T00528&#39;, &#39;T01505&#39;, &#39;T03898&#39;, &#39;T01701&#39;, &#39;T20716&#39;, &#39;T14712&#39;, &#39;T01314&#39;}
-telname {&#39;7DT06&#39;, &#39;7DT09&#39;, &#39;7DT12&#39;, &#39;7DT07&#39;, &#39;7DT05&#39;, &#39;7DT10&#39;, &#39;7DT13&#39;, &#39;7DT03&#39;, &#39;7DT02&#39;, &#39;7DT08&#39;, &#39;7DT14&#39;, &#39;7DT04&#39;, &#39;7DT11&#39;, &#39;7DT15&#39;, &#39;7DT01&#39;, &#39;7DT16&#39;}
-filter {&#39;m775&#39;, &#39;m800&#39;, &#39;z&#39;, &#39;m825&#39;, &#39;g&#39;, &#39;m750&#39;, &#39;m525&#39;, &#39;m850&#39;, &#39;m675&#39;, &#39;m875&#39;, &#39;m425&#39;, &#39;m475&#39;, &#39;m650&#39;, &#39;m500&#39;, &#39;r&#39;, &#39;m575&#39;, &#39;i&#39;, &#39;m400&#39;, &#39;m700&#39;, &#39;m625&#39;, &#39;m450&#39;, &#39;m725&#39;, &#39;m550&#39;, &#39;m600&#39;}
+objname {&#39;T23189&#39;, &#39;T25043&#39;, &#39;T00596&#39;, &#39;T13825&#39;, &#39;T02874&#39;, &#39;T03198&#39;, &#39;T14574&#39;, &#39;T12053&#39;, &#39;T02595&#39;, &#39;T00405&#39;, &#39;T13722&#39;, &#39;T00595&#39;, &#39;T11112&#39;, &#39;T00577&#39;, &#39;T13559&#39;, &#39;T13072&#39;, &#39;T04803&#39;, &#39;T14479&#39;, &#39;T09373&#39;, &#39;T13824&#39;, &#39;T03704&#39;, &#39;T07169&#39;, &#39;T01701&#39;, &#39;T23736&#39;, &#39;T01428&#39;, &#39;T00463&#39;, &#39;T22614&#39;, &#39;T12732&#39;, &#39;T21742&#39;, &#39;T03209&#39;, &#39;T09040&#39;, &#39;T24804&#39;, &#39;T02452&#39;, &#39;T09041&#39;, &#39;T14354&#39;, &#39;T00465&#39;, &#39;T07128&#39;, &#39;T01933&#39;, &#39;T13558&#39;, &#39;T24558&#39;, &#39;T11971&#39;, &#39;T24225&#39;, &#39;T02072&#39;, &#39;T00311&#39;, &#39;T05281&#39;, &#39;T24735&#39;, &#39;T03458&#39;, &#39;T11704&#39;, &#39;T11764&#39;, &#39;T11621&#39;, &#39;T13257&#39;, &#39;T23968&#39;, &#39;T14918&#39;, &#39;T09543&#39;, &#39;T21343&#39;, &#39;T23132&#39;, &#39;T01501&#39;, &#39;T14712&#39;, &#39;T03051&#39;, &#39;T20716&#39;, &#39;T03580&#39;, &#39;T13496&#39;, &#39;T03377&#39;, &#39;T13823&#39;, &#39;T13707&#39;, &#39;T05004&#39;, &#39;T19684&#39;, &#39;T23488&#39;, &#39;T01580&#39;, &#39;T00486&#39;, &#39;T11622&#39;, &#39;T04237&#39;, &#39;T23977&#39;, &#39;T03898&#39;, &#39;T01161&#39;, &#39;T22924&#39;, &#39;T15696&#39;, &#39;T13541&#39;, &#39;T12025&#39;, &#39;T25337&#39;, &#39;T13520&#39;, &#39;T05018&#39;, &#39;T11148&#39;, &#39;T09370&#39;, &#39;T02349&#39;, &#39;T14943&#39;, &#39;T02535&#39;, &#39;T06467&#39;, &#39;T10228&#39;, &#39;T24028&#39;, &#39;T21733&#39;, &#39;T01505&#39;, &#39;T13557&#39;, &#39;T25303&#39;, &#39;T10856&#39;, &#39;T00529&#39;, &#39;T15434&#39;, &#39;T17321&#39;, &#39;T06269&#39;, &#39;T11898&#39;, &#39;T05634&#39;, &#39;T07389&#39;, &#39;T10452&#39;, &#39;T23142&#39;, &#39;T03073&#39;, &#39;T08297&#39;, &#39;T21330&#39;, &#39;T12165&#39;, &#39;T03364&#39;, &#39;T08679&#39;, &#39;T00409&#39;, &#39;T00528&#39;, &#39;T10413&#39;, &#39;T13560&#39;, &#39;T21610&#39;, &#39;T11573&#39;, &#39;T00915&#39;, &#39;T05376&#39;, &#39;T11109&#39;, &#39;T16683&#39;, &#39;T13280&#39;, &#39;T03768&#39;, &#39;T01631&#39;, &#39;T03263&#39;, &#39;T00527&#39;, &#39;T05107&#39;, &#39;T08643&#39;, &#39;T16724&#39;, &#39;T06914&#39;, &#39;T00464&#39;, &#39;T00290&#39;, &#39;T11882&#39;, &#39;T25223&#39;, &#39;T01314&#39;, &#39;T10627&#39;}
+telname {&#39;7DT14&#39;, &#39;7DT09&#39;, &#39;7DT11&#39;, &#39;7DT05&#39;, &#39;7DT12&#39;, &#39;7DT16&#39;, &#39;7DT04&#39;, &#39;7DT10&#39;, &#39;7DT07&#39;, &#39;7DT02&#39;, &#39;7DT06&#39;, &#39;7DT15&#39;, &#39;7DT03&#39;, &#39;7DT01&#39;, &#39;7DT13&#39;, &#39;7DT08&#39;}
+filter {&#39;m575&#39;, &#39;m875&#39;, &#39;m600&#39;, &#39;r&#39;, &#39;m700&#39;, &#39;m550&#39;, &#39;m625&#39;, &#39;g&#39;, &#39;m475&#39;, &#39;m775&#39;, &#39;m650&#39;, &#39;z&#39;, &#39;i&#39;, &#39;m750&#39;, &#39;m725&#39;, &#39;m425&#39;, &#39;m675&#39;, &#39;m800&#39;, &#39;m450&#39;, &#39;m850&#39;, &#39;m500&#39;, &#39;m525&#39;, &#39;m825&#39;, &#39;m400&#39;}
 imgtype set()
 obsdate set()
 </pre></div></div>
@@ -885,17 +905,15 @@ obsdate set()
 <p>Let’s filter our data to find specific images. We’ll search for:</p>
 <ul class="simple">
 <li><p><strong>Target</strong>: T00528</p></li>
-<li><p><strong>Telescope</strong>: 7DT16</p></li>
-<li><p><strong>Filter</strong>: r-band</p></li>
+<li><p><strong>Filter</strong>: m600</p></li>
 <li><p><strong>Pattern</strong>: Files ending with <code class="docutils literal notranslate"><span class="pre">*100.fits</span></code></p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="n">target_name</span>
-<span class="n">dbrowser</span><span class="o">.</span><span class="n">telname</span> <span class="o">=</span> <span class="s1">&#39;7DT16&#39;</span>
-<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
 <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;path&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -905,109 +923,109 @@ obsdate set()
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/r/*100.fits&#39;
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000520_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_074905_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001416_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_074535_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250820_032116_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000705_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001035_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001601_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031912_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075606_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000553_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_063818_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001045_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000200_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031212_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000520_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064850_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000850_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000015_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000038_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001036_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250824_035154_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000530_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031357_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001921_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001440_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001810_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_030657_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000223_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001746_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075936_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064705_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_063632_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001736_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001406_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000738_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064334_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_080452_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_063301_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075751_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000335_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064149_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000149_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_062930_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250824_035340_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000705_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000150_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_074720_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001109_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000335_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031727_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001220_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031027_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001550_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_030326_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064003_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250824_035525_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000004_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001956_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_080122_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_030842_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075050_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000345_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000924_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001405_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_063116_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001736_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001231_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075235_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250820_032302_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250820_032447_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001551_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000900_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_032242_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250831_235830_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_030512_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_032057_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_063447_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000850_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064520_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075421_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031542_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_080307_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001220_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_002106_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001921_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000715_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001254_r_100.fits&#39;,
- &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001625_r_100.fits&#39;]
+[&#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234441_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072423_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_235542_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_074036_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235531_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234659_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073848_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235138_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235006_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250820_014852_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025519_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_233554_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234235_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072612_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250820_014704_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234047_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_234118_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062434_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250824_035027_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_074224_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_023900_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234511_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_234454_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_233758_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234424_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235852_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_235224_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061533_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_233743_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_074412_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073512_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_233858_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234847_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_235748_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061157_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061010_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062811_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_235206_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250824_034457_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025330_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_235412_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_233916_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073324_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234950_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_024954_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025707_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234135_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_235600_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_024806_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234252_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_233728_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_235354_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_234642_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_234830_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235720_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234323_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062246_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234629_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072800_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061910_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250824_034646_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234104_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_030043_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_235036_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062622_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_235018_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061345_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073700_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235704_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_024048_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235327_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235154_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073136_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_024617_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_024237_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_060821_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_234306_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234817_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_233947_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025142_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_233930_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062058_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072948_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234613_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235343_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234801_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250820_014516_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061721_m600_100.fits&#39;,
+ &#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235515_m600_100.fits&#39;]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you wish to get the ScienceImage object,</span>
@@ -1023,7 +1041,7 @@ obsdate set()
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/r/*100.fits&#39;
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -1031,7 +1049,7 @@ obsdate set()
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 94.76it/s]
+Loading Science Images: 100%|██████████| 90/90 [00:01&lt;00:00, 56.88it/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -1039,13 +1057,13 @@ Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/r/*100.fits&#39;
-Loaded 90 FITS files from /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
+Loaded 90 FITS files from /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600
 Total FITS files combined: 90
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">metadata_table</span>
@@ -1053,34 +1071,34 @@ Total FITS files combined: 90
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
 <div><i>Table length=90</i>
-<table id="table140441253682256" class="table-striped table-bordered table-condensed">
+<table id="table140158841804880" class="table-striped table-bordered table-condensed">
 <thead><tr><th>file</th><th>altitude</th><th>azimuth</th><th>ccd-temp</th><th>gain</th><th>filter</th><th>imgtype</th><th>exptime</th><th>obsdate</th><th>locdate</th><th>jd</th><th>mjd</th><th>binning</th><th>object</th><th>objctid</th><th>obsmode</th><th>specmode</th><th>note</th><th>telescop</th></tr></thead>
-<thead><tr><th>str120</th><th>str32</th><th>str32</th><th>str32</th><th>str21</th><th>str1</th><th>str5</th><th>str32</th><th>str23</th><th>str23</th><th>str32</th><th>str32</th><th>str21</th><th>str6</th><th>str32</th><th>str4</th><th>str7</th><th>str9</th><th>str5</th></tr></thead>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits</td><td>37.80566</td><td>167.202362</td><td>-10.0</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T00:04:08.000</td><td>2025-09-04 20:04:08.000</td><td>2460923.50287037</td><td>60923.00287037037</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_000520_r_100.fits</td><td>38.233435</td><td>167.543446</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-07T00:05:20.000</td><td>2025-09-06 20:05:20.000</td><td>2460925.5037037036</td><td>60925.003703703704</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_074905_r_100.fits</td><td>35.847003</td><td>193.97872</td><td>-10.2</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:49:05.000</td><td>2025-09-02 03:49:05.000</td><td>2460920.8257523146</td><td>60920.32575231481</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001416_r_100.fits</td><td>37.536132</td><td>167.00423</td><td>-10.1</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-01T00:14:16.000</td><td>2025-08-31 20:14:16.000</td><td>2460919.509907407</td><td>60919.00990740741</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_074535_r_100.fits</td><td>36.029225</td><td>193.892131</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:45:35.000</td><td>2025-09-02 03:45:35.000</td><td>2460920.8233217592</td><td>60920.32332175926</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250820_032116_r_100.fits</td><td>42.588008</td><td>174.57094</td><td>-10.1</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-08-20T03:21:16.000</td><td>2025-08-19 23:21:16.000</td><td>2460907.6397685185</td><td>60907.13976851852</td><td>1</td><td>T00528</td><td>58b4f2a07b0246b7b9d68efb4021c28f</td><td>Spec</td><td>specall</td><td>None</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_000705_r_100.fits</td><td>37.758685</td><td>167.166926</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-04T00:07:05.000</td><td>2025-09-03 20:07:05.000</td><td>2460922.5049189813</td><td>60922.00491898148</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001035_r_100.fits</td><td>37.925522</td><td>167.294357</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-04T00:10:35.000</td><td>2025-09-03 20:10:35.000</td><td>2460922.507349537</td><td>60922.00734953704</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_001601_r_100.fits</td><td>37.621042</td><td>167.065116</td><td>-10.2</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-01T00:16:01.000</td><td>2025-08-31 20:16:01.000</td><td>2460919.5111226854</td><td>60919.01112268519</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
+<thead><tr><th>str126</th><th>str32</th><th>str32</th><th>str32</th><th>str21</th><th>str4</th><th>str5</th><th>str32</th><th>str23</th><th>str23</th><th>str32</th><th>str32</th><th>str21</th><th>str6</th><th>str32</th><th>str4</th><th>str7</th><th>str9</th><th>str5</th></tr></thead>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits</td><td>43.226146</td><td>177.841909</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T02:58:55.000</td><td>2025-09-05 22:58:55.000</td><td>2460924.624247685</td><td>60924.124247685184</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_234441_m600_100.fits</td><td>36.655996</td><td>166.440658</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T23:44:41.000</td><td>2025-09-03 19:44:41.000</td><td>2460922.489363426</td><td>60921.98936342593</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072423_m600_100.fits</td><td>37.102087</td><td>193.288747</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:24:23.000</td><td>2025-09-02 03:24:23.000</td><td>2460920.8085995372</td><td>60920.308599537035</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_235542_m600_100.fits</td><td>36.617178</td><td>166.418143</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-08-31T23:55:42.000</td><td>2025-08-31 19:55:42.000</td><td>2460919.497013889</td><td>60918.99701388889</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_074036_m600_100.fits</td><td>36.283207</td><td>193.763747</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:40:36.000</td><td>2025-09-02 03:40:36.000</td><td>2460920.819861111</td><td>60920.319861111115</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235531_m600_100.fits</td><td>37.198191</td><td>166.77371</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T23:55:31.000</td><td>2025-09-03 19:55:31.000</td><td>2460922.496886574</td><td>60921.996886574074</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250904_234659_m600_100.fits</td><td>36.969771</td><td>166.628158</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-04T23:46:59.000</td><td>2025-09-04 19:46:59.000</td><td>2460923.4909606483</td><td>60922.990960648145</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_073848_m600_100.fits</td><td>36.375758</td><td>193.714859</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:38:48.000</td><td>2025-09-02 03:38:48.000</td><td>2460920.818611111</td><td>60920.31861111111</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235138_m600_100.fits</td><td>37.585349</td><td>167.040065</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T23:51:38.000</td><td>2025-09-06 19:51:38.000</td><td>2460925.4941898147</td><td>60924.99418981482</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
 <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250903_064520_r_100.fits</td><td>38.76764</td><td>191.980855</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T06:45:20.000</td><td>2025-09-03 02:45:20.000</td><td>2460921.7814814816</td><td>60921.281481481485</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_075421_r_100.fits</td><td>35.57151</td><td>194.102046</td><td>-10.1</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:54:21.000</td><td>2025-09-02 03:54:21.000</td><td>2460920.8294097222</td><td>60920.329409722224</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250906_031542_r_100.fits</td><td>43.322052</td><td>179.115768</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T03:15:42.000</td><td>2025-09-05 23:15:42.000</td><td>2460924.635902778</td><td>60924.13590277778</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250902_080307_r_100.fits</td><td>35.107181</td><td>194.288507</td><td>-10.2</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T08:03:07.000</td><td>2025-09-02 04:03:07.000</td><td>2460920.8354976852</td><td>60920.335497685184</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_001220_r_100.fits</td><td>38.556203</td><td>167.823928</td><td>-10.1</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-07T00:12:20.000</td><td>2025-09-06 20:12:20.000</td><td>2460925.508564815</td><td>60925.008564814816</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250907_002106_r_100.fits</td><td>38.948822</td><td>168.19509</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-07T00:21:06.000</td><td>2025-09-06 20:21:06.000</td><td>2460925.514652778</td><td>60925.014652777776</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250904_001921_r_100.fits</td><td>38.336497</td><td>167.630427</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-04T00:19:21.000</td><td>2025-09-03 20:19:21.000</td><td>2460922.5134375</td><td>60922.0134375</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250901_000715_r_100.fits</td><td>37.192772</td><td>166.769727</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-01T00:07:15.000</td><td>2025-08-31 20:07:15.000</td><td>2460919.5050347224</td><td>60919.00503472222</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001254_r_100.fits</td><td>38.219894</td><td>167.531801</td><td>-9.9</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T00:12:54.000</td><td>2025-09-04 20:12:54.000</td><td>2460923.508958333</td><td>60923.00895833333</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
-<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_001625_r_100.fits</td><td>38.382773</td><td>167.670365</td><td>-10.0</td><td>2750</td><td>r</td><td>LIGHT</td><td>100.0</td><td>2025-09-05T00:16:25.000</td><td>2025-09-04 20:16:25.000</td><td>2460923.511400463</td><td>60923.011400462965</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT16</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025142_m600_100.fits</td><td>43.16008</td><td>177.297766</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T02:51:42.000</td><td>2025-09-05 22:51:42.000</td><td>2460924.619236111</td><td>60924.11923611111</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250831_233930_m600_100.fits</td><td>35.782502</td><td>165.991377</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-08-31T23:39:30.000</td><td>2025-08-31 19:39:30.000</td><td>2460919.485763889</td><td>60918.985763888886</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_062058_m600_100.fits</td><td>39.8086</td><td>190.860402</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T06:20:58.000</td><td>2025-09-03 02:20:58.000</td><td>2460921.7645601854</td><td>60921.264560185184</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250902_072948_m600_100.fits</td><td>36.83222</td><td>193.456107</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-02T07:29:48.000</td><td>2025-09-02 03:29:48.000</td><td>2460920.812361111</td><td>60920.31236111111</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234613_m600_100.fits</td><td>37.320642</td><td>166.855551</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T23:46:13.000</td><td>2025-09-06 19:46:13.000</td><td>2460925.490428241</td><td>60924.990428240744</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_235343_m600_100.fits</td><td>37.10869</td><td>166.715666</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T23:53:43.000</td><td>2025-09-03 19:53:43.000</td><td>2460922.495636574</td><td>60921.99563657407</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_234801_m600_100.fits</td><td>37.409343</td><td>166.916094</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T23:48:01.000</td><td>2025-09-06 19:48:01.000</td><td>2460925.4916782407</td><td>60924.99167824074</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250820_014516_m600_100.fits</td><td>39.528965</td><td>168.808433</td><td>-10.1</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-08-20T01:45:16.000</td><td>2025-08-19 21:45:16.000</td><td>2460907.5731018516</td><td>60907.07310185185</td><td>1</td><td>T00528</td><td>58b4f2a07b0246b7b9d68efb4021c28f</td><td>Spec</td><td>specall</td><td>None</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250903_061721_m600_100.fits</td><td>39.953891</td><td>190.679975</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-03T06:17:21.000</td><td>2025-09-03 02:17:21.000</td><td>2460921.762048611</td><td>60921.26204861111</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
+<tr><td>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_235515_m600_100.fits</td><td>37.759695</td><td>167.168072</td><td>-10.0</td><td>2750</td><td>m600</td><td>LIGHT</td><td>100.0</td><td>2025-09-06T23:55:15.000</td><td>2025-09-06 19:55:15.000</td><td>2460925.496701389</td><td>60924.99670138889</td><td>1</td><td>T00528</td><td>1d2f12912f6841dc9ad12497eef6268e</td><td>Spec</td><td>specall</td><td>S250830bp</td><td>7DT14</td></tr>
 </table></div></div>
 </div>
 </section>
@@ -1092,7 +1110,7 @@ Total FITS files combined: 90
 <div><p><strong>Memory Warning</strong>: Astronomical images can be large. Always use <code class="docutils literal notranslate"><span class="pre">ScienceImage.clear()</span></code> to free memory when you’re done with an image.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -1101,24 +1119,24 @@ Total FITS files combined: 90
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 (&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.fits&#39;}&gt;)
+ &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT14_T00528_20250906_025855_m600_100.fits&#39;}&gt;)
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_13_1.png" src="../_images/example_stacking_13_1.png" />
+<img alt="../_images/example_stacking_16_1.png" src="../_images/example_stacking_16_1.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># [CAUTION] For memory management, NOTE the below example.</span>
@@ -1128,7 +1146,7 @@ Total FITS files combined: 90
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1140,15 +1158,15 @@ ScienceImage(
   header_load = True,
   imgtype     = LIGHT,
   exptime     = 100.0,
-  filter      = r,
-  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits,
-  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r
+  filter      = m600,
+  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits,
+  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600
 )
 </pre></div></div>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">ScienceImage.clear()</span></code> to free memory when you’re done with an image:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#To clear the memory, run ScienceImage.clear()</span>
@@ -1166,7 +1184,7 @@ Cleared data and/or header from memory.
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -1178,14 +1196,14 @@ ScienceImage(
   header_load = True,
   imgtype     = LIGHT,
   exptime     = 100.0,
-  filter      = r,
-  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits,
-  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r
+  filter      = m600,
+  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits,
+  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600
 )
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># You can check the image with ds9 if X11 forward is available (via SSH)</span>
@@ -1198,7 +1216,7 @@ ScienceImage(
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Running &#34;ds9 -scalemode zscale -scale lock yes -frame lock image /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits &amp;&#34; in the terminal...
+Running &#34;ds9 -scalemode zscale -scale lock yes -frame lock image /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits &amp;&#34; in the terminal...
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -1224,7 +1242,7 @@ bash: no job control in this shell
 <section id="3.1.-Background-estimation">
 <h3>3.1. Background estimation<a class="headerlink" href="#3.1.-Background-estimation" title="Link to this heading"></a></h3>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate the background map</span>
@@ -1246,18 +1264,8 @@ bash: no job control in this shell
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-[1] 2707703
-application-specific initialization failed: no display name and no $DISPLAY environment variable
-Unable to initialize window system.
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_20_1.png" src="../_images/example_stacking_20_1.png" />
+<img alt="../_images/example_stacking_25_0.png" src="../_images/example_stacking_25_0.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -1278,7 +1286,7 @@ Cleared data and header from memory.
 <section id="3.2.1.-Automatic-Source-Mask-Generation">
 <h4>3.2.1. Automatic Source Mask Generation<a class="headerlink" href="#3.2.1.-Automatic-Source-Mask-Generation" title="Link to this heading"></a></h4>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
@@ -1299,22 +1307,39 @@ Cleared data and header from memory.
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Masking source... [sigma = 5.0, mask_radius_factor = 2]
-5675 non-saturated, 105 saturated sources
-5780 sources masked.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+[1] 3275150
+application-specific initialization failed: no display name and no $DISPLAY environment variable
+Unable to initialize window system.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2948 non-saturated, 13 saturated sources
+2961 sources masked.
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_23_1.png" src="../_images/example_stacking_23_1.png" />
+<img alt="../_images/example_stacking_29_3.png" src="../_images/example_stacking_29_3.png" />
 </div>
 </div>
 </section>
 <section id="3.2.2.-Re-generation-of-Background-Map-with-Source-Mask">
 <h4>3.2.2. Re-generation of Background Map with Source Mask<a class="headerlink" href="#3.2.2.-Re-generation-of-Background-Map-with-Source-Mask" title="Link to this heading"></a></h4>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkg_with_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkg</span><span class="p">(</span>
@@ -1339,11 +1364,11 @@ External mask is loaded.
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_25_1.png" src="../_images/example_stacking_25_1.png" />
+<img alt="../_images/example_stacking_31_1.png" src="../_images/example_stacking_31_1.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Write and clear the memory</span>
@@ -1363,8 +1388,8 @@ External mask is loaded.
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.srcmask
-Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.bkgmap
+Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.srcmask
+Saved: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.bkgmap
 Cleared data and header from memory.
 Cleared data and header from memory.
 Background(
@@ -1372,21 +1397,21 @@ Background(
   is_saved    = True,
   data_load   = False,
   header_load = True,
-  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.bkgmap,
-  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r
+  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.bkgmap,
+  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600
 )
 Mask(
   is_exists   = True,
   is_saved    = True,
   data_load   = False,
   header_load = True,
-  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.srcmask,
-  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r
+  path        = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.srcmask,
+  savedir     = /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600
 )
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run for all target_imglist with multiprocessing</span>
@@ -1431,7 +1456,7 @@ Mask(
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Calculating backgrounds: 100%|██████████| 90/90 [04:10&lt;00:00,  2.78s/it]
+Calculating backgrounds: 100%|██████████| 90/90 [05:48&lt;00:00,  3.87s/it]
 </pre></div></div>
 </div>
 </section>
@@ -1451,7 +1476,7 @@ Calculating backgrounds: 100%|██████████| 90/90 [04:10&lt;00
 <section id="4.1.-Image-stacking">
 <h3>4.1. Image stacking<a class="headerlink" href="#4.1.-Image-stacking" title="Link to this heading"></a></h3>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Stack</span>
@@ -1478,7 +1503,7 @@ Public methods:
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
@@ -1500,13 +1525,14 @@ Public methods:
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading bkgmap: 100%|██████████| 90/90 [00:01&lt;00:00, 85.55it/s]
-Subtracting background...: 100%|█████████████████████████████████| 90/90 [03:01]
-Performing image reprojection...: 100%|██████████████████████████| 90/90 [02:14]
+Loading bkgmap: 100%|██████████| 90/90 [00:02&lt;00:00, 44.82it/s]
+Subtracting background...: 100%|█████████████████████████████████| 90/90 [04:58]
+Performing image reprojection...: 100%|██████████████████████████| 90/90 [02:22]
+Combining...: 100%|██████████████████████████████████████████████| 16/16 [02:15]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -1515,48 +1541,44 @@ Performing image reprojection...: 100%|█████████████�
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 (&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;Axes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.com.fits&#39;}, xlabel=&#39;X pixel&#39;, ylabel=&#39;Y pixel&#39;&gt;)
+ &lt;Axes: title={&#39;center&#39;: &#39;calib_7DT14_T00528_20250906_025855_m600_100.com.fits&#39;}, xlabel=&#39;X pixel&#39;, ylabel=&#39;Y pixel&#39;&gt;)
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_33_1.png" src="../_images/example_stacking_33_1.png" />
+<img alt="../_images/example_stacking_41_1.png" src="../_images/example_stacking_41_1.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_33_2.png" src="../_images/example_stacking_33_2.png" />
+<img alt="../_images/example_stacking_41_2.png" src="../_images/example_stacking_41_2.png" />
 </div>
 </div>
 </section>
 <section id="4.2.-Image-and-Background-RMS-stacking">
 <h3>4.2. Image and Background RMS stacking<a class="headerlink" href="#4.2.-Image-and-Background-RMS-stacking" title="Link to this heading"></a></h3>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Preprocess</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibrationImage</span>
 <span class="n">preprocessor</span> <span class="o">=</span> <span class="n">Preprocess</span><span class="p">()</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_bkgrms</span><span class="p">(</span><span class="n">target_img</span><span class="p">):</span>
-    <span class="n">mbias_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
-    <span class="n">mdark_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
-    <span class="n">mflat_tbl</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
-    <span class="n">mbias</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mbias_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
-    <span class="n">mdark</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mdark_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
-    <span class="n">mflat</span> <span class="o">=</span> <span class="n">CalibrationImage</span><span class="p">(</span><span class="n">mflat_tbl</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+    <span class="n">mbias</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">mdark</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">mflat</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span><span class="n">target_img</span><span class="p">,</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms_from_propagation</span><span class="p">(</span>
         <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
         <span class="n">mbias</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
@@ -1586,11 +1608,11 @@ Performing image reprojection...: 100%|█████████████�
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Calculating background RMS: 100%|██████████| 90/90 [02:26&lt;00:00,  1.63s/it]
+Calculating background RMS: 100%|██████████| 90/90 [02:36&lt;00:00,  1.74s/it]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Stack</span>
@@ -1617,7 +1639,7 @@ Public methods:
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
@@ -1641,68 +1663,369 @@ Public methods:
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading bkgrms: 100%|██████████| 90/90 [00:01&lt;00:00, 71.46it/s]
-Subtracting background...: 100%|█████████████████████████████████| 90/90 [02:49]
-Performing image/bkgrms reprojection...: 100%|███████████████████| 90/90 [06:07]
+Loading bkgrms: 100%|██████████| 90/90 [00:01&lt;00:00, 66.88it/s]
+Subtracting background...: 100%|█████████████████████████████████| 90/90 [03:31]
+Performing image/bkgrms reprojection...: 100%|███████████████████| 90/90 [05:23]
+Combining...: 100%|██████████████████████████████████████████████| 16/16 [04:38]
 </pre></div></div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
-    <span class="n">target_img</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">target_bkgrms</span> <span class="ow">in</span> <span class="n">target_bkgrmslist</span><span class="p">:</span>
-    <span class="n">target_bkgrms</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">target_bkg</span> <span class="ow">in</span> <span class="n">target_bkglist</span><span class="p">:</span>
-    <span class="n">target_bkg</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">stacked_bkgrms</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;Axes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.com.fits&#39;}, xlabel=&#39;X pixel&#39;, ylabel=&#39;Y pixel&#39;&gt;)
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_39_1.png" src="../_images/example_stacking_39_1.png" />
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_bkgrms</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
+<img alt="../_images/example_stacking_47_0.png" src="../_images/example_stacking_47_0.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_stacking_40_0.png" src="../_images/example_stacking_40_0.png" />
+<img alt="../_images/example_stacking_47_1.png" src="../_images/example_stacking_47_1.png" />
 </div>
 </div>
 </section>
 <section id="4.3.-Image-stacking-with-convolution-or-ZP-scaling">
 <h3>4.3. Image stacking with convolution or ZP scaling<a class="headerlink" href="#4.3.-Image-stacking-with-convolution-or-ZP-scaling" title="Link to this heading"></a></h3>
-<p>To do this, please refer Example “photometriccalibration”. You can apply FWHM matching and ZP matching after running photometriccalibration process.</p>
+<p>When images have information about PSF size or zeropoints in the header, you can stack images with convolution or ZP scaling.</p>
+<p>To update the header, please refer Example <code class="docutils literal notranslate"><span class="pre">Photometric</span> <span class="pre">Calibration</span></code>.</p>
+<p>You can apply FWHM matching and ZP matching after running photometric_calibration process.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">target_img</span> <span class="ow">in</span> <span class="n">target_imglist</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ZP of &quot;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">target_img</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;ZP_APER_1&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+ZP of  calib_7DT14_T00528_20250906_025855_m600_100.fits : 26.302696857378585
+ZP of  calib_7DT14_T00528_20250903_234441_m600_100.fits : 26.21969918892981
+ZP of  calib_7DT14_T00528_20250902_072423_m600_100.fits : 26.24222441668575
+ZP of  calib_7DT14_T00528_20250831_235542_m600_100.fits : 26.20522598075139
+ZP of  calib_7DT14_T00528_20250902_074036_m600_100.fits : 26.213725328142672
+ZP of  calib_7DT14_T00528_20250903_235531_m600_100.fits : 26.270388015374934
+ZP of  calib_7DT14_T00528_20250904_234659_m600_100.fits : 26.30584164781407
+ZP of  calib_7DT14_T00528_20250902_073848_m600_100.fits : 26.242540486447524
+ZP of  calib_7DT14_T00528_20250906_235138_m600_100.fits : 26.295210312679732
+ZP of  calib_7DT14_T00528_20250903_235006_m600_100.fits : 26.258317512974056
+ZP of  calib_7DT14_T00528_20250820_014852_m600_100.fits : 26.11652441668575
+ZP of  calib_7DT14_T00528_20250906_025519_m600_100.fits : 26.230477911415278
+ZP of  calib_7DT14_T00528_20250831_233554_m600_100.fits : 26.238168716540233
+ZP of  calib_7DT14_T00528_20250906_234235_m600_100.fits : 26.30307177617626
+ZP of  calib_7DT14_T00528_20250902_072612_m600_100.fits : 26.252441647814074
+ZP of  calib_7DT14_T00528_20250820_014704_m600_100.fits : 26.178230270608047
+ZP of  calib_7DT14_T00528_20250906_234047_m600_100.fits : 26.29125896545197
+ZP of  calib_7DT14_T00528_20250831_234118_m600_100.fits : 26.23400610659055
+ZP of  calib_7DT14_T00528_20250903_062434_m600_100.fits : 24.605461692873902
+ZP of  calib_7DT14_T00528_20250824_035027_m600_100.fits : 26.30448289751072
+ZP of  calib_7DT14_T00528_20250902_074224_m600_100.fits : 26.242640486447527
+ZP of  calib_7DT14_T00528_20250906_023900_m600_100.fits : 26.214925244590894
+ZP of  calib_7DT14_T00528_20250904_234511_m600_100.fits : 26.312582897510723
+ZP of  calib_7DT14_T00528_20250831_234454_m600_100.fits : 26.22972532814267
+ZP of  calib_7DT14_T00528_20250904_233758_m600_100.fits : 26.27408837845578
+ZP of  calib_7DT14_T00528_20250906_234424_m600_100.fits : 26.318184319241197
+ZP of  calib_7DT14_T00528_20250906_235852_m600_100.fits : 26.344660947513198
+ZP of  calib_7DT14_T00528_20250904_235224_m600_100.fits : 26.31132815203487
+ZP of  calib_7DT14_T00528_20250903_061533_m600_100.fits : 24.965025980751392
+ZP of  calib_7DT14_T00528_20250831_233743_m600_100.fits : 26.234954112826696
+ZP of  calib_7DT14_T00528_20250902_074412_m600_100.fits : 26.245543504480782
+ZP of  calib_7DT14_T00528_20250902_073512_m600_100.fits : 26.25369176485851
+ZP of  calib_7DT14_T00528_20250906_233858_m600_100.fits : 26.291544578308816
+ZP of  calib_7DT14_T00528_20250904_234847_m600_100.fits : 26.311038304935693
+ZP of  calib_7DT14_T00528_20250904_235748_m600_100.fits : 26.32026275277385
+ZP of  calib_7DT14_T00528_20250903_061157_m600_100.fits : 25.450461692873905
+ZP of  calib_7DT14_T00528_20250903_061010_m600_100.fits : 25.490234219588785
+ZP of  calib_7DT14_T00528_20250903_062811_m600_100.fits : 25.047082695257377
+ZP of  calib_7DT14_T00528_20250831_235206_m600_100.fits : 26.22225237840509
+ZP of  calib_7DT14_T00528_20250824_034457_m600_100.fits : 26.317317512974057
+ZP of  calib_7DT14_T00528_20250906_025330_m600_100.fits : 26.248359283044888
+ZP of  calib_7DT14_T00528_20250904_235412_m600_100.fits : 26.322940486447525
+ZP of  calib_7DT14_T00528_20250903_233916_m600_100.fits : 26.25226717377567
+ZP of  calib_7DT14_T00528_20250902_073324_m600_100.fits : 26.226849725949748
+ZP of  calib_7DT14_T00528_20250906_234950_m600_100.fits : 26.332431833813047
+ZP of  calib_7DT14_T00528_20250906_024954_m600_100.fits : 26.29193816856953
+ZP of  calib_7DT14_T00528_20250906_025707_m600_100.fits : 26.29992703889766
+ZP of  calib_7DT14_T00528_20250904_234135_m600_100.fits : 26.315435643032117
+ZP of  calib_7DT14_T00528_20250904_235600_m600_100.fits : 26.30633816856953
+ZP of  calib_7DT14_T00528_20250906_024806_m600_100.fits : 26.216982246916942
+ZP of  calib_7DT14_T00528_20250903_234252_m600_100.fits : 26.29713749017276
+ZP of  calib_7DT14_T00528_20250903_233728_m600_100.fits : 26.2838001679936
+ZP of  calib_7DT14_T00528_20250831_235354_m600_100.fits : 26.20706592694515
+ZP of  calib_7DT14_T00528_20250831_234642_m600_100.fits : 26.216440486447524
+ZP of  calib_7DT14_T00528_20250831_234830_m600_100.fits : 26.224973688029216
+ZP of  calib_7DT14_T00528_20250903_235720_m600_100.fits : 26.27922598075139
+ZP of  calib_7DT14_T00528_20250904_234323_m600_100.fits : 26.296406453007954
+ZP of  calib_7DT14_T00528_20250903_062246_m600_100.fits : 24.66472441668575
+ZP of  calib_7DT14_T00528_20250903_234629_m600_100.fits : 26.198907223810693
+ZP of  calib_7DT14_T00528_20250902_072800_m600_100.fits : 26.233032451566636
+ZP of  calib_7DT14_T00528_20250903_061910_m600_100.fits : 24.994403584064557
+ZP of  calib_7DT14_T00528_20250824_034646_m600_100.fits : 26.30697541117014
+ZP of  calib_7DT14_T00528_20250903_234104_m600_100.fits : 26.293043935163617
+ZP of  calib_7DT14_T00528_20250906_030043_m600_100.fits : 26.264139107148132
+ZP of  calib_7DT14_T00528_20250904_235036_m600_100.fits : 26.325061691979123
+ZP of  calib_7DT14_T00528_20250903_062622_m600_100.fits : 24.76338185947862
+ZP of  calib_7DT14_T00528_20250831_235018_m600_100.fits : 26.221285643032115
+ZP of  calib_7DT14_T00528_20250903_061345_m600_100.fits : 25.308712320612262
+ZP of  calib_7DT14_T00528_20250902_073700_m600_100.fits : 26.226940486447525
+ZP of  calib_7DT14_T00528_20250906_235704_m600_100.fits : 26.30767313799261
+ZP of  calib_7DT14_T00528_20250906_024048_m600_100.fits : 26.1940192490328
+ZP of  calib_7DT14_T00528_20250906_235327_m600_100.fits : 26.306696924078878
+ZP of  calib_7DT14_T00528_20250903_235154_m600_100.fits : 26.29832355972206
+ZP of  calib_7DT14_T00528_20250902_073136_m600_100.fits : 26.243882907295095
+ZP of  calib_7DT14_T00528_20250906_024617_m600_100.fits : 26.25463513504254
+ZP of  calib_7DT14_T00528_20250906_024237_m600_100.fits : 26.175730009862782
+ZP of  calib_7DT14_T00528_20250903_060821_m600_100.fits : 25.505981859478617
+ZP of  calib_7DT14_T00528_20250831_234306_m600_100.fits : 26.23755324772913
+ZP of  calib_7DT14_T00528_20250903_234817_m600_100.fits : 26.264714052388488
+ZP of  calib_7DT14_T00528_20250904_233947_m600_100.fits : 26.31241232061226
+ZP of  calib_7DT14_T00528_20250906_025142_m600_100.fits : 26.257597910236665
+ZP of  calib_7DT14_T00528_20250831_233930_m600_100.fits : 26.238203138082184
+ZP of  calib_7DT14_T00528_20250903_062058_m600_100.fits : 24.679768368649007
+ZP of  calib_7DT14_T00528_20250902_072948_m600_100.fits : 26.245645361147492
+ZP of  calib_7DT14_T00528_20250906_234613_m600_100.fits : 26.32508260546474
+ZP of  calib_7DT14_T00528_20250903_235343_m600_100.fits : 26.263458965451967
+ZP of  calib_7DT14_T00528_20250906_234801_m600_100.fits : 26.325570606184456
+ZP of  calib_7DT14_T00528_20250820_014516_m600_100.fits : 26.203662889377775
+ZP of  calib_7DT14_T00528_20250903_061721_m600_100.fits : 24.81032529706954
+ZP of  calib_7DT14_T00528_20250906_235515_m600_100.fits : 26.309037490172763
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_img</span><span class="p">,</span> <span class="n">stackged_bkgrms</span> <span class="o">=</span> <span class="n">stacker</span><span class="o">.</span><span class="n">stack_multiprocess</span><span class="p">(</span>
+    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">,</span>
+    <span class="n">target_bkglist</span> <span class="o">=</span> <span class="n">target_bkglist</span><span class="p">,</span>
+    <span class="n">target_bkgrmslist</span> <span class="o">=</span> <span class="n">target_bkgrmslist</span><span class="p">,</span>
+    <span class="n">n_proc</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="c1"># If you want to apply ZP matching, set scale = True</span>
+    <span class="n">scale_type</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+    <span class="n">zp_key</span> <span class="o">=</span> <span class="s1">&#39;ZP_APER_1&#39;</span><span class="p">,</span>
+    <span class="n">convolve</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="c1"># If you want to apply FWHM matching, set convolve = True</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Subtracting background...: 100%|█████████████████████████████████| 90/90 [05:06]
+Matching ZP...: 100%|████████████████████████████████████████████| 90/90 [05:03]
+Performing image/bkgrms reprojection...: 100%|███████████████████| 90/90 [05:10]
+Combining...: 100%|██████████████████████████████████████████████| 16/16 [04:08]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">stacked_bkgrms</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_52_0.png" src="../_images/example_stacking_52_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_52_1.png" src="../_images/example_stacking_52_1.png" />
+</div>
+</div>
+</section>
+<section id="4.4.-Image-stacking-with-the-selected-image">
+<h3>4.4. Image stacking with the selected image<a class="headerlink" href="#4.4.-Image-stacking-with-the-selected-image" title="Link to this heading"></a></h3>
+<p>If you wish to select with the absolute criteria</p>
+<ul class="simple">
+<li><p>Seeing: &lt; 3</p></li>
+<li><p>Depth: &gt; 17.0</p></li>
+<li><p>Ellipticity: &lt; 0.3</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">selected_imglist</span> <span class="o">=</span> <span class="n">stacker</span><span class="o">.</span><span class="n">select_quality_images</span><span class="p">(</span>
+    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">,</span>
+    <span class="n">min_obsdate</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_obsdate</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">seeing_key</span> <span class="o">=</span> <span class="s1">&#39;SEEING&#39;</span><span class="p">,</span>
+    <span class="n">depth_key</span> <span class="o">=</span> <span class="s1">&#39;UL5SKY_APER_1&#39;</span><span class="p">,</span>
+    <span class="n">ellipticity_key</span> <span class="o">=</span> <span class="s1">&#39;ELLIP&#39;</span><span class="p">,</span>
+    <span class="n">obsdate_key</span> <span class="o">=</span> <span class="s1">&#39;DATE-OBS&#39;</span><span class="p">,</span>
+    <span class="n">weight_ellipticity</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="c1"># 0.0 means no weight</span>
+    <span class="n">weight_seeing</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="c1"># 0.0 means no weight</span>
+    <span class="n">weight_depth</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="c1"># 0.0 means no weight</span>
+    <span class="n">max_numbers</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="c1"># Set max_nunbers to None to select all images</span>
+    <span class="n">seeing_limit</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+    <span class="n">depth_limit</span> <span class="o">=</span> <span class="mf">17.0</span><span class="p">,</span>
+    <span class="n">ellipticity_limit</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Querying images...: 100%|████████████████████████████████████████| 90/90 [00:00]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_55_1.png" src="../_images/example_stacking_55_1.png" />
+</div>
+</div>
+<p>If you wish to select top 30 images with the relative weight</p>
+<ul class="simple">
+<li><p>weight_seeing: 3</p></li>
+<li><p>weight_depth: 1</p></li>
+<li><p>weight_ellipticity: 2</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">selected_imglist</span> <span class="o">=</span> <span class="n">stacker</span><span class="o">.</span><span class="n">select_quality_images</span><span class="p">(</span>
+    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">,</span>
+    <span class="n">min_obsdate</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_obsdate</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">seeing_key</span> <span class="o">=</span> <span class="s1">&#39;SEEING&#39;</span><span class="p">,</span>
+    <span class="n">depth_key</span> <span class="o">=</span> <span class="s1">&#39;UL5SKY_APER_1&#39;</span><span class="p">,</span>
+    <span class="n">ellipticity_key</span> <span class="o">=</span> <span class="s1">&#39;ELLIP&#39;</span><span class="p">,</span>
+    <span class="n">obsdate_key</span> <span class="o">=</span> <span class="s1">&#39;DATE-OBS&#39;</span><span class="p">,</span>
+    <span class="n">weight_ellipticity</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">weight_seeing</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+    <span class="n">weight_depth</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_numbers</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">seeing_limit</span> <span class="o">=</span> <span class="mi">99</span><span class="p">,</span>
+    <span class="n">depth_limit</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">ellipticity_limit</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Querying images...: 100%|████████████████████████████████████████| 90/90 [00:00]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_57_1.png" src="../_images/example_stacking_57_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageSet</span>
+<span class="n">selected_imgset</span> <span class="o">=</span> <span class="n">ImageSet</span><span class="p">(</span><span class="n">selected_imglist</span><span class="p">)</span>
+<span class="n">selected_imglist</span> <span class="o">=</span> <span class="n">selected_imgset</span><span class="o">.</span><span class="n">target_images</span>
+<span class="n">selected_bkglist</span> <span class="o">=</span> <span class="n">selected_imgset</span><span class="o">.</span><span class="n">bkgmap</span>
+<span class="n">selected_bkgrmslist</span> <span class="o">=</span> <span class="n">selected_imgset</span><span class="o">.</span><span class="n">bkgrms</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading bkgmap: 100%|██████████| 30/30 [00:00&lt;00:00, 54.44it/s]
+Loading bkgrms: 100%|██████████| 30/30 [00:00&lt;00:00, 66.60it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_img_selected</span><span class="p">,</span> <span class="n">stackged_bkgrms_selected</span> <span class="o">=</span> <span class="n">stacker</span><span class="o">.</span><span class="n">stack_multiprocess</span><span class="p">(</span>
+    <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">selected_imglist</span><span class="p">,</span>
+    <span class="n">target_bkglist</span> <span class="o">=</span> <span class="n">selected_bkglist</span><span class="p">,</span>
+    <span class="n">target_bkgrmslist</span> <span class="o">=</span> <span class="n">selected_bkgrmslist</span><span class="p">,</span>
+    <span class="n">n_proc</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="c1"># If you want to apply ZP matching, set scale = True</span>
+    <span class="n">scale_type</span> <span class="o">=</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+    <span class="n">zp_key</span> <span class="o">=</span> <span class="s1">&#39;ZP_APER_1&#39;</span><span class="p">,</span>
+    <span class="n">convolve</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="c1"># If you want to apply FWHM matching, set convolve = True</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Subtracting background...: 100%|█████████████████████████████████| 30/30 [01:32]
+Matching ZP...: 100%|████████████████████████████████████████████| 30/30 [01:42]
+Performing image/bkgrms reprojection...: 100%|███████████████████| 30/30 [03:18]
+Combining...: 100%|██████████████████████████████████████████████| 16/16 [01:33]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stacked_img_selected</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">stackged_bkgrms_selected</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_60_0.png" src="../_images/example_stacking_60_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_stacking_60_1.png" src="../_images/example_stacking_60_1.png" />
+</div>
+</div>
 </section>
 </section>
 </section>
@@ -1711,7 +2034,7 @@ Performing image/bkgrms reprojection...: 100%|███████████�
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="aperturephotometry.html" class="btn btn-neutral float-left" title="Aperture Photometry" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="photometriccalibration.html" class="btn btn-neutral float-left" title="Photometric Calibration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="../api/methods.html" class="btn btn-neutral float-right" title="Methods" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

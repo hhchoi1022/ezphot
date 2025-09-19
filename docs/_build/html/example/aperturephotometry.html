@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aperture Photometry &mdash; ezphot 0.2.5 documentation</title>
+  <title>Aperture Photometry &mdash; ezphot 0.3.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=044e0a3f" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb850272"></script>
+      <script src="../_static/documentation_options.js?v=e259d695"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -23,8 +24,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Stacking" href="stacking.html" />
-    <link rel="prev" title="Background estimation" href="backgroundestimation.html" />
+    <link rel="next" title="Photometric Calibration" href="photometriccalibration.html" />
+    <link rel="prev" title="Background RMS Estimation" href="backgroundrmsestimation.html" />
  
 <meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
 
@@ -73,6 +74,52 @@
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/dataquery.html">Data Query with DataBrowser</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#supported-data-types">Supported Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#import-and-initialize">Import and Initialize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-folder-types">Available Folder Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#filtering-data">Filtering Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#set-search-attributes">Set Search Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#view-current-filters">View Current Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#searching-and-loading-data">Searching and Loading Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#basic-search">Basic Search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#load-as-different-object-types">Load as Different Object Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#science-images">Science Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#reference-images">Reference Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#calibration-images">Calibration Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#background-images">Background Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#error-maps">Error Maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#masks">Masks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#catalogs">Catalogs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#image-information">Image Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#practical-examples">Practical Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-1-load-science-images-for-photometry">Example 1: Load Science Images for Photometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-2-load-reference-and-calibration-data">Example 2: Load Reference and Calibration Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-3-search-with-multiple-filters">Example 3: Search with Multiple Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#advanced-features">Advanced Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-keys">Available Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#help-and-documentation">Help and Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#search-in-specific-folders">Search in Specific Folders</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#tips-for-efficient-usage">Tips for Efficient Usage</a></li>
 </ul>
 </li>
 </ul>
@@ -146,10 +193,17 @@
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-the-data">1. Load the data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#1.1.-Sync-Data-with-SDTDataQuerier-(Optional)">1.1. Sync Data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#🔎-1.2.-Query-Data-with-DataBrowser">🔎 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Preprocessing">2. Preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.1.-Load-master-frames">2.1. Load master frames</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.2.-Apply-Correction">2.2. Apply Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.3.-Batch-Process-All-Target-Images">2.3. Batch Process All Target Images</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="backgroundestimation.html">Background estimation</a><ul>
@@ -166,15 +220,59 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="backgroundrmsestimation.html">Background RMS Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundrmsestimation.html#2.-Background-RMS-Estimation">2. Background RMS Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.1.-Basic-Background-RMS-Estimation">2.1. Basic Background RMS Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.2.-Background-RMS-Estimation-with-source-masking">2.2. Background RMS Estimation with source masking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">2.2.3. Re-generation of Background RMS Map with Source Mask</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundrmsestimation.html#2.3.-Background-RMS-Estimation-with-Error-Propagation">2.3. Background RMS Estimation with Error Propagation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.1.-Loading-the-Master-Calibration-Frames">2.3.1. Loading the Master Calibration Frames</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundrmsestimation.html#2.3.2.-Background-RMS-Calculation-with-Error-Propagation">2.3.2. Background RMS Calculation with Error Propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Aperture Photometry</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#1.-Load-Data">1. Load Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#3.-Aperture-Photometry-with-Background-and-Background-RMS">3. Aperture Photometry with Background and Background RMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#4.-Forced-Aperture-Photometry">4. Forced Aperture Photometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#4.1.-Circular-Aperture-Forced-Photometry">4.1. Circular Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#When-to-Use-Circular-Apertures:">When to Use Circular Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Key-Parameters:">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Point-Source-Coordinates">Point Source Coordinates</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#4.2.-Elliptical-Aperture-Forced-Photometry">4.2. Elliptical Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#When-to-Use-Elliptical-Apertures:">When to Use Elliptical Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Extended-Source-Parameters">Extended Source Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#2.-Photometric-Calibration">2. Photometric Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.1.-Load-Source-Catalog">2.1. Load Source Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.2.-Run-Calibration">2.2. Run Calibration</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="stacking.html#1.-Load-Data">1. Load Data</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#1.2.-Query-Data-with-DataBrowser">1.2. Query Data with DataBrowser</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
@@ -191,6 +289,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.4.-Image-stacking-with-the-selected-image">4.4. Image stacking with the selected image</a></li>
 </ul>
 </li>
 </ul>
@@ -345,6 +444,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.query_referenceframe"><code class="docutils literal notranslate"><span class="pre">query_referenceframe()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
@@ -708,13 +810,13 @@
 <h1>Aperture Photometry<a class="headerlink" href="#Aperture-Photometry" title="Link to this heading"></a></h1>
 <section id="1.-Load-Data">
 <h2>1. Load Data<a class="headerlink" href="#1.-Load-Data" title="Link to this heading"></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code> class allows us to query and filter our synced data. Here we’ll explore the available keys and their values to understand what data we have access to.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code> class allows us to query and filter our synced data. Here we’ll explore the available keys and their values to understand what data we have access to. This is essential for selecting the appropriate images for photometric analysis.</p>
 <p>Let’s filter our data to find specific images. We’ll search for:</p>
 <ul class="simple">
-<li><p><strong>Target</strong>: T00528</p></li>
-<li><p><strong>Telescope</strong>: 7DT16</p></li>
-<li><p><strong>Filter</strong>: r-band</p></li>
-<li><p><strong>Pattern</strong>: Files ending with <code class="docutils literal notranslate"><span class="pre">*100.fits</span></code></p></li>
+<li><p><strong>Target</strong>: T00528 (the astronomical object of interest)</p></li>
+<li><p><strong>Telescope</strong>: 7DT16 (specific telescope configuration)</p></li>
+<li><p><strong>Filter</strong>: r-band (red filter for photometric measurements)</p></li>
+<li><p><strong>Pattern</strong>: Files ending with <code class="docutils literal notranslate"><span class="pre">*100.fits</span></code> (100-second exposure images)</p></li>
 </ul>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
@@ -723,8 +825,7 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
 <span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
 <span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
-<span class="n">dbrowser</span><span class="o">.</span><span class="n">telname</span> <span class="o">=</span> <span class="s1">&#39;7DT16&#39;</span>
-<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
 <span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
 <span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
 </pre></div>
@@ -735,7 +836,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/7DT16/r/*100.fits&#39;
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -743,7 +844,7 @@
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 97.42it/s]
+Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 93.42it/s]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -762,7 +863,7 @@ Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 (&lt;Figure size 800x600 with 2 Axes&gt;,
- &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT16_T00528_20250905_000408_r_100.fits&#39;}&gt;)
+ &lt;WCSAxes: title={&#39;center&#39;: &#39;calib_7DT14_T00528_20250906_025855_m600_100.fits&#39;}&gt;)
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -775,7 +876,8 @@ Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:
 </section>
 <section id="2.-Aperture-Photometry">
 <h2>2. Aperture Photometry<a class="headerlink" href="#2.-Aperture-Photometry" title="Link to this heading"></a></h2>
-<p>As you did with source-extractor, you can do photometry easily.</p>
+<p>Aperture photometry measures the total flux from astronomical sources by summing pixel values within defined circular or elliptical apertures. This method is widely used for precise photometric measurements and is essential for determining stellar magnitudes and flux measurements.</p>
+<p>As you did with source-extractor, you can perform photometry easily. The <code class="docutils literal notranslate"><span class="pre">AperturePhotometry</span></code> class provides several methods for different photometric approaches, including circular apertures, elliptical apertures, and integration with the photutils library.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
@@ -802,7 +904,7 @@ Public methods:
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">sex_photometry</span><span class="p">(</span>
@@ -813,7 +915,7 @@ Public methods:
     <span class="n">sex_params</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">detection_sigma</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
     <span class="n">aperture_diameter_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
-    <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">3.5</span><span class="p">,</span> <span class="mf">4.5</span><span class="p">],</span>
+    <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">],</span>
     <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">60000</span><span class="p">,</span>
     <span class="n">kron_factor</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
     <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -824,23 +926,17 @@ Public methods:
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/example_aperturephotometry_8_0.png" src="../_images/example_aperturephotometry_8_0.png" />
-</div>
-</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_aperturephotometry_8_1.png" src="../_images/example_aperturephotometry_8_1.png" />
+<img alt="../_images/example_aperturephotometry_9_0.png" src="../_images/example_aperturephotometry_9_0.png" />
 </div>
 </div>
-<p>The output will be Catalog instance, which has information about the exposure and catalog data. For more detail, see :ref:<code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">Catalog</span> <span class="pre">class</span> <span class="pre">&lt;catalog&gt;</span></code></p>
+<p>The output will be a <code class="docutils literal notranslate"><span class="pre">Catalog</span></code> instance, which contains information about the exposure and catalog data.</p>
+<p>This includes metadata about the observation (exposure time, filter, telescope), the detected sources, and their photometric measurements.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
@@ -853,27 +949,27 @@ Public methods:
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Info ============================================
-  path: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits.cat
-  target_img: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT16/r/calib_7DT16_T00528_20250905_000408_r_100.fits
-  obsdate: 2025-09-05T00:04:08.000
-  filter: r
+  path: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits.cat
+  target_img: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/calib_7DT14_T00528_20250906_025855_m600_100.fits
+  obsdate: 2025-09-06T02:58:55.000
+  filter: m600
   exptime: 100.0
-  depth: 18.917
-  seeing: 2.36567556
+  depth: 17.602
+  seeing: 3.19399596
   catalog_type: all
-  ra: 326.2506400247
-  dec: -77.26445076037
-  fov_ra: 1.35
-  fov_dec: 0.9
+  ra: 326.2509829204
+  dec: -77.26234951715
+  fov_ra: 1.347
+  fov_dec: 0.899
   objname: T00528
   observatory: 7DT
-  telname: 7DT16
+  telname: 7DT14
   aperture_diameter_arcsec: None
 ===================================================
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;exptime: &#39;</span><span class="p">,</span> <span class="n">target_catalog</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">exptime</span><span class="p">)</span>
@@ -891,15 +987,15 @@ Info ============================================
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 exptime:  100.0
-filter:  r
-telname:  7DT16
+filter:  m600
+telname:  7DT14
 objname:  T00528
-ra:  326.2506400247
-dec:  -77.26445076037
+ra:  326.2509829204
+dec:  -77.26234951715
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span><span class="o">.</span><span class="n">data</span>
@@ -907,75 +1003,65 @@ dec:  -77.26445076037
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
-<div><i>Table length=4999</i>
-<table id="table140677324511568" class="table-striped table-bordered table-condensed">
+<div><i>Table length=2482</i>
+<table id="table140593562582928" class="table-striped table-bordered table-condensed">
 <thead><tr><th>NUMBER</th><th>FLUX_AUTO</th><th>FLUXERR_AUTO</th><th>FLUX_APER</th><th>FLUX_APER_1</th><th>FLUX_APER_2</th><th>FLUX_APER_3</th><th>FLUX_APER_4</th><th>FLUXERR_APER</th><th>FLUXERR_APER_1</th><th>FLUXERR_APER_2</th><th>FLUXERR_APER_3</th><th>FLUXERR_APER_4</th><th>MAG_AUTO</th><th>MAGERR_AUTO</th><th>MAG_APER</th><th>MAG_APER_1</th><th>MAG_APER_2</th><th>MAG_APER_3</th><th>MAG_APER_4</th><th>MAGERR_APER</th><th>MAGERR_APER_1</th><th>MAGERR_APER_2</th><th>MAGERR_APER_3</th><th>MAGERR_APER_4</th><th>FWHM_IMAGE</th><th>FWHM_WORLD</th><th>X_IMAGE</th><th>Y_IMAGE</th><th>XWIN_IMAGE</th><th>YWIN_IMAGE</th><th>X_WORLD</th><th>Y_WORLD</th><th>ALPHA_J2000</th><th>DELTA_J2000</th><th>FLAGS</th><th>CLASS_STAR</th><th>THRESHOLD</th><th>A_IMAGE</th><th>B_IMAGE</th><th>ELONGATION</th><th>ELLIPTICITY</th><th>KRON_RADIUS</th><th>FLUX_RADIUS</th><th>THETA_IMAGE</th><th>THETA_WORLD</th><th>THETA_SKY</th><th>THETA_J2000</th><th>BACKGROUND</th><th>FLUX_MAX</th><th>ISOAREA_IMAGE</th><th>SKYSIG</th><th>SKYVAL</th><th>DETECT_THRESH</th><th>NPIX_AUTO</th><th>NPIX_APER</th><th>PIXSIZE_APER</th><th>NPIX_APER_1</th><th>PIXSIZE_APER_1</th><th>NPIX_APER_2</th><th>PIXSIZE_APER_2</th><th>NPIX_APER_3</th><th>PIXSIZE_APER_3</th><th>NPIX_APER_4</th><th>PIXSIZE_APER_4</th></tr></thead>
 <thead><tr><th></th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>ct</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>mag</th><th>pix</th><th>deg</th><th>pix</th><th>pix</th><th>pix</th><th>pix</th><th>deg</th><th>deg</th><th>deg</th><th>deg</th><th></th><th></th><th>ct</th><th>pix</th><th>pix</th><th></th><th></th><th></th><th>pix</th><th>deg</th><th>deg</th><th>deg</th><th>deg</th><th>ct</th><th>ct</th><th>pix2</th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th></tr></thead>
-<thead><tr><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>str7</th><th>str1</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th></tr></thead>
-<tr><td>1</td><td>3474970.0</td><td>4121.366</td><td>2614184.0</td><td>3123566.0</td><td>3389806.0</td><td>3274942.0</td><td>3417686.0</td><td>3280.912</td><td>3645.505</td><td>3935.1</td><td>3786.016</td><td>3986.333</td><td>-16.3524</td><td>0.0013</td><td>-16.0433</td><td>-16.2366</td><td>-16.3254</td><td>-16.288</td><td>-16.3343</td><td>0.0014</td><td>0.0013</td><td>0.0013</td><td>0.0013</td><td>0.0013</td><td>6.81</td><td>0.0009596373</td><td>465.399</td><td>85.0836</td><td>466.1606</td><td>86.0496</td><td>323.34446643</td><td>-77.669369721</td><td>323.3444664</td><td>-77.6693697</td><td>4</td><td>0.98</td><td>127.2467</td><td>3.738</td><td>3.275</td><td>1.141</td><td>0.124</td><td>3.5</td><td>3.334</td><td>72.05</td><td>69.59</td><td>20.41</td><td>20.41</td><td>0.683493</td><td>74826.42</td><td>765</td><td>79.7884</td><td>0</td><td>3</td><td>471.1254472737662</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>2</td><td>4683292.0</td><td>4698.114</td><td>3680859.0</td><td>4237371.0</td><td>4550494.0</td><td>4407084.0</td><td>4591606.0</td><td>3868.563</td><td>4208.255</td><td>4488.833</td><td>4340.829</td><td>4541.944</td><td>-16.6764</td><td>0.0011</td><td>-16.4149</td><td>-16.5677</td><td>-16.6451</td><td>-16.6104</td><td>-16.6549</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>0.0011</td><td>5.26</td><td>0.0007412169</td><td>9107.2539</td><td>75.121</td><td>9108.3396</td><td>76.0409</td><td>329.05032246</td><td>-77.706008552</td><td>329.0503225</td><td>-77.7060086</td><td>4</td><td>1.0</td><td>131.1449</td><td>3.594</td><td>3.529</td><td>1.019</td><td>0.018</td><td>3.5</td><td>3.202</td><td>-61.01</td><td>-66.17</td><td>-23.83</td><td>-23.83</td><td>4.247592</td><td>77110.84</td><td>921</td><td>79.7884</td><td>0</td><td>3</td><td>488.1077379113834</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>3</td><td>89170.51</td><td>1388.597</td><td>79127.55</td><td>86329.8</td><td>93204.63</td><td>89297.84</td><td>94107.69</td><td>950.3466</td><td>1224.837</td><td>1653.531</td><td>1405.845</td><td>1749.46</td><td>-12.3756</td><td>0.0169</td><td>-12.2458</td><td>-12.3404</td><td>-12.4236</td><td>-12.3771</td><td>-12.4341</td><td>0.013</td><td>0.0154</td><td>0.0193</td><td>0.0171</td><td>0.0202</td><td>4.03</td><td>0.0005685684</td><td>8996.9189</td><td>33.0811</td><td>8997.8257</td><td>34.1069</td><td>328.97806299</td><td>-77.712246785</td><td>328.978063</td><td>-77.7122468</td><td>0</td><td>0.983</td><td>131.299</td><td>2.036</td><td>2.004</td><td>1.016</td><td>0.015</td><td>3.99</td><td>2.382</td><td>66.81</td><td>64.67</td><td>25.33</td><td>25.33</td><td>4.700016</td><td>4257.846</td><td>91</td><td>79.7884</td><td>0</td><td>3</td><td>204.0662364375781</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4</td><td>2756657.0</td><td>3645.594</td><td>2342736.0</td><td>2596341.0</td><td>2738630.0</td><td>2673359.0</td><td>2758030.0</td><td>3116.256</td><td>3353.08</td><td>3599.24</td><td>3462.755</td><td>3651.51</td><td>-16.101</td><td>0.0014</td><td>-15.9243</td><td>-16.0359</td><td>-16.0938</td><td>-16.0676</td><td>-16.1015</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>0.0014</td><td>4.47</td><td>0.0006300149</td><td>8536.9443</td><td>23.8746</td><td>8537.9367</td><td>24.8449</td><td>328.67459584</td><td>-77.714705528</td><td>328.6745958</td><td>-77.7147055</td><td>6</td><td>0.997</td><td>128.0749</td><td>3.03</td><td>2.939</td><td>1.031</td><td>0.03</td><td>3.5</td><td>2.622</td><td>-62.62</td><td>-64.59</td><td>-25.41</td><td>-25.41</td><td>11.41325</td><td>72875.21</td><td>604</td><td>79.7884</td><td>0</td><td>3</td><td>342.71110397436064</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>5</td><td>87377.32</td><td>1566.148</td><td>67211.56</td><td>80716.19</td><td>88600.88</td><td>83654.29</td><td>89874.65</td><td>911.5572</td><td>1194.924</td><td>1592.146</td><td>1372.914</td><td>1658.686</td><td>-12.3535</td><td>0.0195</td><td>-12.0686</td><td>-12.2674</td><td>-12.3686</td><td>-12.3062</td><td>-12.3841</td><td>0.0147</td><td>0.0161</td><td>0.0195</td><td>0.0178</td><td>0.02</td><td>5.72</td><td>0.0008061111</td><td>8541.2021</td><td>7.9232</td><td>8542.3495</td><td>8.5887</td><td>328.67753218</td><td>-77.716938624</td><td>328.6775322</td><td>-77.7169386</td><td>19</td><td>0.918</td><td>128.1826</td><td>2.64</td><td>2.196</td><td>1.202</td><td>0.168</td><td>4.07</td><td>3.114</td><td>-52.32</td><td>-52.12</td><td>-37.88</td><td>-37.88</td><td>14.56685</td><td>3090.468</td><td>110</td><td>79.7884</td><td>0</td><td>3</td><td>301.6997524247501</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>6</td><td>1475390.0</td><td>2762.326</td><td>1260206.0</td><td>1404172.0</td><td>1478984.0</td><td>1445435.0</td><td>1487576.0</td><td>2325.781</td><td>2538.055</td><td>2780.725</td><td>2643.369</td><td>2833.368</td><td>-15.4223</td><td>0.002</td><td>-15.2511</td><td>-15.3686</td><td>-15.4249</td><td>-15.4</td><td>-15.4312</td><td>0.002</td><td>0.002</td><td>0.002</td><td>0.002</td><td>0.0021</td><td>4.59</td><td>0.0006468092</td><td>4741.1069</td><td>25.3899</td><td>4742.0573</td><td>26.3767</td><td>326.16186051</td><td>-77.710687194</td><td>326.1618605</td><td>-77.7106872</td><td>0</td><td>0.984</td><td>119.1225</td><td>2.873</td><td>2.629</td><td>1.093</td><td>0.085</td><td>3.5</td><td>2.613</td><td>55.51</td><td>54.03</td><td>35.97</td><td>35.97</td><td>3.94823</td><td>54295.38</td><td>407</td><td>79.7884</td><td>0</td><td>3</td><td>290.6780067665762</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>7</td><td>20022.93</td><td>1328.113</td><td>15838.0</td><td>19364.29</td><td>20521.77</td><td>20059.28</td><td>20788.85</td><td>750.5794</td><td>1028.623</td><td>1442.969</td><td>1205.866</td><td>1534.174</td><td>-10.7538</td><td>0.072</td><td>-10.4993</td><td>-10.7175</td><td>-10.7805</td><td>-10.7558</td><td>-10.7946</td><td>0.0515</td><td>0.0577</td><td>0.0764</td><td>0.0653</td><td>0.0801</td><td>8.7</td><td>0.001226384</td><td>1947.6616</td><td>24.5248</td><td>1948.6483</td><td>25.294</td><td>324.31558562</td><td>-77.69268597</td><td>324.3155856</td><td>-77.692686</td><td>0</td><td>0.159</td><td>120.7508</td><td>2.025</td><td>1.754</td><td>1.155</td><td>0.134</td><td>4.81</td><td>3.101</td><td>72.08</td><td>69.79</td><td>20.21</td><td>20.21</td><td>-0.3824342</td><td>590.8799</td><td>48</td><td>79.7884</td><td>0</td><td>3</td><td>258.16338213746826</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>8</td><td>5965024.0</td><td>5121.857</td><td>4373238.0</td><td>5447238.0</td><td>5851234.0</td><td>5693215.0</td><td>5889262.0</td><td>4200.022</td><td>4730.053</td><td>4987.194</td><td>4869.417</td><td>5024.493</td><td>-16.939</td><td>0.0009</td><td>-16.602</td><td>-16.8404</td><td>-16.9181</td><td>-16.8884</td><td>-16.9252</td><td>0.001</td><td>0.0009</td><td>0.0009</td><td>0.0009</td><td>0.0009</td><td>8.95</td><td>0.00126119</td><td>327.0762</td><td>6.0824</td><td>327.8633</td><td>6.5563</td><td>323.24994345</td><td>-77.678873355</td><td>323.2499435</td><td>-77.6788734</td><td>28</td><td>0.998</td><td>112.1141</td><td>3.665</td><td>3.404</td><td>1.077</td><td>0.071</td><td>3.5</td><td>3.66</td><td>37.88</td><td>35.76</td><td>54.24</td><td>54.24</td><td>15.54534</td><td>77961.02</td><td>764</td><td>79.7884</td><td>0</td><td>3</td><td>480.11966210737944</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>9</td><td>16177.1</td><td>1215.76</td><td>12863.05</td><td>14804.94</td><td>16909.53</td><td>16081.89</td><td>17295.55</td><td>734.1324</td><td>1006.993</td><td>1420.154</td><td>1184.687</td><td>1511.119</td><td>-10.5223</td><td>0.0816</td><td>-10.2734</td><td>-10.426</td><td>-10.5703</td><td>-10.5158</td><td>-10.5948</td><td>0.062</td><td>0.0739</td><td>0.0912</td><td>0.08</td><td>0.0949</td><td>6.45</td><td>0.00090878</td><td>3722.0791</td><td>22.2937</td><td>3722.993</td><td>23.2826</td><td>325.48721704</td><td>-77.706011036</td><td>325.487217</td><td>-77.706011</td><td>0</td><td>0.394</td><td>119.1988</td><td>1.75</td><td>1.564</td><td>1.119</td><td>0.106</td><td>5.09</td><td>2.776</td><td>28.76</td><td>26.61</td><td>63.39</td><td>63.39</td><td>-1.278709</td><td>623.094</td><td>36</td><td>79.7884</td><td>0</td><td>3</td><td>222.7718106721216</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<thead><tr><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>int64</th><th>str7</th><th>str7</th><th>int64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th></tr></thead>
+<tr><td>1</td><td>38647.52</td><td>991.3517</td><td>22998.9</td><td>30546.13</td><td>36175.91</td><td>32673.24</td><td>37618.55</td><td>459.6324</td><td>597.7336</td><td>791.7775</td><td>661.254</td><td>868.5319</td><td>-11.4678</td><td>0.0279</td><td>-10.9043</td><td>-11.2124</td><td>-11.396</td><td>-11.2855</td><td>-11.4385</td><td>0.0217</td><td>0.0213</td><td>0.0238</td><td>0.022</td><td>0.0251</td><td>11.98</td><td>0.001684873</td><td>75.128</td><td>37.5339</td><td>75.8524</td><td>38.0625</td><td>323.16533287</td><td>-77.69521716</td><td>323.1653329</td><td>-77.6952172</td><td>0</td><td>0.386</td><td>59.59745</td><td>3.443</td><td>2.886</td><td>1.193</td><td>0.162</td><td>4.1</td><td>4.266</td><td>50.66</td><td>50.01</td><td>39.99</td><td>39.99</td><td>413.4048</td><td>672.8177</td><td>153</td><td>39.7316</td><td>404.634</td><td>3</td><td>524.7481734939145</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2</td><td>31414.15</td><td>926.4174</td><td>20139.03</td><td>26122.52</td><td>30745.0</td><td>28185.62</td><td>31678.28</td><td>447.4653</td><td>583.4359</td><td>778.6</td><td>648.0684</td><td>855.0795</td><td>-11.2428</td><td>0.032</td><td>-10.7601</td><td>-11.0425</td><td>-11.2194</td><td>-11.1251</td><td>-11.2519</td><td>0.0241</td><td>0.0243</td><td>0.0275</td><td>0.025</td><td>0.0293</td><td>10.94</td><td>0.001538636</td><td>362.5956</td><td>31.8846</td><td>363.2296</td><td>32.4371</td><td>323.35381121</td><td>-77.697741609</td><td>323.3538112</td><td>-77.6977416</td><td>0</td><td>0.399</td><td>59.59745</td><td>3.374</td><td>2.465</td><td>1.369</td><td>0.269</td><td>4.21</td><td>3.976</td><td>58.82</td><td>57.86</td><td>32.14</td><td>32.14</td><td>413.4056</td><td>551.0135</td><td>130</td><td>39.7316</td><td>404.634</td><td>3</td><td>463.1013704861377</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>3</td><td>40581.68</td><td>916.7119</td><td>26021.62</td><td>33748.95</td><td>38760.19</td><td>35833.05</td><td>39855.07</td><td>472.4267</td><td>608.257</td><td>798.3595</td><td>670.7977</td><td>873.3986</td><td>-11.5208</td><td>0.0245</td><td>-11.0383</td><td>-11.3207</td><td>-11.471</td><td>-11.3857</td><td>-11.5012</td><td>0.0197</td><td>0.0196</td><td>0.0224</td><td>0.0203</td><td>0.0238</td><td>7.78</td><td>0.001093788</td><td>8245.5518</td><td>33.5234</td><td>8246.6419</td><td>34.3475</td><td>328.55363044</td><td>-77.692078445</td><td>328.5536304</td><td>-77.6920784</td><td>0</td><td>0.612</td><td>59.59745</td><td>2.998</td><td>2.811</td><td>1.067</td><td>0.063</td><td>4.06</td><td>3.966</td><td>-75.53</td><td>-74.56</td><td>-15.44</td><td>-15.44</td><td>412.7901</td><td>785.5968</td><td>147</td><td>39.7316</td><td>404.634</td><td>3</td><td>436.4097190515532</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>4</td><td>33209.32</td><td>924.2328</td><td>22984.11</td><td>28808.86</td><td>31525.85</td><td>30498.24</td><td>32474.5</td><td>459.707</td><td>592.0873</td><td>780.0289</td><td>654.369</td><td>856.9317</td><td>-11.3032</td><td>0.0302</td><td>-10.9036</td><td>-11.1488</td><td>-11.2467</td><td>-11.2107</td><td>-11.2789</td><td>0.0217</td><td>0.0223</td><td>0.0269</td><td>0.0233</td><td>0.0287</td><td>7.94</td><td>0.001117429</td><td>2102.3037</td><td>29.5242</td><td>2103.0907</td><td>30.1978</td><td>324.49871657</td><td>-77.705687354</td><td>324.4987166</td><td>-77.7056874</td><td>0</td><td>0.945</td><td>59.59745</td><td>2.778</td><td>2.63</td><td>1.056</td><td>0.053</td><td>4.46</td><td>3.704</td><td>46.36</td><td>45.75</td><td>44.25</td><td>44.25</td><td>407.7099</td><td>641.1415</td><td>125</td><td>39.7316</td><td>404.634</td><td>3</td><td>456.5702189346599</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>5</td><td>292673.9</td><td>1347.179</td><td>203789.8</td><td>252893.4</td><td>284512.7</td><td>267186.7</td><td>290039.4</td><td>957.6087</td><td>1107.023</td><td>1263.68</td><td>1163.222</td><td>1317.826</td><td>-13.666</td><td>0.005</td><td>-13.273</td><td>-13.5073</td><td>-13.6353</td><td>-13.567</td><td>-13.6561</td><td>0.0051</td><td>0.0048</td><td>0.0048</td><td>0.0047</td><td>0.0049</td><td>6.45</td><td>0.0009075626</td><td>4620.1943</td><td>10.1107</td><td>4621.0674</td><td>10.7644</td><td>326.16200781</td><td>-77.71061399</td><td>326.1620078</td><td>-77.710614</td><td>24</td><td>0.983</td><td>59.59745</td><td>3.524</td><td>3.227</td><td>1.092</td><td>0.084</td><td>3.5</td><td>3.599</td><td>-84.84</td><td>-84.16</td><td>-5.84</td><td>-5.84</td><td>411.3973</td><td>5768.605</td><td>366</td><td>39.7316</td><td>404.634</td><td>3</td><td>437.643846599113</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>6</td><td>6307.775</td><td>712.5124</td><td>3644.712</td><td>4837.75</td><td>5971.578</td><td>5543.566</td><td>6582.525</td><td>367.9676</td><td>506.8893</td><td>698.6508</td><td>575.8585</td><td>765.7765</td><td>-9.4997</td><td>0.1227</td><td>-8.9042</td><td>-9.2116</td><td>-9.4402</td><td>-9.3595</td><td>-9.546</td><td>0.1096</td><td>0.1138</td><td>0.1271</td><td>0.1128</td><td>0.1263</td><td>8.97</td><td>0.001262043</td><td>5419.2036</td><td>7.6462</td><td>5420.7995</td><td>8.9837</td><td>326.69024758</td><td>-77.709463796</td><td>326.6902476</td><td>-77.7094638</td><td>16</td><td>0.478</td><td>59.59745</td><td>1.692</td><td>1.328</td><td>1.274</td><td>0.215</td><td>6.69</td><td>4.093</td><td>-22.66</td><td>-21.7</td><td>-68.3</td><td>-68.3</td><td>410.8142</td><td>180.6123</td><td>19</td><td>39.7316</td><td>404.634</td><td>3</td><td>315.93703783216375</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>7</td><td>4245.877</td><td>576.4492</td><td>3518.885</td><td>3945.662</td><td>3866.93</td><td>4075.033</td><td>3468.544</td><td>367.4715</td><td>497.5763</td><td>659.9778</td><td>553.221</td><td>720.5095</td><td>-9.0699</td><td>0.1474</td><td>-8.866</td><td>-8.9903</td><td>-8.9684</td><td>-9.0253</td><td>-8.8504</td><td>0.1134</td><td>0.137</td><td>0.1854</td><td>0.1474</td><td>0.2256</td><td>7.45</td><td>0.001048418</td><td>3311.4226</td><td>5.5842</td><td>3312.721</td><td>6.4392</td><td>325.29682533</td><td>-77.711414744</td><td>325.2968253</td><td>-77.7114147</td><td>16</td><td>0.454</td><td>59.59745</td><td>1.399</td><td>1.111</td><td>1.259</td><td>0.206</td><td>6.74</td><td>3.168</td><td>62.03</td><td>61.79</td><td>28.21</td><td>28.21</td><td>408.249</td><td>132.9214</td><td>12</td><td>39.7316</td><td>404.634</td><td>3</td><td>221.82037706372554</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>8</td><td>11559.7</td><td>518.9249</td><td>8931.155</td><td>10928.57</td><td>12716.76</td><td>11501.09</td><td>12790.7</td><td>353.2402</td><td>451.0243</td><td>594.2294</td><td>497.7698</td><td>649.3504</td><td>-10.1574</td><td>0.0488</td><td>-9.8773</td><td>-10.0964</td><td>-10.2609</td><td>-10.1518</td><td>-10.2672</td><td>0.043</td><td>0.0448</td><td>0.0507</td><td>0.047</td><td>0.0551</td><td>10.1</td><td>0.001420322</td><td>5684.5562</td><td>1.4419</td><td>5685.4647</td><td>2.3662</td><td>326.86570036</td><td>-77.709604301</td><td>326.8657004</td><td>-77.7096043</td><td>24</td><td>0.799</td><td>59.59745</td><td>2.964</td><td>1.318</td><td>2.249</td><td>0.555</td><td>3.97</td><td>3.059</td><td>-0.05</td><td>1.17</td><td>88.83</td><td>88.83</td><td>412.5799</td><td>456.1069</td><td>53</td><td>39.7316</td><td>404.634</td><td>3</td><td>193.43029572524594</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>9</td><td>8265.199</td><td>563.9052</td><td>6122.343</td><td>7277.019</td><td>8555.404</td><td>7575.233</td><td>8827.637</td><td>340.4388</td><td>438.3348</td><td>583.9261</td><td>485.5898</td><td>640.7861</td><td>-9.7931</td><td>0.0741</td><td>-9.4673</td><td>-9.6549</td><td>-9.8306</td><td>-9.6985</td><td>-9.8646</td><td>0.0604</td><td>0.0654</td><td>0.0741</td><td>0.0696</td><td>0.0788</td><td>8.77</td><td>0.001234096</td><td>2405.2378</td><td>1.5734</td><td>2406.122</td><td>2.7059</td><td>324.69828373</td><td>-77.710430949</td><td>324.6982837</td><td>-77.7104309</td><td>24</td><td>0.575</td><td>59.59745</td><td>2.326</td><td>1.322</td><td>1.759</td><td>0.431</td><td>5.22</td><td>3.246</td><td>3.23</td><td>2.16</td><td>87.84</td><td>87.84</td><td>406.3509</td><td>315.5838</td><td>39</td><td>39.7316</td><td>404.634</td><td>3</td><td>263.2279758864327</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
 <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-<tr><td>4991</td><td>607708.5</td><td>2026.919</td><td>515113.8</td><td>577713.4</td><td>611449.4</td><td>596075.3</td><td>615544.5</td><td>1578.144</td><td>1787.386</td><td>2074.188</td><td>1908.331</td><td>2138.69</td><td>-14.4592</td><td>0.0036</td><td>-14.2798</td><td>-14.4043</td><td>-14.4659</td><td>-14.4383</td><td>-14.4731</td><td>0.0033</td><td>0.0034</td><td>0.0037</td><td>0.0035</td><td>0.0038</td><td>4.82</td><td>0.000678877</td><td>4839.167</td><td>5884.0903</td><td>4839.9402</td><td>5885.4598</td><td>326.32892914</td><td>-76.885386734</td><td>326.3289291</td><td>-76.8853867</td><td>0</td><td>0.984</td><td>117.7711</td><td>2.852</td><td>2.541</td><td>1.122</td><td>0.109</td><td>3.5</td><td>2.654</td><td>-55.13</td><td>-55.56</td><td>-34.44</td><td>-34.44</td><td>-0.7860662</td><td>23219.36</td><td>294</td><td>79.7884</td><td>0</td><td>3</td><td>278.8946270702436</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4992</td><td>149147.0</td><td>1374.12</td><td>129342.4</td><td>144732.1</td><td>153275.4</td><td>149121.4</td><td>154018.4</td><td>993.8237</td><td>1229.842</td><td>1591.134</td><td>1381.661</td><td>1670.758</td><td>-12.934</td><td>0.01</td><td>-12.7794</td><td>-12.9014</td><td>-12.9637</td><td>-12.9339</td><td>-12.9689</td><td>0.0083</td><td>0.0092</td><td>0.0113</td><td>0.0101</td><td>0.0118</td><td>4.74</td><td>0.0006675225</td><td>1998.8502</td><td>5778.1401</td><td>1999.7109</td><td>5779.3021</td><td>324.56312151</td><td>-76.883849041</td><td>324.5631215</td><td>-76.883849</td><td>0</td><td>0.983</td><td>118.5498</td><td>2.454</td><td>2.203</td><td>1.114</td><td>0.102</td><td>3.51</td><td>2.611</td><td>-54.6</td><td>-56.58</td><td>-33.42</td><td>-33.42</td><td>0.8413329</td><td>5443.322</td><td>138</td><td>79.7884</td><td>0</td><td>3</td><td>209.24407109913918</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4993</td><td>4522.715</td><td>546.186</td><td>4999.807</td><td>4089.494</td><td>3977.724</td><td>4429.798</td><td>3940.126</td><td>723.1104</td><td>1001.731</td><td>1424.073</td><td>1182.504</td><td>1514.78</td><td>-9.1385</td><td>0.1312</td><td>-9.2474</td><td>-9.0292</td><td>-8.9991</td><td>-9.116</td><td>-8.9888</td><td>0.1571</td><td>0.266</td><td>0.3888</td><td>0.2899</td><td>0.4175</td><td>6.15</td><td>0.0008672432</td><td>1406.2003</td><td>5897.707</td><td>1407.2109</td><td>5898.802</td><td>324.20111242</td><td>-76.862187401</td><td>324.2011124</td><td>-76.8621874</td><td>0</td><td>0.436</td><td>120.9763</td><td>1.135</td><td>0.938</td><td>1.209</td><td>0.173</td><td>3.59</td><td>1.897</td><td>35.63</td><td>33.8</td><td>56.2</td><td>56.2</td><td>3.15288</td><td>392.1877</td><td>12</td><td>79.7884</td><td>0</td><td>3</td><td>43.105974707544966</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4994</td><td>23920.11</td><td>1240.33</td><td>21144.37</td><td>22801.06</td><td>25797.73</td><td>23530.58</td><td>25809.58</td><td>751.7536</td><td>1017.661</td><td>1427.011</td><td>1191.379</td><td>1514.187</td><td>-10.9469</td><td>0.0563</td><td>-10.813</td><td>-10.8949</td><td>-11.029</td><td>-10.9291</td><td>-11.0295</td><td>0.0386</td><td>0.0485</td><td>0.0601</td><td>0.055</td><td>0.0637</td><td>5.57</td><td>0.0007856092</td><td>2285.0442</td><td>5989.7632</td><td>2285.9921</td><td>5990.8447</td><td>324.74757256</td><td>-76.856282897</td><td>324.7475726</td><td>-76.8562829</td><td>0</td><td>0.823</td><td>118.5006</td><td>1.937</td><td>1.677</td><td>1.155</td><td>0.134</td><td>4.77</td><td>2.591</td><td>-23.45</td><td>-25.29</td><td>-64.71</td><td>-64.71</td><td>0.6414696</td><td>1013.537</td><td>52</td><td>79.7884</td><td>0</td><td>3</td><td>232.1931022884569</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4995</td><td>8229.453</td><td>1195.881</td><td>6314.545</td><td>7397.768</td><td>9270.208</td><td>7383.319</td><td>9191.801</td><td>734.8729</td><td>1018.825</td><td>1447.567</td><td>1200.677</td><td>1539.567</td><td>-9.7884</td><td>0.1578</td><td>-9.5009</td><td>-9.6728</td><td>-9.9177</td><td>-9.6706</td><td>-9.9085</td><td>0.1264</td><td>0.1496</td><td>0.1696</td><td>0.1766</td><td>0.1819</td><td>6.76</td><td>0.0009526712</td><td>1046.7087</td><td>5932.2144</td><td>1047.803</td><td>5933.5696</td><td>323.98071083</td><td>-76.854157464</td><td>323.9807108</td><td>-76.8541575</td><td>0</td><td>0.484</td><td>122.5373</td><td>1.57</td><td>0.816</td><td>1.924</td><td>0.48</td><td>7.24</td><td>3.241</td><td>-56.39</td><td>-58.74</td><td>-31.26</td><td>-31.26</td><td>1.419196</td><td>288.6383</td><td>10</td><td>79.7884</td><td>0</td><td>3</td><td>210.96811197760297</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4996</td><td>11707.98</td><td>1213.778</td><td>8506.026</td><td>11048.68</td><td>12974.53</td><td>11890.34</td><td>12759.15</td><td>710.757</td><td>985.2302</td><td>1396.836</td><td>1160.305</td><td>1484.033</td><td>-10.1712</td><td>0.1126</td><td>-9.8243</td><td>-10.1083</td><td>-10.2827</td><td>-10.188</td><td>-10.2646</td><td>0.0907</td><td>0.0968</td><td>0.1169</td><td>0.106</td><td>0.1263</td><td>8.33</td><td>0.001174601</td><td>3863.8501</td><td>5664.209</td><td>3864.8941</td><td>5665.2304</td><td>325.71796853</td><td>-76.911983744</td><td>325.7179685</td><td>-76.9119837</td><td>0</td><td>0.587</td><td>117.3451</td><td>1.618</td><td>1.231</td><td>1.314</td><td>0.239</td><td>6.12</td><td>3.068</td><td>-40.76</td><td>-41.69</td><td>-48.31</td><td>-48.31</td><td>-0.4803265</td><td>406.5421</td><td>24</td><td>79.7884</td><td>0</td><td>3</td><td>234.36312874092212</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4997</td><td>19469.11</td><td>1099.756</td><td>16680.27</td><td>19285.18</td><td>18696.46</td><td>19132.71</td><td>19059.5</td><td>782.9484</td><td>1072.69</td><td>1506.744</td><td>1257.208</td><td>1601.253</td><td>-10.7234</td><td>0.0613</td><td>-10.5555</td><td>-10.7131</td><td>-10.6794</td><td>-10.7044</td><td>-10.7003</td><td>0.051</td><td>0.0604</td><td>0.0875</td><td>0.0714</td><td>0.0912</td><td>6.7</td><td>0.0009443088</td><td>8610.6045</td><td>5912.9639</td><td>8611.5177</td><td>5914.1054</td><td>328.67078686</td><td>-76.885388011</td><td>328.6707869</td><td>-76.885388</td><td>0</td><td>0.88</td><td>126.3422</td><td>1.84</td><td>1.72</td><td>1.07</td><td>0.065</td><td>3.99</td><td>2.76</td><td>-46.99</td><td>-46.82</td><td>-43.18</td><td>-43.18</td><td>-0.8400435</td><td>744.8463</td><td>44</td><td>79.7884</td><td>0</td><td>3</td><td>158.2857921381322</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4998</td><td>13559.4</td><td>1159.195</td><td>12035.99</td><td>13381.08</td><td>14991.75</td><td>13661.97</td><td>15471.02</td><td>724.6043</td><td>994.6836</td><td>1403.677</td><td>1168.35</td><td>1492.038</td><td>-10.3306</td><td>0.0928</td><td>-10.2012</td><td>-10.3162</td><td>-10.4396</td><td>-10.3388</td><td>-10.4738</td><td>0.0654</td><td>0.0807</td><td>0.1017</td><td>0.0929</td><td>0.1047</td><td>6.64</td><td>0.0009357748</td><td>5500.7568</td><td>5613.9233</td><td>5501.7271</td><td>5614.9605</td><td>326.73694632</td><td>-76.92561058</td><td>326.7369463</td><td>-76.9256106</td><td>0</td><td>0.62</td><td>117.7878</td><td>1.74</td><td>1.475</td><td>1.18</td><td>0.152</td><td>5.08</td><td>2.66</td><td>-43.53</td><td>-43.87</td><td>-46.13</td><td>-46.13</td><td>0.3810162</td><td>518.6997</td><td>33</td><td>79.7884</td><td>0</td><td>3</td><td>208.07435921659646</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
-<tr><td>4999</td><td>24172.43</td><td>1200.911</td><td>20186.59</td><td>22460.34</td><td>25822.33</td><td>24241.36</td><td>26160.2</td><td>747.8528</td><td>1014.61</td><td>1421.597</td><td>1188.623</td><td>1508.834</td><td>-10.9583</td><td>0.054</td><td>-10.7627</td><td>-10.8785</td><td>-11.03</td><td>-10.9614</td><td>-11.0441</td><td>0.0402</td><td>0.0491</td><td>0.0598</td><td>0.0532</td><td>0.0626</td><td>5.12</td><td>0.0007212997</td><td>5538.0859</td><td>5692.2075</td><td>5539.0241</td><td>5693.2788</td><td>326.76112807</td><td>-76.914689536</td><td>326.7611281</td><td>-76.9146895</td><td>0</td><td>0.937</td><td>118.1406</td><td>1.853</td><td>1.588</td><td>1.167</td><td>0.143</td><td>4.87</td><td>2.565</td><td>-73.14</td><td>-73.77</td><td>-16.23</td><td>-16.23</td><td>0.36509</td><td>962.8569</td><td>46</td><td>79.7884</td><td>0</td><td>3</td><td>219.2470267521143</td><td>76.28541073796102</td><td>9.855435131841535</td><td>149.51940504640356</td><td>13.797609184578148</td><td>305.14164295184406</td><td>19.71087026368307</td><td>209.1933791639988</td><td>16.32033341719403</td><td>345.80946351599795</td><td>20.983285822106605</td></tr>
+<tr><td>2474</td><td>7838.857</td><td>498.4425</td><td>6465.944</td><td>7727.827</td><td>8232.925</td><td>7963.18</td><td>8529.242</td><td>350.0627</td><td>448.7183</td><td>591.7709</td><td>495.5002</td><td>648.7945</td><td>-9.7356</td><td>0.0691</td><td>-9.5266</td><td>-9.7201</td><td>-9.7889</td><td>-9.7527</td><td>-9.8273</td><td>0.0588</td><td>0.0631</td><td>0.0781</td><td>0.0676</td><td>0.0826</td><td>10.08</td><td>0.001418205</td><td>1.9264999999999999</td><td>5463.5166</td><td>2.92</td><td>5464.5788</td><td>323.26117583</td><td>-76.933052258</td><td>323.2611758</td><td>-76.9330523</td><td>24</td><td>0.649</td><td>59.59745</td><td>2.192</td><td>1.44</td><td>1.522</td><td>0.343</td><td>4.33</td><td>2.859</td><td>-83.18</td><td>-85.77</td><td>-4.23</td><td>-4.23</td><td>399.8498</td><td>318.9565</td><td>43</td><td>39.7316</td><td>404.634</td><td>3</td><td>185.9211115982412</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2475</td><td>269105.3</td><td>1319.787</td><td>184908.8</td><td>232071.5</td><td>261069.4</td><td>245685.2</td><td>266546.9</td><td>918.1157</td><td>1069.537</td><td>1226.914</td><td>1126.513</td><td>1283.94</td><td>-13.5748</td><td>0.0053</td><td>-13.1674</td><td>-13.4141</td><td>-13.5419</td><td>-13.4759</td><td>-13.5644</td><td>0.0054</td><td>0.005</td><td>0.0051</td><td>0.005</td><td>0.0052</td><td>6.68</td><td>0.0009400659</td><td>438.8226</td><td>5681.6372</td><td>439.7165</td><td>5682.6712</td><td>323.5366523</td><td>-76.904671874</td><td>323.5366523</td><td>-76.9046719</td><td>0</td><td>0.981</td><td>59.59745</td><td>3.563</td><td>3.202</td><td>1.113</td><td>0.102</td><td>3.5</td><td>3.669</td><td>-80.73</td><td>-83.82</td><td>-6.18</td><td>-6.18</td><td>392.0879</td><td>5063.354</td><td>350</td><td>39.7316</td><td>404.634</td><td>3</td><td>439.0592299081312</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2476</td><td>5573.987</td><td>599.6484</td><td>4533.4</td><td>5610.22</td><td>6047.519</td><td>5739.358</td><td>5694.188</td><td>373.4976</td><td>510.2263</td><td>713.6597</td><td>576.5216</td><td>793.4397</td><td>-9.3654</td><td>0.1168</td><td>-9.1411</td><td>-9.3724</td><td>-9.4539</td><td>-9.3972</td><td>-9.3886</td><td>0.0895</td><td>0.0988</td><td>0.1282</td><td>0.1091</td><td>0.1513</td><td>8.27</td><td>0.001162706</td><td>8143.3071</td><td>5854.1577</td><td>8144.2703</td><td>5855.0824</td><td>328.31281734</td><td>-76.875088206</td><td>328.3128173</td><td>-76.8750882</td><td>0</td><td>0.499</td><td>59.59745</td><td>1.607</td><td>1.312</td><td>1.225</td><td>0.184</td><td>5.7</td><td>2.734</td><td>19.83</td><td>21.6</td><td>68.4</td><td>68.4</td><td>402.2336</td><td>208.1087</td><td>26</td><td>39.7316</td><td>404.634</td><td>3</td><td>215.2034829369001</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2477</td><td>7617.886</td><td>758.9017</td><td>4591.615</td><td>5620.961</td><td>7542.448</td><td>6594.611</td><td>7608.478</td><td>373.7172</td><td>510.2054</td><td>718.22</td><td>579.682</td><td>798.2531</td><td>-9.7046</td><td>0.1082</td><td>-9.1549</td><td>-9.3745</td><td>-9.6938</td><td>-9.548</td><td>-9.7032</td><td>0.0884</td><td>0.0986</td><td>0.1034</td><td>0.0955</td><td>0.1139</td><td>8.06</td><td>0.001133614</td><td>4311.8784</td><td>5413.814</td><td>4312.9032</td><td>5415.2589</td><td>325.94010685</td><td>-76.95021608</td><td>325.9401068</td><td>-76.9502161</td><td>0</td><td>0.491</td><td>59.59745</td><td>1.73</td><td>1.422</td><td>1.217</td><td>0.178</td><td>6.71</td><td>3.691</td><td>-66.31</td><td>-66.06</td><td>-23.94</td><td>-23.94</td><td>400.2658</td><td>204.4869</td><td>27</td><td>39.7316</td><td>404.634</td><td>3</td><td>347.9690460573585</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2478</td><td>6031.222</td><td>679.9952</td><td>3357.118</td><td>4741.66</td><td>6066.887</td><td>5199.895</td><td>6341.491</td><td>367.2996</td><td>506.6438</td><td>713.7568</td><td>574.5276</td><td>795.2288</td><td>-9.451</td><td>0.1224</td><td>-8.8149</td><td>-9.1898</td><td>-9.4574</td><td>-9.29</td><td>-9.5055</td><td>0.1188</td><td>0.116</td><td>0.1278</td><td>0.12</td><td>0.1362</td><td>6.78</td><td>0.0009540332</td><td>4815.708</td><td>5419.1343</td><td>4816.6481</td><td>5420.6285</td><td>326.25423032</td><td>-76.94892093</td><td>326.2542303</td><td>-76.9489209</td><td>0</td><td>0.484</td><td>59.59745</td><td>1.34</td><td>0.963</td><td>1.392</td><td>0.282</td><td>8.3</td><td>4.553</td><td>33.72</td><td>34.0</td><td>56.0</td><td>56.0</td><td>401.2845</td><td>110.1784</td><td>13</td><td>39.7316</td><td>404.634</td><td>3</td><td>279.2782683120036</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2479</td><td>47481.79</td><td>824.2819</td><td>36270.84</td><td>43762.79</td><td>47357.77</td><td>45270.34</td><td>48191.05</td><td>512.6542</td><td>639.5318</td><td>818.9148</td><td>697.67</td><td>892.5038</td><td>-11.6913</td><td>0.0189</td><td>-11.3989</td><td>-11.6028</td><td>-11.6885</td><td>-11.6395</td><td>-11.7074</td><td>0.0153</td><td>0.0159</td><td>0.0188</td><td>0.0167</td><td>0.0201</td><td>6.13</td><td>0.0008621986</td><td>8154.4204</td><td>5660.6221</td><td>8155.4293</td><td>5661.5779</td><td>328.32529919</td><td>-76.902184577</td><td>328.3252992</td><td>-76.9021846</td><td>0</td><td>0.981</td><td>59.59745</td><td>2.613</td><td>2.56</td><td>1.021</td><td>0.02</td><td>3.86</td><td>3.204</td><td>-19.31</td><td>-21.01</td><td>-68.99</td><td>-68.99</td><td>402.3699</td><td>1074.359</td><td>138</td><td>39.7316</td><td>404.634</td><td>3</td><td>313.11498829933413</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2480</td><td>32696.51</td><td>779.4363</td><td>25177.0</td><td>30028.37</td><td>32796.32</td><td>31253.47</td><td>33523.51</td><td>468.655</td><td>596.0406</td><td>783.7654</td><td>657.1943</td><td>859.4644</td><td>-11.2863</td><td>0.0259</td><td>-11.0025</td><td>-11.1938</td><td>-11.2896</td><td>-11.2372</td><td>-11.3134</td><td>0.0202</td><td>0.0216</td><td>0.026</td><td>0.0228</td><td>0.0278</td><td>6.03</td><td>0.0008476199</td><td>7629.7935</td><td>5908.6587</td><td>7630.8136</td><td>5909.6496</td><td>327.99408219</td><td>-76.870406664</td><td>327.9940822</td><td>-76.8704067</td><td>0</td><td>0.978</td><td>59.59745</td><td>2.496</td><td>2.413</td><td>1.034</td><td>0.033</td><td>4.02</td><td>3.192</td><td>59.51</td><td>62.25</td><td>27.75</td><td>27.75</td><td>401.3863</td><td>783.7716</td><td>109</td><td>39.7316</td><td>404.634</td><td>3</td><td>305.77634262669784</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2481</td><td>3944.569</td><td>657.3798</td><td>3300.838</td><td>4041.854</td><td>4456.031</td><td>4188.679</td><td>4654.905</td><td>366.1392</td><td>503.6902</td><td>709.5165</td><td>571.3033</td><td>791.3979</td><td>-8.99</td><td>0.181</td><td>-8.7966</td><td>-9.0165</td><td>-9.1224</td><td>-9.0552</td><td>-9.1698</td><td>0.1205</td><td>0.1353</td><td>0.1729</td><td>0.1481</td><td>0.1846</td><td>7.62</td><td>0.001072098</td><td>8229.5908</td><td>5767.9893</td><td>8230.7968</td><td>5769.5366</td><td>328.36864323</td><td>-76.886645533</td><td>328.3686432</td><td>-76.8866455</td><td>0</td><td>0.464</td><td>59.59745</td><td>1.671</td><td>0.973</td><td>1.718</td><td>0.418</td><td>7.22</td><td>3.144</td><td>-80.1</td><td>-77.5</td><td>-12.5</td><td>-12.5</td><td>402.9459</td><td>168.6484</td><td>13</td><td>39.7316</td><td>404.634</td><td>3</td><td>266.26467808876987</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
+<tr><td>2482</td><td>46506.17</td><td>877.695</td><td>34172.2</td><td>41090.18</td><td>45829.14</td><td>42768.92</td><td>46513.89</td><td>505.1017</td><td>631.123</td><td>815.612</td><td>690.5913</td><td>888.4734</td><td>-11.6688</td><td>0.0205</td><td>-11.3342</td><td>-11.5343</td><td>-11.6529</td><td>-11.5778</td><td>-11.669</td><td>0.0161</td><td>0.0167</td><td>0.0193</td><td>0.0175</td><td>0.0207</td><td>6.35</td><td>0.0008938838</td><td>2524.0654</td><td>5920.3828</td><td>2525.0042</td><td>5921.2109</td><td>324.8306124</td><td>-76.877995905</td><td>324.8306124</td><td>-76.8779959</td><td>0</td><td>0.981</td><td>59.59745</td><td>2.767</td><td>2.503</td><td>1.106</td><td>0.095</td><td>4.14</td><td>3.42</td><td>-89.29</td><td>89.35</td><td>0.65</td><td>0.65</td><td>396.488</td><td>1076.884</td><td>136</td><td>39.7316</td><td>404.634</td><td>3</td><td>372.924197368661</td><td>76.5667421487148</td><td>9.873591236996</td><td>150.07081461148098</td><td>13.8230277317944</td><td>306.2669685948592</td><td>19.747182473992</td><td>195.27601427764165</td><td>15.768105260828316</td><td>382.7409879841777</td><td>22.075347365159644</td></tr>
 </table></div></div>
 </div>
-<p>If you do not input target_bkg and target_bkgrms, this code calculate the background/RMS map as source-extractor does.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog</span><span class="o">.</span><span class="n">show_source</span><span class="p">(</span>
-    <span class="n">target_ra</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
-    <span class="n">target_dec</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
-    <span class="n">downsample</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
-    <span class="n">zoom_radius_pixel</span> <span class="o">=</span> <span class="mi">600</span><span class="p">,</span>
-    <span class="n">matching_radius_arcsec</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/example_aperturephotometry_14_0.png" src="../_images/example_aperturephotometry_14_0.png" />
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/example_aperturephotometry_14_1.png" src="../_images/example_aperturephotometry_14_1.png" />
-</div>
-</div>
+<p>The output catalog will have columns with the prefix (_1, _2, _3…). Each column with the prefix corresponds to each aperture size. Multiple aperture sizes are useful for comparing photometry and selecting the optimal aperture for each source.</p>
+<p>Currently, we set:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">aperture_diameter_arcsec</span> <span class="pre">=</span> <span class="pre">[5,</span> <span class="pre">7,</span> <span class="pre">10]</span></code> (fixed aperture sizes in arcseconds)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aperture_diameter_seeing</span> <span class="pre">=</span> <span class="pre">[2.5,</span> <span class="pre">3.5]</span></code> (aperture sizes scaled by the seeing)</p></li>
+</ul>
+<p>Then:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER</span></code> = 5” (fixed 5-arcsecond aperture)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER_1</span></code> = 7” (fixed 7-arcsecond aperture)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER_2</span></code> = 10” (fixed 10-arcsecond aperture)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER_3</span></code> = 2.5 × Seeing (adaptive aperture based on seeing)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAG_APER_4</span></code> = 3.5 × Seeing (adaptive aperture based on seeing)</p></li>
+</ul>
+</section>
+<section id="3.-Aperture-Photometry-with-Background-and-Background-RMS">
+<h2>3. Aperture Photometry with Background and Background RMS<a class="headerlink" href="#3.-Aperture-Photometry-with-Background-and-Background-RMS" title="Link to this heading"></a></h2>
+<p>For more accurate photometry, it’s important to properly account for the background sky level and its uncertainty. This section demonstrates how to use pre-calculated background and background RMS maps for improved photometric precision.</p>
+<p>If you do not input <code class="docutils literal notranslate"><span class="pre">target_bkg</span></code> and <code class="docutils literal notranslate"><span class="pre">target_bkgrms</span></code>, this code calculates the background/RMS map as source-extractor does using default parameters.</p>
+<p>If you want to calculate the background more accurately, you need to manually calculate the background/RMS map with optimized parameters for better detection and photometry. This is especially important for crowded fields or when dealing with extended sources.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_brightstar_mask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
     <span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
     <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
-    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">600</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
     <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
     <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -983,7 +1069,7 @@ dec:  -77.26445076037
     <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
-    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_brightstar_mask</span><span class="p">,</span>
     <span class="n">sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">mask_radius_factor</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
     <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">50000</span><span class="p">,</span>
@@ -992,76 +1078,51 @@ dec:  -77.26445076037
     <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">target_ivpmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_invalidmask</span><span class="p">(</span>
-    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span>
 </pre></div>
 </div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Added circular mask at (325.37, -77.39) with radius 300arcsec
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_17_1.png" src="../_images/example_aperturephotometry_17_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+External mask is loaded.
+Masking source... [sigma = 5, mask_radius_factor = 2]
+2472 non-saturated, 12 saturated sources
+2484 sources masked.
+</pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<div class="highlight"><pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">TypeError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[8]</span><span class="ansi-green-fg">, line 1</span>
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> target_srcmask = <span class="ansi-yellow-bg">target_img</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">calculate_circularmask</span><span class="ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">      2</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_srcmask</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">None</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      3</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-green-fg ansi-yellow-bg">325.37</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      4</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">-</span><span class="ansi-green-fg ansi-yellow-bg">77.393</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      5</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-green-fg ansi-yellow-bg">600</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      6</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">coord</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      7</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">False</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      8</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">True</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">      9</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">True</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">     10</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save_fig</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg ansi-bold" style="color: rgb(0,135,0)">False</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">     11</span> <span class="ansi-yellow-bg">)</span>
-<span class="ansi-green-fg">     12</span> target_srcmask = target_img.calculate_sourcemask(
-<span class="ansi-green-fg">     13</span>     target_srcmask = target_srcmask,
-<span class="ansi-green-fg">     14</span>     sigma = <span class="ansi-green-fg">5</span>,
-<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">     20</span>     save_fig = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
-<span class="ansi-green-fg">     21</span> )
-<span class="ansi-green-fg">     22</span> target_ivpmask = target_img.calculate_invalidmask(
-<span class="ansi-green-fg">     23</span>     save = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
-<span class="ansi-green-fg">     24</span>     verbose = <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
-<span class="ansi-green-fg">     25</span>     visualize = <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
-<span class="ansi-green-fg">     26</span>     save_fig = <span class="ansi-bold" style="color: rgb(0,135,0)">False</span>,
-<span class="ansi-green-fg">     27</span> )
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">//home/hhchoi1022/code/ezphot/ezphot/imageobjects/scienceimage.py:425</span>, in <span class="ansi-cyan-fg">ScienceImage.calculate_circularmask</span><span class="ansi-blue-fg">(self, target_srcmask, x_position, y_position, radius_arcsec, unit, save, verbose, visualize, save_fig)</span>
-<span class="ansi-green-fg">    423</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-blue-intense-fg ansi-bold">ezphot</span><span class="ansi-blue-intense-fg ansi-bold">.</span><span class="ansi-blue-intense-fg ansi-bold">methods</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> MaskGenerator
-<span class="ansi-green-fg">    424</span> maskgenerator = MaskGenerator()
-<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">425</span> target_sourcemask = <span class="ansi-yellow-bg">maskgenerator</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">mask_sources</span><span class="ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">    426</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_img</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg" style="color: rgb(0,135,0)">self</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    427</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">target_mask</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">target_srcmask</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    428</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">mask_type</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">source</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    429</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">x_position</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    430</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">y_position</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    431</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">radius_arcsec</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    432</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">unit</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    433</span> <span class="ansi-yellow-bg">    </span>
-<span class="ansi-green-fg">    434</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg" style="color: rgb(95,135,135)"># Others</span>
-<span class="ansi-green-fg">    435</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">save</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    436</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">verbose</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    437</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">visualize</span><span class="ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    438</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">save_fig</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">save_fig</span>
-<span class="ansi-green-fg">    439</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">)</span>
-<span class="ansi-green-fg">    440</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> target_sourcemask
-
-<span class="ansi-red-fg">TypeError</span>: MaskGenerator.mask_sources() got an unexpected keyword argument &#39;mask_type&#39;
-</pre></div></div>
+<img alt="../_images/example_aperturephotometry_17_3.png" src="../_images/example_aperturephotometry_17_3.png" />
 </div>
+</div>
+<p>For detailed calculation of background and background RMS maps, see other examples: <code class="docutils literal notranslate"><span class="pre">Background</span> <span class="pre">Estimation</span></code> and <code class="docutils literal notranslate"><span class="pre">Background</span> <span class="pre">RMS</span> <span class="pre">Estimation</span></code>.</p>
+<p>These examples show how to optimize background subtraction parameters for different observing conditions and field characteristics.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkg</span><span class="p">(</span>
     <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
-    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="n">target_ivpmask</span><span class="p">,</span>
+    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">is_2D_bkg</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">box_size</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
     <span class="n">filter_size</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
@@ -1070,6 +1131,8 @@ dec:  -77.26445076037
     <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms_from_propagation</span><span class="p">(</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_bkg</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -1081,11 +1144,369 @@ dec:  -77.26445076037
 External mask is loaded.
 </pre></div></div>
 </div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_19_1.png" src="../_images/example_aperturephotometry_19_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Warning: mbias_img.ncombine is None. Using 9 as default value.
+</pre></div></div>
+</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/example_aperturephotometry_16_1.png" src="../_images/example_aperturephotometry_16_1.png" />
+<img alt="../_images/example_aperturephotometry_19_3.png" src="../_images/example_aperturephotometry_19_3.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog_advanced</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">sex_photometry</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_bkg</span><span class="p">,</span>
+    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_bkgrms</span><span class="p">,</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="n">target_brightstar_mask</span><span class="p">,</span>
+    <span class="n">sex_params</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">detection_sigma</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">aperture_diameter_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+    <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">],</span>
+    <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">60000</span><span class="p">,</span>
+    <span class="n">kron_factor</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_20_0.png" src="../_images/example_aperturephotometry_20_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_20_1.png" src="../_images/example_aperturephotometry_20_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run for all target_imglist with multiprocessing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">aperturephotometry</span><span class="p">(</span><span class="n">target_img</span><span class="p">):</span>
+    <span class="n">target_catalog</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">sex_photometry</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
+        <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgrms</span><span class="p">,</span>
+        <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sex_params</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">detection_sigma</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">aperture_diameter_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+        <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">],</span>
+        <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">60000</span><span class="p">,</span>
+        <span class="n">kron_factor</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
+        <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visualize</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1">#target_img.clear(verbose = False)</span>
+    <span class="c1">#target_img.bkgmap.clear(verbose = False)</span>
+    <span class="c1">#target_img.bkgrms.clear(verbose = False)</span>
+
+<span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+    <span class="c1"># Use tqdm with imap to show progress</span>
+    <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">aperturephotometry</span><span class="p">,</span> <span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Photometry...&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Photometry...: 100%|██████████| 90/90 [06:56&lt;00:00,  4.63s/it]
+</pre></div></div>
+</div>
+</section>
+<section id="4.-Forced-Aperture-Photometry">
+<h2>4. Forced Aperture Photometry<a class="headerlink" href="#4.-Forced-Aperture-Photometry" title="Link to this heading"></a></h2>
+<p><strong>Forced photometry</strong> is a technique where we perform photometric measurements at predetermined positions, regardless of whether sources are detected at those locations. This approach is particularly useful for:</p>
+<ul class="simple">
+<li><p><strong>Monitoring known sources</strong> at specific coordinates</p></li>
+<li><p><strong>Comparing photometry</strong> across different epochs or filters</p></li>
+<li><p><strong>Measuring sources</strong> that may be too faint for automatic detection</p></li>
+<li><p><strong>Following up</strong> on transient events or variable stars</p></li>
+</ul>
+<p>In this section, we demonstrate two types of forced photometry:</p>
+<ol class="arabic simple">
+<li><p><strong>Circular aperture photometry</strong> - Ideal for point sources (stars, quasars)</p></li>
+<li><p><strong>Elliptical aperture photometry</strong> - Better suited for extended sources (galaxies, nebulae)</p></li>
+</ol>
+<section id="4.1.-Circular-Aperture-Forced-Photometry">
+<h3>4.1. Circular Aperture Forced Photometry<a class="headerlink" href="#4.1.-Circular-Aperture-Forced-Photometry" title="Link to this heading"></a></h3>
+<p><strong>Circular aperture photometry</strong> is the most common method for measuring point sources such as stars, quasars, and other compact objects. This technique uses circular apertures centered on the target coordinates to measure the total flux.</p>
+<section id="When-to-Use-Circular-Apertures:">
+<h4>When to Use Circular Apertures:<a class="headerlink" href="#When-to-Use-Circular-Apertures:" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p><strong>Point sources</strong> (stars, quasars, compact objects)</p></li>
+<li><p><strong>Unresolved sources</strong> where the object appears as a single point</p></li>
+</ul>
+</section>
+<section id="Key-Parameters:">
+<h4>Key Parameters:<a class="headerlink" href="#Key-Parameters:" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p><strong>Aperture diameter</strong>: Can be fixed (in arcseconds) or scaled by seeing conditions</p></li>
+<li><p><strong>Background subtraction</strong>: Uses pre-calculated background maps for accurate measurements</p></li>
+<li><p><strong>Multiple apertures</strong>: Allows comparison of different aperture sizes to optimize signal-to-noise</p></li>
+</ul>
+<p>Let’s demonstrate this with a known point source in our field.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">point_source</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">ra</span> <span class="o">=</span> <span class="mf">325.66015654</span><span class="p">,</span>
+    <span class="n">dec</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.300872906</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="p">)</span>
+<span class="n">target_img</span><span class="o">.</span><span class="n">show_position</span><span class="p">(</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">point_source</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">],</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">point_source</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">],</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">coord_type</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">zoom_radius_pixel</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="s1">&#39;zscale&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(&lt;Figure size 600x600 with 1 Axes&gt;, &lt;Axes: title={&#39;center&#39;: &#39;True&#39;}&gt;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_25_1.png" src="../_images/example_aperturephotometry_25_1.png" />
+</div>
+</div>
+</section>
+<section id="Point-Source-Coordinates">
+<h4>Point Source Coordinates<a class="headerlink" href="#Point-Source-Coordinates" title="Link to this heading"></a></h4>
+<p>We’ve identified a point source at coordinates:</p>
+<ul class="simple">
+<li><p><strong>RA</strong>: 325.66015654°</p></li>
+<li><p><strong>Dec</strong>: -77.300872906°</p></li>
+<li><p><strong>Aperture radius</strong>: 5 arcseconds</p></li>
+</ul>
+<p>The visualization above shows the source location and the circular aperture that will be used for photometry. Now let’s perform the circular aperture photometry with multiple aperture sizes to find the optimal measurement.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog_circular</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">circular_photometry</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">x_arr</span> <span class="o">=</span> <span class="n">point_source</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">],</span>
+    <span class="n">y_arr</span> <span class="o">=</span> <span class="n">point_source</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">],</span>
+    <span class="n">aperture_diameter_arcsec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+    <span class="n">aperture_diameter_seeing</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">],</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgrms</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_27_0.png" src="../_images/example_aperturephotometry_27_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_27_1.png" src="../_images/example_aperturephotometry_27_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog_circular</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><i>Table length=1</i>
+<table id="table140593377051600" class="table-striped table-bordered table-condensed">
+<thead><tr><th>X_IMAGE</th><th>Y_IMAGE</th><th>X_WORLD</th><th>Y_WORLD</th><th>NPIX_APER</th><th>FLUX_APER</th><th>MAG_APER</th><th>FLUXERR_APER</th><th>MAGERR_APER</th><th>SKYSIG_APER</th><th>UL5_APER</th><th>UL3_APER</th><th>NPIX_APER_1</th><th>FLUX_APER_1</th><th>MAG_APER_1</th><th>FLUXERR_APER_1</th><th>MAGERR_APER_1</th><th>SKYSIG_APER_1</th><th>UL5_APER_1</th><th>UL3_APER_1</th><th>NPIX_APER_2</th><th>FLUX_APER_2</th><th>MAG_APER_2</th><th>FLUXERR_APER_2</th><th>MAGERR_APER_2</th><th>SKYSIG_APER_2</th><th>UL5_APER_2</th><th>UL3_APER_2</th><th>NPIX_APER_3</th><th>FLUX_APER_3</th><th>MAG_APER_3</th><th>FLUXERR_APER_3</th><th>MAGERR_APER_3</th><th>SKYSIG_APER_3</th><th>UL5_APER_3</th><th>UL3_APER_3</th><th>NPIX_APER_4</th><th>FLUX_APER_4</th><th>MAG_APER_4</th><th>FLUXERR_APER_4</th><th>MAGERR_APER_4</th><th>SKYSIG_APER_4</th><th>UL5_APER_4</th><th>UL3_APER_4</th></tr></thead>
+<thead><tr><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th><th>float64</th></tr></thead>
+<tr><td>3862.600993376912</td><td>2924.854172695419</td><td>325.66015654</td><td>-77.300872906</td><td>76.5667421487148</td><td>33697.23024050704</td><td>-11.318985513254107</td><td>500.00203797547437</td><td>0.016110235506247742</td><td>344.1948525899388</td><td>-8.089435938830947</td><td>-7.534814064790057</td><td>150.07081461148098</td><td>40841.10508069295</td><td>-11.527743711839946</td><td>625.9960187727874</td><td>0.016641727501574572</td><td>482.03070711241617</td><td>-8.455111773992641</td><td>-7.900489899951752</td><td>306.2669685948592</td><td>45481.4100576182</td><td>-11.644584801580022</td><td>809.4495460038898</td><td>0.01932325046448831</td><td>688.4402515661817</td><td>-8.842090647409243</td><td>-8.287468773368353</td><td>195.27601427764165</td><td>43102.890300995976</td><td>-11.586265982808268</td><td>686.3492119667781</td><td>0.017288728977006056</td><td>549.8290357775883</td><td>-8.597994187481612</td><td>-8.043372313440722</td><td>382.7409879841777</td><td>45900.01122239523</td><td>-11.65453197930196</td><td>882.3990329085555</td><td>0.020872600061695234</td><td>769.5325207682262</td><td>-8.962992455897353</td><td>-8.408370581856461</td></tr>
+</table></div></div>
+</div>
+</section>
+</section>
+<section id="4.2.-Elliptical-Aperture-Forced-Photometry">
+<h3>4.2. Elliptical Aperture Forced Photometry<a class="headerlink" href="#4.2.-Elliptical-Aperture-Forced-Photometry" title="Link to this heading"></a></h3>
+<p><strong>Elliptical aperture photometry</strong> is designed for extended sources such as galaxies, nebulae, and other non-circular objects. This method uses elliptical apertures that can be oriented and scaled to match the source morphology.</p>
+<section id="When-to-Use-Elliptical-Apertures:">
+<h4>When to Use Elliptical Apertures:<a class="headerlink" href="#When-to-Use-Elliptical-Apertures:" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p><strong>Extended sources</strong> (galaxies, nebulae, star clusters)</p></li>
+<li><p><strong>Non-circular objects</strong> with distinct major and minor axes</p></li>
+<li><p><strong>Sources with known morphology</strong> from previous observations</p></li>
+<li><p><strong>Optimized photometry</strong> for irregularly shaped objects</p></li>
+</ul>
+</section>
+<section id="id2">
+<h4>Key Parameters:<a class="headerlink" href="#id2" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p><strong>Semi-major axis (a)</strong>: Half the length of the longest axis</p></li>
+<li><p><strong>Semi-minor axis (b)</strong>: Half the length of the shortest axis</p></li>
+<li><p><strong>Position angle (θ)</strong>: Orientation of the major axis (degrees from East)</p></li>
+<li><p><strong>Ellipticity</strong>: Ratio of minor to major axis (b/a)</p></li>
+</ul>
+<p>Let’s demonstrate this with an extended source in our field.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">extended_source</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">ra</span> <span class="o">=</span> <span class="mf">324.25336362</span><span class="p">,</span>
+    <span class="n">dec</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.573930752</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="mf">5.85</span><span class="p">,</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="mf">2.909</span><span class="p">,</span>
+    <span class="n">theta</span> <span class="o">=</span> <span class="mf">56.6</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">target_img</span><span class="o">.</span><span class="n">show_position</span><span class="p">(</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">],</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">],</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;radius_arcsec&#39;</span><span class="p">],</span>
+    <span class="n">a_arcsec</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">],</span>
+    <span class="n">b_arcsec</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">],</span>
+    <span class="n">theta_deg</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">],</span>
+    <span class="n">downsample</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">coord_type</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">zoom_radius_pixel</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="s1">&#39;zscale&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(&lt;Figure size 600x600 with 1 Axes&gt;, &lt;Axes: title={&#39;center&#39;: &#39;True&#39;}&gt;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_31_1.png" src="../_images/example_aperturephotometry_31_1.png" />
+</div>
+</div>
+</section>
+<section id="Extended-Source-Parameters">
+<h4>Extended Source Parameters<a class="headerlink" href="#Extended-Source-Parameters" title="Link to this heading"></a></h4>
+<p>We’ve identified an extended source with the following characteristics:</p>
+<ul class="simple">
+<li><p><strong>RA</strong>: 324.25336362°</p></li>
+<li><p><strong>Dec</strong>: -77.573930752°</p></li>
+<li><p><strong>Semi-major axis (a)</strong>: 5.85 arcseconds</p></li>
+<li><p><strong>Semi-minor axis (b)</strong>: 2.909 arcseconds</p></li>
+<li><p><strong>Position angle (θ)</strong>: 56.6° (from North, counterclockwise)</p></li>
+<li><p><strong>Ellipticity (b/a)</strong>: 0.497 (moderately elongated)</p></li>
+</ul>
+<p>The visualization above shows the source location and the elliptical aperture that matches the source morphology. The elliptical aperture will provide more accurate photometry for this extended object compared to a circular aperture.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_catalog_ellip</span> <span class="o">=</span> <span class="n">aperturephot</span><span class="o">.</span><span class="n">elliptical_photometry</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">x_arr</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">],</span>
+    <span class="n">y_arr</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">],</span>
+    <span class="n">sma_arr</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">],</span>
+    <span class="n">smi_arr</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">],</span>
+    <span class="n">theta_arr</span> <span class="o">=</span> <span class="n">extended_source</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">],</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgrms</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_33_0.png" src="../_images/example_aperturephotometry_33_0.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[WARNING] No matching .fits found for: /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits.ellip.cat
+[ERROR] No corresponding FITS file found for /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/7DT14/m600/subbkg_calib_7DT14_T00528_20250906_025855_m600_100.fits.ellip.cat
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_aperturephotometry_33_2.png" src="../_images/example_aperturephotometry_33_2.png" />
 </div>
 </div>
 <div class="nbinput nblast docutils container">
@@ -1098,13 +1519,15 @@ External mask is loaded.
 </div>
 </section>
 </section>
+</section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="backgroundestimation.html" class="btn btn-neutral float-left" title="Background estimation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="stacking.html" class="btn btn-neutral float-right" title="Stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="backgroundrmsestimation.html" class="btn btn-neutral float-left" title="Background RMS Estimation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="photometriccalibration.html" class="btn btn-neutral float-right" title="Photometric Calibration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

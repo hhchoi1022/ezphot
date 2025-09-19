@@ -1,0 +1,1357 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Background RMS Estimation &mdash; ezphot 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=044e0a3f" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=e259d695"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Aperture Photometry" href="aperturephotometry.html" />
+    <link rel="prev" title="Background estimation" href="backgroundestimation.html" />
+ 
+<meta name="google-site-verification" content="EjtmVQbM3ZQYiB-CBjdkznPYNeJEYk6yaondHJvRxiI" />
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ezphot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Installation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/getstarted.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#loading-telescope-configurations">Loading Telescope Configurations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#adding-telescope-configurations-tbd">Adding Telescope Configurations (TBD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-data-directories">(Optional) Connecting Data Directories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation/getstarted.html#optional-connecting-sky-catalogs">(Optional) Connecting Sky Catalogs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/loadimage.html">Loading Images</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#creating-a-scienceimage-instance">Creating a ScienceImage instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#accessing-data-and-header">Accessing Data and Header</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#inspecting-properties">Inspecting Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#working-with-save-paths">Working with Save Paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#saving-and-removing-files">Saving and Removing Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/loadimage.html#visualization">Visualization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/dataquery.html">Data Query with DataBrowser</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#supported-data-types">Supported Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#import-and-initialize">Import and Initialize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-folder-types">Available Folder Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#filtering-data">Filtering Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#set-search-attributes">Set Search Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#view-current-filters">View Current Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#searching-and-loading-data">Searching and Loading Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#basic-search">Basic Search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#load-as-different-object-types">Load as Different Object Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#science-images">Science Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#reference-images">Reference Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#calibration-images">Calibration Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#background-images">Background Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#error-maps">Error Maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#masks">Masks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#catalogs">Catalogs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#image-information">Image Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#practical-examples">Practical Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-1-load-science-images-for-photometry">Example 1: Load Science Images for Photometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-2-load-reference-and-calibration-data">Example 2: Load Reference and Calibration Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-3-search-with-multiple-filters">Example 3: Search with Multiple Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#advanced-features">Advanced Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-keys">Available Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#help-and-documentation">Help and Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#search-in-specific-folders">Search in Specific Folders</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#tips-for-efficient-usage">Tips for Efficient Usage</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/platesolving.html">Platesolving</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#astrometry-net-solution">Astrometry.net Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/platesolving.html#scamp-solution">SCAMP Solution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/maskgeneration.html">Masking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#creating-a-maskgenerator">Creating a MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#invalid-pixel-mask">Invalid Pixel Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#source-mask">Source Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#circular-mask">Circular Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#cosmic-ray-mask">Cosmic Ray Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#output-of-the-maskgenerator">Output of the MaskGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/maskgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/backgroundgeneration.html">Background Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#creating-a-backgroundgenerator">Creating a BackgroundGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#estimating-background-with-sep">Estimating Background with SEP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#subtracting-the-background">Subtracting the Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#the-background-instance">The Background Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/backgroundgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/errormapgeneration.html">Error Map Generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#creating-an-errormapgenerator">Creating an ErrormapGenerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-background-rms-from-image">Calculating Source/Background RMS from Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-source-rms-propagation">Calculating Source RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#calculating-background-rms-propagation">Calculating Background RMS (Propagation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#the-errormap-instance">The Errormap Instance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#integration-with-scienceimage">Integration with ScienceImage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/errormapgeneration.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometry.html">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#input-options">Input Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#detection-photometry-source-extractor-photometry">[Detection + Photometry] Source-Extractor photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-circular-aperture">[Forced photometry] Circular aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#forced-photometry-elliptical-aperture">[Forced photometry] Elliptical Aperture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometry.html#notes">Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#basic-photometric-calibration">Basic Photometric Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-zeropoints">Applying Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-color-terms">Applying Color Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/photometriccalibration.html#applying-magnitude-terms">Applying Magnitude Terms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#usage-examples">Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#basic-multiprocess-stacking">Basic Multiprocess Stacking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#stacking-with-swarp">Stacking with SWarp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#selecting-high-quality-images-to-stack">Selecting High-Quality Images to stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-zeropoints">Matching Zeropoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/stacking.html#matching-seeing">Matching Seeing</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="preprocess.html">Preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#1.1.-Sync-Data-with-SDTDataQuerier-(Optional)">1.1. Sync Data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#🔎-1.2.-Query-Data-with-DataBrowser">🔎 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocess.html#2.-Preprocessing">2. Preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.1.-Load-master-frames">2.1. Load master frames</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.2.-Apply-Correction">2.2. Apply Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="preprocess.html#2.3.-Batch-Process-All-Target-Images">2.3. Batch Process All Target Images</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="backgroundestimation.html">Background estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="backgroundestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backgroundestimation.html#2.-Background-Estimation">2. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="backgroundestimation.html#2.1.-Basic-Background-Estimation">2.1. Basic Background Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backgroundestimation.html#2.2.-Advanced-Background-Estimation">2.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="backgroundestimation.html#2.2.3.-Re-generation-of-Background-Map-with-Source-Mask">2.2.3. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Background RMS Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#2.-Background-RMS-Estimation">2. Background RMS Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#2.1.-Basic-Background-RMS-Estimation">2.1. Basic Background RMS Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#2.2.-Background-RMS-Estimation-with-source-masking">2.2. Background RMS Estimation with source masking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">2.2.3. Re-generation of Background RMS Map with Source Mask</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#2.3.-Background-RMS-Estimation-with-Error-Propagation">2.3. Background RMS Estimation with Error Propagation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#2.3.1.-Loading-the-Master-Calibration-Frames">2.3.1. Loading the Master Calibration Frames</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#2.3.2.-Background-RMS-Calculation-with-Error-Propagation">2.3.2. Background RMS Calculation with Error Propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="aperturephotometry.html">Aperture Photometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#3.-Aperture-Photometry-with-Background-and-Background-RMS">3. Aperture Photometry with Background and Background RMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aperturephotometry.html#4.-Forced-Aperture-Photometry">4. Forced Aperture Photometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.1.-Circular-Aperture-Forced-Photometry">4.1. Circular Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Circular-Apertures:">When to Use Circular Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Key-Parameters:">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Point-Source-Coordinates">Point Source Coordinates</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aperturephotometry.html#4.2.-Elliptical-Aperture-Forced-Photometry">4.2. Elliptical Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#When-to-Use-Elliptical-Apertures:">When to Use Elliptical Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#id2">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="aperturephotometry.html#Extended-Source-Parameters">Extended Source Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometriccalibration.html#2.-Photometric-Calibration">2. Photometric Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.1.-Load-Source-Catalog">2.1. Load Source Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="photometriccalibration.html#2.2.-Run-Calibration">2.2. Run Calibration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="stacking.html">Stacking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#1.2.-Query-Data-with-DataBrowser">1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#3.-Background-Estimation">3. Background Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#3.1.-Background-estimation">3.1. Background estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#3.2.-Advanced-Background-Estimation">3.2. Advanced Background Estimation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="stacking.html#3.2.1.-Automatic-Source-Mask-Generation">3.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="stacking.html#3.2.2.-Re-generation-of-Background-Map-with-Source-Mask">3.2.2. Re-generation of Background Map with Source Mask</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stacking.html#4.-Image-stacking">4. Image stacking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stacking.html#4.4.-Image-stacking-with-the-selected-image">4.4. Image stacking with the selected image</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/methods.html">Methods</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/maskgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator"><code class="docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/maskgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_sources"><code class="docutils literal notranslate"><span class="pre">mask_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_circle"><code class="docutils literal notranslate"><span class="pre">mask_circle()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_invalidpixel"><code class="docutils literal notranslate"><span class="pre">mask_invalidpixel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/maskgenerator.html#ezphot.methods.MaskGenerator.mask_cosmicray"><code class="docutils literal notranslate"><span class="pre">mask_cosmicray()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/backgroundgenerator.html">BackgroundGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator"><code class="docutils literal notranslate"><span class="pre">BackgroundGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/backgroundgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_sep"><code class="docutils literal notranslate"><span class="pre">estimate_with_sep()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.estimate_with_photutils"><code class="docutils literal notranslate"><span class="pre">estimate_with_photutils()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/backgroundgenerator.html#ezphot.methods.BackgroundGenerator.subtract_background"><code class="docutils literal notranslate"><span class="pre">subtract_background()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/errormapgenerator.html">MaskGenerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.errormapgenerator.ErrormapGenerator"><code class="docutils literal notranslate"><span class="pre">ErrormapGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormapgenerator.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_errormap_from_image"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormapgenerator.html#ezphot.methods.ErrormapGenerator.calculate_sourcerms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_sourcerms_from_propagation()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/preprocess.html">Preprocess</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.preprocess.Preprocess"><code class="docutils literal notranslate"><span class="pre">Preprocess</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/preprocess.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bias"><code class="docutils literal notranslate"><span class="pre">correct_bias()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_dark"><code class="docutils literal notranslate"><span class="pre">correct_dark()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_flat"><code class="docutils literal notranslate"><span class="pre">correct_flat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bd"><code class="docutils literal notranslate"><span class="pre">correct_bd()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.correct_bdf"><code class="docutils literal notranslate"><span class="pre">correct_bdf()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.get_masterframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_masterframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.generate_masterframe"><code class="docutils literal notranslate"><span class="pre">generate_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/preprocess.html#ezphot.methods.Preprocess.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/platesolve.html">PlateSolve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve"><code class="docutils literal notranslate"><span class="pre">Platesolve</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/platesolve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve.solve_astrometry"><code class="docutils literal notranslate"><span class="pre">solve_astrometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/platesolve.html#ezphot.methods.Platesolve.solve_scamp"><code class="docutils literal notranslate"><span class="pre">solve_scamp()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/aperturephotometry.html">AperturePhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.aperturephotometry.AperturePhotometry"><code class="docutils literal notranslate"><span class="pre">AperturePhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/aperturephotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.sex_photometry"><code class="docutils literal notranslate"><span class="pre">sex_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.photutils_photometry"><code class="docutils literal notranslate"><span class="pre">photutils_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.circular_photometry"><code class="docutils literal notranslate"><span class="pre">circular_photometry()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/aperturephotometry.html#ezphot.methods.AperturePhotometry.elliptical_photometry"><code class="docutils literal notranslate"><span class="pre">elliptical_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/psfphotometry.html">PSFPhotometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.psfphotometry.PSFPhotometry"><code class="docutils literal notranslate"><span class="pre">PSFPhotometry</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/psfphotometry.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.select_psfstars"><code class="docutils literal notranslate"><span class="pre">select_psfstars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.extract_sources"><code class="docutils literal notranslate"><span class="pre">extract_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model"><code class="docutils literal notranslate"><span class="pre">build_epsf_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.build_epsf_model_psfex"><code class="docutils literal notranslate"><span class="pre">build_epsf_model_psfex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/psfphotometry.html#ezphot.methods.PSFPhotometry.psf_photometry"><code class="docutils literal notranslate"><span class="pre">psf_photometry()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/photometriccalibration.html">PhotometricCalibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.photometriccalibration.PhotometricCalibration"><code class="docutils literal notranslate"><span class="pre">PhotometricCalibration</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometriccalibration.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.photometric_calibration"><code class="docutils literal notranslate"><span class="pre">photometric_calibration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_zp"><code class="docutils literal notranslate"><span class="pre">apply_zp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_color_terms"><code class="docutils literal notranslate"><span class="pre">apply_color_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.apply_mag_terms"><code class="docutils literal notranslate"><span class="pre">apply_mag_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.select_stars"><code class="docutils literal notranslate"><span class="pre">select_stars()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometriccalibration.html#ezphot.methods.PhotometricCalibration.determine_reference_mag_range"><code class="docutils literal notranslate"><span class="pre">determine_reference_mag_range()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/reproject.html">Reproject</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/reproject.html#ezphot.methods.reproject.Reproject"><code class="docutils literal notranslate"><span class="pre">Reproject</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/reproject.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/reproject.html#ezphot.methods.Reproject.reproject"><code class="docutils literal notranslate"><span class="pre">reproject()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/reproject.html#ezphot.methods.Reproject.align"><code class="docutils literal notranslate"><span class="pre">align()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/stack.html">Stack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/stack.html#ezphot.methods.stack.Stack"><code class="docutils literal notranslate"><span class="pre">Stack</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/stack.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.stack_multiprocess"><code class="docutils literal notranslate"><span class="pre">stack_multiprocess()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.stack_swarp"><code class="docutils literal notranslate"><span class="pre">stack_swarp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.select_quality_images"><code class="docutils literal notranslate"><span class="pre">select_quality_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.match_zeropoints"><code class="docutils literal notranslate"><span class="pre">match_zeropoints()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/stack.html#ezphot.methods.Stack.match_seeing"><code class="docutils literal notranslate"><span class="pre">match_seeing()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/subtract.html">Subtract</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/subtract.html#ezphot.methods.subtract.Subtract"><code class="docutils literal notranslate"><span class="pre">Subtract</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/subtract.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.find_transients"><code class="docutils literal notranslate"><span class="pre">find_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.subtract"><code class="docutils literal notranslate"><span class="pre">subtract()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.select_transients"><code class="docutils literal notranslate"><span class="pre">select_transients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.show_transient_positions"><code class="docutils literal notranslate"><span class="pre">show_transient_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.get_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">get_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.query_referenceframe_from_image"><code class="docutils literal notranslate"><span class="pre">query_referenceframe_from_image()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/subtract.html#ezphot.methods.Subtract.select_reference_image"><code class="docutils literal notranslate"><span class="pre">select_reference_image()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/imageobjects.html">Imageobjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/scienceimage.html">ScienceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage"><code class="docutils literal notranslate"><span class="pre">ScienceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.scienceimage.ScienceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ScienceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_invalidmask"><code class="docutils literal notranslate"><span class="pre">calculate_invalidmask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_sourcemask"><code class="docutils literal notranslate"><span class="pre">calculate_sourcemask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkg"><code class="docutils literal notranslate"><span class="pre">calculate_bkg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.query_referenceframe"><code class="docutils literal notranslate"><span class="pre">query_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.to_referenceimage"><code class="docutils literal notranslate"><span class="pre">to_referenceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/scienceimage.html#ezphot.imageobjects.ScienceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/scienceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/calibrationimage.html">CalibrationImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage"><code class="docutils literal notranslate"><span class="pre">CalibrationImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.calibrationimage.CalibrationImage.__init__"><code class="docutils literal notranslate"><span class="pre">CalibrationImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/calibrationimage.html#ezphot.imageobjects.CalibrationImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/calibrationimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/referenceimage.html">ReferenceImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage"><code class="docutils literal notranslate"><span class="pre">ReferenceImage</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.referenceimage.ReferenceImage.__init__"><code class="docutils literal notranslate"><span class="pre">ReferenceImage.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.show_position"><code class="docutils literal notranslate"><span class="pre">show_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.to_scienceimage"><code class="docutils literal notranslate"><span class="pre">to_scienceimage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.update_status"><code class="docutils literal notranslate"><span class="pre">update_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/referenceimage.html#ezphot.imageobjects.ReferenceImage.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/referenceimage.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/imageset.html">ImageSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.imageset.ImageSet"><code class="docutils literal notranslate"><span class="pre">ImageSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.imageset.ImageSet.__init__"><code class="docutils literal notranslate"><span class="pre">ImageSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.exclude_images"><code class="docutils literal notranslate"><span class="pre">exclude_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.select_images"><code class="docutils literal notranslate"><span class="pre">select_images()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imageset.html#ezphot.imageobjects.ImageSet.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imageset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/mask.html">Mask</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.mask.Mask"><code class="docutils literal notranslate"><span class="pre">Mask</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.mask.Mask.__init__"><code class="docutils literal notranslate"><span class="pre">Mask.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.combine_mask"><code class="docutils literal notranslate"><span class="pre">combine_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/mask.html#ezphot.imageobjects.Mask.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/mask.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/errormap.html">Errormap</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.errormap.Errormap"><code class="docutils literal notranslate"><span class="pre">Errormap</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.errormap.Errormap.__init__"><code class="docutils literal notranslate"><span class="pre">Errormap.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.to_rms"><code class="docutils literal notranslate"><span class="pre">to_rms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.to_weight"><code class="docutils literal notranslate"><span class="pre">to_weight()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/errormap.html#ezphot.imageobjects.Errormap.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/errormap.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/background.html">Background</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.background.Background"><code class="docutils literal notranslate"><span class="pre">Background</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.background.Background.__init__"><code class="docutils literal notranslate"><span class="pre">Background.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.show"><code class="docutils literal notranslate"><span class="pre">show()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.run_ds9"><code class="docutils literal notranslate"><span class="pre">run_ds9()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.rename"><code class="docutils literal notranslate"><span class="pre">rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.clear"><code class="docutils literal notranslate"><span class="pre">clear()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.update_header"><code class="docutils literal notranslate"><span class="pre">update_header()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.load_status"><code class="docutils literal notranslate"><span class="pre">load_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.save_status"><code class="docutils literal notranslate"><span class="pre">save_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.add_status"><code class="docutils literal notranslate"><span class="pre">add_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/background.html#ezphot.imageobjects.Background.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/background.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/dataobjects.html">DataObjects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalog.html">Catalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.catalog.Catalog"><code class="docutils literal notranslate"><span class="pre">Catalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.catalog.Catalog.__init__"><code class="docutils literal notranslate"><span class="pre">Catalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.show_source"><code class="docutils literal notranslate"><span class="pre">show_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.copy"><code class="docutils literal notranslate"><span class="pre">copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.apply_mask"><code class="docutils literal notranslate"><span class="pre">apply_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.to_stamp"><code class="docutils literal notranslate"><span class="pre">to_stamp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.to_region"><code class="docutils literal notranslate"><span class="pre">to_region()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#additional-methods">Additional Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.save_info"><code class="docutils literal notranslate"><span class="pre">save_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalog.html#ezphot.dataobjects.Catalog.load_info"><code class="docutils literal notranslate"><span class="pre">load_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalogset.html">CatalogSet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet"><code class="docutils literal notranslate"><span class="pre">CatalogSet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.catalogset.CatalogSet.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogSet.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.search_catalogs"><code class="docutils literal notranslate"><span class="pre">search_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.merge_catalogs"><code class="docutils literal notranslate"><span class="pre">merge_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.exclude_catalogs"><code class="docutils literal notranslate"><span class="pre">exclude_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.select_catalogs"><code class="docutils literal notranslate"><span class="pre">select_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.add_catalogs"><code class="docutils literal notranslate"><span class="pre">add_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogset.html#ezphot.dataobjects.CatalogSet.select_sources"><code class="docutils literal notranslate"><span class="pre">select_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogset.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/lightcurve.html">LightCurve</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve"><code class="docutils literal notranslate"><span class="pre">LightCurve</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.lightcurve.LightCurve.__init__"><code class="docutils literal notranslate"><span class="pre">LightCurve.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/lightcurve.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/lightcurve.html#ezphot.dataobjects.LightCurve.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/photometricspectrum.html">PhotometricSpectrum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.photometricspectrum.PhotometricSpectrum.__init__"><code class="docutils literal notranslate"><span class="pre">PhotometricSpectrum.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/photometricspectrum.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.search_source"><code class="docutils literal notranslate"><span class="pre">search_source()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/photometricspectrum.html#ezphot.dataobjects.PhotometricSpectrum.extract_source_info"><code class="docutils literal notranslate"><span class="pre">extract_source_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/skycat.html">SkyCatalog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/skycatalog.html">SkyCatalog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog"><code class="docutils literal notranslate"><span class="pre">SkyCatalog</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalog.html#ezphot.skycatalog.skycatalog.SkyCatalog.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalog.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalog.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/skycatalogutility.html">SkyCatalogUtility</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.skycatalogutility.SkyCatalogUtility.__init__"><code class="docutils literal notranslate"><span class="pre">SkyCatalogUtility.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.get_catalogs"><code class="docutils literal notranslate"><span class="pre">get_catalogs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/skycatalogutility.html#ezphot.skycatalog.SkyCatalogUtility.select_reference_sources"><code class="docutils literal notranslate"><span class="pre">select_reference_sources()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/skycatalogutility.html#properties">Properties</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/utils.html">Utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/databrowser.html">DataBrowser</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.databrowser.DataBrowser"><code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.databrowser.DataBrowser.__init__"><code class="docutils literal notranslate"><span class="pre">DataBrowser.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/databrowser.html#ezphot.utils.DataBrowser.search"><code class="docutils literal notranslate"><span class="pre">search()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/databrowser.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/catalogquerier.html">CatalogQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.catalogquerier.CatalogQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">CatalogQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/catalogquerier.html#ezphot.utils.CatalogQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/catalogquerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/imagequerier.html">ImageQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier"><code class="docutils literal notranslate"><span class="pre">ImageQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.imagequerier.ImageQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">ImageQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.check_coverage"><code class="docutils literal notranslate"><span class="pre">check_coverage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.change_catalog"><code class="docutils literal notranslate"><span class="pre">change_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/imagequerier.html#ezphot.utils.ImageQuerier.show_available_catalogs"><code class="docutils literal notranslate"><span class="pre">show_available_catalogs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/imagequerier.html#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/sdtdataquerier.html">SDTDataQuerier</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.sdtdataquerier.SDTDataQuerier.__init__"><code class="docutils literal notranslate"><span class="pre">SDTDataQuerier.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/sdtdataquerier.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.sync_obsdata"><code class="docutils literal notranslate"><span class="pre">sync_obsdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcedata"><code class="docutils literal notranslate"><span class="pre">show_obssourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestdata"><code class="docutils literal notranslate"><span class="pre">show_obsdestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obssourcefolder"><code class="docutils literal notranslate"><span class="pre">show_obssourcefolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_obsdestfolder"><code class="docutils literal notranslate"><span class="pre">show_obsdestfolder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcedata"><code class="docutils literal notranslate"><span class="pre">show_scisourcedata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scidestdata"><code class="docutils literal notranslate"><span class="pre">show_scidestdata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/sdtdataquerier.html#ezphot.utils.SDTDataQuerier.show_scisourcefolder"><code class="docutils literal notranslate"><span class="pre">show_scisourcefolder()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ezphot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Background RMS Estimation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/example/backgroundrmsestimation.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Background-RMS-Estimation">
+<h1>Background RMS Estimation<a class="headerlink" href="#Background-RMS-Estimation" title="Link to this heading"></a></h1>
+<section id="1.-Load-Data">
+<h2>1. Load Data<a class="headerlink" href="#1.-Load-Data" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code> class allows us to query and filter our synced data. Here we’ll explore the available keys and their values to understand what data we have access to.</p>
+<p>Let’s filter our data to find specific images. We’ll search for:</p>
+<ul class="simple">
+<li><p><strong>Target</strong>: T00528</p></li>
+<li><p><strong>Filter</strong>: m600-band</p></li>
+<li><p><strong>Pattern</strong>: Files ending with <code class="docutils literal notranslate"><span class="pre">*100.fits</span></code></p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataBrowser</span>
+<span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
+<span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+<span class="n">target_imglist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">target_images</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Science Images: 100%|██████████| 90/90 [00:00&lt;00:00, 139.51it/s]
+</pre></div></div>
+</div>
+<p>You can also maks target_imglist from <code class="docutils literal notranslate"><span class="pre">List</span> <span class="pre">of</span> <span class="pre">path</span></code></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.imageobjects</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScienceImage</span>
+
+<span class="n">target_pathlist</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T00528/*/m600/*100.fits&#39;</span><span class="p">)</span>
+<span class="n">target_imglist</span> <span class="o">=</span> <span class="p">[</span><span class="n">ScienceImage</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">target_pathlist</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="2.-Background-RMS-Estimation">
+<h2>2. Background RMS Estimation<a class="headerlink" href="#2.-Background-RMS-Estimation" title="Link to this heading"></a></h2>
+<p>Background RMS (Root Mean Square) estimation is crucial for accurate photometry and image analysis, providing the noise characteristics of the background.</p>
+<ul class="simple">
+<li><p><strong>Estimate background RMS</strong> using the SEP (Source Extractor Python) algorithm</p></li>
+<li><p><strong>Apply source masking</strong> to improve background RMS estimation</p></li>
+<li><p><strong>Quantify background noise</strong> for proper error analysis in photometry</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Science Note</strong>: Background RMS estimation quantifies the noise level in your images, which is essential for calculating photometric uncertainties and determining detection limits. This differs from simple background estimation by focusing on the statistical properties of the background noise.</p>
+</div></blockquote>
+<section id="2.1.-Basic-Background-RMS-Estimation">
+<h3>2.1. Basic Background RMS Estimation<a class="headerlink" href="#2.1.-Basic-Background-RMS-Estimation" title="Link to this heading"></a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_img</span> <span class="o">=</span> <span class="n">target_imglist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate the background map</span>
+<span class="n">target_bkgrms</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">box_size</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+    <span class="n">filter_size</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span>
+<span class="c1"># Clear the memory</span>
+<span class="n">target_bkgrms</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_10_0.png" src="../_images/example_backgroundrmsestimation_10_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Cleared data and header from memory.
+</pre></div></div>
+</div>
+</section>
+<section id="2.2.-Background-RMS-Estimation-with-source-masking">
+<h3>2.2. Background RMS Estimation with source masking<a class="headerlink" href="#2.2.-Background-RMS-Estimation-with-source-masking" title="Link to this heading"></a></h3>
+<p>Sometimes the background RMS model may include real sources like saturated stars or extended objects. In such cases, you can apply source masks to improve the background RMS estimation and obtain more accurate noise measurements.</p>
+<blockquote>
+<div><p><strong>💡 Pro Tip</strong>: Source masking helps create cleaner background models by excluding bright objects that could bias the background RMS calculation, leading to more reliable noise estimates for photometric analysis.</p>
+</div></blockquote>
+<section id="2.2.1.-Automatic-Source-Mask-Generation">
+<h4>2.2.1. Automatic Source Mask Generation<a class="headerlink" href="#2.2.1.-Automatic-Source-Mask-Generation" title="Link to this heading"></a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">mask_radius_factor</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">50000</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span>
+<span class="c1"># You can also iteratively apply source masking to the existing source mask,</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Iteration&#39;</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_sourcemask</span><span class="p">(</span>
+        <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">mask_radius_factor</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">saturation_level</span> <span class="o">=</span> <span class="mi">50000</span><span class="p">,</span>
+    <span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Masking source... [sigma = 5.0, mask_radius_factor = 2]
+2948 non-saturated, 13 saturated sources
+2961 sources masked.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_14_1.png" src="../_images/example_backgroundrmsestimation_14_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Iteration 1
+External mask is loaded.
+Masking source... [sigma = 5.0, mask_radius_factor = 2]
+119 non-saturated, 0 saturated sources
+119 sources masked.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_14_3.png" src="../_images/example_backgroundrmsestimation_14_3.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Iteration 2
+External mask is loaded.
+Masking source... [sigma = 5.0, mask_radius_factor = 2]
+No sources detected to mask.
+</pre></div></div>
+</div>
+</section>
+<section id="2.2.2.-Manual-Mask-Generation">
+<h4>2.2.2. Manual Mask Generation<a class="headerlink" href="#2.2.2.-Manual-Mask-Generation" title="Link to this heading"></a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you wish to add manual source mask to reject the extended sources when background modeling,</span>
+<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.37</span><span class="p">,</span>
+    <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.393</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Added circular mask at (325.37, -77.39) with radius 300arcsec
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_16_1.png" src="../_images/example_backgroundrmsestimation_16_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Or If you wish to add manual source mask to the existing source mask,</span>
+<span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_circularmask</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+    <span class="n">x_position</span> <span class="o">=</span> <span class="mf">325.07</span><span class="p">,</span>
+    <span class="n">y_position</span> <span class="o">=</span> <span class="o">-</span><span class="mf">77.093</span><span class="p">,</span>
+    <span class="n">radius_arcsec</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;coord&#39;</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_fig</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+External mask is loaded.
+Added circular mask at (325.07, -77.09) with radius 100arcsec
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_17_1.png" src="../_images/example_backgroundrmsestimation_17_1.png" />
+</div>
+</div>
+</section>
+<section id="2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">
+<h4>2.2.3. Re-generation of Background RMS Map with Source Mask<a class="headerlink" href="#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask" title="Link to this heading"></a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkgrms_with_srcmask</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms</span><span class="p">(</span>
+    <span class="n">target_srcmask</span> <span class="o">=</span> <span class="n">target_srcmask</span><span class="p">,</span>
+    <span class="n">target_ivpmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">box_size</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+    <span class="n">filter_size</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span>
+<span class="c1"># Clear the memory</span>
+<span class="n">target_bkgrms_with_srcmask</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+External mask is loaded.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_19_1.png" src="../_images/example_backgroundrmsestimation_19_1.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Cleared data and header from memory.
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="2.3.-Background-RMS-Estimation-with-Error-Propagation">
+<h3>2.3. Background RMS Estimation with Error Propagation<a class="headerlink" href="#2.3.-Background-RMS-Estimation-with-Error-Propagation" title="Link to this heading"></a></h3>
+<p>For the most accurate background RMS estimation (especially noise from hot pixels), it’s essential to account for the error propagation from calibration frames (bias, dark, and flat fields). This approach provides a more realistic estimate of the background noise by considering the uncertainties introduced during the calibration process.</p>
+<ul class="simple">
+<li><p><strong>Propagate calibration errors</strong> from master bias, dark, and flat frames</p></li>
+<li><p><strong>Account for read noise</strong> and other instrumental effects</p></li>
+<li><p><strong>Provide realistic noise estimates</strong> for photometric analysis</p></li>
+</ul>
+<blockquote>
+<div><p><strong>💡 Pro Tip</strong>: Error propagation ensures that your background RMS estimates include all sources of noise, not just the statistical noise in the final image. This is crucial for accurate photometric uncertainty calculations and detection limit estimates.</p>
+</div></blockquote>
+<section id="2.3.1.-Loading-the-Master-Calibration-Frames">
+<h4>2.3.1. Loading the Master Calibration Frames<a class="headerlink" href="#2.3.1.-Loading-the-Master-Calibration-Frames" title="Link to this heading"></a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ezphot.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">Preprocess</span>
+<span class="n">preprocess</span> <span class="o">=</span> <span class="n">Preprocess</span><span class="p">()</span>
+<span class="n">preprocess</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Help for Preprocess
+
+Public methods:
+- correct_bd(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, verbose: bool = True, **kwargs)
+- correct_bdf(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, flat_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, verbose: bool = True, **kwargs)
+- correct_bias(target_img: ezphot.imageobjects.scienceimage.ScienceImage, bias_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, verbose: bool = True, **kwargs)
+- correct_dark(target_img: ezphot.imageobjects.scienceimage.ScienceImage, dark_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, verbose: bool = True, **kwargs)
+- correct_flat(target_img: ezphot.imageobjects.scienceimage.ScienceImage, flat_image: ezphot.imageobjects.calibrationimage.CalibrationImage, save: bool = False, verbose: bool = True, **kwargs)
+- generate_masterframe(calib_imagelist: List[ezphot.imageobjects.calibrationimage.CalibrationImage], mbias: ezphot.imageobjects.calibrationimage.CalibrationImage = None, mdark: ezphot.imageobjects.calibrationimage.CalibrationImage = None, combine_type: str = &#39;median&#39;, n_proc: int = 4, clip_type: str = &#39;extrema&#39;, sigma: float = 3.0, nlow: int = 1, nhigh: int = 1, verbose: bool = True, save: bool = True, **kwargs)
+- get_masterframe(observatory: str = &#39;7DT&#39;, telkey: str = &#39;7DT_C361K_HIGH_1x1&#39;, telname: str = &#39;7DT02&#39;, imagetyp: str = &#39;BIAS&#39;, exptime: float = None, filter_: str = None, obsdate: str = None, max_days: float = 5, verbose: bool = True)
+- get_masterframe_from_image(target_img: ezphot.imageobjects.scienceimage.ScienceImage, imagetyp: str = &#39;BIAS&#39;, max_days: float = 5)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mbias</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span>
+    <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">mdark</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span>
+    <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">mflat</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+    <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+    <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span>
+    <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="2.3.2.-Background-RMS-Calculation-with-Error-Propagation">
+<h4>2.3.2. Background RMS Calculation with Error Propagation<a class="headerlink" href="#2.3.2.-Background-RMS-Calculation-with-Error-Propagation" title="Link to this heading"></a></h4>
+<p>Now we can calculate the background RMS while properly propagating errors from the calibration frames. This method uses the master calibration frames to account for all sources of noise in the final background RMS estimate.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">target_bkgrms_with_propagation</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms_from_propagation</span><span class="p">(</span>
+    <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span> <span class="c1"># To load the background map from the image, you need to run target_img.calculate_bkg(save = True) first.</span>
+    <span class="n">mbias</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
+    <span class="n">mdark</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
+    <span class="n">mflat</span> <span class="o">=</span> <span class="n">mflat</span><span class="p">,</span>
+    <span class="n">mflaterr</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">visualize</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Warning: mbias_img.ncombine is None. Using 9 as default value.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/example_backgroundrmsestimation_26_1.png" src="../_images/example_backgroundrmsestimation_26_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run for all target_imglist with multiprocessing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_bkgrms</span><span class="p">(</span><span class="n">target_img</span><span class="p">):</span>
+    <span class="n">mbias</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;BIAS&#39;</span><span class="p">,</span>
+        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">mdark</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;DARK&#39;</span><span class="p">,</span>
+        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">mflat</span> <span class="o">=</span> <span class="n">preprocess</span><span class="o">.</span><span class="n">get_masterframe_from_image</span><span class="p">(</span>
+        <span class="n">target_img</span> <span class="o">=</span> <span class="n">target_img</span><span class="p">,</span>
+        <span class="n">imagetyp</span> <span class="o">=</span> <span class="s1">&#39;FLAT&#39;</span><span class="p">,</span>
+        <span class="n">max_days</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">target_bkgrms_with_propagation</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">calculate_bkgrms_from_propagation</span><span class="p">(</span>
+        <span class="n">target_bkg</span> <span class="o">=</span> <span class="n">target_img</span><span class="o">.</span><span class="n">bkgmap</span><span class="p">,</span> <span class="c1"># To load the background map from the image, you need to run target_img.calculate_bkg(save = True) first.</span>
+        <span class="n">mbias</span> <span class="o">=</span> <span class="n">mbias</span><span class="p">,</span>
+        <span class="n">mdark</span> <span class="o">=</span> <span class="n">mdark</span><span class="p">,</span>
+        <span class="n">mflat</span> <span class="o">=</span> <span class="n">mflat</span><span class="p">,</span>
+        <span class="n">mflaterr</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">save</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visualize</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="n">mbias</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="n">mdark</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="n">mflat</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="n">target_bkgrms_with_propagation</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+    <span class="c1"># Use tqdm with imap to show progress</span>
+    <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">calculate_bkgrms</span><span class="p">,</span> <span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">target_imglist</span><span class="p">),</span>
+              <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Calculating background RMS with error propagation&quot;</span><span class="p">))</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Calculating background RMS with error propagation: 100%|██████████| 90/90 [02:07&lt;00:00,  1.42s/it]
+</pre></div></div>
+</div>
+<p>After calculation of background RMS with save option as “TRUE”, you can access to the background RMS maps easily from different options (<code class="docutils literal notranslate"><span class="pre">DataBrowser</span></code>, <code class="docutils literal notranslate"><span class="pre">ImageSet</span></code>)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dbrowser</span> <span class="o">=</span> <span class="n">DataBrowser</span><span class="p">(</span><span class="s1">&#39;scidata&#39;</span><span class="p">)</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">objname</span> <span class="o">=</span> <span class="s1">&#39;T00528&#39;</span>
+<span class="n">dbrowser</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="s1">&#39;m600&#39;</span>
+<span class="n">target_imgset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*100.fits&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;science&#39;</span><span class="p">)</span>
+<span class="c1"># From ImageSet</span>
+<span class="n">target_bkgrmslist</span> <span class="o">=</span> <span class="n">target_imgset</span><span class="o">.</span><span class="n">bkgrms</span>
+<span class="c1"># From DataBrowser</span>
+<span class="n">target_bkgrmsset</span> <span class="o">=</span> <span class="n">dbrowser</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;*.bkgrms&#39;</span><span class="p">,</span> <span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;errormap&#39;</span><span class="p">)</span>
+<span class="n">target_bkgrmslist</span> <span class="o">=</span> <span class="n">target_bkgrmsset</span><span class="o">.</span><span class="n">target_images</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*100.fits&#39;
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Science Images: 100%|██████████| 90/90 [00:01&lt;00:00, 53.13it/s]
+Loading bkgrms: 100%|██████████| 90/90 [00:00&lt;00:00, 186.96it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[INFO] Found 90 files matching &#39;/home/hhchoi1022/ezphot/data/scidata/*/*/T00528/*/m600/*.bkgrms&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loading Errormaps: 100%|██████████| 90/90 [00:00&lt;00:00, 516.20it/s]
+</pre></div></div>
+</div>
+</section>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="backgroundestimation.html" class="btn btn-neutral float-left" title="Background estimation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aperturephotometry.html" class="btn btn-neutral float-right" title="Aperture Photometry" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hyeonho Choi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

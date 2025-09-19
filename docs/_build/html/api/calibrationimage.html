@@ -6,14 +6,15 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CalibrationImage &mdash; ezphot 0.2.5 documentation</title>
+  <title>CalibrationImage &mdash; ezphot 0.3.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=044e0a3f" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb850272"></script>
+      <script src="../_static/documentation_options.js?v=e259d695"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -70,6 +71,52 @@
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-the-full-image">Show the full image</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#show-a-zoomed-region-around-a-position">Show a zoomed region around a position</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../usage/loadimage.html#open-with-ds9">Open with DS9</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/dataquery.html">Data Query with DataBrowser</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#supported-data-types">Supported Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#import-and-initialize">Import and Initialize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-folder-types">Available Folder Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#filtering-data">Filtering Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#set-search-attributes">Set Search Attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#view-current-filters">View Current Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#searching-and-loading-data">Searching and Loading Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#basic-search">Basic Search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#load-as-different-object-types">Load as Different Object Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#science-images">Science Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#reference-images">Reference Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#calibration-images">Calibration Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#background-images">Background Images</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#error-maps">Error Maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#masks">Masks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#catalogs">Catalogs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../usage/dataquery.html#image-information">Image Information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#practical-examples">Practical Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-1-load-science-images-for-photometry">Example 1: Load Science Images for Photometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-2-load-reference-and-calibration-data">Example 2: Load Reference and Calibration Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#example-3-search-with-multiple-filters">Example 3: Search with Multiple Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#advanced-features">Advanced Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#available-keys">Available Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#help-and-documentation">Help and Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#search-in-specific-folders">Search in Specific Folders</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/dataquery.html#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/dataquery.html#tips-for-efficient-usage">Tips for Efficient Usage</a></li>
 </ul>
 </li>
 </ul>
@@ -143,10 +190,17 @@
 <p class="caption" role="heading"><span class="caption-text">Example</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../example/preprocess.html">Preprocessing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#1.-Load-the-data">1. Load the data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#2.-Load-the-master-frames">2. Load the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#3.-Preprocess-with-the-master-frames">3. Preprocess with the master frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#4.-Run-preprocess-for-all-target_images">4. Run preprocess for all target_images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#1.-Load-Data">1. Load Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../example/preprocess.html#1.1.-Sync-Data-with-SDTDataQuerier-(Optional)">1.1. Sync Data with SDTDataQuerier (Optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/preprocess.html#🔎-1.2.-Query-Data-with-DataBrowser">🔎 1.2. Query Data with DataBrowser</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../example/preprocess.html#2.-Preprocessing">2. Preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../example/preprocess.html#2.1.-Load-master-frames">2.1. Load master frames</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/preprocess.html#2.2.-Apply-Correction">2.2. Apply Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/preprocess.html#2.3.-Batch-Process-All-Target-Images">2.3. Batch Process All Target Images</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../example/backgroundestimation.html">Background estimation</a><ul>
@@ -163,15 +217,59 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../example/backgroundrmsestimation.html">Background RMS Estimation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../example/backgroundrmsestimation.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.-Background-RMS-Estimation">2. Background RMS Estimation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.1.-Basic-Background-RMS-Estimation">2.1. Basic Background RMS Estimation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.2.-Background-RMS-Estimation-with-source-masking">2.2. Background RMS Estimation with source masking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.2.1.-Automatic-Source-Mask-Generation">2.2.1. Automatic Source Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.2.2.-Manual-Mask-Generation">2.2.2. Manual Mask Generation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.2.3.-Re-generation-of-Background-RMS-Map-with-Source-Mask">2.2.3. Re-generation of Background RMS Map with Source Mask</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.3.-Background-RMS-Estimation-with-Error-Propagation">2.3. Background RMS Estimation with Error Propagation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.3.1.-Loading-the-Master-Calibration-Frames">2.3.1. Loading the Master Calibration Frames</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/backgroundrmsestimation.html#2.3.2.-Background-RMS-Calculation-with-Error-Propagation">2.3.2. Background RMS Calculation with Error Propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../example/aperturephotometry.html">Aperture Photometry</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../example/aperturephotometry.html#1.-Load-Data">1. Load Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../example/aperturephotometry.html#2.-Aperture-Photometry">2. Aperture Photometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/aperturephotometry.html#3.-Aperture-Photometry-with-Background-and-Background-RMS">3. Aperture Photometry with Background and Background RMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/aperturephotometry.html#4.-Forced-Aperture-Photometry">4. Forced Aperture Photometry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../example/aperturephotometry.html#4.1.-Circular-Aperture-Forced-Photometry">4.1. Circular Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#When-to-Use-Circular-Apertures:">When to Use Circular Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#Key-Parameters:">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#Point-Source-Coordinates">Point Source Coordinates</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../example/aperturephotometry.html#4.2.-Elliptical-Aperture-Forced-Photometry">4.2. Elliptical Aperture Forced Photometry</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#When-to-Use-Elliptical-Apertures:">When to Use Elliptical Apertures:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#id2">Key Parameters:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../example/aperturephotometry.html#Extended-Source-Parameters">Extended Source Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../example/photometriccalibration.html">Photometric Calibration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../example/photometriccalibration.html#1.-Load-Data">1. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../example/photometriccalibration.html#2.-Photometric-Calibration">2. Photometric Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../example/photometriccalibration.html#2.1.-Load-Source-Catalog">2.1. Load Source Catalog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/photometriccalibration.html#2.2.-Run-Calibration">2.2. Run Calibration</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../example/stacking.html">Stacking</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../example/stacking.html#1.-Load-Data">1. Load Data</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#🔍-1.1.-Sync-the-data-with-SDTDataQuerier-(Optional)">🔍 1.1. Sync the data with SDTDataQuerier (Optional)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#🔍-1.2.-Query-Data-with-DataBrowser">🔍 1.2. Query Data with DataBrowser</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#1.2.-Query-Data-with-DataBrowser">1.2. Query Data with DataBrowser</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../example/stacking.html#2.-Check-Your-Images">2. Check Your Images</a></li>
@@ -188,6 +286,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#4.1.-Image-stacking">4.1. Image stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#4.2.-Image-and-Background-RMS-stacking">4.2. Image and Background RMS stacking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#4.3.-Image-stacking-with-convolution-or-ZP-scaling">4.3. Image stacking with convolution or ZP scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../example/stacking.html#4.4.-Image-stacking-with-the-selected-image">4.4. Image stacking with the selected image</a></li>
 </ul>
 </li>
 </ul>
@@ -342,6 +441,9 @@
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap"><code class="docutils literal notranslate"><span class="pre">calculate_errormap()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_bkgrms_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_bkgrms_from_propagation()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.calculate_errormap_from_propagation"><code class="docutils literal notranslate"><span class="pre">calculate_errormap_from_propagation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.get_masterframe"><code class="docutils literal notranslate"><span class="pre">get_masterframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.get_referenceframe"><code class="docutils literal notranslate"><span class="pre">get_referenceframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.query_referenceframe"><code class="docutils literal notranslate"><span class="pre">query_referenceframe()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="scienceimage.html#ezphot.imageobjects.ScienceImage.remove"><code class="docutils literal notranslate"><span class="pre">remove()</span></code></a></li>
@@ -748,13 +850,17 @@ If not provided, status is initialized or loaded from disk.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="ezphot.imageobjects.CalibrationImage.show_position">
-<span class="sig-name descname"><span class="pre">show_position</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pixel'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoom_radius_pixel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gray'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zscale'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(6,</span> <span class="pre">6)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.imageobjects.CalibrationImage.show_position" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">show_position</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b_arcsec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pixel'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoom_radius_pixel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gray'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zscale'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(6,</span> <span class="pre">6)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ezphot.imageobjects.CalibrationImage.show_position" title="Link to this definition"></a></dt>
 <dd><p>Display a zoomed-in view around a given (x, y) or (RA, Dec) position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>x</strong> (<em>float</em>) – X-coordinate (pixel or RA)</p></li>
 <li><p><strong>y</strong> (<em>float</em>) – Y-coordinate (pixel or Dec)</p></li>
+<li><p><strong>radius_arcsec</strong> (<em>float</em><em>, </em><em>optional</em>) – Radius of the circle in arcseconds. Default is None.</p></li>
+<li><p><strong>a_arcsec</strong> (<em>float</em><em>, </em><em>optional</em>) – Semi-major axis of the ellipse in arcseconds. Default is None.</p></li>
+<li><p><strong>b_arcsec</strong> (<em>float</em><em>, </em><em>optional</em>) – Semi-minor axis of the ellipse in arcseconds. Default is None.</p></li>
+<li><p><strong>theta_deg</strong> (<em>float</em><em>, </em><em>optional</em>) – Position angle of the ellipse in degrees. Default is None.</p></li>
 <li><p><strong>coord_type</strong> (<em>str</em><em>, </em><em>optional</em>) – ‘pixel’ or ‘coord’. Default is ‘pixel’.</p></li>
 <li><p><strong>downsample</strong> (<em>int</em><em>, </em><em>optional</em>) – Step size for downsampling via slicing. Default is 4.</p></li>
 <li><p><strong>zoom_radius_pixel</strong> (<em>int</em><em>, </em><em>optional</em>) – Radius of the zoom-in region in pixels. Default is 100.</p></li>
