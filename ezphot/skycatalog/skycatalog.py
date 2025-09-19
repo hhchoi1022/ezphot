@@ -361,7 +361,7 @@ class SkyCatalog:
         
     @property
     def catalog_summary(self):
-        catalog_summary_file = os.path.join(self.helper.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
+        catalog_summary_file = os.path.join(self.helper.config['CATALOG_DIR'], 'summary.ascii_fixed_width')
         return catalog_summary_file
     
     def _get_catalog(self, catalog_type : str, verbose : bool = True):

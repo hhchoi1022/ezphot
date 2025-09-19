@@ -3,7 +3,7 @@ import inspect
 import json
 import os
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 from types import SimpleNamespace
 from dataclasses import dataclass, asdict
 
@@ -815,7 +815,123 @@ class ScienceImage(BaseImage):
             save_fig = save_fig)
             
         return target_sourcerms
+    
+    def get_referenceframe(self, 
+                           telname: str = None,
+                           min_obsdate: Union[str, float, Time] = None,
+                           max_obsdate: Union[str, float, Time] = None,
+                           sort_key: Union[str, List[str]] = ['fraction', 'depth'],
+                           overlap_threshold: float = 0.5,
+                           return_groups: bool = True,
+                           group_overlap_threshold: float = 0.8
+                           ):
+        """
+        Get the reference frame from the target image.
         
+        Parameters
+        ----------
+        telname : str, optional
+            The telescope name.
+        min_obsdate : Union[str, float, Time], optional
+            The minimum observation date.
+        max_obsdate : Union[str, float, Time], optional
+            The maximum observation date.
+        sort_key : Union[str, List[str]], optional
+            The sort key.
+        overlap_threshold : float, optional
+            The overlap threshold.
+        return_groups : bool, optional
+            Whether to return the groups.
+        group_overlap_threshold : float, optional
+            The group overlap threshold.
+            
+        Returns
+        -------
+        reference_img : ReferenceImage
+            The reference image.
+        reference_frames : Table
+            The metadata of the reference frames matched the criteria.
+        """
+        from ezphot.methods import Subtract
+        subtract = Subtract()
+        result = subtract.get_referenceframe_from_image(
+            target_img = self,
+            telname = telname,
+            min_obsdate = min_obsdate,
+            max_obsdate = max_obsdate,
+            sort_key = sort_key,
+            overlap_threshold = overlap_threshold,
+            return_groups = return_groups,
+            group_overlap_threshold = group_overlap_threshold)
+        return result
+    
+    def get_masterframe(self,
+                        imagetyp: str,
+                        max_days: float = 10):
+        """
+        Get master frame from the image.
+        
+        This method will search for the master frame in the master frame directory.
+        
+        Parameters
+        ----------
+        imagetyp : str
+            The type of image to get the master frame from. (BIAS, DARK, FLAT)
+        max_days : float, optional
+            The maximum number of days to search for the master frame.
+            
+        Returns
+        -------
+        master_img : CalibrationImage
+            The master frame image.
+        master_frames_tbl : Table
+            Metadata of the master frame(s) found.
+        """
+        from ezphot.methods import Preprocess
+        preprocess = Preprocess()
+        result = preprocess.get_masterframe_from_image(
+            imagetyp = imagetyp,
+            max_days = max_days)
+                
+        return result
+    
+    def query_referenceframe(self,
+                             save_path: str = None,
+                             verbose: bool = True,
+                             n_processes: int = 4):
+        """
+        Query the reference frame from the target image.
+        
+        Parameters
+        ----------
+        save_path : str, optional
+            The save path of the reference frame.
+        verbose : bool, optional
+            The verbose flag.
+        n_processes : int, optional
+            The number of processes.
+        
+        Returns
+        -------
+        reference_img : ReferenceImage
+            The reference image.
+        """
+        from ezphot.utils import ImageQuerier
+        imagequerier = ImageQuerier()
+        result = imagequerier.query(
+            width = self.naxis1,
+            height = self.naxis2,
+            ra = self.center['ra'],
+            dec = self.center['dec'],
+            pixelscale = self.pixelscale[0],
+            telinfo = self.telinfo,
+            save_path = save_path,
+            objname = self.objname,
+            rotation_angle = 0.0,
+            verbose = verbose,
+            n_processes = n_processes)
+        return result
+                
     def to_referenceimage(self):
         """ Convert this ScienceImage to a ReferenceImage
         
@@ -1120,3 +1236,12 @@ class ScienceImage(BaseImage):
                 self.status.update('ASTROMETRY')
                 self.status.update('SCAMP')
                 #self.status.update('ZPCALC')
+
+# %%
+if __name__ == "__main__":
+    from ezphot.utils import DataBrowser
+    db = DataBrowser('scidata')
+    db.objname = 'T00528'
+    target_imgset = db.search(return_type='science')
+    target_imglist = target_imgset.target_images
+# %%

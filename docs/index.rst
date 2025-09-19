@@ -23,6 +23,7 @@ Welcome to EZPhot documentation!
    :caption: Usage:
 
    usage/loadimage
+   usage/dataquery
    usage/platesolving
    usage/maskgeneration
    usage/backgroundgeneration

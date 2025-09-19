@@ -228,31 +228,102 @@ for target_img in target_imglist:
         r = 10,
 )
 # %%
-tile = 'T00597'
+from ezphot.utils import DataBrowser
+
+tile = S250830bp_TILES[5]
 databrowser = DataBrowser('scidata')
 databrowser.observatory = '7DT'
 databrowser.objname = tile
 databrowser.filter = 'r'
-target_catalogset = databrowser.search(pattern = '*candidate', return_type = 'catalog')
-target_cataloglist = target_catalogset.target_catalogs
-# %%
+all_catalogset = databrowser.search(pattern = 'calib*com.fits.cat', return_type = 'catalog')
+candidate_catalogset = databrowser.search(pattern = '*candidate', return_type = 'catalog')
+transient_catalogset = databrowser.search(pattern = '*transient', return_type = 'catalog')
+all_cataloglist = all_catalogset.target_catalogs
+candidate_cataloglist = candidate_catalogset.target_catalogs
+transient_cataloglist = transient_catalogset.target_catalogs
 
+for target_catalog in candidate_cataloglist:
+    print(f'[CANDIDATE] {target_catalog.path.name}: {len(target_catalog.data)} with {target_catalog.target_img.depth}')
+for target_catalog in transient_cataloglist:
+    print(f'[TRANSIENT] {target_catalog.path.name}: {len(target_catalog.data)} with {target_catalog.target_img.depth}')
 #%%
 from ezphot.imageobjects import ScienceImage, ReferenceImage
-sub_img = target_cataloglist[0].target_img
+sub_img = candidate_cataloglist[0].target_img
 sci_img = ScienceImage(str(sub_img.path).replace('sub_', 'sci_'))
 ref_img = ReferenceImage(str(sub_img.path).replace('sub_', 'ref_'))
-
 #%%
-radec = '330.58675, -74.97364'
-ra, dec = radec.split(',')
+i = 0
+transient_catalog = transient_cataloglist[i]
+candidate_catalog = candidate_cataloglist[i]
+all_catalog = all_cataloglist[i]
+transient_catalog_data = transient_catalog.data
+candidate_catalog_data = candidate_catalog.data
+print(len(transient_catalog_data))
+print(len(candidate_catalog_data))
+#%%
+from ezphot.methods import Subtract
+subtract = Subtract()
 subtract.show_transient_positions(
     sci_img,
     ref_img,
     sub_img,
-    [float(ra)],
-    [float(dec)],
+    transient_catalog_data['X_WORLD'][:100],
+    transient_catalog_data['Y_WORLD'][:100],
+    transient_catalog_data['NUMBER'][:100],
     coord_type = 'coord',
     zoom_radius_pixel = 80,
+)
+
+#%%
+from ezphot.methods import Subtract
+subtract = Subtract()
+subtract.show_transient_positions(
+    sci_img,
+    ref_img,
+    sub_img,
+    candidate_catalog_data['X_WORLD'][:],
+    candidate_catalog_data['Y_WORLD'][:],
+    candidate_catalog_data['NUMBER'][:],
+    coord_type = 'coord',
+    zoom_radius_pixel = 50,
+    transient_type = 'candidate',
+)
+
+#%%
+ra1, dec1 = 327.61334596, -77.677945966
+ra2, dec2 = 328.83563881, -77.362863469
+ra3, dec3 = 324.78145806, -77.090512548
+ra4, dec4 = 325.69108716, -77.020710528
+ra5, dec5 = 320.9690905, -76.4383817
+#%%
+from ezphot.dataobjects import LightCurve
+lightcurve = LightCurve(candidate_catalogset)
+lightcurve.plt_params.figure_figsize = (8,6)
+#lightcurve.plt_params.ylim = [18.5, 16]
+lightcurve.plot(
+    ra = ra5,
+    dec = dec5,
+    matching_radius_arcsec = 5,
+    flux_key = 'MAGSKY_AUTO',
+    fluxerr_key = 'MAGERR_AUTO',
+    color_key = 'filter',
+    apply_filter_offsets = True,
+)
+#%%
+from ezphot.dataobjects import LightCurve
+ra_to_see = ra5
+dec_to_see = dec5
+all_catalogset.select_sources(ra = ra_to_see, dec = dec_to_see, radius = 5)
+lightcurve = LightCurve(all_catalogset)
+lightcurve.plt_params.figure_figsize = (8,6)
+lightcurve.plt_params.ylim = [18, 16]
+lightcurve.plot(
+    ra = ra_to_see,
+    dec = dec_to_see,
+    matching_radius_arcsec = 5,
+    flux_key = 'MAGSKY_AUTO',
+    fluxerr_key = 'MAGERR_AUTO',
+    color_key = 'filter',
+    apply_filter_offsets = True,
 )
 # %%
