@@ -85,7 +85,7 @@ def setup(app):
 project = 'ezphot'
 copyright = '2025, Hyeonho Choi'
 author = 'Hyeonho Choi'
-release = '0.2.5'
+release = '0.3.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

@@ -218,6 +218,7 @@ ezphot/imageobjects/dummyimage.py
 ezphot/imageobjects/errormap.py
 ezphot/imageobjects/imageset.py
 ezphot/imageobjects/mask.py
+ezphot/imageobjects/masterimage.py
 ezphot/imageobjects/referenceimage.py
 ezphot/imageobjects/scienceimage.py
 ezphot/methods/__init__.py
