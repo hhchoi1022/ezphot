@@ -293,6 +293,7 @@ ezphot/imageobjects/baseimage.py
 ezphot/imageobjects/calibrationimage.py
 ezphot/imageobjects/dummyimage.py
 ezphot/imageobjects/errormap.py
+ezphot/imageobjects/imagemethod.py
 ezphot/imageobjects/imageset.py
 ezphot/imageobjects/mask.py
 ezphot/imageobjects/masterimage.py
@@ -315,11 +316,11 @@ ezphot/skycatalog/conversion.py
 ezphot/skycatalog/skycatalog.py
 ezphot/skycatalog/skycatalogutility.py
 ezphot/utils/__init__.py
-ezphot/utils/calibrationimagecheck.py
 ezphot/utils/catalogquerier.py
 ezphot/utils/databrowser.py
 ezphot/utils/imageformatter.py
 ezphot/utils/imagequerier.py
+ezphot/utils/imagequerier_standalone.py
 ezphot/utils/sdtdataquerier.py
 ezphot/utils/skymapperstitch.py
 ezphot/utils/tiles.py
@@ -338,4 +339,6 @@ ezphot/utils/PanStitch-main/conf/7dt.swarp
 ezphot/utils/PanStitch-main/output/images_to_stitch.txt
 ezphot/utils/PanStitch-main/output/r/ps1_query_pointing_T12400_r.png
 ezphot/utils/PanStitch-main/test/ps1_reference_image.py
+ezphot/utils/output/matched_tiles_20251119_183051.png
+ezphot/utils/output/matched_tiles_20251119_183446.png
 ezphot/utils/tileinfo/7-DT/final_tiles.txt
