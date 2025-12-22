@@ -16,38 +16,38 @@ class LazyFileHandler(logging.FileHandler):
         # `delay=True` avoids creating the file immediately
         super().__init__(filename, mode, encoding, delay=delay)
     
-class Logger:
-    def __init__(self, logger_name):
-        self.path = logger_name
-        self._log = self.createlogger(logger_name)
+# class Logger:
+#     def __init__(self, logger_name):
+#         self.path = logger_name
+#         self._log = self.createlogger(logger_name)
 
-    def log(self):
-        return self._log
+#     def log(self):
+#         return self._log
 
-    def createlogger(self, logger_name, logger_level='INFO'):
-        logger = logging.getLogger(logger_name)
-        if len(logger.handlers) > 0:
-            return logger  # Logger already exists
+#     def createlogger(self, logger_name, logger_level='INFO'):
+#         logger = logging.getLogger(logger_name)
+#         if len(logger.handlers) > 0:
+#             return logger  # Logger already exists
 
-        logger.setLevel(logger_level)
-        formatter = logging.Formatter(
-            datefmt='%Y-%m-%d %H:%M:%S',
-            fmt='[%(levelname)s] %(asctime)-15s | %(message)s'
-        )
+#         logger.setLevel(logger_level)
+#         formatter = logging.Formatter(
+#             datefmt='%Y-%m-%d %H:%M:%S',
+#             fmt='[%(levelname)s] %(asctime)-15s | %(message)s'
+#         )
 
-        # Stream Handler
-        streamHandler = logging.StreamHandler()
-        streamHandler.setLevel(logger_level)
-        streamHandler.setFormatter(formatter)
-        logger.addHandler(streamHandler)
+#         # Stream Handler
+#         streamHandler = logging.StreamHandler()
+#         streamHandler.setLevel(logger_level)
+#         streamHandler.setFormatter(formatter)
+#         logger.addHandler(streamHandler)
 
-        # Lazy File Handler
-        fileHandler = LazyFileHandler(filename=logger_name, delay=True)
-        fileHandler.setLevel(logger_level)
-        fileHandler.setFormatter(formatter)
-        logger.addHandler(fileHandler)
+#         # Lazy File Handler
+#         fileHandler = LazyFileHandler(filename=logger_name, delay=True)
+#         fileHandler.setLevel(logger_level)
+#         fileHandler.setFormatter(formatter)
+#         logger.addHandler(fileHandler)
 
-        return logger
+#         return logger
     
 #%%
 class DummyImage(Configuration):
@@ -67,10 +67,11 @@ class DummyImage(Configuration):
         self.helper = Helper()
         self.path =  Path(path)
         
+        self._hdul = None
         self._data = None
         self._header = Header()
     
-    def rename(self, new_name: str):
+    def rename(self, new_name: str, verbose: bool = True):
         """Rename the image file and update the internal path.
         
         Parameters
@@ -91,9 +92,11 @@ class DummyImage(Configuration):
 
         old_path.rename(new_path)
         self.path = new_path
-        print(f"Renamed {old_path} to {new_path}")
+        self.helper.print(f"Renamed {old_path} to {new_path}", verbose)
     
     def clear(self,
+              clear_data: bool = True,
+              clear_header: bool = False,
               verbose: bool = True):
         """Clear the image data and/or header from memory.
         
@@ -104,8 +107,15 @@ class DummyImage(Configuration):
         clear_header : bool, optional
             If True, clear the image header. Default is False.
         """
-        self._data = None
-        self._header = Header()
+        if clear_data:
+            self._data = None
+            if self._hdul is not None:
+                try:
+                    self._hdul.close()
+                finally:
+                    self._hdul = None
+        if clear_header:
+            self._header = Header()
         self.helper.print("Cleared data and header from memory.", verbose)
 
     def update_header(self, **kwargs):
@@ -302,10 +312,13 @@ class DummyImage(Configuration):
         """Image data array."""
         if not self.is_data_loaded and self.is_exists:
             try:
-                self._data = fits.getdata(self.path)
+                self._hdul = fits.open(self.path, memmap=True)
+                self._data = self._hdul[0].data
             except Exception as e:
-                print(f"Failed to load data from {self.path}: {e}")
+                self._hdul = fits.open(self.path, memmap=False)
+                self._data = self._hdul[0].data
         return self._data
+
 
     @data.setter
     def data(self, value):

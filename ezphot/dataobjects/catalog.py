@@ -28,7 +28,7 @@ class Info:
     
     INFO_FIELDS = ["path", "target_img", "obsdate", "filter", "exptime", "depth", "seeing",
                    "catalog_type", "ra", "dec", "fov_ra", "fov_dec", 'objname',
-                   "observatory", "telname", "aperture_diameter_arcsec"]
+                   "observatory", "telname"]
     DEFAULT_VALUES = [None] * len(INFO_FIELDS)
 
     def __init__(self, **kwargs):
@@ -57,6 +57,9 @@ class Info:
             self._fields[key] = value
         else:
             print(f"WARNING: Invalid key: {key}")
+        
+    def copy(self):
+        return Info.from_dict(self.to_dict())
 
     def to_dict(self):
         return dict(self._fields)
@@ -116,7 +119,7 @@ class Catalog:
             self.info.catalog_type = catalog_type
             if self.info.target_img is not None:
                 if Path(self.info.target_img).exists():
-                    self.target_img = ScienceImage(self.info.target_img, telinfo = self.helper.estimate_telinfo(self.info.target_img), load = True)
+                    self.target_img = ScienceImage(self.info.target_img, load = True)
         
         if self.target_img is None:
             self._load_target_img()
@@ -145,80 +148,71 @@ class Catalog:
         print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
                 
     def select_sources(self,
-                       x: Union[float, list, np.ndarray],
-                       y: Union[float, list, np.ndarray],
-                       unit='coord',
-                       matching_radius: float = 5.0):
+                    x,
+                    y,
+                    unit='coord',
+                    matching_radius=5.0,
+                    x_key='X_WORLD',
+                    y_key='Y_WORLD'):
         """
-        Select sources from a catalog based on their positions.
-        
-        Selected sources are stored in self.target_data.
-        
-        Parameters
-        ----------
-        x : Union[float, list, np.ndarray]
-            X coordinates of the sources.
-        y : Union[float, list, np.ndarray]
-            Y coordinates of the sources.
-        unit : str, optional
-            Unit of the coordinates. Default is 'coord'.
-        matching_radius : float, optional
-            Matching radius in arcseconds. Default is 5.0.
-
-        Returns
-        -------
-        None
+        Select all sources within matching_radius.
         """
         x = np.atleast_1d(x)
         y = np.atleast_1d(y)
         target_catalog = self.data
 
+        if len(target_catalog) == 0:
+            self.target_data = target_catalog
+            return
+
         if unit == 'pixel':
-            catalog_coords = np.vstack((target_catalog['X_IMAGE'], target_catalog['Y_IMAGE'])).T
+            catalog_coords = np.vstack((target_catalog[x_key], target_catalog[y_key])).T
             input_coords = np.vstack((x, y)).T
 
             tree = cKDTree(catalog_coords)
-            sep, idx = tree.query(input_coords, distance_upper_bound=matching_radius)
 
-            valid = sep != np.inf
-            sep = sep[valid]
-            idx = idx[valid]
-            matched_catalog = target_catalog[idx]
+            # List of lists of indices
+            idx_lists = tree.query_ball_point(input_coords, r=matching_radius)
 
-            # Sort by separation
-            sort_idx = np.argsort(sep)
-            self.target_data = matched_catalog[sort_idx]
+            # Flatten + unique
+            idx = np.unique(np.concatenate(idx_lists)) if len(idx_lists) else []
+
+            self.target_data = target_catalog[idx]
 
         elif unit == 'coord':
-            cat_sky = SkyCoord(ra=target_catalog['X_WORLD'], dec=target_catalog['Y_WORLD'], unit='deg')
+            cat_sky = SkyCoord(
+                ra=target_catalog[x_key],
+                dec=target_catalog[y_key],
+                unit='deg'
+            )
             input_sky = SkyCoord(ra=x, dec=y, unit='deg')
 
+            # Cartesian coordinates for KDTree
             cat_xyz = np.vstack(cat_sky.cartesian.xyz).T
             input_xyz = np.vstack(input_sky.cartesian.xyz).T
 
             tree = cKDTree(cat_xyz)
-            matching_radius_rad = (matching_radius / 3600.0) * (np.pi / 180)
-            sep, idx = tree.query(input_xyz, distance_upper_bound=matching_radius_rad)
 
-            valid = sep != np.inf
-            sep = sep[valid]
-            idx = idx[valid]
-            matched_catalog = target_catalog[idx]
-            sep_arcsec = np.rad2deg(sep) * 3600
+            matching_radius_rad = np.deg2rad(matching_radius / 3600.0)
 
-            # Sort by separation
-            sort_idx = np.argsort(sep_arcsec)
-            self.target_data = matched_catalog[sort_idx]
+            idx_lists = tree.query_ball_point(input_xyz, r=matching_radius_rad)
+
+            idx = np.unique(np.concatenate(idx_lists)) if len(idx_lists) else []
+
+            self.target_data = target_catalog[idx]
 
         else:
             raise ValueError("unit must be either 'pixel' or 'coord'")
         
     def show_source(self,
-                target_ra: float,
-                target_dec: float,
-                downsample: int = 4,
-                zoom_radius_pixel: float = 50,
-                matching_radius_arcsec: float = 3.0):
+                    ra: float,
+                    dec: float,
+                    downsample: int = 4,
+                    zoom_radius_pixel: float = 50,
+                    matching_radius_arcsec: float = 3.0,
+                    ra_key: str = 'X_WORLD',
+                    dec_key: str = 'Y_WORLD',
+                    ):
         """
         Show two-panel view of the target image with a single source marked (red).
         The left panel shows the full image, and the right panel shows a zoomed-in view of the target position.
@@ -226,9 +220,9 @@ class Catalog:
         
         Parameters
         ----------
-        target_ra : float
+        ra : float
             Right ascension of the target source.
-        target_dec : float
+        dec : float
             Declination of the target source.
         downsample : int, optional
             Downsampling factor for the image. Default is 4.
@@ -252,20 +246,20 @@ class Catalog:
             load_result = self._load_target_img(target_img=None)
 
         # Convert RA/Dec to pixel coordinates
-        coord = SkyCoord(ra=target_ra * u.deg, dec=target_dec * u.deg)
+        coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg)
         x, y = self.target_img.wcs.world_to_pixel(coord)
 
         # Match source in catalog
         self.select_sources(
-            x=[target_ra], y=[target_dec], unit='coord',
+            x=[ra], y=[dec], unit='coord',
             matching_radius=matching_radius_arcsec)
         matched_catalog = self.target_data
 
         # If matched, get pixel coords of catalog source
         matched_xy = None
         if len(matched_catalog) > 0:
-            matched_coord = SkyCoord(ra=matched_catalog[0]['X_WORLD'] * u.deg,
-                                    dec=matched_catalog[0]['Y_WORLD'] * u.deg)
+            matched_coord = SkyCoord(ra=matched_catalog[0][ra_key] * u.deg,
+                                    dec=matched_catalog[0][dec_key] * u.deg)
             matched_xy = self.target_img.wcs.world_to_pixel(matched_coord)
 
         # Downsampled dimensions for full image view
@@ -436,7 +430,21 @@ class Catalog:
                 removed[str(f)] = try_remove(f)
 
         return removed
+    
+    def clear(self, clear_data: bool = True, verbose: bool = True):
+        """Clear the image data and/or header from memory.
+        
+        Parameters
+        ----------
+        clear_data : bool, optional
+            If True, clear the image data. Default is True.
+        """
+        if clear_data:
+            self._data = None
+            self._target_data = None
 
+        self.helper.print("Cleared data from memory.", verbose)
+        
     def apply_mask(self, 
                    target_ivpmask: Mask,
                    x_key: str = 'X_IMAGE',
@@ -479,11 +487,36 @@ class Catalog:
         masked_sources = self.data[final_indices]
 
         return masked_sources
+    
+    def apply_zp(self, target_img: Union[ScienceImage, ReferenceImage], save: bool = True, verbose: bool = True):
+        """
+        Apply photometric zeropoint corrections using values saved in the FITS header.
         
+        Parameters
+        ----------
+        target_img : ScienceImage or ReferenceImage
+            The target image to apply photometric zeropoint corrections to.
+        save : bool
+            Whether to save the catalog.
+        verbose : bool
+            Whether to print verbose output.
+        """
+        from ezphot.methods import PhotometricCalibration
+        photometriccalibration = PhotometricCalibration()
+        result = photometriccalibration.apply_zp(
+            target_img = target_img,
+            target_catalog = self,
+            save = save,
+            verbose = verbose)
+        return result
+    
     def to_stamp(self,
                  target_img: Union[ScienceImage, ReferenceImage],
                  sort_by: str = 'FLUX_AUTO',
-                 max_number: int = 50000):
+                 max_number: int = 50000,
+                 x_key: str = 'X_WORLD',
+                 y_key: str = 'Y_WORLD',
+                 ):
         """
         Convert X_WORLD and Y_WORLD to pixel coordinates and save to a stamp catalog.
         
@@ -506,8 +539,8 @@ class Catalog:
         wcs = target_img.wcs
         if sort_by in self.data.colnames:
             self.data.sort(sort_by)
-        ra_deg = self.data['X_WORLD']
-        dec_deg = self.data['Y_WORLD']
+        ra_deg = self.data[x_key]
+        dec_deg = self.data[y_key]
         skycoord = SkyCoord(ra=ra_deg, dec=dec_deg, unit = 'deg')
         x_pix, y_pix = skycoord_to_pixel(skycoord, wcs, origin=0)        
         if len(x_pix) > max_number:
@@ -546,13 +579,13 @@ class Catalog:
             reg_theta = self.data['THETA_IMAGE']
         
         region_path =  str(self.savepath.savepath) + '.reg'
-        self.to_regions(reg_x = reg_x, 
-                        reg_y = reg_y, 
-                        reg_a = reg_a,
-                        reg_b = reg_b,
-                        reg_theta = reg_theta,
-                        reg_size = reg_size,
-                        output_file_path = region_path)
+        self.helper.to_regions(reg_x = reg_x, 
+                               reg_y = reg_y, 
+                               reg_a = reg_a,
+                               reg_b = reg_b,
+                               reg_theta = reg_theta,
+                               reg_size = reg_size,
+                               output_file_path = region_path)
         return region_path
 
     def save_info(self, verbose = False):
@@ -600,7 +633,7 @@ class Catalog:
                 self.helper.print(f"Target image does not exist: {target_path}", verbose)
                 return self.info
             
-            self.target_img = ScienceImage(target_path, telinfo=self.helper.estimate_telinfo(target_path), load=True)
+            self.target_img = ScienceImage(target_path, load=True)
             self.is_loaded = True
         self.helper.print(f"Loaded: {self.savepath.infopath}", verbose)
         return self.info
@@ -636,7 +669,7 @@ class Catalog:
             if target_path is None:
                 print(f"[ERROR] No corresponding FITS file found for {self.path}")
                 return False
-            target_img = ScienceImage(target_path, telinfo = self.helper.estimate_telinfo(target_path), load = True)
+            target_img = ScienceImage(target_path)
         
         self.target_img = target_img
         self.info.target_img = str(target_img.path)
@@ -797,22 +830,3 @@ class Catalog:
             return len(self._target_data)
         return None
     
-
-#%%
-if __name__ == "__main__":
-    catalog_path = '/home/hhchoi1022/data/scidata/7DT/7DT_C361K_HIGH_1x1/NGC6121/7DT01/m400/calib_7DT01_NGC6121_20240722_010055_m400_100.com.fits.cat'
-    self = Catalog(path=catalog_path, catalog_type ='all', load = True)
-
-    #sources =  self.data[(self.data['X_IMAGE'] < 4600) & (self.data['Y_IMAGE'] < 3100) & (self.data['X_IMAGE'] > 4400) & (self.data['Y_IMAGE'] > 2900)]
-    # source = sources[4]
-    # target_ra = source['X_WORLD']
-    # target_dec = source['Y_WORLD']
-    # matching_radius_arcsec = 3
-    #self.show_source(target_ra=target_ra, target_dec=target_dec, downsample=4, zoom_radius_pixel=50)
-    #target_img = ScienceImage(self.target_path, telinfo = self.helper.estimate_telinfo(self.target_path), load = False)
-    #tbl = self.search_sources(x = 233.890152, y = -67.523614423, unit = 'coord')
-    #self.load_from_target_path()
-    #self.save_info()
-    #A = self._find_corresponding_fits()
-    
-# %%

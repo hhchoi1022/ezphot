@@ -10,16 +10,22 @@ from astropy.io import fits
 from astropy.time import Time
 import os
 import matplotlib.pyplot as plt
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm.contrib.concurrent import process_map
+import gc
+import warnings
+from astropy.wcs.wcs import FITSFixedWarning
+from multiprocessing.shared_memory import SharedMemory
+
+
+warnings.filterwarnings("ignore", category=FITSFixedWarning, message=".*SIP.*")
 
 from ezphot.helper import Helper
 from ezphot.imageobjects import ScienceImage, CalibrationImage, ReferenceImage, Errormap, Background 
 from ezphot.methods import Reproject
 from ezphot.methods import BackgroundGenerator
 from ezphot.methods import PSFPhotometry
-
-
+#%%
+helper = Helper()
 def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma=3.0, nlow=1, nhigh=1):
     (i_start, i_end, j_start, j_end, tile_stack, bkgrms_stack) = patch_tuple
 
@@ -98,27 +104,224 @@ def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma
 
     return i_start, i_end, j_start, j_end, combined, combined_rms
 
+def combine_patch_worker(args):
+    (i0, i1, j0, j1,
+     shm_image_name, img_shape, img_dtype,
+     shm_bkgrms_name, bkgrms_shape, bkgrms_dtype,
+     combine_method, clip_method, sigma, nlow, nhigh) = args
+
+    shm_img = SharedMemory(name=shm_image_name)
+    stack = np.ndarray(img_shape, dtype=np.dtype(img_dtype), buffer=shm_img.buf)
+
+    shm_bkgrms = None
+    if shm_bkgrms_name is not None:
+        shm_bkgrms = SharedMemory(name=shm_bkgrms_name)
+        bkgrms = np.ndarray(bkgrms_shape, dtype=np.dtype(bkgrms_dtype), buffer=shm_bkgrms.buf)
+    else:
+        bkgrms = None
+
+    try:
+        tile = stack[:, i0:i1, j0:j1]
+        bk_tile = bkgrms[:, i0:i1, j0:j1] if bkgrms is not None else None
+
+        return combine_patch(
+            (i0, i1, j0, j1, tile, bk_tile),
+            combine_method, clip_method, sigma, nlow, nhigh
+        )
+    finally:
+        shm_img.close()
+        if shm_bkgrms is not None:
+            shm_bkgrms.close()
+
+
+
+class Combiner:
+    
+    def __init__(self,
+                 n_proc: int = 8):
+        self.n_proc = cpu_count() if n_proc is None else n_proc
+
+    def make_patches(self, H, W, patch_size=512):
+        patches = []
+        for i0 in range(0, H, patch_size):
+            for j0 in range(0, W, patch_size):
+                i1 = min(H, i0 + patch_size)
+                j1 = min(W, j0 + patch_size)
+                patches.append((i0, i1, j0, j1))
+        return patches
+
+    def combine_images_parallel(self, 
+                                image_list, 
+                                bkgrms_list=None,
+                                combine_method='mean',
+                                clip_method='sigma',
+                                sigma=3.0, 
+                                nlow=1,
+                                nhigh=1,
+                                verbose=True,
+                                **kwargs):
+        if verbose:
+            print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes")
+            
+        # Check image size first. If one of the image or bkgrms has different dimensions, raise an error.
+        total_size_image = 0
+        N = len(image_list)
+        H = image_list[0].shape[0]
+        W = image_list[0].shape[1]
+        patches = self.make_patches(H, W, patch_size=512)
+
+        if self.n_proc == 1:
+            shared_image = np.stack(image_list)
+            shared_bkgrms = np.stack(bkgrms_list) if bkgrms_list is not None else None
+            image_out = np.zeros((H, W), dtype=np.float32)
+            bkgrms_out = None
+            if bkgrms_list is not None:
+                bkgrms_out = np.zeros((H, W), dtype=np.float32)
+            for (i0, i1, j0, j1) in tqdm(patches, desc="Combining (single CPU)..."):
+                image_tile = shared_image[:, i0:i1, j0:j1]
+                bkgrms_tile = None
+                if bkgrms_list is not None:
+                    bkgrms_tile = shared_bkgrms[:, i0:i1, j0:j1]
+
+                _, _, _, _, patch_data, patch_bkgrms = combine_patch(
+                    (i0, i1, j0, j1, image_tile, bkgrms_tile),
+                    combine_method, clip_method, sigma, nlow, nhigh
+                )
+                image_out[i0:i1, j0:j1] = patch_data
+                if bkgrms_out is not None:
+                    bkgrms_out[i0:i1, j0:j1] = patch_bkgrms
+        else:
+            dtype_image = image_list[0].dtype
+            dtype_bkgrms = bkgrms_list[0].dtype if bkgrms_list is not None else None
+            for image in image_list:
+                total_size_image += image.nbytes
+                if image.shape[0] != H or image.shape[1] != W:
+                    raise ValueError("All images must have the same dimensions.")
+                if image.dtype != dtype_image:
+                    raise ValueError("All images must have the same dtype.")
+            shm = SharedMemory(create=True, size=total_size_image)
+            shared_image = np.ndarray((N, H, W), dtype=dtype_image, buffer=shm.buf)
+            for i in range(N):
+                shared_image[i] = image_list[i]
+            
+            if bkgrms_list is not None:
+                total_size_bkgrms = 0
+                for bkgrms in bkgrms_list:
+                    total_size_bkgrms += bkgrms.nbytes
+                    if bkgrms.shape[0] != H or bkgrms.shape[1] != W:
+                        raise ValueError("All bkgrms must have the same dimensions.")
+                    if bkgrms.dtype != dtype_bkgrms:
+                        raise ValueError("All bkgrms must have the same dtype.")
+                shm_bkgrms = SharedMemory(create=True, size=total_size_bkgrms)
+                shared_bkgrms = np.ndarray((N, H, W), dtype=dtype_bkgrms, buffer=shm_bkgrms.buf)
+                for i in range(N):
+                    shared_bkgrms[i] = bkgrms_list[i]
+                    
+            patch_args = []
+            for patch in patches:
+                i0, i1, j0, j1 = patch
+                patch_args.append((
+                    i0, i1, j0, j1,
+                    shm.name, (N, H, W), dtype_image.str,
+                    shm_bkgrms.name if bkgrms_list is not None else None,
+                    (N, H, W), dtype_bkgrms.str if bkgrms_list is not None else None,
+                    combine_method, clip_method, sigma, nlow, nhigh
+                ))
+
+            # Use persistent pool if available
+            with Pool(processes=self.n_proc) as pool:
+                results = list(
+                    tqdm(pool.imap_unordered(combine_patch_worker, patch_args),
+                            total=len(patch_args),
+                            desc="Combining...",
+                            ncols=80,
+                            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
+                )
+            
+            image_out = np.zeros((H, W), dtype=np.float32)
+            bkgrms_out = np.zeros((H, W), dtype=np.float32) if bkgrms_list is not None else None
+            for i_start, i_end, j_start, j_end, patch_result, patch_bkgrms in results:
+                image_out[i_start:i_end, j_start:j_end] = patch_result
+                if bkgrms_out is not None and patch_bkgrms is not None:
+                    bkgrms_out[i_start:i_end, j_start:j_end] = patch_bkgrms
+        
+
+            shm.close()
+            shm.unlink()
+            if bkgrms_list is not None:
+                shm_bkgrms.close()
+                shm_bkgrms.unlink()
+            
+        del shared_image
+        del image_list
+        if bkgrms_list is not None:
+            del shared_bkgrms
+            del bkgrms_list
+        gc.collect()
+
+        return image_out, bkgrms_out
+
 # Backgroud subtraction worker function
 bkg_handler = BackgroundGenerator()
 def _subtract_background_worker(args):
-    target_img, target_bkg = args
-    result = bkg_handler.subtract_background(
+    (target_img, 
+    target_bkg) = args
+
+    subbkg_img = None
+    subbkg_img = bkg_handler.subtract_background(
         target_img=target_img,
         target_bkg=target_bkg,
-        save=True, 
+        save=False, 
         overwrite=False,
         visualize=False,
         verbose=False
     )
-    return result
+    target_img.clear(verbose = False)
+    target_bkg.clear(verbose = False)
+    return subbkg_img
+
+projection_handler = Reproject()
+def _reproject_worker(args):
+    (target_img, 
+     target_bkgrms, 
+     resample_type, 
+     center_ra, 
+     center_dec, 
+     x_size, 
+     y_size, 
+     pixel_scale,
+     verbose) = args
+
+    reprojected_img, reprojected_bkgrms, _ = projection_handler.reproject(
+        target_img=target_img,
+        target_errormap=target_bkgrms,
+        swarp_params=None,
+        resample_type=resample_type,
+        center_ra=center_ra,
+        center_dec=center_dec,
+        x_size=x_size,
+        y_size=y_size,
+        pixelscale=pixel_scale,
+        verbose=verbose,
+        overwrite=False,
+        save=False,
+        return_ivpmask=False,
+    )
+    return reprojected_img, reprojected_bkgrms
 
 def _scale_worker(args) -> Tuple:
-    target_img, target_errormap, ref_zp, zp_key, save, overwrite = args
-    import numpy as np
+    (target_img, 
+     target_errormap, 
+     ref_zp, 
+     zp_key, 
+     overwrite,
+     verbose) = args
 
     zp = float(target_img.header[zp_key])
     delta_zp = ref_zp - zp
     scale_factor = 10 ** (0.4 * (delta_zp))
+    if verbose:
+        print(f"Scaling image {target_img.path} by {scale_factor}")
 
     if not overwrite:
         target_img_path = target_img.savepath.savedir / f"scaled_{target_img.savepath.savepath.name}"
@@ -128,7 +331,7 @@ def _scale_worker(args) -> Tuple:
         target_errormap_path = target_errormap.savepath.savepath if target_errormap else None
 
     # Scale image
-    scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status=target_img.status, load=False)
+    scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status=target_img.status.copy(), load=False)
     scaled_img.data = target_img.data * scale_factor
     scaled_img.header = target_img.header.copy()
     scaled_img.header[zp_key] = ref_zp
@@ -154,7 +357,7 @@ def _scale_worker(args) -> Tuple:
         else:
             raise ValueError(f"Unsupported emaptype '{emaptype}'")
 
-        scaled_errormap = Errormap(path=target_errormap_path, emaptype=target_errormap.emaptype, status=target_errormap.status, load=False)
+        scaled_errormap = Errormap(path=target_errormap_path, emaptype=target_errormap.emaptype, status=target_errormap.status.copy(), load=False)
         scaled_errormap.data = target_errormap.data * factor
         scaled_errormap.header.update({
             'SCLEKEY': zp_key,
@@ -163,118 +366,172 @@ def _scale_worker(args) -> Tuple:
             'SCLEFACT': scale_factor,
         })
         scaled_errormap.add_status('zpscale', key=zp_key, ref_zp=ref_zp, scale_zp=delta_zp, scale_factor=scale_factor)
-
-    if save:
-        scaled_img.write(verbose = False)  # Worker function, no verbose output
-        if scaled_errormap:
-            scaled_errormap.write(verbose = False)  # Worker function, no verbose output
-
+    target_img.clear(verbose = False)
+    if target_errormap:
+        target_errormap.clear(verbose = False)
     return scaled_img, scaled_errormap
 
-projection_handler = Reproject()
-def _reproject_worker(args):
-    target_img, target_bkgrms, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale = args
-    reprojected_img, reprojected_bkgrms, _ = projection_handler.reproject(
-        target_img=target_img,
-        target_errormap=target_bkgrms,
-        swarp_params=None,
-        resample_type=resample_type,
-        center_ra=center_ra,
-        center_dec=center_dec,
-        x_size=x_size,
-        y_size=y_size,
-        pixelscale=pixel_scale,
-        verbose=False,
-        overwrite=False,
-        save=False,
-        return_ivpmask=False,
+def _convolve_worker(args):
+    """
+    Worker function for multiprocessing seeing-matching convolution.
+
+    Parameters
+    ----------
+    args : tuple
+        (target_img, target_errormap, current_seeing, ref_seeing,
+         kernel_type, conv_kernel, seeing_key, overwrite)
+
+        Notes:
+        - conv_kernel = None for Gaussian kernel mode
+        - conv_kernel = precomputed 2D kernel for 'image' mode
+
+    Returns
+    -------
+    matched_img : ScienceImage | CalibrationImage
+    matched_errormap : Errormap or None
+    """
+    
+    (target_img,
+     target_bkgrms,
+     ref_seeing,
+     seeing_key,
+     verbose) = args
+
+    current_seeing = float(target_img.header[seeing_key])
+    if current_seeing is None:
+        raise ValueError(f"SEEING key {seeing_key} not found in target_img header")
+
+    convolved_data, updated_header = helper.img_convolve(
+        target_img=target_img.data,
+        input_type='image',
+        kernel = 'gaussian',
+        target_header=target_img.header,
+        fwhm_target=current_seeing,
+        fwhm_reference=ref_seeing,
+        fwhm_key=seeing_key,
+        verbose=verbose
     )
-    return reprojected_img, reprojected_bkgrms
 
-# Wrapper to allow map-style multiprocessing with multiple args
-def worker_wrapper(args):
-    return combine_patch(*args)
-
-
-class Combiner:
+    convolved_img = target_img.copy()
+    convolved_img.data = convolved_data
+    convolved_img.header = updated_header
     
-    def __init__(self,
-                 n_proc: int = 8):
-        self.n_proc = cpu_count() if n_proc is None else n_proc
-        self.pool = Pool(processes=self.n_proc)
-    
-    def close_pool(self):
-        if self.pool is not None:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
-            self.n_proc = 0
-    
-    @staticmethod
-    def split_image_stack_by_nproc(stack, n_proc):
-        N, H, W = stack.shape
-        nx = int(np.sqrt(n_proc))
-        ny = (n_proc + nx - 1) // nx
-        x_splits = np.linspace(0, H, ny + 1, dtype=int)
-        y_splits = np.linspace(0, W, nx + 1, dtype=int)
-
-        patches = []
-        for i in range(len(x_splits) - 1):
-            for j in range(len(y_splits) - 1):
-                i_start, i_end = x_splits[i], x_splits[i + 1]
-                j_start, j_end = y_splits[j], y_splits[j + 1]
-                tile_stack = stack[:, i_start:i_end, j_start:j_end]
-                patches.append((i_start, i_end, j_start, j_end, tile_stack))
-
-        return patches
-
-    def combine_images_parallel(self, 
-                                image_list, 
-                                bkgrms_list=None,
-                                combine_method='mean',
-                                clip_method='sigma',
-                                sigma=3.0, 
-                                nlow=1,
-                                nhigh=1,
-                                verbose=True,
-                                **kwargs):
-        if verbose:
-            print(f"[Combiner] Combining {len(image_list)} images with combine='{combine_method}', clip='{clip_method}', using {self.n_proc} processes")
-
-        stack = np.stack(image_list)
-        bkgrms_stack = np.stack(bkgrms_list) if bkgrms_list is not None else None
-        H, W = stack.shape[1:]
-
-        combined = np.zeros((H, W), dtype=np.float32)
-        bkgrms_out = np.zeros((H, W), dtype=np.float32) if bkgrms_stack is not None else None
-
-        image_patches = self.split_image_stack_by_nproc(stack, self.n_proc)
-        bkgrms_patches = self.split_image_stack_by_nproc(bkgrms_stack, self.n_proc) if bkgrms_stack is not None else [None] * len(image_patches)
-
-        patch_args = []
-        for (img_patch, bkgrms_patch) in zip(image_patches, bkgrms_patches):
-            i, j, k, l, tile = img_patch
-            bkgrms = bkgrms_patch[4] if bkgrms_patch is not None else None
-            patch_args.append(((i, j, k, l, tile, bkgrms), combine_method, clip_method, sigma, nlow, nhigh))
-
-        # Use persistent pool if available
-        #if self.pool is not None:
-        pool = self.pool
-        results = list(
-            tqdm(pool.imap_unordered(worker_wrapper, patch_args),
-                    total=len(patch_args),
-                    desc="Combining...",
-                    ncols=80,
-                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
+    convolved_bkgrms = None
+    if target_bkgrms is not None:
+        convolved_bkgrms_data, updated_bkgrms_header = helper.img_convolve(
+        target_img=target_bkgrms.data,
+        input_type='error',
+        kernel='gaussian',
+        target_header=target_bkgrms.header,
+        fwhm_target=current_seeing,
+        fwhm_reference=ref_seeing,
+        fwhm_key=seeing_key,
+        verbose=verbose
         )
 
-        for i_start, i_end, j_start, j_end, patch_result, patch_bkgrms in results:
-            combined[i_start:i_end, j_start:j_end] = patch_result
-            if bkgrms_out is not None and patch_bkgrms is not None:
-                bkgrms_out[i_start:i_end, j_start:j_end] = patch_bkgrms
+        convolved_bkgrms = target_bkgrms.copy()
+        convolved_bkgrms.data = convolved_bkgrms_data
+        convolved_bkgrms.header = updated_bkgrms_header
+    return convolved_img, convolved_bkgrms
 
-        return combined, bkgrms_out
+def _prepare_image_worker(args):
+    """
+    1. Subtract background
+    2. Scale image
+    3. Convolve image
+    4. Reproject image
+    """
+    (target_img, 
+     target_bkg, 
+     target_bkgrms, 
+     scale, 
+     ref_zp, 
+     zp_key,
+          
+     convolve, 
+     ref_seeing,
+     seeing_key,
 
+     reproject, 
+     reproject_type, 
+     center_ra,
+     center_dec, 
+     x_size,
+     y_size,
+     pixel_scale, 
+     verbose,
+     save,
+     clear
+     ) = args
+    # time.sleep(3) # For delayed multiprocessing
+
+    # Load data
+    target_img.data
+    target_bkg.data if target_bkg is not None else None
+    target_bkgrms.data if target_bkgrms is not None else None
+    
+    # Subtract background
+    if target_bkg is not None:
+        args_bkg = (target_img, target_bkg)
+        subbkg_img = _subtract_background_worker(args_bkg)
+        if target_bkgrms is not None:
+            target_bkgrms.path = target_bkgrms.path.parent / f"subbkg_{target_bkgrms.path.name}"
+    else:
+        subbkg_img = target_img
+
+    # Scale image
+    remove_scaled = False
+    if scale:
+        args_scale = (subbkg_img, target_bkgrms, ref_zp, zp_key, False, verbose)
+        scaled_img, scaled_bkgrms = _scale_worker(args_scale)
+        remove_scaled = True
+        if (convolve == False) & (reproject == False):
+            remove_scaled = False
+    else:
+        scaled_img = subbkg_img
+        scaled_bkgrms = target_bkgrms
+
+    # Convolve image
+    if convolve:
+        args_convolve = (scaled_img, scaled_bkgrms, ref_seeing, seeing_key, verbose)
+        convolved_img, convolved_bkgrms = _convolve_worker(args_convolve)
+    else:
+        convolved_img = scaled_img
+        convolved_bkgrms = scaled_bkgrms
+
+    # Reproject image
+    if reproject:
+        args_reproject = (convolved_img, convolved_bkgrms, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, verbose)
+        reprojected_img, reprojected_bkgrms = _reproject_worker(args_reproject)
+    else:
+        reprojected_img = convolved_img
+        reprojected_bkgrms = convolved_bkgrms
+
+    if save:
+        reprojected_img.write(verbose = verbose)
+        if reprojected_bkgrms is not None:
+            reprojected_bkgrms.write(verbose = verbose)
+
+    target_img.clear(verbose = False)
+    scaled_img.clear(verbose = False)
+    convolved_img.clear(verbose = False)
+    if target_bkg is not None:
+        target_bkg.clear(verbose = False)
+    if target_bkgrms is not None:
+        target_bkgrms.clear(verbose = False)
+        scaled_bkgrms.clear(verbose = False)
+        convolved_bkgrms.clear(verbose = False)
+    if remove_scaled:
+        scaled_img.remove(verbose = False)
+        if scaled_bkgrms is not None:
+            scaled_bkgrms.remove(verbose = False)
+    
+    if clear:
+        reprojected_img.clear(verbose = False)
+        if reprojected_bkgrms is not None:
+            reprojected_bkgrms.clear(verbose = False)
+
+    return reprojected_img, reprojected_bkgrms
 
 class Stack:
     
@@ -307,263 +564,165 @@ class Stack:
         help_text = ""
         self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines), True)
 
+    def prepare_images(self,
+                       target_imglist: Union[List[ScienceImage], List[CalibrationImage]],
+                       target_bkglist: Optional[List[Background]] = None,
+                       target_bkgrmslist: Optional[List[Errormap]] = None,
+                       n_proc: int = 4,                       
+
+                       # Scale parameters
+                       scale: bool = True,
+                       zp_key: str = 'ZP_APER_2',
+                       
+                       # Convolution parameters
+                       convolve: bool = False,
+                       seeing_key: str = 'SEEING', 
+
+                       # Reproject parameters
+                       reproject: bool = True,
+                       reproject_type: str = 'LANCZOS3',
+                       center_ra: float = None,
+                       center_dec: float = None,
+                       pixel_scale: float = None,
+                       x_size: int = None,
+                       y_size: int = None,     
+                       
+                       # Other parameters
+                       verbose: bool = True,
+                       save: bool = True,
+                       clear: bool = True):
+        """
+        Prepare a list of images for stacking.
+        """
+        # Check whether 
+        # If scale is True, ensure all images have the same ZP key
+        ref_zp = None
+        if scale:
+            zp_values = []
+            for target_img in target_imglist:
+                if zp_key not in target_img.header:
+                    raise ValueError(f"Missing ZP key '{zp_key}' in {target_img.path}")
+                zp_values.append(float(target_img.header[zp_key]))
+            
+            ref_zp = np.min(zp_values)
+        
+        # If convolve is True, ensure all images have the same SEEING key
+        ref_seeing = None
+        if convolve:
+            seeing_values = []
+            for target_img in target_imglist:
+                if seeing_key not in target_img.header:
+                    raise ValueError(f"Missing SEEING key '{seeing_key}' in {target_img.path}")
+                seeing_values.append(float(target_img.header[seeing_key]))
+            
+            ref_seeing = np.max(seeing_values)
+        
+        # Prepare images for multiprocessing
+        if target_bkglist is None:
+            target_bkglist = [None] * len(target_imglist)
+        if target_bkgrmslist is None:
+            target_bkgrmslist = [None] * len(target_imglist)
+        
+        input_list = []
+        for target_img, target_bkg, target_bkgrms in zip(target_imglist, target_bkglist, target_bkgrmslist):
+            args = (target_img, target_bkg, target_bkgrms, scale, ref_zp, zp_key, convolve, ref_seeing, seeing_key, reproject, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, verbose, save, clear)
+            input_list.append(args)
+        
+        if n_proc == 1:
+            results = [_prepare_image_worker(args) for args in input_list]
+        else:
+            results = process_map(_prepare_image_worker, input_list, max_workers=n_proc, desc="Preparing images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
+
+        prepared_imglist, prepared_bkgrmslist = zip(*results)
+
+        return prepared_imglist, prepared_bkgrmslist  
+
     def stack_multiprocess(self,
                            target_imglist: Union[List[ScienceImage], List[CalibrationImage]],
-                           target_bkglist: Optional[List[Background]] = None,
                            target_bkgrmslist: Optional[List[Errormap]] = None,
                            target_outpath: str = None,
                            bkgrms_outpath: str = None,
-                           combine_type: str = 'median',
                            n_proc=4,
                            
                            # Clip parameters
+                           combine_type: str = 'median',
                            clip_type: str = None,
                            sigma: float = 3.0,
                            nlow: int = 1,
                            nhigh: int = 1,
                            
-                           # Resample parameters
-                           resample: bool = True,
-                           resample_type: str = 'LANCZOS3',
-                           center_ra: float = None,
-                           center_dec: float = None,
-                           pixel_scale: float = None,
-                           x_size: int = None,
-                           y_size: int = None,
-                           
-                           # Scale parameters
-                           scale: bool = True,
-                           scale_type: str = 'min',
-                           zp_key : str = 'ZP_APER_1',
-                            
-                           # Convolution parameters
-                           convolve: bool = False,
-                           seeing_key: str = 'SEEING',
-                           kernel: str = 'gaussian',
-                           
                            # Other parameters
                            verbose: bool = True,
-                           save: bool = True):
+                           save: bool = True,
+                           remove_intermediate: bool = False):
         """
         Stack a list of images.
         
         Parameters
         ----------
+        
         target_imglist : List[ScienceImage] or List[CalibrationImage]
             The list of images to stack.
-        target_bkglist : List[Background], optional
-            The list of backgrounds to subtract from the images.
         target_bkgrmslist : List[Errormap], optional
             The list of background RMS maps to use for the stacking.
-        target_outpath : str, optional
+        target_outpath : str
             The path to save the stacked image.
-        bkgrms_outpath : str, optional
+        bkgrms_outpath : str
             The path to save the background RMS map.
-        combine_type : str, optional
-            The type of combination to use for the stacking.
-        n_proc : int, optional
+        n_proc : int
             The number of processes to use for the stacking.
-        clip_type : str, optional
+        combine_type : str
+            The type of combination to use for the stacking.
+        clip_type : str
             The type of clipping to use for the stacking. [sigma, extrema]
-        sigma : float, optional
+        sigma : float
             The sigma for the clipping.
-        nlow : int, optional
+        nlow : int
             The number of low values to clip.
-        nhigh : int, optional
+        nhigh : int
             The number of high values to clip.
-        resample : bool, optional
-            Whether to resample the images.
-        resample_type : str, optional
-            The type of resampling to use for the stacking in SWArp configuration. ['NEAREST', 'BILINEAR', 'BICUBIC', 'LANCZOS3', etc.]
-        center_ra : float, optional
-            The RA of the center of the stacked image.
-        center_dec : float, optional
-            The Dec of the center of the stacked image.
-        pixel_scale : float, optional
-            The pixel scale of the stacked image.
-        x_size : int, optional
-            The size of the stacked image in the x-direction.
-        y_size : int, optional
-            The size of the stacked image in the y-direction.
-        scale : bool, optional
-            Whether to scale the images.
-        scale_type : str, optional
-            The type of scaling to use for the stacking. ['min', 'mean', 'median', 'max']
-        zp_key : str, optional
-            The key to use for the zero point.
-        convolve : bool, optional
-            Whether to convolve the images.
-        seeing_key : str, optional
-            The key to use for the seeing.
-        kernel : str, optional
-            The kernel to use for the convolution. ['gaussian', 'image']
-        verbose : bool, optional
+        verbose : bool
             Whether to print verbose output.
-        save : bool, optional
+        save : bool
             Whether to save the stacked image.
-        **kwargs : dict, optional
-            Additional keyword arguments.
-
         Returns
         -------
-        target_img : ScienceImage
-            The stacked image.
-        target_bkgrms : Errormap    
-            The stacked background RMS map.
+        (combined_image, combined_bkgrms) : Tuple[ScienceImage, Errormap]
+            The stacked image and background RMS map.
         """
         
         if self.combiner.n_proc != n_proc:
             self.helper.print('[Combiner] Re-initializing Combiner with new n_proc', verbose)
-            self.combiner.close_pool()
             self.combiner = Combiner(n_proc=n_proc)
-        
+
         # Define output paths if not provided
+        bkgrms_exists = False
         if target_outpath is None:
             target_outpath = target_imglist[0].savepath.savepath.with_suffix('.com.fits')
-        if (target_bkgrmslist is not None) & (bkgrms_outpath is None):
-            suffix = '.com.fits' + target_bkgrmslist[0].savepath.savepath.suffix 
-            bkgrms_outpath = target_imglist[0].savepath.savepath.with_suffix(suffix) 
+        if (target_bkgrmslist is not None):
+            bkgrms_exists = True
+            if (bkgrms_outpath is None):
+                suffix = '.com.fits' + target_bkgrmslist[0].savepath.savepath.suffix 
+                bkgrms_outpath = target_imglist[0].savepath.savepath.with_suffix(suffix) 
         
-        subbkg_imglist = []
-        if target_bkglist is not None:
-            if len(target_imglist) != len(target_bkglist):
-                raise ValueError("Length of target_imglist and target_bkglist must be the same.")
-        
-            input_list = [(img, bkg) for img, bkg in zip(target_imglist, target_bkglist)]
-
-            if verbose:
-                target_imglist = process_map(_subtract_background_worker, input_list, max_workers=n_proc, desc="Subtracting background...")
-            else:
-                with Pool(processes=n_proc) as pool:
-                    target_imglist = list(tqdm(pool.imap(_subtract_background_worker, input_list), 
-                                              total=len(input_list), 
-                                              desc="Subtracting background...",
-                                              ncols=80,
-                                              bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
-
-            # Clean up memory
-            for target_img in target_imglist:
-                target_img.data = None
-            
-            for target_bkg in target_bkglist:
-                target_bkg.data = None
-                
-            subbkg_imglist = target_imglist.copy()
-                         
-        # Zero-point scaling
-        scaled_imglist = []
-        scaled_bkgrmslist = []
-        if scale:
-            target_imglist, target_bkgrmslist = self.match_zeropoints(
-                target_imglist = target_imglist,
-                target_errormaplist = target_bkgrmslist,
-                method = scale_type,
-                zp_key = zp_key,
-                save = True, 
-                overwrite = False,
-                verbose = verbose,
-                n_proc = n_proc
-            )
-            
-            # Clean up memory
-            for target_img in target_imglist:
-                target_img.data = None
-            if target_bkgrmslist is not None:
-                for target_bkgrms in target_bkgrmslist:
-                    target_bkgrms.data = None
-            
-            scaled_imglist = target_imglist.copy()
-            scaled_bkgrmslist = target_bkgrmslist.copy() if target_bkgrmslist is not None else None
-            
-        # Convolution
-        convolved_imglist = []
-        convolved_bkgrmslist = []
-        if convolve:
-            target_imglist, target_bkgrmslist = self.match_seeing(
-                target_imglist = target_imglist,
-                target_errormaplist = target_bkgrmslist,
-                seeing_key = seeing_key,
-                kernel = kernel,
-                save = False, 
-                overwrite = False,
-                verbose = verbose
-            )
-            
-            for target_img in target_imglist:
-                target_img.data = None
-            if target_bkgrmslist is not None:
-                for target_bkgrms in target_bkgrmslist:
-                    target_bkgrms.data = None   
-            
-            convolved_imglist = target_imglist.copy()
-            convolved_bkgrmslist = target_bkgrmslist.copy() if target_bkgrmslist is not None else None
-            
-        coadd_imglist = None
-        coadd_bkgrmslist = None
-        if resample:
-            if target_bkgrmslist is None:
-                task_args = [
-                    (img, None, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale)
-                    for img in target_imglist
-                ]
-            
-                with Pool(processes=n_proc) as pool:
-                    results = list(tqdm(pool.imap(_reproject_worker, task_args), 
-                                        total=len(task_args), 
-                                        desc="Performing image reprojection...",
-                                        ncols=80,
-                                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
-                
-            else:
-                task_args = [
-                    (img, bkgrms, resample_type, center_ra, center_dec, x_size, y_size, pixel_scale)
-                    for img, bkgrms in zip(target_imglist, target_bkgrmslist)
-                ]
-            
-                with Pool(processes=n_proc) as pool:
-                    results = list(tqdm(pool.imap(_reproject_worker, task_args), 
-                                        total=len(task_args), 
-                                        desc="Performing image/bkgrms reprojection...",
-                                        ncols=80,
-                                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]"))
-                
-            coadd_imglist, coadd_bkgrmslist =  zip(*results)
-            if target_bkgrmslist is None:
-                coadd_bkgrmslist = None
-
-        else:
-            coadd_imglist = target_imglist
-            coadd_bkgrmslist = target_bkgrmslist
-              
         # Load target images and error maps ---
         image_datalist = []
         image_hdrlist = []
         
-        iterator = tqdm(coadd_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else coadd_imglist
+        iterator = tqdm(target_imglist, desc="Loading target images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_imglist
         for img in iterator:
             image_datalist.append(img.data)
             image_hdrlist.append(img.header)
 
-        bkgrms_datalist = None
-        if coadd_bkgrmslist is not None:
+        bkgrms_datalist = []
+        if bkgrms_exists:
             bkgrms_datalist = []
-            iterator = tqdm(coadd_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else coadd_bkgrmslist
+            iterator = tqdm(target_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_bkgrmslist
             for target_bkgrms in iterator:
                 bkgrms_datalist.append(target_bkgrms.data)
-        
-        # Remove original target images and error maps
-        for target_imglist in [subbkg_imglist, scaled_imglist, convolved_imglist, coadd_imglist]:
-            if target_imglist:
-                for target_img in target_imglist:
-                    target_img.remove(verbose = verbose)
-                    
-        for target_bkgrmslist in [scaled_bkgrmslist, convolved_bkgrmslist, coadd_bkgrmslist]:
-            if target_bkgrmslist:
-                for target_bkgrms in target_bkgrmslist:
-                    target_bkgrms.remove(verbose = verbose)
-                
+
         # Combine the image stack
-        if clip_type is 'extrema':
+        if clip_type == 'extrema':
             if len(image_datalist) - nlow - nhigh < 3:
                 self.helper.print(f"[Combiner] Not enough images to clip: ({len(image_datalist)}). Clip type is set as None", verbose)
                 clip_type = None
@@ -622,14 +781,14 @@ class Stack:
         # Save combined image
         # If CalibrationImage is input, Save it as CalibrationImage. This will be saved in the master_frame directory.
         # Else, save it in the target_outpath.
-        stack_instance =  type(target_imglist[0])(path = target_outpath, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = False)
+        stack_instance =  type(target_imglist[0])(path = target_outpath, telinfo = target_imglist[0].telinfo, load = False)
         stack_instance.data = combined_data
         stack_instance.header = combined_header
         stack_instance.update_status(process_name = 'STACK')
         
         stack_bkgrms_instance = None
         if target_bkgrmslist is not None:
-            stack_bkgrms_instance = Errormap(path=bkgrms_outpath, emaptype = 'bkgrms', status = target_bkgrmslist[0].status, load=False)
+            stack_bkgrms_instance = Errormap(path=bkgrms_outpath, emaptype = 'bkgrms', load=False)
             stack_bkgrms_instance.data = combined_bkgrms
             stack_bkgrms_instance.header = combined_header
         
@@ -637,7 +796,12 @@ class Stack:
             stack_instance.write(verbose = verbose)
             stack_bkgrms_instance.write(verbose = verbose) if stack_bkgrms_instance is not None else None
 
-        self.combiner.close_pool()
+        if remove_intermediate:
+            for target_img in target_imglist:
+                target_img.remove(verbose = verbose)
+            if target_bkgrmslist is not None:
+                for target_bkgrms in target_bkgrmslist:
+                    target_bkgrms.remove(verbose = verbose)
         return stack_instance, stack_bkgrms_instance
     
     def stack_swarp(self,
@@ -653,7 +817,6 @@ class Stack:
                     resample_type: str = 'LANCZOS3',
                     center_ra: float = None,
                     center_dec: float = None,
-                    pixel_scale: float = None,
                     x_size: int = None,
                     y_size: int = None,
                     
@@ -735,43 +898,29 @@ class Stack:
         
         # Set temporary output paths
         target_outpath_tmp = str(target_outpath) + '.tmp'
-
-        # Subtract background 
-        if target_bkglist is not None:
-            if len(target_imglist) != len(target_bkglist):
-                raise ValueError("Length of target_imglist and target_bkglist must be the same.")
-            iterator = enumerate(tqdm(zip(target_imglist, target_bkglist), desc="Subtracting background...")) if verbose else enumerate(zip(target_imglist, target_bkglist))
-            for i, (target_img, target_bkg) in iterator:
-                target_imglist[i] = self.background.subtract_background(
-                    target_img=target_img,
-                    target_bkg=target_bkg,
-                    save=False,
-                    overwrite=False,
-                    visualize=False)
-
-        # Image scaling
-        if scale:
-            target_imglist, target_errormaplist = self.match_zeropoints(
-                target_imglist = target_imglist,
-                target_errormaplist = target_errormaplist,
-                method = scale_type,
-                zp_key = zp_key,
-                overwrite = False,
-                save = False,
-                verbose = verbose
-            )
-            
-        # Image convolution
-        if convolve:
-            target_imglist, target_errormaplist = self.match_seeing(
-                target_imglist = target_imglist,
-                target_errormaplist = target_errormaplist,
-                seeing_key = seeing_key,
-                kernel = kernel,
-                save = False,
-                overwrite = False,
-                verbose = verbose
-            )
+        
+        # Prepare images
+        target_imglist, target_errormaplist = self.prepare_images(
+            target_imglist = target_imglist,
+            target_errormaplist = target_errormaplist,
+            target_outpath = target_outpath,
+            errormap_outpath = errormap_outpath,
+            combine_type = combine_type,
+            resample = False,
+            resample_type = resample_type,
+            center_ra = center_ra,
+            center_dec = center_dec,
+            x_size = x_size,
+            y_size = y_size,
+            scale = scale,
+            scale_type = scale_type,
+            zp_key = zp_key,
+            convolve = convolve,
+            seeing_key = seeing_key,
+            kernel = kernel,
+            save = True,
+            verbose = verbose
+        )
 
         # Loading the images
         image_pathlist = []
@@ -892,10 +1041,10 @@ class Stack:
             os.remove(imagestack_tmppath)
         
         if type(target_imglist[0]) == CalibrationImage:
-            stack_instance = CalibrationImage(path = target_outpath, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = True)
+            stack_instance = CalibrationImage(path = target_outpath, telinfo = target_imglist[0].telinfo, load = True)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
         else:
-            stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, status = target_imglist[0].status, load = True)
+            stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, load = True)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
             stack_instance.update_status(process_name = 'STACK')
 
@@ -938,7 +1087,7 @@ class Stack:
                               min_obsdate: Union[Time, str, float] = None,
                               max_obsdate: Union[Time, str, float] = None,
                               seeing_key: str = 'SEEING',
-                              depth_key: str = 'UL5_APER_1',
+                              depth_key: str = 'UL5SKY_APER_1',
                               ellipticity_key: str = 'ELLIP',
                               obsdate_key: str = 'DATE-OBS',
                               weight_ellipticity: float = 3.0,
@@ -1203,336 +1352,3 @@ class Stack:
         
         return selected_images
 
-    def match_zeropoints(self,
-                         target_imglist: List[Union[ScienceImage, CalibrationImage]],
-                         target_errormaplist: Optional[List[Errormap]] = None,
-                         method: str = 'median',
-                         zp_key: str = 'ZP_APER_1',
-                         
-                         # Other parameters
-                         save: bool = False,
-                         overwrite: bool = False,
-                         verbose: bool = True,
-                         n_proc: int = 8,
-                         **kwargs):
-        """
-        Match the zero points of multiple images.
-        
-        Parameters
-        ----------
-        target_imglist : List[Union[ScienceImage, CalibrationImage]]
-            List of images to match zero points.
-        target_errormaplist : Optional[List[Errormap]]
-            Optional list of error maps to match zero points.
-        method : str
-            Method to determine reference ZP ('min', 'max', or 'median').
-        zp_key : str
-            Header keyword for zero point.
-        save : bool
-            Whether to save scaled images and error maps.
-        overwrite : bool
-            Whether to overwrite existing files.
-        verbose : bool
-            Print progress messages.
-        n_proc : int, optional
-            The number of processes to use for the stacking.
-        **kwargs : dict, optional
-            Additional keyword arguments.
-
-        Returns
-        -------
-        (scaled_imglist, scaled_errormaplist) : Tuple[List[Union[ScienceImage, CalibrationImage]], Optional[List[Errormap]]]
-            List of zero-matched images and optionally zero-matched error maps.
-        """
-        
-        # Extract ZPs
-        zp_values = []
-        for img in target_imglist:
-            if img.header is None:
-                img.load_header()
-            if zp_key not in img.header:
-                raise ValueError(f"Missing ZP key '{zp_key}' in {img.path}")
-            zp_values.append(float(img.header[zp_key]))
-
-        # Determine reference ZP
-        if method == 'min':
-            ref_zp = np.min(zp_values)
-        elif method == 'max':
-            ref_zp = np.max(zp_values)
-        elif method == 'median':
-            ref_zp = np.median(zp_values)
-        else:
-            raise ValueError(f"Invalid method: {method}")
-
-        if verbose:
-            from ezphot.helper import Helper
-            helper = Helper()
-            helper.print(f"[match_zeropoints] Reference ZP: {ref_zp:.3f} using '{method}'", verbose)
-
-        # Prepare tasks
-        if target_errormaplist is not None:
-            tasks = [
-                (img, errormap, ref_zp, zp_key, save, overwrite)
-                for img, errormap in zip(target_imglist, target_errormaplist)
-            ]
-        else:
-            tasks = [
-                (img, None, ref_zp, zp_key, save, overwrite)
-                for img in target_imglist
-            ]
-        # Run with process_map
-        results = process_map(_scale_worker, tasks, desc="Matching ZP...", max_workers=n_proc, 
-                            ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]")
-        scaled_imglist, scaled_errormaplist = zip(*results)
-
-        return list(scaled_imglist), list(scaled_errormaplist)
-    
-    def match_seeing(self,
-                     target_imglist: List[Union[ScienceImage, CalibrationImage]],
-                     target_errormaplist: Optional[List[Errormap]] = None,
-                     target_bkglist: Optional[List[Background]] = None,
-                     seeing_key: str = 'SEEING',
-                     kernel: str = 'gaussian', # gaussian or image
-                     
-                     # Other parameters
-                     save: bool = False,
-                     overwrite: bool = False,
-                     visualize: bool = True,
-                     verbose: bool = True,
-                     **kwargs) -> List[Union[ScienceImage, CalibrationImage]]:
-        """
-        Match the seeing (PSF FWHM) of multiple images using convolution.
-
-        Parameters
-        ----------
-        target_imglist : List[Union[ScienceImage, CalibrationImage]]
-            List of images to match seeing
-        target_errormaplist : Optional[List[Errormap]]
-            Corresponding error maps to also convolve
-        target_bkglist : Optional[List[Background]]
-            Corresponding background maps to also convolve
-        seeing_key : str
-            Header keyword for seeing/FWHM in pixel units
-        kernel : str
-            Convolution kernel type ('gaussian')
-        save : bool
-            Whether to save the matched images and error maps
-        overwrite : bool
-            Whether to overwrite existing files
-        visualize : bool
-            Whether to visualize the matched images and error maps
-        verbose : bool
-            Print progress messages
-        **kwargs : dict, optional
-            Additional keyword arguments.
-
-        Returns
-        -------
-        (matched_imglist, matched_errormaplist) : Tuple[List[Union[ScienceImage, CalibrationImage]], Optional[List[Errormap]]]
-            List of seeing-matched images and optionally their convolved error maps
-        """
-        from photutils.psf.matching import create_matching_kernel
-        from astropy.convolution import convolve_fft
-
-        # Get all seeing values
-        seeing_values = []
-        for target_img in target_imglist:
-            if seeing_key not in target_img.header:
-                raise ValueError(f"Seeing key '{seeing_key}' not found in header of {target_img.path}")
-            seeing_values.append(float(target_img.header[seeing_key]/np.mean(target_img.pixelscale)))  # Convert to pixel units
-        
-        # Determine reference seeing based on method
-        ref_idx = np.argmax(seeing_values)
-        ref_seeing = seeing_values[ref_idx]  # Get the actual reference seeing value
-        ref_target_img = target_imglist[ref_idx]
-        ref_target_bkg = target_bkglist[ref_idx] if target_bkglist is not None else None
-        ref_psf_size = int(np.ceil(ref_seeing * 6)) | 1
-        
-        # If kernel is 'image', build the PSF model from the reference image
-        if kernel.lower() == 'image':
-            if ref_target_img.status.BKGSUB['status']:
-                ref_target_bkg = None
-            ref_psf_model = self.psfphot.build_epsf_model_psfex(
-                target_img=ref_target_img,
-                target_bkg=ref_target_bkg,
-                fwhm_estimate_pixel=ref_seeing,
-                num_grids=1,
-                oversampling=1,
-                psf_size = ref_psf_size,
-                verbose=verbose,
-                visualize=True
-            )[(0, 0)].data
-        elif kernel.lower() == 'gaussian':
-            pass
-        else:
-            raise ValueError(f"Unsupported kernel type '{kernel}'. Use 'image' or 'gaussian'")
-        
-        self.helper.print(f"Matching seeing to reference FWHM = {ref_seeing:.3f} using {kernel} method", verbose)
-        
-        # Convolve each image to match reference seeing
-        matched_imglist = []
-        matched_errormaplist = [] if target_errormaplist is not None else None
-        iterator = tqdm(zip(target_imglist, target_errormaplist or [None] * len(target_imglist)), desc='Matching seeing...') if verbose else zip(target_imglist, target_errormaplist or [None] * len(target_imglist))
-        
-        for idx, (target_img, target_errormap) in enumerate(iterator):
-            current_seeing = float(target_img.header[seeing_key] / np.mean(target_img.pixelscale))  # Convert to pixel units
-
-            # Define output path
-            if not overwrite:
-                target_img_path = target_img.savepath.savedir / f"convolved_{target_img.savepath.savepath.name}"
-                if target_errormap is not None:
-                    target_errormap_path = target_errormap.savepath.savedir / f"convolved_{target_errormap.savepath.savepath.name}"
-            else:
-                target_img_path = target_img.savepath.savepath
-                target_errormap_path = target_errormap.savepath.savepath if target_errormap is not None else None
-                        
-            # Skip convolution if seeing already matches (within small tolerance)
-            seeing_diff = abs(current_seeing - ref_seeing) * np.mean(target_img.pixelscale)  # Convert to arcseconds
-            tolerance = 3e-1  # 0.3arcsec
-            if seeing_diff < tolerance:
-                matched_img = target_img.copy()
-                matched_img.path = target_img_path
-                matched_imglist.append(matched_img)
-
-                if matched_errormaplist is not None and target_errormap is not None:
-                    matched_errormap = target_errormap.copy()
-                    matched_errormap.path = target_errormap_path
-                    matched_errormaplist.append(matched_errormap)
-
-                if save:
-                    matched_img.write(verbose = verbose)
-                    if matched_errormaplist is not None:
-                        matched_errormap.write(verbose = verbose)
-                
-                self.helper.print(f"Skipping convolution for {target_img.path.name} (already matches reference seeing with the tolerenace {tolerance}arcsec) [diff = {seeing_diff}arcsec]", verbose)
-                continue
-            
-            # Convolve the target image
-            target_bkg = target_bkglist[idx] if target_bkglist is not None else None
-            if kernel.lower() == 'gaussian':
-                convolved_data, updated_header = self.helper.img_convolve(
-                    target_img=target_img.data,
-                    input_type='image',
-                    kernel=kernel,
-                    target_header=target_img.header,
-                    fwhm_target=current_seeing,
-                    fwhm_reference=ref_seeing,
-                    fwhm_key=seeing_key,
-                    verbose=verbose
-                )
-            
-            else:
-                # Build the PSF model for the target image
-                target_psf_model = self.psfphot.build_epsf_model_psfex(
-                    target_img=target_img,
-                    target_bkg=target_bkg,
-                    fwhm_estimate_pixel=current_seeing,
-                    num_grids=1,
-                    oversampling=1,
-                    psf_size = ref_psf_size,
-                    verbose=verbose,
-                    visualize=False
-                )[(0, 0)].data
-
-                psf_input = target_psf_model / target_psf_model.sum()
-                psf_ref = ref_psf_model / ref_psf_model.sum()
-                from photutils.psf.matching import CosineBellWindow
-                from photutils.psf.matching import TopHatWindow
-                window = CosineBellWindow(alpha=1)
-                #window = TopHatWindow(0.35)
-                conv_kernel = create_matching_kernel(psf_input, psf_ref, window = window)
-                if visualize:
-                    fig, axes = plt.subplots(1,3, figsize=(12, 4), dpi = 300)
-                    axes[0].imshow(psf_input, cmap='gray', origin='lower')
-                    axes[0].set_title('Input PSF')
-                    axes[1].imshow(psf_ref, cmap='gray', origin='lower')
-                    axes[1].set_title('Reference PSF')
-                    axes[2].imshow(conv_kernel, cmap='gray', origin='lower')
-                    axes[2].set_title('Convolution Kernel')
-
-                convolved_data = convolve_fft(target_img.data, conv_kernel, normalize_kernel=True)
-                updated_header = target_img.header.copy()
-                updated_header[seeing_key] = ref_seeing * np.mean(target_img.pixelscale)
-                
-            matched_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status=target_img.status, load=False)
-            matched_img.data = convolved_data
-            matched_img.header = updated_header
-            matched_imglist.append(matched_img)
-            
-            if matched_errormaplist is not None and target_errormap is not None:
-                if kernel.lower() == 'image':
-                    convolved_error = convolve_fft(target_errormap.data, conv_kernel, normalize_kernel=True) 
-                else:
-                    convolved_error, _ = self.img_convolve(
-                    target_img=target_errormap.data,
-                    input_type='error',
-                    kernel=kernel,
-                    target_header=target_errormap.header,
-                    fwhm_target=current_seeing,
-                    fwhm_reference=ref_seeing,
-                    fwhm_key=seeing_key,
-                    verbose=verbose
-                    )
-
-                matched_errormap = Errormap(path=target_errormap_path, emaptype=target_errormap.emaptype, status=target_errormap.status, load=False)
-                matched_errormap.data = convolved_error
-                matched_errormap.header = target_errormap.header.copy()
-                matched_errormaplist.append(matched_errormap)
-            
-            if save:
-                matched_img.write(verbose = verbose)
-                if matched_errormaplist is not None and target_errormap is not None:
-                    matched_errormap.write(verbose = verbose)
-        
-        self.helper.print(f"Successfully matched seeing for {len(matched_imglist)} images", verbose)
-        return matched_imglist, matched_errormaplist
-# %%
-if __name__ == "__main__":
-    from ezphot.utils import DataBrowser
-    dbrowser = DataBrowser('scidata')
-    target_name = 'T00528'
-    dbrowser.objname = target_name
-    dbrowser.filter = 'm600'
-    target_imgset = dbrowser.search('calib*100.fits', return_type = 'science')
-    target_imglist = target_imgset.target_images
-    target_bkgrmslist = target_imgset.bkgrms
-    target_bkglist = target_imgset.bkgmap
-    self = Stack()
-    
-    # Parameters for stack_multiprocess
-    target_outpath = None
-    bkgrms_outpath = None
-    combine_type = 'median'
-    n_proc = 16
-    
-    # Clip parameters
-    clip_type = None
-    sigma = 3.0
-    nlow = 1
-    nhigh = 1
-    
-    # Resample parameters
-    resample = True
-    resample_type = 'LANCZOS3'
-    center_ra = None
-    center_dec = None
-    pixel_scale = None
-    x_size = None
-    y_size = None
-    
-    # Scale parameters
-    scale = True
-    scale_type = 'min'
-    zp_key = 'ZP_APER_1'
-    
-    # Convolution parameters
-    convolve = False
-    seeing_key = 'SEEING'
-    kernel = 'gaussian'
-    
-    # Other parameters
-    verbose = True
-    save = True
-    
-    
-# %%

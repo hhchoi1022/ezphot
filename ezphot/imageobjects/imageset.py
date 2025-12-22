@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from astropy.time import Time
-
+from astropy.table import Table
 from ezphot.helper import Helper
 from ezphot.imageobjects import ScienceImage, ReferenceImage
 
@@ -328,6 +328,202 @@ class ImageSet:
             'telname': telname,
         }
         self._last_mode = "select"  # <-- mark as select
+    
+    def divide_images(self,
+                      by_filter: bool = True,
+                      by_exptime: bool = False,
+                      by_objname: bool = False,
+                      by_telname: bool = False,
+                      by_observatory: bool = True,
+                      by_obsdate: bool = True,
+                      obsdate_delta: int = 0.5,
+                      obsdate_key: str = 'obsdate'):
+        """Divide the image set into groups based on given criteria.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        None
+        
+        by_filter: bool = True
+        by_exptime: bool = False
+        by_objname: bool = False
+        by_telname: bool = False
+        by_observatory: bool = True
+        by_obsdate: bool = True
+        obsdate_delta: int = 0.5
+        obsdate_key: str = 'obsdate'
+        """
+        group_keys = ['filter', 'exptime', 'objname', 'observatory', 'telname', 'group']
+        group_keys_bools = [by_filter, by_exptime, by_objname, by_observatory, by_telname, by_obsdate]
+        group_keys_applied = [key for key, bool in zip(group_keys, group_keys_bools) if bool]
+        if by_obsdate:
+            target_tbl = Table().from_pandas(self.target_df)
+            target_tbl['mjd'] = Time(target_tbl[obsdate_key].tolist()).mjd
+            target_tbl = self.helper.group_table(target_tbl, key = 'mjd', tolerance = obsdate_delta)
+        else:
+            target_tbl = Table().from_pandas(self.target_df)
+        target_tbl_groups = target_tbl.group_by(group_keys_applied).groups
+        all_imgsets = []
+        for tbl in target_tbl_groups:
+            group_imglist = [row['image'] for row in tbl]
+            group_imgset = ImageSet(group_imglist)
+            all_imgsets.append(group_imgset)
+        return all_imgsets
+    
+    def select_quality_images(self, 
+                              target_imglist: Union[List[ScienceImage], List[ReferenceImage]],
+                              min_obsdate: Union[Time, str, float] = None,
+                              max_obsdate: Union[Time, str, float] = None,
+                              seeing_key: str = 'SEEING',
+                              depth_key: str = 'UL5SKY_APER_1',
+                              ellipticity_key: str = 'ELLIP',
+                              obsdate_key: str = 'DATE-OBS',
+                              weight_ellipticity: float = 3.0,
+                              weight_seeing: float = 1.0,
+                              weight_depth: float = 2.0,
+                              max_numbers: int = None,
+                              seeing_limit: float = 6.0,
+                              depth_limit: float = 18.0,
+                              ellipticity_limit: float = 0.3,
+                              visualize: bool = False,
+                              verbose: bool = True):
+        """Select the best images based on seeing, depth, and ellipticity.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        None
+        """
+        from ezphot.methods import Stack
+        stacker = Stack()
+        target_images = stacker.select_quality_images(
+            target_imglist = self.target_images,
+            min_obsdate = min_obsdate,
+            max_obsdate = max_obsdate,
+            seeing_key = seeing_key,
+            depth_key = depth_key,
+            ellipticity_key = ellipticity_key,
+            obsdate_key = obsdate_key,
+            weight_ellipticity = weight_ellipticity,
+            weight_seeing = weight_seeing,
+            weight_depth = weight_depth,
+            max_numbers = max_numbers,
+            seeing_limit = seeing_limit,
+            depth_limit = depth_limit,
+            ellipticity_limit = ellipticity_limit,
+            visualize = visualize,
+            verbose = verbose
+        )
+        self.target_images = target_images
+        return target_images
+    
+    def prepare_stack(self,
+                      n_proc: int = 4,                       
+
+                      # Scale parameters
+                      scale: bool = True,
+                      zp_key: str = 'ZP_APER_2',
+                    
+                      # Convolution parameters
+                      convolve: bool = False,
+                      seeing_key: str = 'SEEING', 
+
+                      # Reproject parameters
+                      reproject: bool = True,
+                      reproject_type: str = 'LANCZOS3',
+                      center_ra: float = None,
+                      center_dec: float = None,
+                      pixel_scale: float = None,
+                      x_size: int = None,
+                      y_size: int = None,     
+                    
+                      # Other parameters
+                      verbose: bool = True,
+                      save: bool = True,
+                      clear: bool = True,
+                      ):
+        """Prepare the image set for stacking.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        None
+        """
+        from ezphot.methods import Stack
+        stacker = Stack()
+        prepared_imglist, prepared_bkgrmslist = stacker.prepare_images(
+            target_imglist = self.target_images,
+            target_bkglist = self.bkgmap,
+            target_bkgrmslist = self.bkgrms,
+            n_proc = n_proc,
+            scale = scale,
+            zp_key = zp_key,
+            convolve = convolve,
+            seeing_key = seeing_key,
+            reproject = reproject,
+            reproject_type = reproject_type,
+            center_ra = center_ra,
+            center_dec = center_dec,
+            pixel_scale = pixel_scale,
+            x_size = x_size,
+            y_size = y_size,
+            verbose = verbose,
+            save = save,
+            clear = clear,
+        )
+        self.target_images = prepared_imglist
+        self._bkgrms = None
+        return prepared_imglist, prepared_bkgrmslist
+    
+    def stack(self, 
+              target_outpath: str = None,
+              bkgrms_outpath: str = None,
+              n_proc: int = 8,
+              combine_type: str = 'median',
+              clip_type: str = None,
+              sigma: float = 3.0,
+              nlow: int = 1,
+              nhigh: int = 1,
+              verbose: bool = True,
+              save: bool = True,
+              remove_intermediate: bool = False,
+              ):
+        """Stack the image set.
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        if len(self.target_images) == 0:
+            return None
+        if len(self.target_images) == 1:
+            return self.target_images[0]
+        
+        from ezphot.methods import Stack
+        stacker = Stack()
+        stacked_img, stacked_bkgrms = stacker.stack_multiprocess(
+            target_imglist = self.target_images,
+            target_bkgrmslist = self.bkgrms,
+            target_outpath = target_outpath,
+            bkgrms_outpath = bkgrms_outpath,
+            combine_type = combine_type,
+            n_proc = n_proc,
+            clip_type = clip_type,
+            sigma = sigma,
+            nlow = nlow,
+            nhigh = nhigh,
+            verbose = verbose,
+            save = save,
+            remove_intermediate = remove_intermediate
+        )
+        return stacked_img, stacked_bkgrms
         
     def run_ds9(self):
         """Run DS9 on the image set.
@@ -366,6 +562,25 @@ class ImageSet:
         return self._df
     
     @property
+    def target_df(self):
+        """Target DataFrame of the image set.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        target_df : pd.DataFrame
+            Target DataFrame of the image set.
+        """
+
+        if len(self.target_images) == 0:
+            return pd.DataFrame()
+
+        with ProcessPoolExecutor(max_workers=16) as executor:
+            results = list(tqdm(executor.map(_extract_info, self.target_images), total=len(self.target_images), desc='Extracting info'))
+        return pd.DataFrame(results)
+        
+    @property
     def bkgrms(self):
         """Background RMS map of the image set.
         
@@ -383,7 +598,7 @@ class ImageSet:
         if len(self.images) == 0:
             return None
         with ProcessPoolExecutor(max_workers=16) as executor:
-            results = list(tqdm(executor.map(_load_bkgrms, self.target_images), total=len(self.target_images), desc='Loading bkgrms'))
+            results = list(executor.map(_load_bkgrms, self.target_images))
         self._bkgrms = np.array(results)
         return self._bkgrms
     
@@ -405,7 +620,7 @@ class ImageSet:
         if len(self.images) == 0:
             return None
         with ProcessPoolExecutor(max_workers=16) as executor:
-            results = list(tqdm(executor.map(_load_bkgmap, self.target_images), total=len(self.target_images), desc='Loading bkgmap'))
+            results = list(executor.map(_load_bkgmap, self.target_images))
         self._bkgmap = np.array(results)
         return self._bkgmap
     
@@ -427,7 +642,7 @@ class ImageSet:
         if len(self.images) == 0:
             return None
         with ProcessPoolExecutor(max_workers=16) as executor:
-            results = list(tqdm(executor.map(_load_sourcemask, self.target_images), total=len(self.target_images), desc='Loading sourcemask'))
+            results = list(executor.map(_load_sourcemask, self.target_images))
         self._sourcemask = np.array(results)
         return self._sourcemask
     
@@ -449,7 +664,7 @@ class ImageSet:
         if len(self.images) == 0:
             return None
         with ProcessPoolExecutor(max_workers=16) as executor:
-            results = list(tqdm(executor.map(_load_catalog, self.target_images), total=len(self.target_images), desc='Loading catalog'))
+            results = list(executor.map(_load_catalog, self.target_images))
         self._catalog = np.array(results)
         return self._catalog
     
@@ -471,6 +686,6 @@ class ImageSet:
         if len(self.images) == 0:
             return None
         with ProcessPoolExecutor(max_workers=16) as executor:
-            results = list(tqdm(executor.map(_load_refcatalog, self.target_images), total=len(self.target_images), desc='Loading refcatalog'))
+            results = list(executor.map(_load_refcatalog, self.target_images))
         self._refcatalog = np.array(results)
         return self._refcatalog

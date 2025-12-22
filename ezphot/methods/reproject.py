@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 from astropy.visualization import ZScaleInterval, ImageNormalize
 from astropy.wcs import WCS
 from astropy.io.fits import Header
+from astropy.wcs.wcs import FITSFixedWarning
+import warnings
+warnings.filterwarnings("ignore", category=FITSFixedWarning, message=".*SIP.*")
 
 from ezphot.methods import Platesolve
 from ezphot.imageobjects import Mask
@@ -190,7 +193,6 @@ class Reproject:
                   save: bool = True,
                   return_ivpmask: bool = False,
                   fill_zero_tonan: bool = True,
-                  **kwargs
                   ):
         """
         Reproject the image with SWarp.
@@ -228,19 +230,28 @@ class Reproject:
         **kwargs : dict, optional
         """
         # If target_img is not saved, save it to the savepath
-        target_img = target_img.copy()
         if target_img.is_exists is False:
-            target_img.write(verbose = verbose)
+            if target_img.is_saved is False:
+                target_img.write(verbose = verbose)
+            target_path = target_img.savepath.savepath
+        else:
+            target_path = target_img.path
         # If target_errormap is not saved, save it to the savepath
-
+        target_errormap_path = None
+        is_errormap_bkgrms = False
         if target_errormap is not None:
             if target_errormap.emaptype == 'bkgrms':
                 target_errormap.to_weight()
-        if target_errormap is not None and target_errormap.is_exists is False:
-            target_errormap.write(verbose = verbose)
+                is_errormap_bkgrms = True
+            if target_errormap.is_exists is False:
+                if target_errormap.is_saved is False:
+                    target_errormap.write(verbose = verbose)
+                target_errormap_path = target_errormap.savepath.savepath
+            else:
+                target_errormap_path = target_errormap.path
 
         original_header = target_img.header
-        target_path = target_img.path
+        
         # If overwrite, set the output path to the savepath
         if overwrite:
             target_outpath = target_img.savepath.savepath
@@ -259,7 +270,7 @@ class Reproject:
             swarp_configfile = swarp_configfile,
             swarp_params = swarp_params,
             target_outpath = target_outpath,
-            weight_inpath = target_errormap.path if target_errormap else None,            
+            weight_inpath = target_errormap_path,            
             weight_outpath = errormap_outpath_tmp,
             weight_type = 'MAP_WEIGHT' if target_errormap else None,
             resample = True,
@@ -298,40 +309,43 @@ class Reproject:
                 verbose = verbose,
                 ) 
             os.remove(target_outpath_tmp)
-        
-        reprojected_img = type(target_img)(path = target_outpath, telinfo = target_img.telinfo, status = target_img.status, load = False)
+
+        reprojected_img = type(target_img)(path = target_outpath, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         reprojected_img.savedir = target_img.savedir
         reprojected_img.header = self.helper.merge_header(reprojected_img.header, original_header, exclude_keys = ['PV*', '*SEC'])
         reprojected_img.update_status(process_name = 'REPROJECT')
 
+        reprojected_errormap = None
         if target_errormap is not None:
-            target_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', status = target_errormap.status, load = True)
-            target_errormap.header = original_header
-            target_errormap.data
-            target_errormap.remove(
-                remove_main = True, 
-                remove_connected_files = True,
-                skip_exts = [],
-                verbose = verbose)
-            target_errormap.to_rms()
+            reprojected_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', status = target_errormap.status, load = True)
+            reprojected_errormap.header = self.helper.merge_header(reprojected_errormap.header, original_header, exclude_keys = ['PV*', '*SEC'])
+            reprojected_errormap.data
+            if is_errormap_bkgrms:
+                reprojected_errormap.remove(
+                    remove_main = True, 
+                    remove_connected_files = True,
+                    skip_exts = [],
+                    verbose = verbose)
+                reprojected_errormap.to_rms()
 
-        else:
-            target_errormap = None       
-        
         if not save:
             reprojected_img.data
             reprojected_img.remove(verbose = verbose)
         else:
             reprojected_img.write(verbose = verbose)
-            if target_errormap is not None:
-                target_errormap.write(verbose = verbose)
+            if reprojected_errormap is not None:
+                if is_errormap_bkgrms:
+                    reprojected_errormap.write(verbose = verbose)
         
-        target_ivpmask = None
+        if is_errormap_bkgrms:
+            target_errormap.remove(verbose = verbose, remove_main = True, remove_connected_files = True, skip_exts = [])
+                
+        reprojected_ivpmask = None
         if return_ivpmask:
             from ezphot.methods import MaskGenerator
             T = MaskGenerator()
             reprojected_img.data
-            target_ivpmask = T.mask_invalidpixel(
+            reprojected_ivpmask = T.mask_invalidpixel(
                 target_img = reprojected_img,
                 save = save,
                 verbose = verbose,
@@ -339,9 +353,9 @@ class Reproject:
                 save_fig = False
             )
             if save:
-                target_ivpmask.write(verbose = verbose)
+                reprojected_ivpmask.write(verbose = verbose)
             
-        return reprojected_img, target_errormap, target_ivpmask
+        return reprojected_img, reprojected_errormap, reprojected_ivpmask
     
 
     def _flip_image(self, 
@@ -412,5 +426,4 @@ class Reproject:
             raise ValueError("flip must be 'fliplr' or 'flipud' or None")
         # Update the WCS header
         return data_flipped, header
-    
-        
+   

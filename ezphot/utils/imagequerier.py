@@ -14,7 +14,6 @@ from astroquery.hips2fits import hips2fits
 from astroquery.mocserver import MOCServer
 from matplotlib import cm
 
-from ezphot.helper import Helper
 from ezphot.imageobjects import ScienceImage
 
 #%%
@@ -300,7 +299,6 @@ class ImageQuerier(HIPS2FITS):
         :param catalog_key: Key for the catalog to query.
         """
         super().__init__(catalog_key=catalog_key)
-        self.helper = Helper()
 
     def __repr__(self):
         return f"ImageQuerier(catalog={self.current_catalog_key})\n{self.config}\n For help, use 'help(self)' or `self.help()`."
@@ -588,50 +586,3 @@ class ImageQuerier(HIPS2FITS):
         )
 
 
-
-#%%
-    
-# Example usage:
-if __name__ == "__main__":
-    import glob
-    self = ImageQuerier(catalog_key='SkyMapper/SMSS4/r')
-
-    
-    from astropy.io import fits
-    from ezphot.imageobjects import ScienceImage
-    from ezphot.helper import Helper
-    from ezphot.utils import DataBrowser
-    tile_id = 'T00528'
-    databrowser = DataBrowser('scidata')
-    databrowser.filter = 'r'
-    databrowser.objname = tile_id
-    target_imgset = databrowser.search(f'calib*.fits', 'science')
-    target_img = target_imgset.target_images[0]
-    telinfo = target_img.telinfo
-    width = target_img.naxis1
-    height = target_img.naxis2
-    fov = max(width,height) * np.mean(target_img.pixelscale) /3600
-    ra = target_img.center['ra']
-    dec = target_img.center['dec']
-    pixelscale= np.mean(target_img.pixelscale) 
-    rotation_angle = 0
-    verbose=True
-    objname = target_img.objname
-    #self.check_catalog_coverages(ra = ra, dec = dec, radius_deg = fov/2, search_all = True)
-#%%
-    # Run the query
-    stack_image = self.query(
-        width=width,
-        height=height,
-        ra=ra,
-        dec=dec,
-        pixelscale=pixelscale,
-        save_path=None,
-        telinfo=telinfo,
-        objname=objname,
-        rotation_angle=rotation_angle,
-        verbose=verbose
-    )
-    
-
-# %%

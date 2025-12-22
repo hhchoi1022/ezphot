@@ -11,7 +11,7 @@ from numba import jit
 from astropy.io import fits
 from astropy.time import Time
 
-from ezphot.imageobjects import DummyImage, Logger
+from ezphot.imageobjects import DummyImage#, Logger
 
 #%%
 class Status:
@@ -37,6 +37,9 @@ class Status:
         else:
             print(f'WARNING: Event not found: {event_name}')
 
+    def copy(self):
+        return Status.from_dict(self.to_dict())
+    
     def to_dict(self):
         return self.status
 
@@ -81,6 +84,9 @@ class Info:
             self._fields[key] = value
         else:
             print(f"WARNING: Invalid key: {key}")
+            
+    def copy(self):
+        return Info.from_dict(self.to_dict())
 
     def to_dict(self):
         return dict(self._fields)
@@ -125,7 +131,7 @@ class Mask(DummyImage):
         
         # Initialize Status and Info
         self.status = Status()
-        self._logger = None
+        # self._logger = None
         self._target_img = None
 
         if load:
@@ -382,11 +388,11 @@ class Mask(DummyImage):
             mask2 = new_mask.astype(np.int8)
             self.data = combine_two_mask(mask1, mask2)
             
-    @property
-    def logger(self):
-        if self._logger is None and self.savepath.loggerpath is not None:
-            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
-        return self._logger
+    # @property
+    # def logger(self):
+    #     if self._logger is None and self.savepath.loggerpath is not None:
+    #         self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+    #     return self._logger
 
     @property
     def info(self):
@@ -452,8 +458,8 @@ class Mask(DummyImage):
             savepath=savedir / filename,
             targetpath=(savedir / filename).with_suffix(''),
             statuspath=savedir / (filename + '.status'),
-            infopath=savedir / (filename + '.info'),
-            loggerpath=savedir / (filename + '.log')
+            infopath=savedir / (filename + '.info')
+            # loggerpath=savedir / (filename + '.log')
         )
        
     @property

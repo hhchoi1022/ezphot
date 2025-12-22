@@ -64,11 +64,3 @@ class ImageFormatter(DataBrowser):
         self.target_pathlist = [p for paths in self.target_pathdict.values() for p in paths]
 
     
-#%%
-if __name__ == '__main__':
-    formatter = ImageFormatter('refdata')
-    formatter.observatory = 'undefined'
-    formatter.search_files(pattern='*CBNUO*.fits', folder = '/home/hhchoi1022/data/refdata/undefined')
-    formatter.check_header(modify_header=True, TELESCOP='CBNUO', IMGTYPE = 'LIGHT')
-    
-#%%

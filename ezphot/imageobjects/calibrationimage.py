@@ -10,7 +10,7 @@ from dataclasses import dataclass, asdict
 from astropy.time import Time
 from astropy.io import fits
 
-from ezphot.imageobjects import Logger, BaseImage
+from ezphot.imageobjects import BaseImage#, Logger
 #%%
 
 
@@ -71,7 +71,10 @@ class Status:
             self._steps[process_name]["update_time"] = Time.now().isot
         else:
             raise ValueError(f"Invalid process name: {process_name}")
-
+        
+    def copy(self):
+        return Status.from_dict(self.to_dict())
+    
     def to_dict(self):
         return self._steps
 
@@ -111,6 +114,9 @@ class Info:
             self._fields[key] = value
         else:
             print(f"WARNING: Invalid key: {key}")
+            
+    def copy(self):
+        return Info.from_dict(self.to_dict())
 
     def to_dict(self):
         return self._fields
@@ -153,7 +159,7 @@ class CalibrationImage(BaseImage):
         
         # Initialize Status and Info
         self.status = Status()
-        self._logger = None
+        # self._logger = None
         
         # Initialize or load status
         if load:
@@ -374,17 +380,17 @@ class CalibrationImage(BaseImage):
         with open(self.savepath.infopath, 'w') as f:
             json.dump(self.info.to_dict(), f, indent=4)
         
-    @property
-    def logger(self):
-        if self._logger is None and self.savepath.loggerpath is not None:
-            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
-        return self._logger
+    # @property
+    # def logger(self):
+    #     if self._logger is None and self.savepath.loggerpath is not None:
+    #         self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+    #     return self._logger
     
     @property
     def info(self):
         """ Register necessary info fields """
         info = Info(
-            SAVEPATH = str(self.savepath.savepath), OBSERVATORY =  self.telinfo['obs'], CCD = self.telinfo['ccd'],
+            SAVEPATH = str(self.savepath.savepath), OBSERVATORY =  self.observatory, CCD = self.ccd,
             TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate,
             NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'],
             OBJNAME = self.objname, IMGTYPE = self.imgtype, FILTER = self.filter,
@@ -445,7 +451,7 @@ class CalibrationImage(BaseImage):
             statuspath=savedir / (filename + '.status'),
             infopath=savedir / (filename + '.info'),
             bpmaskpath= savedir / (filename + '.bpmask'),
-            loggerpath=savedir / (filename + '.log')
+            # loggerpath=savedir / (filename + '.log')
         )
         
     @property

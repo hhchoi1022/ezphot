@@ -28,7 +28,7 @@ class SkyCatalogUtility:
             Path to the catalog archive summary file. If not provided, the path will be set to the catalog_dir in the config.
         """
         self.helper = Helper()
-        self.catalog_archive_path = Path(catalog_archive_path) if catalog_archive_path else Path(self.helper.config['CATALOG_DIR']) / 'catalog_summary.ascii_fixed_width'
+        self.catalog_archive_path = Path(catalog_archive_path) if catalog_archive_path else Path(self.helper.config['CATALOG_DIR']) / 'summary.ascii_fixed_width'
 
     def get_catalogs(self,
                      ra: float,
@@ -78,7 +78,7 @@ class SkyCatalogUtility:
         # Load catalog summary
         catalog_path = self.catalog_archive_path
         if catalog_path is None:
-            catalog_path = Path(__file__).parent / 'catalog_archive' / 'catalog_summary.ascii_fixed_width'
+            catalog_path = Path(__file__).parent / 'catalog_archive' / 'summary.ascii_fixed_width'
         summary = ascii.read(catalog_path, format='fixed_width')
         summary = summary[summary['cat_type'] == catalog_type]
 
@@ -184,34 +184,3 @@ class SkyCatalogUtility:
                           fov_ra=row['fov_ra'],
                           fov_dec=row['fov_dec'],
                           verbose = False)
-# %%
-if __name__ == "__main__":
-    # Example usage
-    from ezphot.utils import DataBrowser
-    from ezphot.imageobjects import *
-    from ezphot.methods import *
-    import glob
-    databrowser = DataBrowser('scidata')
-    databrowser.observatory = 'RASA36'
-    databrowser.telkey = 'RASA36_KL4040_HIGH_1x1'
-    databrowser.objname = 'NGC1566'
-    stacked_imgset = databrowser.search(pattern='Calib*60.com.fits', return_type='science')
-    stacked_imglist = stacked_imgset.target_images
-#%%
-    # db = DataBrowser('scidata')
-    # db.objname = 'NGC1566'
-    # db.observatory = 'RASA36'
-    
-    # target_imgset = db.search('*.com.fits', 'science')
-    # target_imglist = target_imgset.target_images
-    target_img = stacked_imglist[0]
-    ra = target_img.ra
-    dec = target_img.dec
-    fov_ra = target_img.fovx
-    fov_dec = target_img.fovy
-    catalog_type = 'APASS'
-    utility = SkyCatalogUtility()
-    
-    catalogs = utility.get_catalogs(ra, dec, fov_ra, fov_dec, catalog_type=catalog_type, verbose=True)
-
-# %%

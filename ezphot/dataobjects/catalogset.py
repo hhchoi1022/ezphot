@@ -90,78 +90,78 @@ class CatalogSet:
         help_text = ""
         print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
     
-    def search_catalogs(self,
-                        target_name: str,
-                        search_key: str = '.cat',
-                        folder: str = None,
-                        recursive: bool = True,
-                        n_proc: int = 16):
-        """
-        Search for catalogs in the given folder.
+    # def search_catalogs(self,
+    #                     target_name: str,
+    #                     search_key: str = '.cat',
+    #                     folder: str = None,
+    #                     recursive: bool = True,
+    #                     n_proc: int = 16):
+    #     """
+    #     Search for catalogs in the given folder.
         
-        Parameters
-        ----------
-        target_name : str
-            Name of the target.
-        search_key : str
-            Search key for catalogs.
-        folder : str, optional
-            Folder to search for catalogs.
-        recursive : bool, optional
-            If True, search recursively in the given folder.
-        n_proc : int, optional
-            Number of processes to use for loading catalogs.
+    #     Parameters
+    #     ----------
+    #     target_name : str
+    #         Name of the target.
+    #     search_key : str
+    #         Search key for catalogs.
+    #     folder : str, optional
+    #         Folder to search for catalogs.
+    #     recursive : bool, optional
+    #         If True, search recursively in the given folder.
+    #     n_proc : int, optional
+    #         Number of processes to use for loading catalogs.
 
-        Returns
-        -------
-        succeeded_catalogs : list[Catalog]
-            List of Catalog instances that were successfully loaded.
-        failed_catalogs : list[str]
-            List of paths that failed to load.
-        skipped_catalogs : list[str]
-            List of paths that were skipped.
-        """
-        if folder is None:
-            folder = self.helper.config['SCIDATA_DIR']
-        folder = Path(folder)
+    #     Returns
+    #     -------
+    #     succeeded_catalogs : list[Catalog]
+    #         List of Catalog instances that were successfully loaded.
+    #     failed_catalogs : list[str]
+    #         List of paths that failed to load.
+    #     skipped_catalogs : list[str]
+    #         List of paths that were skipped.
+    #     """
+    #     if folder is None:
+    #         folder = self.helper.config['SCIDATA_DIR']
+    #     folder = Path(folder)
 
-        target_dir = next(folder.rglob(f"*{target_name}*"), None)
-        print(f"Folder found: {target_dir}")
-        if target_dir is None or not target_dir.is_dir():
-            print(f"[WARNING] No matching subdirectory for target_name: {target_name}")
-            return
+    #     target_dir = next(folder.rglob(f"*{target_name}*"), None)
+    #     print(f"Folder found: {target_dir}")
+    #     if target_dir is None or not target_dir.is_dir():
+    #         print(f"[WARNING] No matching subdirectory for target_name: {target_name}")
+    #         return
 
-        catalog_files = list(target_dir.rglob(f"*{search_key}")) if recursive else list(target_dir.glob(f"*{search_key}"))
-        print(f"Catalog files: {len(catalog_files)}")
+    #     catalog_files = list(target_dir.rglob(f"*{search_key}")) if recursive else list(target_dir.glob(f"*{search_key}"))
+    #     print(f"Catalog files: {len(catalog_files)}")
 
-        existing_paths = [str(cat.path) for cat in self.catalogs]
-        args = [(catalog_file, existing_paths) for catalog_file in catalog_files]
+    #     existing_paths = [str(cat.path) for cat in self.catalogs]
+    #     args = [(catalog_file, existing_paths) for catalog_file in catalog_files]
 
-        succeeded_catalogs = []
-        failed_catalogs = []
-        skipped_catalogs = []
+    #     succeeded_catalogs = []
+    #     failed_catalogs = []
+    #     skipped_catalogs = []
 
-        with ProcessPoolExecutor(max_workers=n_proc) as executor:
-            results = list(tqdm(executor.map(self._load_catalog_worker, args), total=len(args), desc="Loading catalogs"))
+    #     with ProcessPoolExecutor(max_workers=n_proc) as executor:
+    #         results = list(tqdm(executor.map(self._load_catalog_worker, args), total=len(args), desc="Loading catalogs"))
 
-        for status, path, catalog in results:
-            if status == 'success':
-                succeeded_catalogs.append(catalog)
-                print(f"[LOADED] {path}")
-            elif status == 'skipped':
-                skipped_catalogs.append(path)
-                print(f"[SKIPPED] {path}")
-            else:
-                failed_catalogs.append(path)
-                print(f"[FAILED] {path}")
+    #     for status, path, catalog in results:
+    #         if status == 'success':
+    #             succeeded_catalogs.append(catalog)
+    #             print(f"[LOADED] {path}")
+    #         elif status == 'skipped':
+    #             skipped_catalogs.append(path)
+    #             print(f"[SKIPPED] {path}")
+    #         else:
+    #             failed_catalogs.append(path)
+    #             print(f"[FAILED] {path}")
 
-        self.catalogs.extend(succeeded_catalogs)
-        self.catalogs.sort(key=lambda x: x.path)
+    #     self.catalogs.extend(succeeded_catalogs)
+    #     self.catalogs.sort(key=lambda x: x.path)
 
-        return succeeded_catalogs, failed_catalogs, skipped_catalogs
+    #     return succeeded_catalogs, failed_catalogs, skipped_catalogs
     
     def merge_catalogs(self,
-        max_distance_arcsec=1.0,
+        max_distance_arcsec=3.0,
         ra_key='X_WORLD',
         dec_key='Y_WORLD',
         data_keys=['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MAGERR_APER',
@@ -202,6 +202,7 @@ class CatalogSet:
         dfs = []
         coords = []
         metadata = {}
+        data_keys_all = [ra_key, dec_key] + data_keys
 
         # Step 1: Load and preprocess all catalogs
         for i, catalog in tqdm(enumerate(catalogs), total=len(catalogs), desc="Preparing catalogs"):
@@ -213,8 +214,12 @@ class CatalogSet:
             if len(tbl) == 0 or np.sum(np.isfinite(tbl[ra_key]) & np.isfinite(tbl[dec_key])) == 0:
                 # Still create a dummy DataFrame with NaNs
                 n_dummy = 1  # You can make this 1 or 0, depending on downstream needs
-                row = {'ra': [0] * n_dummy, 'dec': [0] * n_dummy}
-                for key in data_keys:
+                # row = {'ra': [0] * n_dummy, 'dec': [0] * n_dummy}
+                row = {
+                    'ra_basis': [0] * n_dummy,
+                    'dec_basis': [0] * n_dummy
+                }
+                for key in data_keys_all:
                     colname = f"{key}_idx{i}"
                     row[colname] = [np.nan] * n_dummy
                 df = pd.DataFrame(row)
@@ -227,8 +232,13 @@ class CatalogSet:
 
             metadata[i] = catalog.info.to_dict()
 
-            row = {'ra': tbl[ra_key], 'dec': tbl[dec_key]}
-            for key in data_keys:
+            # row = {'ra': tbl[ra_key], 'dec': tbl[dec_key]}
+            row = {
+                'ra_basis': tbl[ra_key],
+                'dec_basis': tbl[dec_key]
+            }
+
+            for key in data_keys_all:
                 colname = f"{key}_idx{i}"
                 row[colname] = tbl[key] if key in tbl.colnames else np.full(len(tbl), np.nan)
 
@@ -236,7 +246,7 @@ class CatalogSet:
             df['catalog_id'] = i
             df['match_id'] = -1  # placeholder
             dfs.append(df)
-            coords.append(SkyCoord(df['ra'].values * u.deg, df['dec'].values * u.deg))
+            coords.append(SkyCoord(tbl[ra_key] * u.deg, tbl[dec_key] * u.deg))
 
         if len(dfs) == 0:
             return None, {}
@@ -246,7 +256,7 @@ class CatalogSet:
         merged_df['match_id'] = np.arange(len(merged_df))
 
         for i in tqdm(range(1, len(dfs)), desc="Merging catalogs"):
-            c1 = SkyCoord(merged_df['ra'].values * u.deg, merged_df['dec'].values * u.deg)
+            c1 = SkyCoord(merged_df['ra_basis'].values * u.deg, merged_df['dec_basis'].values * u.deg)
             c2 = coords[i]
             df2 = dfs[i].copy()
 
@@ -280,11 +290,13 @@ class CatalogSet:
         idx_cols = [col for col in merged_df.columns if '_idx' in col]
         is_dummy_row = merged_df[idx_cols].isna().all(axis=1)
         merged_df = merged_df[~is_dummy_row].copy()
+        merged_df = merged_df.drop_duplicates('match_id', keep = 'first')
         merged_tbl = Table.from_pandas(merged_df)
         
         # Add coord column
-        coord = SkyCoord(ra=merged_tbl['ra'] * u.deg, dec=merged_tbl['dec'] * u.deg)
+        coord = SkyCoord(ra=merged_tbl['ra_basis'] * u.deg, dec=merged_tbl['dec_basis'] * u.deg)
         merged_tbl['coord'] = coord
+        merged_tbl.sort('n_detections', reverse=True)
         return merged_tbl, metadata
 
     def exclude_catalogs(self, 
@@ -500,40 +512,14 @@ class CatalogSet:
         }
         self._last_mode = "select"  # <-- mark as select
 
-    def add_catalogs(self,
-                     catalogs: Union[List[Catalog], Catalog]):
-        """Add catalogs to the dataset."""
-        if isinstance(catalogs, Catalog):
-            catalogs = [catalogs]
-            
-        succeeded_catalogs = []
-        failed_catalogs = []
-        skipped_catalogs = []
-        existing_paths = [cat.path for cat in self.catalogs]
-        for catalog in catalogs:
-            if catalog.path in existing_paths:
-                print(f"[WARNING] Catalog already exists: {catalog.path}")
-                skipped_catalogs.append(catalog.path)
-                continue
-            if not catalog.is_loaded:
-                load_result = catalog.load_target_img(target_img = None)
-                if load_result is False:
-                    original_img = catalog.find_corresponding_fits()
-                    if original_img is not None:
-                        target_img = ScienceImage(original_img, telinfo = self.helper.estimate_telinfo(original_img), load=True)
-                        load_result = catalog.load_target_img(target_img=target_img)
-            if catalog.is_loaded:
-                print(f"Loaded catalog: {catalog_file}")
-                succeeded_catalogs.append(catalog)
-            else:
-                print(f"[ERROR] Failed to load catalog: {catalog_file}")
-                failed_catalogs.append(catalog_file)
-            
-        self.catalogs.extend(succeeded_catalogs)
-        self.catalogs.sort(key=lambda x: x.path)
-        return succeeded_catalogs, failed_catalogs, skipped_catalogs
-
-    def select_sources(self, ra, dec, radius = 60):
+    def select_sources(self, 
+                       x, 
+                       y, 
+                       unit: str = 'coord',
+                       matching_radius: float = 60, 
+                       x_key: str = 'X_WORLD',
+                       y_key: str = 'Y_WORLD',
+                       ):
         """
         Select sources from all catalogs within the given radius around the input coordinates.
         
@@ -554,7 +540,7 @@ class CatalogSet:
         """
         results = []
         for cat in tqdm(self.target_catalogs, desc = 'Selecting sources...'):
-            cat.select_sources(ra, dec, unit='coord', matching_radius=radius)
+            cat.select_sources(x, y, unit=unit, matching_radius=matching_radius, x_key=x_key, y_key=y_key)
         
     @property
     def df(self):
@@ -602,26 +588,4 @@ class CatalogSet:
 
         except Exception as e:
             return 'failed', str(catalog_file), None
-        
-    def _search_sources_worker(self, args):
-        catalog, ra, dec, radius = args
-        matched, sep, _ = catalog.search_sources(ra, dec, unit='coord', matching_radius=radius)
-        if len(matched) > 0:
-            return (catalog.info, matched, sep)
-        return None
 
-#%%
-if __name__ == "__main__":
-    self = CatalogSet()
-    target_name = 'T01358'
-    folder: str = None
-    recursive: bool = True
-    load: bool = True
-    search_key = '100.fits.cat'  # Default search key for catalogs
-    succeeded, failed, skipped = self.search_catalogs(
-        target_name=target_name,
-        folder=folder,
-        recursive=recursive,
-        search_key=search_key,
-        n_proc = 16
-    )

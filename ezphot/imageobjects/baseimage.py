@@ -1,5 +1,11 @@
 #%%
 import logging
+from astropy import wcs as astropy_wcs
+# Disable ALL logging handlers inside astropy WCS
+# astropy_wcs.wcs.log.setLevel(logging.CRITICAL)
+import logging
+logging.getLogger('astropy').setLevel(logging.ERROR)
+
 import re
 from pathlib import Path
 from typing import Union
@@ -10,50 +16,51 @@ from astropy.io.fits import Header
 from astropy.time import Time
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
+from astropy.nddata import Cutout2D
+from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 from ezphot.configuration import Configuration
 from ezphot.helper import Helper
-
 #%%
 
-class LazyFileHandler(logging.FileHandler):
-    def __init__(self, filename, mode='a', encoding=None, delay=True):
-        # `delay=True` avoids creating the file immediately
-        super().__init__(filename, mode, encoding, delay=delay)
+# class LazyFileHandler(logging.FileHandler):
+#     def __init__(self, filename, mode='a', encoding=None, delay=True):
+#         # `delay=True` avoids creating the file immediately
+#         super().__init__(filename, mode, encoding, delay=delay)
     
-class Logger:
-    def __init__(self, logger_name):
-        self.path = logger_name
-        self._log = self.createlogger(logger_name)
+# class Logger:
+#     def __init__(self, logger_name):
+#         self.path = logger_name
+#         self._log = self.createlogger(logger_name)
 
-    def log(self):
-        return self._log
+#     def log(self):
+#         return self._log
 
-    def createlogger(self, logger_name, logger_level='INFO'):
-        logger = logging.getLogger(logger_name)
-        if len(logger.handlers) > 0:
-            return logger  # Logger already exists
+#     def createlogger(self, logger_name, logger_level='INFO'):
+#         logger = logging.getLogger(logger_name)
+#         if len(logger.handlers) > 0:
+#             return logger  # Logger already exists
 
-        logger.setLevel(logger_level)
-        formatter = logging.Formatter(
-            datefmt='%Y-%m-%d %H:%M:%S',
-            fmt='[%(levelname)s] %(asctime)-15s | %(message)s'
-        )
+#         logger.setLevel(logger_level)
+#         formatter = logging.Formatter(
+#             datefmt='%Y-%m-%d %H:%M:%S',
+#             fmt='[%(levelname)s] %(asctime)-15s | %(message)s'
+#         )
 
-        # Stream Handler
-        streamHandler = logging.StreamHandler()
-        streamHandler.setLevel(logger_level)
-        streamHandler.setFormatter(formatter)
-        logger.addHandler(streamHandler)
+#         # Stream Handler
+#         streamHandler = logging.StreamHandler()
+#         streamHandler.setLevel(logger_level)
+#         streamHandler.setFormatter(formatter)
+#         logger.addHandler(streamHandler)
 
-        # Lazy File Handler
-        fileHandler = LazyFileHandler(filename=logger_name, delay=True)
-        fileHandler.setLevel(logger_level)
-        fileHandler.setFormatter(formatter)
-        logger.addHandler(fileHandler)
+#         # Lazy File Handler
+#         fileHandler = LazyFileHandler(filename=logger_name, delay=True)
+#         fileHandler.setLevel(logger_level)
+#         fileHandler.setFormatter(formatter)
+#         logger.addHandler(fileHandler)
 
-        return logger
+#         return logger
     
 #%%
 class BaseImage(Configuration):
@@ -76,9 +83,12 @@ class BaseImage(Configuration):
 
         self.helper = Helper()
         self.path = path
+        self._hdul = None
+        self._data = None
+        self._header = Header()
         if telinfo is None:
             try:
-                telinfo = self.helper.estimate_telinfo(self.path)
+                telinfo = self.helper.estimate_telinfo(self.path, self.header)
             except:
                 raise NotImplementedError("WARNING: Telescope information is not found in the configuration (~/ezphot/config/common/CCD.dat). Please provide telinfo manually.")
             
@@ -87,10 +97,7 @@ class BaseImage(Configuration):
         # Initialize or load status
         super().__init__(telkey = self.telkey)
 
-        self._data = None
-        self._header = Header()
-
-    def rename(self, new_name: str):
+    def rename(self, new_name: str, verbose: bool = True):
         """Rename the image file and update the internal path.
         
         Parameters
@@ -111,7 +118,7 @@ class BaseImage(Configuration):
 
         old_path.rename(new_path)
         self.path = new_path
-        print(f"Renamed {old_path} to {new_path}")
+        self.helper.print(f"Renamed {old_path} to {new_path}", verbose)
 
     def clear(self, clear_data: bool = True, clear_header: bool = False, verbose: bool = True):
         """Clear the image data and/or header from memory.
@@ -125,6 +132,11 @@ class BaseImage(Configuration):
         """
         if clear_data:
             self._data = None
+            if self._hdul is not None:
+                try:
+                    self._hdul.close()
+                finally:
+                    self._hdul = None
         if clear_header:
             self._header = Header()
         self.helper.print("Cleared data and/or header from memory.", verbose)
@@ -179,7 +191,7 @@ class BaseImage(Configuration):
             figsize=(8, 6), 
             title=None, 
             save_path: str = False,
-            close_fig: bool = False):
+            close_fig: bool = True):
         """
         Visualize the FITS image with optional WCS overlay and downsampling.
         """
@@ -202,12 +214,15 @@ class BaseImage(Configuration):
             data = data[::downsample, ::downsample]
             if coord_type == "coord" and w is not None:
                 w = w.deepcopy()
+                # Scale the pixel scale by the downsample factor
                 if w.wcs.has_cd():
                     w.wcs.cd *= downsample
                 elif w.wcs.has_pc():
-                    w.wcs.cdelt *= downsample
-                else:
-                    w.wcs.cdelt *= downsample
+                    w.wcs.pc *= downsample
+                w.wcs.cdelt *= downsample
+                
+                # Update reference pixel for downsampling
+                # because it operates on the current WCS coordinate system
                 w.wcs.crpix = (w.wcs.crpix - 1) / downsample + 1
 
         # ----------------------------
@@ -231,26 +246,26 @@ class BaseImage(Configuration):
                 lon.set_format_unit(u.deg)
                 lat.set_format_unit(u.deg)
                 
-                lon.set_major_formatter('d.dd')  # RA with 4 decimals
-                lat.set_major_formatter('d.d')    # Dec with 3 decimals
+                lon.set_major_formatter('d.ddd')  # RA with 4 decimals
+                lat.set_major_formatter('d.dd')    # Dec with 3 decimals
                 
                 # Set grid spacing to get exactly 5 grid lines for each axis
                 # Calculate spacing based on field of view
-                fov_ra = self.fovx  # Field of view in RA (degrees)
-                fov_dec = self.fovy  # Field of view in Dec (degrees)
+                # fov_ra = self.fovx  # Field of view in RA (degrees)
+                # fov_dec = self.fovy  # Field of view in Dec (degrees)
                 
                 # Correct RA spacing for declination (RA lines converge toward poles)
-                center = self.center
-                if center['dec'] is not None:
-                    dec_rad = np.radians(center['dec'])
-                    ra_spacing = (fov_ra / 4) / np.cos(dec_rad)
-                else:
-                    ra_spacing = fov_ra / 4
+                # center = self.center
+                # if center['dec'] is not None:
+                #     dec_rad = np.radians(center['dec'])
+                #     ra_spacing = (fov_ra / 4) / np.cos(dec_rad)
+                # else:
+                #     ra_spacing = fov_ra / 4
                 
-                dec_spacing = fov_dec / 4
+                # dec_spacing = fov_dec / 4
                 
-                lon.set_ticks(spacing=ra_spacing * u.deg)
-                lat.set_ticks(spacing=dec_spacing * u.deg)
+                #lon.set_ticks(spacing=ra_spacing * u.deg)
+                #lat.set_ticks(spacing=dec_spacing * u.deg)
                 
                 # Rotate x-axis tick labels by 45 degrees
                 ax.tick_params(axis='x', rotation=45)
@@ -295,21 +310,30 @@ class BaseImage(Configuration):
         return fig, ax
 
     def show_position(self,
-                    x: float,
-                    y: float,
-                    radius_arcsec: float = None,
-                    a_arcsec: float = None,
-                    b_arcsec: float = None,
-                    theta_deg: float = None,
-                    coord_type: str = 'pixel',
-                    downsample: int = 1,
-                    zoom_radius_pixel: int = 100,
-                    cmap: str = 'gray',
-                    scale: str = 'zscale',
-                    figsize=(6, 6),
-                    ax=None,
-                    save_path: str = None,
-                    title: bool = True):
+                      # Position paramters
+                      x: float,
+                      y: float,
+                      coord_type: str = 'pixel',
+                      # Aperture parameters
+                      radius_arcsec: float = None,
+                      a_arcsec: float = None,
+                      b_arcsec: float = None,
+                      theta_deg: float = None,
+                      aperture_linewidth: float = 1.0,
+                      aperture_color: str = 'red',
+                      aperture_label: str = 'detected',
+                      # Visualization paramters
+                      downsample: int = 4,
+                      zoom_radius_pixel: int = 100,
+                      cmap: str = 'gray',
+                      scale: str = 'zscale',
+                      figsize=(6, 6),
+                      title: str = None,
+                      title_fontsize: int = 18,
+                      # Other parameters
+                      ax=None,
+                      save_path: str = None,
+                      ):
         """
         Display a zoomed-in view around a given (x, y) or (RA, Dec) position.
 
@@ -378,10 +402,15 @@ class BaseImage(Configuration):
         y_min = max(0, y_pix - zoom_radius_pixel)
         y_max = min(data.shape[0], y_pix + zoom_radius_pixel)
         size = x_max - x_min
+        pixelscale = np.mean(self.pixelscale)  # arcsec / original pixel
+        x_c, y_c = (x_pix - x_min)//downsample, (y_pix - y_min)//downsample
+
         if radius_arcsec is None:
-            radius = size * (0.08/downsample)
+            # keep your heuristic, but make units explicit
+            radius = (size / downsample) * 0.08
         else:
-            radius = radius_arcsec / np.mean(self.pixelscale)
+            # convert arcsec → cutout pixels
+            radius = radius_arcsec / (pixelscale * downsample)
         cutout = data[y_min:y_max:downsample, x_min:x_max:downsample]
 
         # Scaling
@@ -398,26 +427,160 @@ class BaseImage(Configuration):
         if a_arcsec is not None and b_arcsec is not None and theta_deg is not None:
             from matplotlib.patches import Ellipse
             ax.add_patch(Ellipse(
-                ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
-                width=6*a_arcsec/np.mean(self.pixelscale), height=6*b_arcsec/np.mean(self.pixelscale), angle=theta_deg,
-                edgecolor='red', facecolor='none', linewidth=0.5
+                (x_c, y_c),
+                width=6*a_arcsec/pixelscale, height=6*b_arcsec/pixelscale, angle=theta_deg,
+                edgecolor=aperture_color, facecolor='none', linewidth= aperture_linewidth
             ))
+            if aperture_label is not None:
+                ax.text(
+                    x_c,
+                    y_c - 1.5 * radius,   # small offset below the aperture
+                    aperture_label,
+                    color=aperture_color,
+                    fontsize=10,
+                    ha='center',
+                    va='top',
+                    zorder=10,
+                    bbox=dict(
+                        facecolor='white',
+                        edgecolor='none',
+                        alpha=0.6,
+                        pad=1.5
+                    )
+                )
+
         else:
             ax.add_patch(Circle(
-                ((x_pix - x_min) // downsample, (y_pix - y_min) // downsample),
-                radius=radius, edgecolor='red', facecolor='none', linewidth=0.5
+                (x_c, y_c),
+                radius=radius, edgecolor=aperture_color, facecolor='none', linewidth=aperture_linewidth
             ))
+            if aperture_label is not None:
+                ax.text(
+                    x_c,
+                    y_c - 1.5 * radius,   # small offset below the aperture
+                    aperture_label,
+                    color=aperture_color,
+                    fontsize=10,
+                    ha='center',
+                    va='top',
+                    zorder=10,
+                    bbox=dict(
+                        facecolor='white',
+                        edgecolor='none',
+                        alpha=0.6,
+                        pad=1.5
+                    )
+                )
+            
         ax.axis('off')
         ax.set_aspect('auto')  # ? Avoid square enforcement
 
         if title is not None:
-            ax.set_title(f"{title}", fontsize=8, pad=1)  # Less padding
+            ax.set_title(f"{title}", fontsize=title_fontsize)
 
         if save_path:
             fig.savefig(save_path, dpi=300)
             print(f"Saved: {save_path}")
 
         return fig, ax
+
+    def cutout(self, 
+               x: float, 
+               y: float, 
+               size_pixel: Union[float, tuple], 
+               coord_type: str = 'pixel'):
+        """
+        Create a cutout of the image around a given position.
+        
+        Parameters
+        ----------
+        x : float
+            X-coordinate (pixel or RA in degrees)
+        y : float
+            Y-coordinate (pixel or Dec in degrees)
+        size_pixel : float or tuple
+            Size of the cutout. If float, creates square cutout.
+            If tuple (width, height), creates rectangular cutout.
+        coord_type : str, optional
+            Coordinate type: 'pixel' or 'coord'. Default is 'pixel'.
+            
+        Returns
+        -------
+        cutout_image : BaseImage (or subclass instance)
+            New image instance with cutout data and properly updated WCS.
+            The instance type will be the same as the calling class 
+            (e.g., ScienceImage if called from ScienceImage).
+            
+        Notes
+        -----
+        The WCS (World Coordinate System) is automatically updated for the cutout
+        region regardless of coord_type. Cutout2D handles the WCS transformation
+        to ensure astronomical coordinates are correctly preserved.
+        """
+        if self.data is None:
+            raise ValueError("Cannot create cutout: image data is not loaded.")
+        
+        # Convert coordinates to pixel if needed
+        if coord_type == 'coord':
+            if self.wcs is None:
+                raise ValueError("Cannot create cutout: WCS is not available for coordinate conversion.")
+            coord = SkyCoord(x * u.deg, y * u.deg, frame='icrs')
+            x_pix, y_pix = self.wcs.world_to_pixel(coord)
+            position = (x_pix, y_pix)
+            
+            # Convert size from arcseconds to pixels
+            # if isinstance(size, (int, float)):
+            #     pixel_scale = np.mean(self.pixelscale) if self.pixelscale is not None else self.telinfo.get('pixelscale', 1.0)
+            #     size_pixels = size / pixel_scale
+            #     size = (size_pixels, size_pixels)
+            # elif isinstance(size, tuple):
+            #     pixel_scale = np.mean(self.pixelscale) if self.pixelscale is not None else self.telinfo.get('pixelscale', 1.0)
+            #     size_pixels = (size[0] / pixel_scale, size[1] / pixel_scale)
+            #     size = size_pixels
+        elif coord_type == 'pixel':
+            position = (x, y)
+            # size is already in pixels
+            # Note: WCS will still be properly updated by Cutout2D
+        else:
+            raise ValueError("coord_type must be 'pixel' or 'coord'.")
+        
+        # Create the cutout using Cutout2D which properly handles WCS
+        # Cutout2D automatically updates the WCS to correspond to the cutout region
+        try:
+            cutout = Cutout2D(data=self.data, position=position, size=size_pixel, wcs=self.wcs)
+        except Exception as e:
+            raise ValueError(f"Failed to create cutout: {e}")
+        
+        # Create new instance of the same class type
+        new_path = self.path.parent / Path('cutout_' + self.path.name)
+        new_instance = self.__class__(new_path, telinfo=self.telinfo)
+        
+        # Copy the cutout data
+        new_instance.data = cutout.data
+        
+        # Copy and update header with proper WCS information
+        new_instance._header = self.header.copy()
+        
+        # Update header with new WCS information from Cutout2D
+        if cutout.wcs is not None:
+            # Cutout2D automatically calculates the correct WCS transformation
+            # for the cutout region, including updating CRPIX, CRVAL, etc.
+            wcs_header = cutout.wcs.to_header()
+            new_instance._header.update(wcs_header)
+            
+            # Validate that the WCS was properly updated
+            if 'CRPIX1' in wcs_header and 'CRPIX2' in wcs_header:
+                # CRPIX should be updated to reflect the cutout's reference pixel
+                pass  # Cutout2D handles this automatically
+            new_instance._header['NAXIS1'] = cutout.data.shape[1]
+            new_instance._header['NAXIS2'] = cutout.data.shape[0]
+        
+        else:
+            # If no WCS, update basic header information for the cutout
+            new_instance._header['NAXIS1'] = cutout.data.shape[1]
+            new_instance._header['NAXIS2'] = cutout.data.shape[0]
+        
+        return new_instance
 
     def run_ds9(self):
         """Open the image with SAOImage DS9.
@@ -437,10 +600,13 @@ class BaseImage(Configuration):
         """Image data array."""
         if not self.is_data_loaded and self.is_exists:
             try:
-                self._data = fits.getdata(self.path)
+                self._hdul = fits.open(self.path, memmap=True)
+                self._data = self._hdul[0].data
             except Exception as e:
-                print(f"Failed to load data from {self.path}: {e}")
+                self._hdul = fits.open(self.path, memmap=False)
+                self._data = self._hdul[0].data
         return self._data
+
 
     @data.setter
     def data(self, value):
@@ -478,23 +644,28 @@ class BaseImage(Configuration):
     @property
     def observatory(self):
         """ Name of the observatory."""
-        return str(self.telinfo['obs'])
+        return str(self.telinfo['telescope'])
     
     @property
     def telname(self):
         """ Name of the telescope."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['TELESCOP']:
             if key in header:
                 return str(header[key])
         return None
     
     @property
+    def ccd(self):
+        """ Name of the CCD."""
+        return str(self.telinfo['ccd'])
+    
+    @property
     def imgtype(self):
         """ Type of the image. Among BIAS, DARK, FLAT, LIGHT, OBJECT, UNKNOWN."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['IMGTYPE']:
-            if key in header:
+            if key in header.keys():
                 imgtype = header[key]
                 imgtype_variants = dict(BIAS= ['BIAS', 'Bias', 'bias', 'ZERO', 'Zero', 'zero'],
                                         DARK= ['DARK', 'Dark', 'dark'],
@@ -519,7 +690,7 @@ class BaseImage(Configuration):
         altitude : float
             Altitude of the telescope.
         """
-        header = self._header
+        header = self.header
         for key in self._key_variants['ALTITUDE']:
             if key in header:
                 return float(header[key])
@@ -529,7 +700,7 @@ class BaseImage(Configuration):
     @property
     def azimuth(self):
         """Azimuth of the telescope."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['AZIMUTH']:
             if key in header:
                 return float(header[key])
@@ -538,7 +709,7 @@ class BaseImage(Configuration):
     @property 
     def ra(self):
         """Right ascension of the target."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['RA']:
             if key in header:
                 return float(header[key])
@@ -547,7 +718,7 @@ class BaseImage(Configuration):
     @property
     def dec(self):
         """Declination of the target."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['DEC']:
             if key in header:
                 return float(header[key])
@@ -556,7 +727,7 @@ class BaseImage(Configuration):
     @property
     def objname(self):
         """Object name."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['OBJECT']:
             if key in header:
                 return str(header[key])
@@ -565,7 +736,7 @@ class BaseImage(Configuration):
     @property
     def obsmode(self):
         """Observation mode."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['OBSMODE']:
             if key in header:
                 return str(header[key])
@@ -574,7 +745,7 @@ class BaseImage(Configuration):
     @property
     def specmode(self):
         """Spectroscopic mode."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['SPECMODE']:
             if key in header:
                 return str(header[key])
@@ -583,7 +754,7 @@ class BaseImage(Configuration):
     @property
     def filter(self):
         """Filter name."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['FILTER']:
             if key in header:
                 return str(header[key])
@@ -592,7 +763,7 @@ class BaseImage(Configuration):
     @property
     def ccdtemp(self):
         """CCD temperature."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['CCD-TEMP']:
             if key in header:
                 return float(header[key])
@@ -601,7 +772,7 @@ class BaseImage(Configuration):
     @property
     def obsdate(self):
         """Observation date in UTC."""
-        header = self._header
+        header = self.header
         # First, search for utcdate
         for key in self._key_variants['DATE-OBS']:
             if key in header:
@@ -656,7 +827,7 @@ class BaseImage(Configuration):
     @property
     def exptime(self):
         """Exposure time of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['EXPTIME']:
             if key in header:
                 return float(header[key])
@@ -665,7 +836,7 @@ class BaseImage(Configuration):
     @property
     def binning(self):
         """Binning of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['BINNING']:
             if key in header:
                 return int(header[key])
@@ -674,7 +845,7 @@ class BaseImage(Configuration):
     @property
     def gain(self):
         """Gain of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['GAIN']:
             if key in header:
                 return float(header[key])
@@ -683,7 +854,7 @@ class BaseImage(Configuration):
     @property
     def egain(self):
         """Electron gain of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['EGAIN']:
             if key in header:
                 return float(header[key])
@@ -692,7 +863,7 @@ class BaseImage(Configuration):
     @property
     def naxis1(self):
         """Number of pixels along the first axis."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['NAXIS1']:
             if key in header:
                 return int(header[key])
@@ -701,7 +872,7 @@ class BaseImage(Configuration):
     @property
     def naxis2(self):
         """Number of pixels along the second axis."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['NAXIS2']:
             if key in header:
                 return int(header[key])
@@ -710,7 +881,7 @@ class BaseImage(Configuration):
     @property
     def ncombine(self):
         """Number of combined images."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['NCOMBINE']:
             if key in header:
                 return int(header[key])
@@ -719,7 +890,7 @@ class BaseImage(Configuration):
     @property
     def biaspath(self):
         """Path to the bias image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['BIASPATH']:
             if key in header:
                 return str(header[key])
@@ -728,7 +899,7 @@ class BaseImage(Configuration):
     @property
     def darkpath(self):
         """Path to the dark image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['DARKPATH']:
             if key in header:
                 return str(header[key])
@@ -737,7 +908,7 @@ class BaseImage(Configuration):
     @property
     def flatpath(self):
         """Path to the flat image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['FLATPATH']:
             if key in header:
                 return str(header[key])
@@ -746,7 +917,7 @@ class BaseImage(Configuration):
     @property
     def maskpath(self):
         """Path to the mask image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['MASKPATH']:
             if key in header:
                 return str(header[key])
@@ -755,7 +926,7 @@ class BaseImage(Configuration):
     @property
     def masktype(self):
         """Type of the mask image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['MASKTYPE']:
             if key in header:
                 return str(header[key])
@@ -764,7 +935,7 @@ class BaseImage(Configuration):
     @property
     def bkgpath(self):
         """Path to the background image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['BKGPATH']:
             if key in header:
                 return str(header[key])
@@ -773,7 +944,7 @@ class BaseImage(Configuration):
     @property
     def bkgtype(self):
         """Type of the background image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['BKGTYPE']:
             if key in header:
                 return str(header[key])
@@ -782,7 +953,7 @@ class BaseImage(Configuration):
     @property
     def emappath(self):
         """Path to the emap image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['EMAPPATH']:
             if key in header:
                 return str(header[key])
@@ -791,7 +962,7 @@ class BaseImage(Configuration):
     @property
     def emaptype(self):
         """Type of the emap image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['EMAPTYPE']:
             if key in header:
                 return str(header[key])
@@ -800,9 +971,9 @@ class BaseImage(Configuration):
     @property
     def fovx(self):
         """Field of view along the first axis."""
-        pixscale = self.pixelscale
-        if pixscale is not None:
-            fovx = pixscale[0] * self.naxis1 / 3600  # Convert to degrees
+        pixelscale = self.pixelscale
+        if pixelscale is not None:
+            fovx = pixelscale[0] * self.naxis1 / 3600  # Convert to degrees
             return float('%.3f' % fovx)
         else:
             return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis1 / 3600))
@@ -810,9 +981,9 @@ class BaseImage(Configuration):
     @property
     def fovy(self):
         """Field of view along the second axis."""
-        pixscale = self.pixelscale
-        if pixscale is not None:
-            fovy = pixscale[1] * self.naxis2 / 3600  # Convert to degrees
+        pixelscale = self.pixelscale
+        if pixelscale is not None:
+            fovy = pixelscale[1] * self.naxis2 / 3600  # Convert to degrees
             return float('%.3f' % fovy)
         else:
             return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis2 / 3600))
@@ -821,7 +992,7 @@ class BaseImage(Configuration):
     def wcs(self):
         """WCS information of the image."""
         try:
-            wcs = WCS(self._header)
+            wcs = WCS(self.header)
             if self.imgtype.upper() in ['BIAS', 'DARK', 'FLAT']:
                 raise ValueError("WCS is not available for bias, dark, or flat images.")
             return wcs
@@ -856,7 +1027,7 @@ class BaseImage(Configuration):
     @property
     def zp(self):
         """Zero point of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['ZP']:
             if key in header:
                 return float(header[key])
@@ -865,7 +1036,7 @@ class BaseImage(Configuration):
     @property
     def zperr(self):    
         """Zero point error of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['ZPERR']:
             if key in header:
                 return float(header[key])
@@ -874,7 +1045,7 @@ class BaseImage(Configuration):
     @property
     def depth(self):
         """Depth of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['DEPTH']:
             if key in header:
                 return float(header[key])
@@ -883,20 +1054,12 @@ class BaseImage(Configuration):
     @property
     def seeing(self):
         """Seeing of the image."""
-        header = self._header
+        header = self.header
         for key in self._key_variants['SEEING']:
             if key in header:
                 return float(header[key])
         return None
     
-    @property
-    def ncombine(self):
-        """Number of combined images."""
-        header = self._header
-        for key in self._key_variants['NCOMBINE']:
-            if key in header:
-                return int(header[key])
-        return None
         
     @property
     def _key_variants(self):
@@ -925,7 +1088,7 @@ class BaseImage(Configuration):
             'OBSMODE': ['OBSMODE', 'MODE'],
             'SPECMODE': ['SPECMODE'],
             'NTELESCOP': ['NTELESCOP', 'NTEL'],
-            'NCOMBINE': ['NCOMBINE', 'NCOMB'],
+            'NCOMBINE': ['NCOMBINE', 'NCOMB', 'NFRAMES'],
             'NOTE': ['NOTE'],
             'NAXIS1': ['NAXIS1'],
             'NAXIS2': ['NAXIS2'],
@@ -959,10 +1122,9 @@ class BaseImage(Configuration):
     def _get_telkey(self):
         """ Get the telescope name from the FITS header """
         telinfo = self.telinfo
-        if telinfo['mode']:
-            telkey = f"{telinfo['obs']}_{telinfo['ccd']}_{telinfo['mode']}_{telinfo['binning']}x{telinfo['binning']}"
+        if telinfo['readoutmode']:
+            telkey = f"{telinfo['telescope']}_{telinfo['ccd']}_{telinfo['readoutmode']}_{telinfo['binning']}x{telinfo['binning']}"
         else:
-            telkey = f"{telinfo['obs']}_{telinfo['ccd']}_{telinfo['binning']}x{telinfo['binning']}"
+            telkey = f"{telinfo['telescope']}_{telinfo['ccd']}_{telinfo['binning']}x{telinfo['binning']}"
         return telkey
 
-# %%

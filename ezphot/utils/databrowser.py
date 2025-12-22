@@ -6,32 +6,25 @@ from pathlib import Path
 from typing import List, Union
 from functools import partial
 from multiprocessing import Pool
-
 from tqdm import tqdm
 
 from ezphot.helper import Helper
 
 #%%
+import os
+os.environ["ASTROPY_LOG_LEVEL"] = "ERROR"
+os.environ["ASTROPY_WCS_SIP"] = "IGNORE"   # not documented, but silences SIP complaints
+
 
 def _get_imginfo(filelist, pattern):
     helper = Helper()   
     imginfo = helper.get_imginfo(filelist, pattern=pattern)
     return imginfo
 
-def _load_image(cls, path, telinfo=None):
-    try:
-        estimated_telinfo = None
-        # Estimate telinfo if it's a callable
-        if callable(telinfo):
-            estimated_telinfo = telinfo(path)
-        else:
-            estimated_telinfo = telinfo
-
+def _load_image(cls, path):
+    try:    
         # Construct with or without telinfo
-        if estimated_telinfo is not None:
-            return cls(path, telinfo=estimated_telinfo, load=True)
-        else:
-            return cls(path, load=True)
+        return cls(path)
 
     except Exception as e:
         print(f"[WARNING] Failed to load {path}: {e}")
@@ -254,15 +247,14 @@ class DataBrowser:
     def _to_science_images(self, filepaths: List[Union[str, Path]]):
         from ezphot.imageobjects import ScienceImage
         with Pool(16) as pool:
-            func = partial(_load_image, ScienceImage, telinfo= self.helper.estimate_telinfo)
+            func = partial(_load_image, ScienceImage)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Science Images"))
         return [img for img in images if img is not None]
 
     def _to_reference_images(self, filepaths: List[Union[str, Path]]):
         from ezphot.imageobjects import ReferenceImage
-        telinfo = self.helper.estimate_telinfo(filepaths[0])
         with Pool(16) as pool:
-            func = partial(_load_image, ReferenceImage, telinfo=self.helper.estimate_telinfo)
+            func = partial(_load_image, ReferenceImage)
             images = list(tqdm(pool.imap(func, filepaths), total=len(filepaths), desc="Loading Reference Images"))
         return [img for img in images if img is not None]
 
@@ -464,4 +456,3 @@ class DataBrowser:
 
         return result
 
-# %%

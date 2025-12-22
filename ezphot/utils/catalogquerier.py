@@ -6,6 +6,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from astroquery.imcce import Skybot
+import time
 #%%
 
 
@@ -162,8 +163,29 @@ class CatalogQuerier:
         if epoch is None:
             epoch = Time.now()
         print(f'Starting Skybot query around {coord} with radius {radius_arcsec}')
-        result = self.skybot.cone_search(coord, radius_arcsec, epoch, location = 500)
-        return result
+        max_retries = 5
+        sbtbl = None
+        for attempt in range(max_retries):
+            try:
+                sbtbl = self.skybot.cone_search(coord, radius_arcsec, epoch, location=500)
+                c_sb = SkyCoord(sbtbl['RA'], sbtbl['DEC'])
+                sbtbl['sep'] = coord.separation(c_sb).to(u.arcmin)
+                #    Skybot matching
+                break  # If the request was successful, exit the loop
+            except RuntimeError as e:
+                if "No solar system object was found" in str(e):
+                    print(f"No solar system objects found in the FOV for {epoch}. Continuing without flagging.")
+                    break  # Exit the loop, as retrying won't change the outcome
+                else:
+                    print(f"Unexpected RuntimeError encountered: {e}. Skipping this function.")
+                    # raise  # Re-raise the exception for any other RuntimeError
+            except ConnectionError as e:
+                print(f"Connection failed on attempt {attempt+1} of {max_retries}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(10) # Wait for a bit before retrying
+                else:
+                    print("Final attempt failed. Skipping this function due to connection issues.")
+        return sbtbl
 
     @property
     def config(self):
@@ -273,16 +295,3 @@ class CatalogQuerier:
         catalog_ids['SKYBOT'] = "IMCCE/Skybot"
         return catalog_ids
         
-#%%
-if __name__ == "__main__":
-    from astropy.time import Time
-    # Example usage
-    self = CatalogQuerier(catalog_key='SKYBOT')
-    
-    # Query a specific region
-    coord = SkyCoord(ra=233.322342*u.deg, dec=-68.007909*u.deg, frame='icrs')
-    epoch = Time('2025-02-09T00:00:00')
-    #result = ed.query_catalog(coord, radius_arcsec=5)
-    
-    result = self.query(coord = coord, epoch = epoch)
-# %%

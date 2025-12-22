@@ -1,0 +1,172 @@
+7DT:
+  match:
+    path_contains: ["7DT"]
+
+  ccd:
+    C361K:
+      match:
+        header:
+          NAXIS1: [0, 13000]
+    C516K:
+      match:
+        header:
+          NAXIS1: [13000, 100000]
+
+  binning:
+    1:
+      match:
+        path_contains: ["1x1"]
+        header:
+          XBINNING: 1
+    2:
+      match:
+        path_contains: ["2x2"]
+        header:
+          XBINNING: 2
+
+  readoutmode:
+    HIGH:
+      match:
+        header:
+          GAIN: 2750
+    LOW:
+      match:
+        header:
+          GAIN: 0
+
+
+KCT:
+  match:
+    path_contains: ["KCT"]
+
+  ccd:
+    STX16803:
+      match:
+        path_contains: ["STX"]
+        header:
+          INSTRUME: "STX16803"
+    ASI1600MM:
+      match:
+        path_contains: ["ASI"]
+        header:
+          INSTRUME: "ASI1600MM"
+
+  binning:
+    1:
+      match:
+        header:
+          XBINNING: 1
+    2:
+      match:
+        header:
+          XBINNING: 2
+
+  readoutmode: None
+
+
+RASA36:
+  match:
+    path_contains: ["RASA36"]
+
+  ccd: KL4040
+
+  binning: 1
+
+  readoutmode:
+    HIGH:
+      match:
+        header:
+          CAMMODE: "HIGH"
+    MERGE:
+      match:
+        header:
+          CAMMODE: "MERGE"
+
+
+LSGT:
+  match:
+    path_contains: ["LSGT"]
+
+  ccd:
+    SNUCAMII:
+      match:
+        header:
+          INSTRUME: "ANDOR"
+    ASI1600MM:
+      match:
+        header:
+          INSTRUME: "ASI"
+
+  binning:
+    1:
+      match:
+        header:
+          XBINNING: 1
+    2:
+      match:
+        header:
+          XBINNING: 2
+
+  readoutmode: None
+
+
+SAO:
+  match:
+    path_contains: ["SAO"]
+
+  ccd:
+    C361K:
+      match:
+        header:
+          INSTRUME: "Moravian"
+    STX16803:
+      match:
+        header:
+          INSTRUME: "STX"
+    QHY461:
+      match:
+        header:
+          INSTRUME: "QHY"
+    KL4040:
+      match:
+        header:
+          INSTRUME: "KL"
+
+  binning:
+    1:
+      match:
+        header:
+          XBINNING: 1
+    2:
+      match:
+        header:
+          XBINNING: 2
+
+  readoutmode: None
+
+
+LOAO:
+  match:
+    path_contains: ["LOAO"]
+
+  ccd:
+    E2V:
+      match:
+        header:
+          INSTRUME: "ARC"
+    FLI:
+      match:
+        header:
+          INSTRUME: "Finger"
+
+  binning:
+    1:
+      match:
+        header:
+          XBINNING: 1
+    2:
+      match:
+        header:
+          XBINNING: 2
+
+  readoutmode: None

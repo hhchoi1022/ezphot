@@ -95,14 +95,16 @@ class ErrormapGenerator:
             The source RMS error map instance.
         """
         # --- Inputs ---
-        data = target_img.data                   # assumed to be calibrated science image in ADU
+        egain = target_img.egain or 1                 # electrons/ADU
         ncombine = target_img.ncombine or 1      # number of science images combined to make master science image
-        mbias = mbias_img.data                   # bias image in ADU
         ncombine_bias = mbias_img.ncombine or 9  # number of bias images combined to make master bias
-        mdark = mdark_img.data                   # dark image in ADU
         ncombine_dark = mdark_img.ncombine or 9  # number of dark images combined to make master dark
-        mflat = mflat_img.data                   # normalized flat image (unitless, ~1.0)
-        egain = target_img.egain                 # electrons/ADU
+        
+        data = target_img.data                   # assumed to be calibrated science image in ADU
+        mbias_map = np.abs(mbias_img.data)     # Master bias image in ADU
+        mdark_map = np.abs(mdark_img.data)     # Master dark image in ADU
+        mflat_map = np.abs(mflat_img.data)     # Master flat image in ADU
+        
         if target_img.ncombine is None:
             self.helper.print('Warning: target_img.ncombine is None. Using 1 as default value.', verbose)
         if mbias_img.ncombine is None:
@@ -111,32 +113,31 @@ class ErrormapGenerator:
             self.helper.print('Warning: mdark_img.ncombine is None. Using 9 as default value.', verbose)
         
         # --- Readout noise from master bias ---
-        ny, nx = mbias.shape
+        ny, nx = mbias_map.shape
         y0 = ny // 3
         y1 = 2 * ny // 3
         x0 = nx // 3
         x1 = 2 * nx // 3
-        central_bias = mbias[y0:y1, x0:x1] # Central region of the bias image
+        central_bias = mbias_map[y0:y1, x0:x1] # Central region of the bias image
         mbias_var = np.var(central_bias)          # in ADU
         sbias_var = mbias_var * ncombine_bias  # in ADU^2
-        readout_noise = np.sqrt(sbias_var)  # Readout noise in ADU
+        tbias_var = sbias_var / ncombine
         
         # --- Readout noise from master dark ---
         mdark_var = sbias_var / ncombine_dark + mbias_var
 
-        # 
         if mflaterr_img is not None:
-            mflat_err = mflaterr_img.data
-            mflat_var = mflat_err**2
+            mflaterr_map = mflaterr_img.data                   # master flat error image in ADU
+            mflat_var = mflaterr_map**2                   # in ADU^2    
             mflaterr_path = str(mflaterr_img.path)
         else:
-            mflat_err = 0
             mflat_var = 0
             mflaterr_path = None
 
-        signal = np.abs(data + mdark)
-        error_map = ne.evaluate("sqrt((signal / egain / mflat + sbias_var / mflat**2 + signal**2 * mflat_var / mflat**2) + mbias_var + mdark_var)")
-        # HERE, mflat**2? or mflat? with signal / egain /
+        signal = np.abs(data + mdark_map)
+        
+        error_map = ne.evaluate("sqrt(signal / egain / mflat_map + tbias_var /fcf mflat_map + mbias_var / mflat_map**2 + mdark_var / mflat_map**2 + signal**2 * mflat_var / mflat_map**2)")
+        
         target_errormap = Errormap(target_img.savepath.srcrmspath, emaptype = 'sourcerms' ,load = False)
         target_errormap.data = error_map
         target_errormap.header = target_img.header
@@ -158,7 +159,7 @@ class ErrormapGenerator:
         target_img.header.update(update_header_kwargs_image)
         
         ## Update status          
-        event_details = dict(type = 'sourcerms', readnoise = float(readout_noise), mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = mflaterr_path)
+        event_details = dict(type = 'sourcerms', mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = str(mflaterr_path))
         target_errormap.add_status("error_propagation", **event_details)
         
         if save:
@@ -179,15 +180,13 @@ class ErrormapGenerator:
         return target_errormap
     
     def calculate_bkgrms_from_propagation(self,
+                                          target_img: ScienceImage,
                                           target_bkg: Background,
                                           mbias_img: CalibrationImage,
                                           mdark_img: CalibrationImage,                             
                                           mflat_img: CalibrationImage,
-    
-                                          mflaterr_img: Errormap = None,
-                                          ncombine: Optional[int] = None,
-                                          readout_noise : Optional[float] = None,  # Readout noise in ADU
-                                        
+                                          mflaterr_img: Errormap = None,                                        
+                                          
                                           # Other parameters
                                           save: bool = False,
                                           verbose: bool = True,
@@ -200,6 +199,8 @@ class ErrormapGenerator:
         
         Parameters
         ----------
+        target_img : ScienceImage
+            The target image to calculate the error map from.
         target_bkg : Background
             The background image to calculate the error map from.
         mbias_img : CalibrationImage
@@ -210,8 +211,6 @@ class ErrormapGenerator:
             The master flat image.
         mflaterr_img : Errormap, optional
             The master flat error map.
-        ncombine : int, optional
-            The number of science images combined to make master science image.
         readout_noise : float, optional
             The readout noise in ADU.
         save : bool, optional
@@ -228,57 +227,65 @@ class ErrormapGenerator:
         target_bkgrms : Errormap
             The background RMS error map instance.
         """
+        
+        """
+        Background RMS noise comes from
+        1. Shot noise from the background level: sqrt(bkgmap / egain / mflat) 
+        2. Shot noise from the Dark current: sqrt(mdark / egain / mflat)
+        3. Readout noise from the single frame: sqrt(sbias_var / mflat**2)
+        4. Readout noise from the master bias: sqrt(mbias_var / mflat**2)
+        5. Readout noise from the master dark: sqrt(mdark_var / mflat**2)
+        5. Flat correction noise (non-linear) 
+        6. Flat error noise (ignored)
+        """
         # --- Inputs ---
-        data = target_bkg.data                   # assumed to be calibrated science image in ADU
-        if ncombine is None:      # number of science images combined to make master science image
-            self.helper.print('Warning: ncombine is None. Using 1 as default value.', verbose)
-
-        mbias = mbias_img.data                   # bias image in ADU
+        
+        egain = target_img.egain or 1                 # electrons/ADU
+        ncombine = target_img.ncombine or 1      # number of science images combined to make master science image
         ncombine_bias = mbias_img.ncombine or 9  # number of bias images combined to make master bias
-        mdark = mdark_img.data                   # dark image in ADU
         ncombine_dark = mdark_img.ncombine or 9  # number of dark images combined to make master dark
-        mflat = mflat_img.data                   # normalized flat image (unitless, ~1.0)
-        egain = target_bkg.egain                 # electrons/ADU
+        
+        bkg_map = np.abs(target_bkg.data)     # Background image in ADU. Flat fielding is already applied
+        mbias_map = np.abs(mbias_img.data)     # Master bias image in ADU
+        mdark_map = np.abs(mdark_img.data)     # Master dark image in ADU
+        mflat_map = np.abs(mflat_img.data)     # Master flat image in ADU
+
+        if target_img.ncombine is None:
+            self.helper.print('Warning: target_img.ncombine is None. Using 1 as default value.', verbose)
         if mbias_img.ncombine is None:
             self.helper.print('Warning: mbias_img.ncombine is None. Using 9 as default value.', verbose)
         if mdark_img.ncombine is None:
             self.helper.print('Warning: mdark_img.ncombine is None. Using 9 as default value.', verbose)
         
         # --- Readout noise from master bias ---
-        ny, nx = mbias.shape
+        ny, nx = mbias_map.shape
         y0 = ny // 3
         y1 = 2 * ny // 3
         x0 = nx // 3
         x1 = 2 * nx // 3
-        central_bias = mbias[y0:y1, x0:x1] # Central region of the bias image
+        central_bias = mbias_map[y0:y1, x0:x1] # Central region of the bias image
         mbias_var = np.var(central_bias)          # in ADU
-        
-        if readout_noise is None:
-            sbias_var = mbias_var * ncombine_bias  # in ADU^2
-            readout_noise = np.sqrt(sbias_var)  # Readout noise in ADU
-        else:
-            sbias_var = readout_noise **2 # in ADU^2
-            pass
+        sbias_var = mbias_var * ncombine_bias  # in ADU^2
+        tbias_var = sbias_var / ncombine
         
         # --- Readout noise from master dark ---
         mdark_var = sbias_var / ncombine_dark + mbias_var
 
-        # 
         if mflaterr_img is not None:
-            mflat_err = mflaterr_img.data
-            mflat_var = mflat_err**2
+            mflaterr_map = mflaterr_img.data                   # master flat error image in ADU
+            mflat_var = mflaterr_map**2                   # in ADU^2    
             mflaterr_path = str(mflaterr_img.path)
         else:
-            mflat_err = 0
             mflat_var = 0
             mflaterr_path = None
 
-        signal = np.abs(data + mdark)
-        error_map = ne.evaluate("sqrt(signal / egain / mflat + sbias_var / mflat**2 + signal**2 * mflat_var / mflat**2 + mbias_var / mflat**2 + mdark_var / mflat**2)")
+        signal = np.abs(bkg_map + mdark_map)
+        # error_map = ne.evaluate("sqrt(signal / egain / mflat_map + sbias_var / mflat_map**2 + signal**2 * mflat_var / mflat_map**2 + mbias_var / mflat_map**2 + mdark_var / mflat_map**2)")
+        error_map = ne.evaluate("sqrt(signal / egain / mflat_map + tbias_var / mflat_map + mbias_var / mflat_map**2 + mdark_var / mflat_map**2 + signal**2 * mflat_var / mflat_map**2)")
 
-        target_errormap = Errormap(str(target_bkg.path).replace('bkgmap','bkgrms'), emaptype = 'bkgrms', load = False)
+        target_errormap = Errormap(target_img.savepath.bkgrmspath, emaptype = 'bkgrms', load = False)
         target_errormap.data = error_map
-        target_errormap.header = target_bkg.header
+        target_errormap.header = target_img.header
 
         # Update header
         update_header_kwargs = dict(
@@ -291,7 +298,7 @@ class ErrormapGenerator:
         target_errormap.header.update(update_header_kwargs)
         
         ## Update status          
-        event_details = dict(type = 'sourcerms', readnoise = float(readout_noise), mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = mflaterr_path)
+        event_details = dict(type = 'bkgrms', mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = str(mflaterr_path))
         target_errormap.add_status("error_propagation", **event_details)
         
         if save:

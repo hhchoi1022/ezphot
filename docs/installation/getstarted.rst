@@ -54,7 +54,7 @@ To load configuration:
     print(config_telescope.config)
     
     >>> {'PSFEX_CONFIG': '/home/hhchoi1022/ezphot/config/common/psfex/default.psfexconfig',
-         'PSFEX_CONFIGDIR': '/home/hhchoi1022/ezphot/config/common/psfex',
+         'PSFEX_DIR': '/home/hhchoi1022/ezphot/config/common/psfex',
          'PSFEX_LOGDIR': '/home/hhchoi1022/ezphot/log/psfex/log',
           ...}
      

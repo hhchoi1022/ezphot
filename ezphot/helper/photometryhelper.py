@@ -1,6 +1,7 @@
 # %%
 # Standard library
 import os
+import sys
 import re
 import shutil
 import inspect
@@ -65,23 +66,23 @@ class PhotometryHelper(Configuration):
         
     @property
     def configpath(self):
-        return Path(self.path_global)
+        return Path(self.path_config)
     
     @property
     def scamppath(self):
-        return Path(self.config['SCAMP_CONFIGDIR'])
+        return Path(self.config['SCAMP_DIR'])
     
     @property  
     def swarppath(self):
-        return Path(self.config['SWARP_CONFIGDIR'])
+        return Path(self.config['SWARP_DIR'])
     
     @property
     def sexpath(self):
-        return Path(self.config['SEX_CONFIGDIR'])
+        return Path(self.config['SEX_DIR'])
     
     @property
     def psfexpath(self):
-        return Path(self.config['PSFEX_CONFIGDIR'])
+        return Path(self.config['PSFEX_DIR'])
         
     def __repr__(self):
         cls = self.__class__
@@ -92,8 +93,33 @@ class PhotometryHelper(Configuration):
         ]
         return '[Methods]\n' + ''.join(methods)
 
-    def print(self, string, do_print : bool = False):
-        print(string) if do_print else None
+    def print(self,
+              message: str,
+              enabled: bool = False,
+              width: int = None,
+              fill: str = "="):
+        """
+        Conditional formatted print function.
+
+        Parameters
+        ----------
+        message : str
+            Text to print.
+        enabled : bool, optional
+            If True, print the message. If False, do nothing.
+        width : int, optional
+            If given, pad or frame the message to a fixed width.
+        fill : str, optional
+            Character used to fill space when width is specified.
+        """
+        if not enabled:
+            return
+
+        if width is not None:
+            message = f" {message} "
+            message = message.center(width, fill)
+
+        print(message)
         
     # Load information
     def load_fits(self,
@@ -351,111 +377,232 @@ class PhotometryHelper(Configuration):
                     merged_header[key] = val
 
         return merged_header
+    
 
     def estimate_telinfo(self, 
                          path: Union[str, Path],
-                         update_header: bool = True):
-        path = Path(path)
-        get_telinfo_from_file = False
-        # For 7DT
-        if '7DT' in str(path):
-            header = fits.getheader(path)
-            telescope = '7DT'
-            if header['NAXIS1'] < 13000:
-                ccd = 'C361K'
-            else:
-                ccd = 'C516k'
-            if 'GAIN' in header.keys():
-                if str(header['GAIN']) == '2750':
-                    readoutmode = 'HIGH'
-                else:
-                    readoutmode = 'LOW'
-            else:
-                readoutmode = 'HIGH'
-                
-            if 'XBINNING' in header.keys():
-                if str(header['XBINNING']) == '1':
-                    binning = 1
-                else:
-                    binning = 2
-            else:
-                binning = 1
-            get_telinfo_from_file = True
-                
-        # For KCT
-        elif 'KCT' in str(path):
-            header = fits.getheader(path)
-            telescope = 'KCT'
-            if 'INSTRUME' in header.keys():
-                if 'STX' in header['INSTRUME']:
-                    ccd = 'STX16803'
-                else:
-                    ccd = 'ASI1600MM'
-            readoutmode = None
-            binning = 1
-            get_telinfo_from_file = True
+                         header: Header):
+        """
+        Estimate telescope information from file path and header using YAML configuration.
         
-        # For RASA36
-        elif 'RASA' in str(path):
-            telescope = 'RASA36'
-            ccd = 'KL4040'
-            binning = 1
-            
-            ############### ADD HERE FOR IDENTIFYING RASA36 RNMODE ###############
-            with fits.open(path, mode = 'update') as hdul:
-                header = hdul[0].header
-                if 'CAMMODE' in header.keys():
-                    if header['CAMMODE'] == 'HIGH':
-                        readoutmode = 'HIGH'
-                    else:
-                        readoutmode = 'MERGE'
-                else:
-                    data = hdul[0].data
-                    zero = np.mean(np.sort((data[~np.isnan(data)].flatten()))[-10:-5])
-                    if zero > 80000:
-                        readoutmode = 'MERGE'
-                    else:
-                        readoutmode = 'HIGH'                
+        Parameters
+        ----------
+        path : str or Path
+            Path to the FITS file
+        header : astropy.io.fits.Header
+            FITS header of the image
 
-                    if update_header:
-                        header['CAMMODE'] = readoutmode
-            get_telinfo_from_file = True
+        Returns
+        -------
+        telinfo : astropy.table.Row
+            Telescope information row from the observatory database
+        """
+        import yaml
         
-        elif ('LSGT' in str(path)) or ('sophia' in str(path).lower()):
-            telescope = 'LSGT'
-            with fits.open(path, mode = 'update') as hdul:
-                header = hdul[0].header
-                if 'INSTRUME' in header.keys():
-                    if 'andor' in header['INSTRUME'].lower():
-                        ccd = 'SNUCAMII'
-                    else:
-                        ccd = 'ASI1600MM'
-            readoutmode = None
-            binning = 1
-            get_telinfo_from_file = True
+        path = Path(path)
+        path_str = str(path)
+        
+        # Load YAML configuration
+        yaml_path = self.configpath / 'common' / 'observatory_info_hint.yaml'
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"Observatory info hint file not found: {yaml_path}")
             
-        elif ('CBNUO' in str(path)):
-            telescope = 'CBNUO'
-            ccd = 'STX16803'
-            binning = 1
-            readoutmode = 'None'
-            get_telinfo_from_file = True
+        with open(yaml_path, 'r') as f:
+            config = yaml.safe_load(f)
         
-        if get_telinfo_from_file:
-            telinfo = self.get_telinfo(telescope = telescope, ccd = ccd, readoutmode = readoutmode, binning = binning)
-            return telinfo
+        # Find matching telescope
+        telescope = None
+        for tel_name, tel_config in config.items():
+            # Check if path matches telescope criteria
+            match_config = tel_config.get('match', {})
+            if 'path_contains' in match_config:
+                if any(keyword in path_str for keyword in match_config['path_contains']):
+                    telescope = tel_name
+                    break
+        
+        if telescope is None:
+            raise NotImplementedError(f"WARNING: Telescope information is not found in the configuration. "
+                                    f"Please provide telinfo manually or update observatory_info_hint.yaml.")
+        
+        # Determine CCD
+        ccd_config = config[telescope].get('ccd', {})
+        if ccd_config == 'None':
+            ccd_config = None
+        ccd = None
+        
+        # If ccd is a string (single CCD), return it
+        if isinstance(ccd_config, str):
+            ccd = ccd_config
         else:
-            raise NotImplementedError("WARNING: Telescope information is not found in the configuration (~/ezphot/config/common/CCD.dat). Please provide telinfo manually.")
+            # If ccd is a dict, find matching CCD
+            for ccd_name, ccd_info in ccd_config.items():
+                match_config = ccd_info.get('match', {})
+                match_found = True
+                
+                # Check path contains
+                if 'path_contains' in match_config:
+                    if not any(keyword in path_str for keyword in match_config['path_contains']):
+                        match_found = False
+                
+                # Check header criteria
+                if match_found and 'header' in match_config:
+                    for key, expected_value in match_config['header'].items():
+                        if key not in header:
+                            match_found = False
+                            break
+                        
+                        actual_value = str(header[key])
+                        # Evaluate condition
+                        if isinstance(expected_value, list):
+                            # Range check: [min, max]
+                            try:
+                                actual_float = float(actual_value)
+                                if len(expected_value) == 2:
+                                    min_val, max_val = expected_value
+                                    if not (float(min_val) <= actual_float <= float(max_val)):
+                                        match_found = False
+                                        break
+                                else:
+                                    # If list has more than 2 elements, check if actual value is in the list
+                                    if actual_value not in [str(v) for v in expected_value]:
+                                        match_found = False
+                                        break
+                            except ValueError:
+                                match_found = False
+                                break
+                        else:
+                            # Direct equality comparison
+                            expected_value_str = str(expected_value)
+                            if actual_value != expected_value_str:
+                                match_found = False
+                                break
+                
+                if match_found:
+                    ccd = ccd_name
+                    break
+            
+            # Default fallback
+            if ccd is None and ccd_config:
+                ccd = list(ccd_config.keys())[0]
+        
+        # Determine binning
+        binning_config = config[telescope].get('binning', {})
+        if binning_config == 'None':
+            binning_config = None
+        binning = 1
+        
+        # If binning is an integer (single binning), return it
+        if isinstance(binning_config, int):
+            binning = binning_config
+        else:
+            # If binning is a dict, find matching binning
+            for binning_value, binning_info in binning_config.items():
+                match_config = binning_info.get('match', {})
+                match_found = True
+                
+                # Check path contains
+                if 'path_contains' in match_config:
+                    if not any(keyword in path_str for keyword in match_config['path_contains']):
+                        match_found = False
+                
+                # Check header criteria
+                if match_found and 'header' in match_config:
+                    for key, expected_value in match_config['header'].items():
+                        if key not in header:
+                            match_found = False
+                            break
+                        
+                        actual_value = str(header[key])
+                        # Evaluate condition
+                        if isinstance(expected_value, list):
+                            # Range check: [min, max]
+                            try:
+                                actual_float = float(actual_value)
+                                if len(expected_value) == 2:
+                                    min_val, max_val = expected_value
+                                    if not (float(min_val) <= actual_float <= float(max_val)):
+                                        match_found = False
+                                        break
+                                else:
+                                    # If list has more than 2 elements, check if actual value is in the list
+                                    if actual_value not in [str(v) for v in expected_value]:
+                                        match_found = False
+                                        break
+                            except ValueError:
+                                match_found = False
+                                break
+                        else:
+                            # Direct equality comparison
+                            expected_value_str = str(expected_value)
+                            if actual_value != expected_value_str:
+                                match_found = False
+                                break
+                
+                if match_found:
+                    binning = int(binning_value)
+                    break
+        
+        # Determine readout mode
+        readoutmode_config = config[telescope].get('readoutmode', {})
+        if readoutmode_config == 'None':
+            readoutmode_config = None
+        readoutmode = None
+        
+        # If readoutmode is None or a string (single mode), return it
+        if readoutmode_config is None or isinstance(readoutmode_config, str):
+            readoutmode = readoutmode_config
+        else:
+            # If readoutmode is a dict, find matching mode
+            for mode_name, mode_info in readoutmode_config.items():
+                match_config = mode_info.get('match', {})
+                match_found = True
+                
+                # Check header criteria
+                if 'header' in match_config:
+                    for key, expected_value in match_config['header'].items():
+                        if key not in header:
+                            match_found = False
+                            break
+                        
+                        actual_value = float(header[key])
+                        # Evaluate condition
+                        if isinstance(expected_value, list):
+                            # Range check: [min, max]
+                            try:
+                                actual_float = float(actual_value)
+                                if len(expected_value) == 2:
+                                    min_val, max_val = expected_value
+                                    if not (float(min_val) <= actual_float <= float(max_val)):
+                                        match_found = False
+                                        break
+                                else:
+                                    # If list has more than 2 elements, check if actual value is in the list
+                                    if actual_value not in [str(v) for v in expected_value]:
+                                        match_found = False
+                                        break
+                            except ValueError:
+                                match_found = False
+                                break
+                        else:
+                            # Direct equality comparison
+                            expected_value_float = float(expected_value)
+                            if actual_value != expected_value_float:
+                                match_found = False
+                                break
+                
+                if match_found:
+                    readoutmode = mode_name
+                    break
+        
+        # Get telescope info from database
+        telinfo = self.get_telinfo(telescope=telescope, ccd=ccd, readoutmode=readoutmode, binning=binning)
+        return telinfo
 
     def get_telinfo(self,
                     telescope: Optional[str] = None, 
                     ccd: Optional[str] = None, 
                     readoutmode: Optional[str] = None, 
                     binning: Optional[int] = None, 
-                    key_observatory: str = 'obs', 
-                    key_ccd: str = 'ccd', 
-                    key_mode: str = 'mode', 
-                    key_binning: str = 'binning',
                     obsinfo_file: Optional[Union[str, Path]] = None) -> Row:
         """
         Retrieves telescope and CCD information from an observatory information file.
@@ -470,14 +617,6 @@ class PhotometryHelper(Configuration):
             Readout mode [High, Merge, Low].
         binning : int, optional
             Binning factor.
-        key_observatory : str, optional
-            Column name for observatory/telescope.
-        key_ccd : str, optional
-            Column name for CCD type.
-        key_mode : str, optional
-            Column name for readout mode.
-        key_binning : str, optional
-            Column name for binning factor.
         obsinfo_file : str or Path, optional
             Path to the observatory information file.
 
@@ -506,49 +645,53 @@ class PhotometryHelper(Configuration):
 
         def prompt_choice(options, message):
             """Prompts user to select from multiple options if interactive."""
-            if not options:
-                raise AttributeError(f"No available options for {message}.")
-            print(f"{message}: {options}")
-            return input("Enter choice: ").strip()
+            try:
+                if not options:
+                    raise AttributeError(f"No available options for {message}.")
+                options = set(options)
+                print(f"{message}: {options}")
+                return input("Enter choice: ").strip()
+            except Exception as e:
+                return None
 
         # Select telescope if not provided
         if telescope is None:
-            telescope = prompt_choice(set(all_obsinfo[key_observatory]), "Choose the Telescope")
+            telescope = prompt_choice(all_obsinfo['telescope'], "Choose the Telescope")
 
         # Validate telescope existence
-        if telescope not in all_obsinfo[key_observatory]:
-            raise AttributeError(f"Telescope {telescope} information not found. Available: {set(all_obsinfo[key_observatory])}")
+        if telescope not in all_obsinfo['telescope']:
+            raise AttributeError(f"Telescope {telescope} information not found. Available: {set(all_obsinfo['telescope'])}")
 
         # Filter for the selected telescope
-        obs_info = filter_by_column(all_obsinfo, key_observatory, telescope)
+        obs_info = filter_by_column(all_obsinfo, 'telescope', telescope)
         if len(obs_info) == 0:
             raise AttributeError(f"No data found for telescope: {telescope}")
         elif len(obs_info) == 1:
             return obs_info[0]
 
         # Select CCD if not provided and multiple options exist
-        if ccd is None and len(obs_info[key_ccd]) > 1:
-            ccd = prompt_choice(set(obs_info[key_ccd]), "Multiple CCDs found. Choose one")
-        obs_info = filter_by_column(obs_info, key_ccd, ccd)
+        if ccd is None and len(obs_info['ccd']) > 1:
+            ccd = prompt_choice(obs_info['ccd'], "Multiple CCDs found. Choose one")
+        obs_info = filter_by_column(obs_info, 'ccd', ccd)
 
         # Select readout mode if not provided and multiple options exist
-        if readoutmode is None and len(obs_info[key_mode]) > 1:
-            readoutmode = prompt_choice(set(obs_info[key_mode]), "Multiple modes found. Choose one")
-        obs_info = filter_by_column(obs_info, key_mode, readoutmode)
+        if readoutmode is None and len(obs_info['readoutmode']) > 1: # Check readoutmode, len, maskedcolumn
+            readoutmode = prompt_choice(obs_info['readoutmode'], "Multiple modes found. Choose one")
+        obs_info = filter_by_column(obs_info, 'readoutmode', readoutmode)
         if len(obs_info) == 1:
             return obs_info[0]
 
         # Select binning if not provided and multiple options exist
-        if key_binning in obs_info.colnames and binning is None and len(set(obs_info[key_binning])) > 1:
-            binning = prompt_choice(set(obs_info[key_binning]), "Multiple binning values found. Choose one")
+        if 'binning' in obs_info.colnames and binning is None and len(set(obs_info['binning'])) > 1:
+            binning = prompt_choice(obs_info['binning'], "Multiple binning values found. Choose one")
         if binning is not None:
-            obs_info = filter_by_column(obs_info, key_binning, int(binning))
+            obs_info = filter_by_column(obs_info, 'binning', int(binning))
 
         # Ensure only one row remains
         if len(obs_info) == 1:
             return obs_info[0]
 
-        raise AttributeError(f"No matching CCD info for {telescope}. Available CCDs: {list(set(all_obsinfo[key_ccd]))}")
+        raise AttributeError(f"No matching CCD info for {telescope}. Available CCDs: {list(set(all_obsinfo['ccd']))}")
 
     def load_config(self, 
                     config_path: Union[str, Path]) -> dict:
@@ -748,49 +891,93 @@ class PhotometryHelper(Configuration):
         return matched_object_idx, matched_catalog_idx, no_matched_object_idx
 
 
+    # def group_table(self, tbl: Table, key: str, tolerance: float = 0.1):
+    #     """
+    #     Group rows in the table where values of the specified key are within a given tolerance.
+
+    #     Parameters
+    #     ----------
+    #     tbl : Table
+    #         The input astropy table.
+    #     key : str
+    #         The column name to group by, using value proximity within tolerance.
+    #     tolerance : float
+    #         The maximum difference between values to consider them in the same group.
+
+    #     Returns
+    #     -------
+    #     Table
+    #         Table with an additional 'group' column indicating group ID.
+    #     """
+    #     import numpy as np
+    #     from astropy.table import Table, vstack
+    #     import pandas as pd
+    #     table = tbl.copy()
+    #     table[key] = pd.to_numeric(table[key], errors='coerce')
+    #     table.sort(key)  # Sort by key to make grouping faster
+    #     group_ids = np.full(len(table), -1, dtype=int)
+
+    #     current_group = 0
+    #     i = 0
+
+    #     while np.any(group_ids == -1):
+    #         idx_unassigned = np.where(group_ids == -1)[0]
+    #         ref_idx = idx_unassigned[0]
+    #         ref_val = table[key][ref_idx]
+
+    #         # Assign all unassigned rows close to ref_val
+    #         close_idx = idx_unassigned[np.abs(table[key][idx_unassigned] - ref_val) < tolerance]
+    #         group_ids[close_idx] = current_group
+
+    #         current_group += 1
+    #         i += 1
+
+    #     table['group'] = group_ids
+    #     return table.group_by('group')
+    
     def group_table(self, tbl: Table, key: str, tolerance: float = 0.1):
         """
-        Group rows in the table where values of the specified key are within a given tolerance.
-
-        Parameters
-        ----------
-        tbl : Table
-            The input astropy table.
-        key : str
-            The column name to group by, using value proximity within tolerance.
-        tolerance : float
-            The maximum difference between values to consider them in the same group.
-
-        Returns
-        -------
-        Table
-            Table with an additional 'group' column indicating group ID.
+        Group rows by proximity in `key` while preserving original row order.
         """
         import numpy as np
-        from astropy.table import Table, vstack
         import pandas as pd
+
         table = tbl.copy()
         table[key] = pd.to_numeric(table[key], errors='coerce')
-        table.sort(key)  # Sort by key to make grouping faster
-        group_ids = np.full(len(table), -1, dtype=int)
+
+        values = np.array(table[key], dtype=float)
+
+        # Sort indices by key, NOT the table itself
+        order = np.argsort(values)
+        sorted_vals = values[order]
+
+        group_ids_sorted = np.full(len(table), -1, dtype=int)
 
         current_group = 0
         i = 0
+        n = len(sorted_vals)
 
-        while np.any(group_ids == -1):
-            idx_unassigned = np.where(group_ids == -1)[0]
-            ref_idx = idx_unassigned[0]
-            ref_val = table[key][ref_idx]
+        while i < n:
+            ref_val = sorted_vals[i]
+            close = np.abs(sorted_vals - ref_val) < tolerance
+            close &= (group_ids_sorted == -1)
 
-            # Assign all unassigned rows close to ref_val
-            close_idx = idx_unassigned[np.abs(table[key][idx_unassigned] - ref_val) < tolerance]
-            group_ids[close_idx] = current_group
-
+            group_ids_sorted[close] = current_group
             current_group += 1
-            i += 1
+
+            # move to next unassigned
+            unassigned = np.where(group_ids_sorted == -1)[0]
+            if len(unassigned) == 0:
+                break
+            i = unassigned[0]
+
+        # Map group IDs back to original order
+        group_ids = np.empty(len(table), dtype=int)
+        group_ids[order] = group_ids_sorted
 
         table['group'] = group_ids
-        return table.group_by('group')
+        return table
+
 
     def match_table(self, 
                     tbl1: Table, 
@@ -916,7 +1103,7 @@ class PhotometryHelper(Configuration):
                 tbl.remove_rows(remove_idx)
         return tbl
 
-    def is_wcs_equal(self, wcs1, wcs2, tolerance = 1e-4, check_sip=False):
+    def is_wcs_equal(self, wcs1, wcs2, tolerance = 1e-3, check_sip=False):
         """
         Compare whether two WCS headers represent the same projection.
 
@@ -1353,7 +1540,11 @@ class PhotometryHelper(Configuration):
                      il: float = -10000,
                      tu: float = 60000,
                      tl: float = -10000,
-                     **hotpants_kwargs) -> str:
+                     ko: int = 2,
+                     bgo: int = 1,
+                     nsx: int = 10,
+                     nsy: int = 10,
+                     r: int = 10) -> str:
         """
         Run Hotpants for image subtraction.
         """
@@ -1391,6 +1582,11 @@ class PhotometryHelper(Configuration):
             '-il', str(il),
             '-tu', str(tu),
             '-tl', str(tl),
+            '-ko', str(ko),
+            '-bgo', str(bgo),
+            '-nsx', str(nsx),
+            '-nsy', str(nsy),
+            '-r', str(r),
         ])
 
         if convolve_path:
@@ -1405,11 +1601,6 @@ class PhotometryHelper(Configuration):
         if stamp:
             stamp = Path(stamp)
             command.extend(['-ssf', str(stamp)])
-
-        # Additional hotpants kwargs
-        for key, value in hotpants_kwargs.items():
-            # Only include keys that look like valid flags
-            command.extend([f'-{key}', str(value)])
 
         self.print(f"RUN COMMAND: {' '.join(command)}", verbose)
 
@@ -2034,6 +2225,16 @@ class PhotometryHelper(Configuration):
             self.print(f"Error during SWARP execution: {e}", verbose)
             return [None, None]
 
+    def open_file_editor(self, path):
+        if sys.platform.startswith("darwin"):   # macOS
+            subprocess.run(["open", path])
+        elif sys.platform.startswith("win"):    # Windows
+            os.startfile(path)                  # type: ignore
+        elif sys.platform.startswith("linux"):  # Linux
+            subprocess.run(["xdg-open", path])
+        else:
+            raise OSError("Unsupported OS")
+
     def run_ds9(self, filelist: Union[str, Path, List[Union[str, Path]], np.ndarray], shell: str = '/bin/bash'):
         '''
         Parameters
@@ -2131,3 +2332,41 @@ class PhotometryHelper(Configuration):
             return reg
         else:
             return reg
+        
+        
+        
+        
+#%%
+from astropy.io import fits
+self = PhotometryHelper()
+path = '/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits'
+header = fits.getheader(path)
+self.estimate_telinfo(path, header)
+#helper.estimate_telinfo('/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits', fits.getheader('/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits'))
+        
+# from astropy.io import ascii
+# tbl = ascii.read('~/code/ezphot/ezphot/configuration/common/CCD.dat', format = 'fixed_width')
+# # %%
+# tbl.remove_columns(['key', 'value', 'suffix', 'x', 'y', 'fovx', 'fovy', 'foveff'])
+# # %%
+# tbl.rename_column('mode', 'readoutmode')
+# # %%
+# tbl.remove_column('fov')
+# # %%
+# from astropy.table import Table
+# tbl_new = Table()
+# tbl_new['telescope'] = tbl['obs']
+# tbl_new['ccd'] = tbl['ccd']
+# tbl_new['binning'] = tbl['binning']
+# tbl_new['pixelscale'] = tbl['pixelscale']
+# tbl_new['readoutmode'] = tbl['readoutmode']
+# tbl_new['gain'] = tbl['gain']
+# tbl_new['readnoise'] = tbl['readnoise']
+# tbl_new['darkcurrent'] = tbl['dark']
+
+# # %%
+# tbl_new.write('~/ezphot/config/common/CCD.dat', format = 'ascii.fixed_width', overwrite = True)
+# # %%
+
+
+# %%

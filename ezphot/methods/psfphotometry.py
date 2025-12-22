@@ -26,7 +26,7 @@ from ezphot.imageobjects import (
     Background, Mask, Errormap
 )
 from ezphot.utils import *
-
+#%%
 
 class PSFPhotometry:
     """

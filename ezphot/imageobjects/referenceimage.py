@@ -11,7 +11,7 @@ from astropy.time import Time
 from astropy.io import fits
 from astropy.table import Table, vstack
 
-from ezphot.imageobjects import Logger, BaseImage
+from ezphot.imageobjects import BaseImage, ImageMethod
 #%%
 
 
@@ -68,13 +68,16 @@ class Status:
                 raise ValueError(f"Status for '{name}' must be a dict with 'status' and 'update_time'")
         else:
             super().__setattr__(name, value)
-
+            
     def update(self, process_name, status: bool = True):
         if process_name in self._steps:
             self._steps[process_name]["status"] = status
             self._steps[process_name]["update_time"] = Time.now().isot
         else:
             raise ValueError(f"Invalid process name: {process_name}")
+
+    def copy(self):
+        return Status.from_dict(self.to_dict())
 
     def to_dict(self):
         return self._steps
@@ -120,6 +123,9 @@ class Info:
         else:
             print(f"WARNING: Invalid key: {key}")
 
+    def copy(self):
+        return Info.from_dict(self.to_dict())
+
     def to_dict(self):
         return self._fields
 
@@ -133,7 +139,7 @@ class Info:
 
     
 #%%
-class ReferenceImage(BaseImage):
+class ReferenceImage(BaseImage, ImageMethod):
     """
     Class representing a reference FITS image.
     
@@ -158,13 +164,14 @@ class ReferenceImage(BaseImage):
 
         # Initialize Status and Info
         self.status = Status()
-        self._logger = None
+        # self._logger = None
         self._bkgmap = None
         self._bkgrms = None
         self._sourcerms = None
         self._bkgweight = None
         self._srcweight = None
         self._srcmask = None
+        self._invalidmask = None
         self._cat = None
         self._refcat = None
         
@@ -543,11 +550,11 @@ class ReferenceImage(BaseImage):
             json.dump(self.info.to_dict(), f, indent=4)
     
 
-    @property
-    def logger(self):
-        if self._logger is None and self.savepath.loggerpath is not None:
-            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
-        return self._logger
+    # @property
+    # def logger(self):
+    #     if self._logger is None and self.savepath.loggerpath is not None:
+    #         self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+    #     return self._logger
                 
     @property
     def info(self):
@@ -565,7 +572,7 @@ class ReferenceImage(BaseImage):
         info = Info(
             SAVEPATH = str(self.savepath.savepath), BIASPATH = self.biaspath, DARKPATH = self.darkpath, FLATPATH = self.flatpath, 
             BKGPATH = self.bkgpath, BKGTYPE = self.bkgtype, EMAPPATH = self.emappath, EMAPTYPE = self.emaptype, MASKPATH = self.maskpath, MASKTYPE = self.masktype,
-            OBSERVATORY =  self.telinfo['obs'], CCD = self.telinfo['ccd'],
+            OBSERVATORY =  self.observatory, CCD = self.ccd,
             TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate,
             NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'],
             ALTITUDE = self.altitude, AZIMUTH = self.azimuth, RA = self.ra, DEC = self.dec, FOVX = self.fovx, FOVY = self.fovy,

@@ -98,7 +98,7 @@ class Platesolve:
         if not result:
             raise PlatesolveError("Astrometry failed", target_img.path)
         else:
-            output_img = type(target_img)(path = astrometry_output_images, telinfo = target_img.telinfo, status = target_img.status, load = True)
+            output_img = type(target_img)(path = astrometry_output_images, telinfo = target_img.telinfo, status = target_img.status.copy(), load = True)
             output_img.update_status('ASTROMETRY')
             return output_img
         
@@ -156,7 +156,7 @@ class Platesolve:
         else:    
             output_imglist = []
             for target_img, output_path in zip(target_imglist, scamp_output_images):
-                output_img = type(target_imglist[0])(path = output_path, telinfo = target_img.telinfo, status = target_img.status, load = True)
+                output_img = type(target_imglist[0])(path = output_path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = True)
                 output_img.update_status('SCAMP')
                 output_imglist.append(output_img)
             return output_imglist

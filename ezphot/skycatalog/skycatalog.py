@@ -659,7 +659,7 @@ class SkyCatalog:
             raise RuntimeError(f'Failed to access catalog summary: {e}')
 
     def _get_cataloginfo_by_objname(self, objname, catalog_type, fov_ra, fov_dec):
-        catalog_summary_file = os.path.join(self.helper.config['CATALOG_DIR'], 'catalog_summary.ascii_fixed_width')
+        catalog_summary_file = os.path.join(self.helper.config['CATALOG_DIR'], 'summary.ascii_fixed_width')
         catalog_summary_tbl = ascii.read(catalog_summary_file, format = 'fixed_width')
         
         idx = (catalog_summary_tbl['objname'] == objname) & (catalog_summary_tbl['cat_type'] == catalog_type) & (catalog_summary_tbl['fov_ra'] * 1.1 > fov_ra) & (catalog_summary_tbl['fov_dec'] * 1.1 > fov_dec)
@@ -748,25 +748,3 @@ class SkyCatalog:
             raise ValueError("Object not found in SIMBAD.")
 
     
-
-# %%
-
-# %% Example
-if __name__ =='__main__':
-    # 7DT Tile id 
-    #C = SkyCatalog('T00000', catalog_type = 'GAIAXP')
-    #print(C, "RA = %.2f Dec = %.2f, FOV_RA = %.2f, FOV_DEC = %.2f" % (C.ra, C.dec, C.fov_ra, C.fov_dec))
-    # Gaia catalog of NGC1566 with FOV_RA = 1.3, FOV_DEC = 0.9
-    #C = SkyCatalog('NGC1566', catalog_type = 'GAIAXP', fov_ra = 1, fov_dec = 1)
-    # APASS catalog of given ra dec with FOV_RA = 1.3, FOV_DEC = 0.9
-    ra = 10.68458
-    dec = -41.26917
-    catalog_type = 'APASS'
-    fov_ra = 1.3
-    fov_dec = 0.9
-    self = SkyCatalog(ra = ra, dec = dec, catalog_type = 'GAIAXP', fov_ra = 1.3, fov_dec = 0.9)
-    # Once queried, the data is saved in catalog_archive, so it can be called without querying again
-    # One can query reference sources with the mag_lower, mag_upper, and some keyword arguments. kwargs need to be list of [lower limit, upper limit]
-    #reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15)
-    #reference_sources, applied_kwargs = C.get_reference_sources(mag_lower = 10, mag_upper = 15, ra = [10, 11], dec = [40, 41])
-# %%

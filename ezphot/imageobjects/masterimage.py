@@ -10,7 +10,7 @@ from dataclasses import dataclass, asdict
 from astropy.time import Time
 from astropy.io import fits
 
-from ezphot.imageobjects import Logger, BaseImage
+from ezphot.imageobjects import BaseImage
 #%%
 
 
@@ -64,13 +64,16 @@ class Status:
                 raise ValueError(f"Status for '{name}' must be a dict with 'status' and 'update_time'")
         else:
             super().__setattr__(name, value)
-
+            
     def update(self, process_name, status: bool = True):
         if process_name in self._steps:
             self._steps[process_name]["status"] = status
             self._steps[process_name]["update_time"] = Time.now().isot
         else:
             raise ValueError(f"Invalid process name: {process_name}")
+
+    def copy(self):
+        return Status.from_dict(self.to_dict())
 
     def to_dict(self):
         return self._steps
@@ -105,12 +108,15 @@ class Info:
             self._fields[name] = value
         else:
             raise AttributeError(f"'Info' object has no attribute '{name}'")
-    
+
     def update(self, key, value):
         if key in self._fields:
             self._fields[key] = value
         else:
             print(f"WARNING: Invalid key: {key}")
+            
+    def copy(self):
+        return Info.from_dict(self.to_dict())
 
     def to_dict(self):
         return self._fields
@@ -153,7 +159,7 @@ class MasterImage(BaseImage):
         
         # Initialize Status and Info
         self.status = Status()
-        self._logger = None
+        # self._logger = None
         
         # Initialize or load status
         if load:
@@ -512,17 +518,17 @@ class MasterImage(BaseImage):
         with open(self.savepath.infopath, 'w') as f:
             json.dump(self.info.to_dict(), f, indent=4)
         
-    @property
-    def logger(self):
-        if self._logger is None and self.savepath.loggerpath is not None:
-            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
-        return self._logger
+    # @property
+    # def logger(self):
+    #     if self._logger is None and self.savepath.loggerpath is not None:
+    #         self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+    #     return self._logger
     
     @property
     def info(self):
         """ Register necessary info fields """
         info = Info(
-            SAVEPATH = str(self.savepath.savepath), OBSERVATORY =  self.telinfo['obs'], CCD = self.telinfo['ccd'],
+            SAVEPATH = str(self.savepath.savepath), OBSERVATORY =  self.telinfo['telescope'], CCD = self.ccd,
             TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate,
             NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'],
             OBJNAME = self.objname, IMGTYPE = self.imgtype, FILTER = self.filter,
@@ -624,12 +630,3 @@ class MasterImage(BaseImage):
     def _check_status(self):
         pass
 
-# %%
-if __name__ == "__main__":
-    path = '/home/hhchoi1022/ezphot/data/mcalibdata/gppy/7DT/7DT_C361K_HIGH_1x1/7DT16/flat/20250723-nz.fits'
-    master_img = MasterImage(path)
-    self = master_img
-    self.register()
-
-    
-# %%

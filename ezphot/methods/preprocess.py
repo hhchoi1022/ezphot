@@ -67,7 +67,8 @@ class Preprocess:
     def get_masterframe_from_image(self,
                                    target_img: ScienceImage or CalibrationImage,
                                    imagetyp: str = 'BIAS',
-                                   max_days: float = 5):
+                                   max_days: float = 30,
+                                   **kwargs):
         """
         Get master frame from the image.
         
@@ -92,30 +93,33 @@ class Preprocess:
         from ezphot.imageobjects import MasterImage
         if not target_img.is_header_loaded:
             target_img.header
+            
+        dict_kwargs = dict()
+        dict_kwargs['observatory'] = target_img.observatory
+        dict_kwargs['telkey'] = target_img.telkey
+        dict_kwargs['telname'] = target_img.telname
+        dict_kwargs['imagetyp'] = imagetyp
+        dict_kwargs['obsdate'] = target_img.obsdate
+        dict_kwargs['exptime'] = target_img.exptime
+        dict_kwargs['filter_'] = target_img.filter
+        dict_kwargs['max_days'] = max_days
+        dict_kwargs.update(kwargs)
 
-        master_frames_tbl = self.get_masterframe(
-            observatory= target_img.observatory,
-            telkey = target_img.telkey,
-            telname = target_img.telname,
-            imagetyp = imagetyp,
-            exptime = target_img.exptime,
-            filter_ = target_img.filter,
-            obsdate = target_img.obsdate,
-            max_days = max_days)
+        master_frames_tbl = self.get_masterframe(**dict_kwargs)
         
         master_img = MasterImage(master_frames_tbl[0]['file']) if master_frames_tbl else None
         
         return master_img, master_frames_tbl
         
     def get_masterframe(self,
-                        observatory: str = '7DT',
-                        telkey: str = '7DT_C361K_HIGH_1x1',
-                        telname: str = '7DT02',
-                        imagetyp: str = 'BIAS',
+                        observatory: str,
+                        telkey: str,
+                        telname: str,
+                        imagetyp: str,
+                        obsdate: str,
                         exptime: float = None,
                         filter_: str = None,
-                        obsdate: str = None,
-                        max_days: float = 5,
+                        max_days: float = 30,
                         verbose: bool = True):
         """
         Get master frame from the image.
@@ -165,26 +169,18 @@ class Preprocess:
 
         if len(all_masterframe_tbl) == 0:
             raise FileNotFoundError("No calibration frame metadata found.")
-        
-        if obsdate is None:
-            self.helper.print('No obsdate provided. Returning None', verbose)
-            return
 
         # === Base mask ===
         mask = np.ones(len(all_masterframe_tbl), dtype=bool)
 
         # Apply filters
-        if observatory is not None:
-            mask &= (all_masterframe_tbl['observatory'] == observatory)
+        mask &= (all_masterframe_tbl['observatory'] == observatory)
 
-        if telkey is not None:
-            mask &= (all_masterframe_tbl['telkey'] == telkey)
+        mask &= (all_masterframe_tbl['telkey'] == telkey)
 
-        if telname is not None:
-            mask &= (all_masterframe_tbl['telname'] == telname)
+        mask &= (all_masterframe_tbl['telname'] == telname)
 
-        if imagetyp is not None:
-            mask &= (all_masterframe_tbl['imagetyp'] == imagetyp.upper())
+        mask &= (all_masterframe_tbl['imagetyp'] == imagetyp.upper())
 
         if imagetyp.upper() == 'DARK' and exptime is not None and 'exptime' in all_masterframe_tbl.colnames:
             mask &= np.isclose(all_masterframe_tbl['exptime'], exptime)
@@ -320,7 +316,7 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
 
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
@@ -407,7 +403,7 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
 
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
@@ -482,7 +478,7 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
@@ -550,7 +546,7 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'DARKCOR')
@@ -564,7 +560,8 @@ class Preprocess:
         calib_data = ccdproc.subtract_dark(tgt_data, dark_data, scale = True, exposure_time = 'EXPTIME', exposure_unit = u.second)
         return calib_data
     
-    def correct_flat(self, target_img: ScienceImage, flat_image: Union[CalibrationImage, MasterImage],
+    def correct_flat(self, target_img: ScienceImage, 
+                     flat_image: Union[CalibrationImage, MasterImage],
                      save : bool = False,
                      verbose: bool = True,
                      **kwargs
@@ -615,7 +612,7 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'FLATCOR')
@@ -854,3 +851,5 @@ class Preprocess:
                         gc.collect()    
             
         return master_files
+#%%
+

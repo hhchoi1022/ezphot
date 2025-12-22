@@ -10,7 +10,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
-from ezphot.imageobjects import DummyImage, Logger
+from ezphot.imageobjects import DummyImage
 
 #%%
 class Status:
@@ -35,7 +35,10 @@ class Status:
             del self.status[event_name]
         else:
             print(f'WARNING: Event not found: {event_name}')
-
+    
+    def copy(self):
+        return Status.from_dict(self.to_dict())
+    
     def to_dict(self):
         return self.status
 
@@ -75,6 +78,9 @@ class Info:
             self._fields[key] = value
         else:
             print(f"WARNING: Invalid key: {key}")
+            
+    def copy(self):
+        return Info.from_dict(self.to_dict())
 
     def to_dict(self):
         return dict(self._fields)
@@ -113,7 +119,7 @@ class Background(DummyImage):
         # Initialize Status and Info
         self.status = Status()
         self.loaded = False
-        self._logger = None
+        # self._logger = None
         self._target_img = None
 
         if load:
@@ -324,12 +330,12 @@ class Background(DummyImage):
             json.dump(self.info.to_dict(), f, indent=4)
             
 
-    @property
-    def logger(self):
-        """Logger instance for the background."""
-        if self._logger is None and self.savepath.loggerpath is not None:
-            self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
-        return self._logger
+    # @property
+    # def logger(self):
+    #     """Logger instance for the background."""
+    #     if self._logger is None and self.savepath.loggerpath is not None:
+    #         self._logger = Logger(logger_name=str(self.savepath.loggerpath)).log()
+    #     return self._logger
 
     @property
     def info(self):
@@ -397,7 +403,7 @@ class Background(DummyImage):
             statuspath=savedir / (filename + '.status'),
             infopath=savedir / (filename + '.info'),
             maskpath= savedir / (filename + '.mask'),
-            loggerpath=savedir / (filename + '.log')
+            # loggerpath=savedir / (filename + '.log')
         )
         
     @property

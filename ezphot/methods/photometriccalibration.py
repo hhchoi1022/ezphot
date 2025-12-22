@@ -17,7 +17,6 @@ from ezphot.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from ezphot.dataobjects import Catalog
 from ezphot.skycatalog import SkyCatalogUtility
 from ezphot.utils import *
-
 #%%
 
 class PhotometricCalibration:
@@ -91,6 +90,7 @@ class PhotometricCalibration:
                                 maskflag_key: str = 'IMAFLAGS_ISO',
 
                                 # Other parameters
+                                update_header: bool = True,
                                 save: bool = True,
                                 verbose: bool = True,
                                 visualize: bool = True,
@@ -176,6 +176,8 @@ class PhotometricCalibration:
             The updated catalog with photometric calibration.
         filtered_catalog: Catalog
             The reference catalog for photometric calibration.
+        update_kwargs: dict
+            The dictionary of updated keywords.
         """
         update_kwargs = dict()
         catalogs = self.catalogutils.get_catalogs(
@@ -315,8 +317,7 @@ class PhotometricCalibration:
         matched_obj = filtered_catalog_data[obj_indices]
         matched_ref = all_references[ref_indices]
         filtered_catalog.data = matched_obj
-        if save_refcat:
-            filtered_catalog.write(verbose = verbose)
+
 
         # Update the target image header
         update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
@@ -525,11 +526,12 @@ class PhotometricCalibration:
                 plt.close()
 
         # Final: Update the header
-        for key, value in update_kwargs.items():
-            if isinstance(value, tuple):
-                target_img.header[key] = value
-            else:
-                target_img.header[key] = (value, "")
+        if update_header:
+            for key, value in update_kwargs.items():
+                if isinstance(value, tuple):
+                    target_img.header[key] = value
+                else:
+                    target_img.header[key] = (value, "")
         
         # Update the target image status
         target_img.update_status('ZPCALC')
@@ -652,9 +654,20 @@ class PhotometricCalibration:
                 
                 plt.close()
         
+        update_kwargs = {
+            'depth': target_img.depth,
+            'seeing': target_img.seeing}
+        
+        for key, value in update_kwargs.items():
+            target_catalog.info.update(key, value)
+            filtered_catalog.info.update(key, value)
+            
         if save:
             target_catalog.write(verbose = verbose)
-        return target_img, target_catalog, filtered_catalog
+            
+        if save_refcat:
+            filtered_catalog.write(verbose = verbose)
+        return target_img, target_catalog, filtered_catalog, update_kwargs
     
     def apply_zp(self,
                 target_img: Union[ScienceImage, ReferenceImage],
@@ -1122,8 +1135,9 @@ class PhotometricCalibration:
         _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'red', label = 'Final selected', alpha = 0.3)
 
         seeing = np.median(filtered_catalog_data[fwhm_key])
-        filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info, load = False)
+        filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info.copy(), load = False)
         filtered_catalog.data = filtered_catalog_data
+        filtered_catalog.info.path = str(target_catalog.savepath.refcatalogpath)
         
         if visualize or save_fig:
             plt.legend()

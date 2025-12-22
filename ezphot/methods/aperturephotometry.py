@@ -82,29 +82,7 @@ class AperturePhotometry:
         # Final plain text output
         help_text = ""
         print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
-        
-    def run_photometry(self,
-                       target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
-                       target_bkg: Optional[Background] = None,
-                       target_bkgrms: Optional[Errormap] = None,
-                       target_mask: Optional[Mask] = None,
-                       sex_params: dict = None,
-                       detection_sigma: float = 5,
-                       aperture_diameter_arcsec: Union[float, list] = [5, 7, 10],
-                       aperture_diameter_seeing: Union[float, list] = [3.5, 4.5],
-                       saturation_level: float = 60000,
-                       kron_factor: float = 2.5,
-                       save: bool = True,
-                       verbose: bool = True,
-                       visualize: bool = True,
-                       save_fig: bool = False,
-                       **kwargs
-                       ):
-        """
-        Run photometry on the target image.
-        """
-        pass
-
+      
     def sex_photometry(self,
                        # Input parameters
                        target_img: Union[ScienceImage, ReferenceImage, CalibrationImage], 
@@ -166,8 +144,8 @@ class AperturePhotometry:
         target_catalog : Catalog
             The aperture photometry catalog.
         """
-        if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
-            raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
+        # if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
+        #     raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
         
         if not target_img.is_saved:
             target_img.write(verbose = False)
@@ -223,11 +201,10 @@ class AperturePhotometry:
                     
         # First Sextractor run to estimate seeing if not provided
         if target_img.seeing is None:
-            sex_params['DETECT_THRESH'] = 10
             result, catalog_first, global_bkgval, global_bkgrms = self.helper.run_sextractor(
                 target_path = img_path,
                 sex_configfile = sexconfig_path,
-                sex_params = sex_params,
+                sex_params = {'DETECT_THRESH': 10},
                 target_mask = mask_path,
                 target_weight = None,
                 weight_type = 'MAP_RMS',
@@ -259,8 +236,9 @@ class AperturePhotometry:
             seeing_estimate = target_img.seeing
         
         if "SEEING_FWHM" not in sex_params.keys():
-            sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate            
-        sex_params['PIXEL_SCALE'] = np.mean(target_img.pixelscale)
+            sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate   
+        pixelscale = np.mean(target_img.pixelscale)         
+        sex_params['PIXEL_SCALE'] = pixelscale
         
         all_apertures = []
         aperture_diameter_arcsec = np.atleast_1d(aperture_diameter_arcsec)
@@ -271,7 +249,7 @@ class AperturePhotometry:
             for aperture_seeing_ratio in aperture_diameter_seeing:
                 all_apertures.append(seeing_estimate * aperture_seeing_ratio)
         
-        aperture_diameter_pixel = ','.join(["%.2f"%(float(size / target_img.telinfo['pixelscale'])) for size in all_apertures])
+        aperture_diameter_pixel = ','.join(["%.2f"%(float(size / pixelscale)) for size in all_apertures])
         sex_params['PHOT_APERTURES'] = aperture_diameter_pixel # This is aperture size in pixel
         sex_params['SATUR_LEVEL'] = saturation_level
         sex_params['PHOT_AUTOPARAMS'] = f"{kron_factor},3.5"
@@ -280,21 +258,13 @@ class AperturePhotometry:
                 sex_params['DETECT_MINAREA'] = 3
                 self.helper.print(f"[WARNING] DETECT_MINAREA is less than 3. It is set to 3.", verbose)
         if 'DETECT_THRESH' in sex_params.keys():
-            if sex_params['DETECT_THRESH'] < 1:
-                sex_params['DETECT_THRESH'] = 1
-                self.helper.print('[WARNING] DETECT_THRESH is less than 1. It is set to 1.', verbose)
+            if sex_params['DETECT_THRESH'] < 1.0:
+                sex_params['DETECT_THRESH'] = 1.0
+                self.helper.print('[WARNING] DETECT_THRESH is less than 1.0. It is set to 1.0.', verbose)
+        else:
+            sex_params['DETECT_THRESH'] = detection_sigma
         for key, value in sex_params.items():
             all_sexconfig[key] = value
-
-        # If DETECT_MINAREA is not set, use the default value from the config
-        # if 'DETECT_MINAREA' not in sex_params.keys():
-        #     sex_params['DETECT_MINAREA'] = all_sexconfig['DETECT_MINAREA']
-        # If DETECT_THRESH is not set, use the detection_sigma
-        #if 'DETECT_THRESH' not in sex_params.keys():
-        #    sex_params['DETECT_THRESH'] = detection_sigma / np.sqrt(sex_params['DETECT_MINAREA'])
-        #if 'ANALYSIS_THRESH' not in sex_params.keys():
-        #    sex_params['ANALYSIS_THRESH'] = sex_params['DETECT_THRESH']
-
         
         # Second Sextractor run with the estimated parameters
         result, catalog, global_bkgval, global_bkgrms = self.helper.run_sextractor(
@@ -418,8 +388,8 @@ class AperturePhotometry:
         target_catalog : Catalog
             The aperture photometry catalog.
         """
-        if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
-            raise ValueError("target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.")
+        # if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
+        #     raise ValueError("target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.")
         
         bkgrms_map = None
         bkgrms = None
@@ -778,6 +748,7 @@ class AperturePhotometry:
         cat_path = target_img.savepath.catalogpath.with_suffix('.circ.cat')
         target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
         target_catalog.data = results
+        
         
         if save:
             target_catalog.write(verbose = verbose)
