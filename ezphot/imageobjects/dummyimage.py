@@ -6,6 +6,10 @@ from typing import Union
 import numpy as np
 from astropy.io import fits
 from astropy.io.fits import Header
+from astropy.wcs.utils import proj_plane_pixel_scales
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+
 
 from ezphot.configuration import Configuration
 from ezphot.helper import Helper
@@ -65,7 +69,7 @@ class DummyImage(Configuration):
     def __init__(self, path: Union[Path, str]):
         super().__init__()
         self.helper = Helper()
-        self.path =  Path(path)
+        self.path =  Path(path).resolve()
         
         self._hdul = None
         self._data = None
@@ -165,7 +169,9 @@ class DummyImage(Configuration):
              scale='zscale', 
              downsample=4, 
              figsize=(8, 6), 
-             title=None):
+             title=None, 
+             save_path: str = False,
+             close_fig: bool = False):
         """
         Visualize the FITS image using slicing-based downsampling and scaling.
 
@@ -235,7 +241,187 @@ class DummyImage(Configuration):
         fig.colorbar(img, cax=cax, label='Pixel value')  # colorbar on the matched axis
 
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+            print(f"Saved: {save_path}")
+        if close_fig:
+            plt.close(fig)
+        return fig, ax
+        
+    def show_position(self,
+                      # Position paramters
+                      x: float,
+                      y: float,
+                      coord_type: str = 'pixel',
+                      # Aperture parameters
+                      radius_arcsec: float = None,
+                      a_arcsec: float = None,
+                      b_arcsec: float = None,
+                      theta_deg: float = None,
+                      aperture_linewidth: float = 1.0,
+                      aperture_color: str = 'red',
+                      aperture_label: str = 'detected',
+                      # Visualization paramters
+                      downsample: int = 4,
+                      zoom_radius_pixel: int = 100,
+                      cmap: str = 'gray',
+                      scale: str = 'zscale',
+                      figsize=(6, 6),
+                      title: str = None,
+                      title_fontsize: int = 18,
+                      # Other parameters
+                      ax=None,
+                      save_path: str = None,
+                      ):
+        """
+        Display a zoomed-in view around a given (x, y) or (RA, Dec) position.
+
+        Parameters
+        ----------
+        x : float
+            X-coordinate (pixel or RA)
+        y : float
+            Y-coordinate (pixel or Dec)
+        radius_arcsec : float, optional
+            Radius of the circle in arcseconds. Default is None.
+        a_arcsec : float, optional
+            Semi-major axis of the ellipse in arcseconds. Default is None.
+        b_arcsec : float, optional
+            Semi-minor axis of the ellipse in arcseconds. Default is None.
+        theta_deg : float, optional
+            Position angle of the ellipse in degrees. Default is None.
+        coord_type : str, optional
+            'pixel' or 'coord'. Default is 'pixel'.
+        downsample : int, optional
+            Step size for downsampling via slicing. Default is 4.
+        zoom_radius_pixel : int, optional
+            Radius of the zoom-in region in pixels. Default is 100.
+        cmap : str, optional
+            Matplotlib colormap. Default is 'gray'.
+        scale : str, optional
+            Scaling method. Default is 'zscale'.
+        figsize : tuple, optional
+            Matplotlib figure size. Default is (6, 6).
+        ax : matplotlib Axes object, optional
+            If provided, the image will be plotted on this axis. Default is None.
+        save_path : str, optional
+            Path to save the figure. Default is None.
+        title : bool, optional
+            Whether to display the title. Default is True.
+        """
+        import matplotlib.pyplot as plt
+        from astropy.visualization import ZScaleInterval, MinMaxInterval
+        from matplotlib.patches import Circle
+
+        data = self.data
+        wcs = self.wcs
+        if data is None:
+            print("No image data loaded.")
+            return
+
+        # Convert (RA, Dec) to pixel if needed
+        if coord_type == 'coord':
+            if wcs is None:
+                print("No valid WCS for sky-to-pixel conversion.")
+                return
+            from astropy.coordinates import SkyCoord
+            import astropy.units as u
+            coord = SkyCoord(x * u.deg, y * u.deg, frame='icrs')
+            x_pix, y_pix = wcs.world_to_pixel(coord)
+        elif coord_type == 'pixel':
+            x_pix, y_pix = x, y
+        else:
+            raise ValueError("coord_type must be 'pixel' or 'coord'.")
+
+        x_pix, y_pix = int(x_pix), int(y_pix)
+
+        # Extract zoom window
+        x_min = max(0, x_pix - zoom_radius_pixel)
+        x_max = min(data.shape[1], x_pix + zoom_radius_pixel)
+        y_min = max(0, y_pix - zoom_radius_pixel)
+        y_max = min(data.shape[0], y_pix + zoom_radius_pixel)
+        size = x_max - x_min
+        pixelscale = np.mean(self.pixelscale)  # arcsec / original pixel
+        x_c, y_c = (x_pix - x_min)//downsample, (y_pix - y_min)//downsample
+
+        if radius_arcsec is None:
+            # keep your heuristic, but make units explicit
+            radius = (size / downsample) * 0.08
+        else:
+            # convert arcsec → cutout pixels
+            radius = radius_arcsec / (pixelscale * downsample)
+        cutout = data[y_min:y_max:downsample, x_min:x_max:downsample]
+
+        # Scaling
+        interval = ZScaleInterval() if scale == 'zscale' else MinMaxInterval()
+        vmin, vmax = interval.get_limits(cutout)
+
+        # Draw
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            fig = ax.figure
+
+        ax.imshow(cutout, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
+        if a_arcsec is not None and b_arcsec is not None and theta_deg is not None:
+            from matplotlib.patches import Ellipse
+            ax.add_patch(Ellipse(
+                (x_c, y_c),
+                width=6*a_arcsec/pixelscale, height=6*b_arcsec/pixelscale, angle=theta_deg,
+                edgecolor=aperture_color, facecolor='none', linewidth= aperture_linewidth
+            ))
+            if aperture_label is not None:
+                ax.text(
+                    x_c,
+                    y_c - 1.5 * radius,   # small offset below the aperture
+                    aperture_label,
+                    color=aperture_color,
+                    fontsize=10,
+                    ha='center',
+                    va='top',
+                    zorder=10,
+                    bbox=dict(
+                        facecolor='white',
+                        edgecolor='none',
+                        alpha=0.6,
+                        pad=1.5
+                    )
+                )
+
+        else:
+            ax.add_patch(Circle(
+                (x_c, y_c),
+                radius=radius, edgecolor=aperture_color, facecolor='none', linewidth=aperture_linewidth
+            ))
+            if aperture_label is not None:
+                ax.text(
+                    x_c,
+                    y_c - 1.5 * radius,   # small offset below the aperture
+                    aperture_label,
+                    color=aperture_color,
+                    fontsize=10,
+                    ha='center',
+                    va='top',
+                    zorder=10,
+                    bbox=dict(
+                        facecolor='white',
+                        edgecolor='none',
+                        alpha=0.6,
+                        pad=1.5
+                    )
+                )
+            
+        ax.axis('off')
+        ax.set_aspect('auto')  # ? Avoid square enforcement
+
+        if title is not None:
+            ax.set_title(f"{title}", fontsize=title_fontsize)
+
+        if save_path:
+            fig.savefig(save_path, dpi=300)
+            print(f"Saved: {save_path}")
+
+        return fig, ax
         
     def run_ds9(self):
         """Open the image with SAOImage DS9.
@@ -281,7 +467,27 @@ class DummyImage(Configuration):
             if key in self._header:
                 return self._header[key]
         return None
-            
+    
+    @property
+    def fovx(self):
+        """Field of view along the first axis."""
+        pixelscale = self.pixelscale
+        if pixelscale is not None:
+            fovx = pixelscale[0] * self.naxis1 / 3600  # Convert to degrees
+            return float('%.3f' % fovx)
+        else:
+            return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis1 / 3600))
+    
+    @property
+    def fovy(self):
+        """Field of view along the second axis."""
+        pixelscale = self.pixelscale
+        if pixelscale is not None:
+            fovy = pixelscale[1] * self.naxis2 / 3600  # Convert to degrees
+            return float('%.3f' % fovy)
+        else:
+            return float('%.3f' %(self.telinfo['pixelscale'] * self.naxis2 / 3600))
+    
     @property
     def wcs(self):
         """WCS information of the image."""
@@ -294,18 +500,28 @@ class DummyImage(Configuration):
         
     @property
     def center(self):
-        """Center coordinates of the image in RA and DEC."""
-        center_info = dict()
-        center_info['x'] = self.naxis1 / 2
-        center_info['y'] = self.naxis2 / 2
-        center_info['ra'] = None
-        center_info['dec'] = None
+        """Center pixel (0-based) and its world coordinates (RA, Dec)."""
+        x_center = (self.naxis1 - 1) / 2
+        y_center = (self.naxis2 - 1) / 2
+        ra = dec = None
+
         if self.wcs is not None:
-            center_world = self.wcs.pixel_to_world(center_pixel[0], center_pixel[1])
-            center_info['ra'] = center_world.ra.deg
-            center_info['dec'] = center_world.dec.deg
-        return center_info
+            try:
+                skycoord = self.wcs.pixel_to_world(x_center, y_center)
+                ra = skycoord.ra.deg
+                dec = skycoord.dec.deg
+            except Exception as e:
+                print(f"WCS conversion failed: {e}")
+
+        return {'x': x_center, 'y': y_center, 'ra': ra, 'dec': dec}
     
+    @property
+    def pixelscale(self):
+        """Pixel scale of the image."""
+        try:
+            return proj_plane_pixel_scales(self.wcs) * 3600  # Convert to arcseconds
+        except:
+            return None
 
     @property
     def data(self):
@@ -370,11 +586,9 @@ class DummyImage(Configuration):
             'DARKPATH': ['DARKPATH'],
             'FLATPATH': ['FLATPATH'],
             # Mask
-            'MASKPATH': ['MASKPATH'],
             'MASKTYPE': ['MASKTYPE'],
             'MASKATMP': ['MASKATMP'],
             # Background
-            'BKGPATH': ['BKGPATH'],
             'BKGTYPE': ['BKGTYPE'],
             'BKGIS2D': ['BKGIS2D'],
             'BKGVALU': ['BKGVALU'],
@@ -383,7 +597,6 @@ class DummyImage(Configuration):
             'BKGBOX': ['BKGBOX'],
             'BKGFILT': ['BKGFILT'],
             # Errormap
-            'EMAPPATH': ['EMAPPATH'],
             'EMAPTYPE': ['EMAPTYPE'],
         }
 

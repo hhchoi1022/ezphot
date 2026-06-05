@@ -818,7 +818,7 @@ class PSFPhotometry:
         psfex_params["SAMPLE_MAXELLIP"] = str(ellipticity_upper)
 
         # Run PSFEx
-        snapshot = self.helper.run_psfex(
+        psfex_result, snapshot = self.helper.run_psfex(
             target_path=target_img.path,
             psfex_sexconfigfile=target_img.config['PSFEX_SEXCONFIG'],
             psfex_configfile=target_img.config['PSFEX_CONFIG'],

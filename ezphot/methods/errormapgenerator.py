@@ -152,12 +152,6 @@ class ErrormapGenerator:
             )
         target_errormap.header.update(update_header_kwargs)
         
-        # Update header of the target image
-        update_header_kwargs_image = dict(
-            EMAPPATH = str(target_errormap.path),
-            )
-        target_img.header.update(update_header_kwargs_image)
-        
         ## Update status          
         event_details = dict(type = 'sourcerms', mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = str(mflaterr_path))
         target_errormap.add_status("error_propagation", **event_details)
@@ -289,7 +283,6 @@ class ErrormapGenerator:
 
         # Update header
         update_header_kwargs = dict(
-            BKGPATH = str(target_bkg.path),
             BIASPATH = str(mbias_img.path),
             DARKPATH = str(mdark_img.path),
             FLATPATH = str(mflat_img.path),
@@ -405,16 +398,14 @@ class ErrormapGenerator:
         # Update header
         update_header_kwargs = dict(
             TGTPATH = str(target_img.path),
-            BKGPATH = str(target_bkg.path),
-            MASKPATH = str(target_bkg.info.MASKPATH),
             )
         target_errormap.header.update(update_header_kwargs)
         
         ## Update status          
         if errormap_type.lower() == 'sourcerms':
-            event_details = dict(type = 'sourcerms', bkg_path = str(target_bkg.path), bkg_mask = str(target_bkg.info.MASKPATH), box_size = box_size, filter_size = filter_size)
+            event_details = dict(type = 'sourcerms', bkg_path = str(target_bkg.path), box_size = box_size, filter_size = filter_size)
         else:
-            event_details = dict(type = 'bkgrms', bkg_path = str(target_bkg.path), bkg_mask = str(target_bkg.info.MASKPATH), box_size = box_size, filter_size = filter_size)
+            event_details = dict(type = 'bkgrms', bkg_path = str(target_bkg.path), box_size = box_size, filter_size = filter_size)
 
         target_errormap.add_status("sourcemask", **event_details)
         

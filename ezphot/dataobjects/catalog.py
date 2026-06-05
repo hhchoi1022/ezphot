@@ -5,6 +5,7 @@ import logging
 import inspect
 from pathlib import Path
 from typing import Union, Optional
+import fnmatch
 
 import numpy as np
 from numba import jit
@@ -207,6 +208,7 @@ class Catalog:
     def show_source(self,
                     ra: float,
                     dec: float,
+                    radius_arcsec: float = 5.0,
                     downsample: int = 4,
                     zoom_radius_pixel: float = 50,
                     matching_radius_arcsec: float = 3.0,
@@ -269,6 +271,7 @@ class Catalog:
         x_ds = x / downsample
         y_ds = y / downsample
 
+
         # Create figure with two subplots
         fig, (ax_full, ax_zoom) = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -297,7 +300,7 @@ class Catalog:
 
         # Draw red circle for requested position
         pixel_scale = np.abs(self.target_img.wcs.pixel_scale_matrix[0, 0]) * 3600  # arcsec/pixel
-        radius_pixel = matching_radius_arcsec / pixel_scale
+        radius_pixel = radius_arcsec / pixel_scale
         circ = plt.Circle((x, y), radius_pixel, color='red', fill=False, linestyle='--',
                         linewidth=2.5, alpha=0.7)
         ax_zoom.add_patch(circ)
@@ -375,31 +378,13 @@ class Catalog:
         self.data.write(self.savepath.savepath, format=format, overwrite=True)
         self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
         self.save_info()
-        
+
     def remove(self, 
-               remove_main: bool = True, 
-               remove_connected_files: bool = True,
-               skip_exts: list = ['.png', '.cat'],
-               verbose: bool = False) -> dict:
-        """
-        Remove the main FITS file and/or associated connected files.
+            remove_main: bool = True, 
+            remove_connected_files: bool = True,
+            skip_patterns: list = [['*.png', '*.cat']],
+            verbose: bool = True) -> dict:
 
-        Parameters
-        ----------
-        remove_main : bool
-            If True, remove the main FITS file (self.path)
-        remove_connected_files : bool
-            If True, remove associated files (status, mask, coadd, etc.)
-        skip_exts : list
-            List of file extensions to skip (e.g. ['.png', '.cat'])
-        verbose : bool
-            If True, print removal results
-
-        Returns
-        -------
-        dict
-            {file_path (str): success (bool)} for each file attempted
-        """
         removed = {}
 
         def try_remove(p: Union[str, Path]):
@@ -416,6 +401,12 @@ class Catalog:
                     return False
             return False
 
+        def should_skip(p: Path):
+            for pattern in skip_patterns:
+                if fnmatch.fnmatch(p.name, pattern):
+                    return True
+            return False
+
         # Remove main FITS file
         if remove_main and self.path and self.path.is_file():
             removed[str(self.path)] = try_remove(self.path)
@@ -423,10 +414,12 @@ class Catalog:
         # Remove connected files
         if remove_connected_files:
             for f in self.connected_files:
-                if f.suffix in skip_exts:
+
+                if should_skip(f):
                     if verbose:
-                        print(f"[SKIP] {f} (skipped due to extension)")
+                        print(f"[SKIP] {f} (matched skip pattern)")
                     continue
+
                 removed[str(f)] = try_remove(f)
 
         return removed
@@ -638,22 +631,61 @@ class Catalog:
         self.helper.print(f"Loaded: {self.savepath.infopath}", verbose)
         return self.info
 
-    def _find_corresponding_fits(self) -> Optional[Path]:
-        search_dirs = [self.path.parent, self.path.parent.parent]       
+    # def _find_corresponding_fits(self) -> Optional[Path]:
+    #     search_dirs = [self.path.parent, self.path.parent.parent]       
         
-        # Iteravely strip suffixes from the path to find candidates
+    #     # Iteravely strip suffixes from the path to find candidates
+    #     candidates = []
+    #     path = self.path
+    #     while path.suffix:
+    #         path = path.with_suffix('')
+    #         if path.suffix.startswith('.fits'):
+    #             candidates.append(path.name)
+    #         else:
+    #             candidate = Path(str(path) + '.fits')
+    #             if candidate.name not in candidates:
+    #                 candidates.append(candidate.name)
+
+    #     # Search for candidate names in possible directories
+    #     for directory in search_dirs:
+    #         for name in candidates:
+    #             candidate_path = directory / name
+    #             if candidate_path.exists():
+    #                 return candidate_path
+
+    #     print(f"[WARNING] No matching .fits found for: {self.path}")
+    #     return None
+
+    def _find_corresponding_fits(self) -> Optional[Path]:
+        search_dirs = [self.path.parent, self.path.parent.parent]
+
         candidates = []
+        filename = self.path.name
+
+        def add_candidate(name: str):
+            if name not in candidates:
+                candidates.append(name)
+
+        # 1. explicit pattern handling
+        # e.g. T01222_m575_7DT14_20260305_024900_300s_coadd_cat.fits
+        #   -> T01222_m575_7DT14_20260305_024900_300s_coadd.fits
+        if filename.endswith('_cat.fits'):
+            add_candidate(filename.replace('_cat.fits', '.fits'))
+
+        # 필요하면 이런 패턴도 추가 가능
+        # if filename.endswith('_phot.cat.fits'):
+        #     add_candidate(filename.replace('_phot.cat.fits', '.fits'))
+
+        # 2. iterative suffix stripping (existing logic, slightly cleaned)
         path = self.path
         while path.suffix:
             path = path.with_suffix('')
             if path.suffix.startswith('.fits'):
-                candidates.append(path.name)
+                add_candidate(path.name)
             else:
-                candidate = Path(str(path) + '.fits')
-                if candidate.name not in candidates:
-                    candidates.append(candidate.name)
+                add_candidate(f"{path.name}.fits")
 
-        # Search for candidate names in possible directories
+        # 3. search
         for directory in search_dirs:
             for name in candidates:
                 candidate_path = directory / name

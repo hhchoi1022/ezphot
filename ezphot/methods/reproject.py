@@ -188,6 +188,7 @@ class Reproject:
                   x_size: Optional[int] = None,
                   y_size: Optional[int] = None,
                   pixelscale: Optional[float] = None,
+                  keep_header_keys: Optional[List[str]] = ['GAIN'],
                   verbose: bool = True,
                   overwrite: bool = False,
                   save: bool = True,
@@ -264,8 +265,9 @@ class Reproject:
         errormap_outpath_tmp = str(errormap_outpath) + '.tmp' if target_errormap is not None else None
 
         swarp_configfile = target_img.config['SWARP_CONFIG']
+        keep_header_dict = {key: original_header[key] for key in keep_header_keys}
         
-        target_outpath, errormap_outpath_tmp = self.helper.run_swarp(
+        swarp_result, target_outpathlist, _ = self.helper.run_swarp(
             target_path = target_path,
             swarp_configfile = swarp_configfile,
             swarp_params = swarp_params,
@@ -289,7 +291,7 @@ class Reproject:
         os.remove(errormap_outpath_tmp) if errormap_outpath_tmp is not None else None
         
         if target_errormap is not None:
-            target_outpath_tmp, errormap_outpath = self.helper.run_swarp(
+            swarp_result, _, errormap_outpathlist = self.helper.run_swarp(
                 target_path = target_path,
                 swarp_configfile = swarp_configfile,
                 swarp_params = swarp_params,
@@ -314,17 +316,19 @@ class Reproject:
         reprojected_img.savedir = target_img.savedir
         reprojected_img.header = self.helper.merge_header(reprojected_img.header, original_header, exclude_keys = ['PV*', '*SEC'])
         reprojected_img.update_status(process_name = 'REPROJECT')
+        reprojected_img.header.update(keep_header_dict)
 
         reprojected_errormap = None
         if target_errormap is not None:
             reprojected_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', status = target_errormap.status, load = True)
             reprojected_errormap.header = self.helper.merge_header(reprojected_errormap.header, original_header, exclude_keys = ['PV*', '*SEC'])
             reprojected_errormap.data
+            reprojected_errormap.header.update(keep_header_dict)
             if is_errormap_bkgrms:
                 reprojected_errormap.remove(
                     remove_main = True, 
                     remove_connected_files = True,
-                    skip_exts = [],
+                    skip_patterns = [],
                     verbose = verbose)
                 reprojected_errormap.to_rms()
 
@@ -338,7 +342,7 @@ class Reproject:
                     reprojected_errormap.write(verbose = verbose)
         
         if is_errormap_bkgrms:
-            target_errormap.remove(verbose = verbose, remove_main = True, remove_connected_files = True, skip_exts = [])
+            target_errormap.remove(verbose = verbose, remove_main = True, remove_connected_files = True, skip_patterns = [])
                 
         reprojected_ivpmask = None
         if return_ivpmask:
@@ -427,3 +431,21 @@ class Reproject:
         # Update the WCS header
         return data_flipped, header
    
+# %%
+if __name__ == "__main__":
+    target_img = ScienceImage('/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01222/7DT06/m512/7DT06_20260304_003121_T01222_m512_1x1_100.0s_0002.fits')
+    self = Reproject()
+    self.reproject(
+        target_img = target_img,
+        target_errormap = None,
+        swarp_params = None,
+        resample_type = 'LANCZOS3',
+        center_ra = None,
+        center_dec = None,
+        x_size = None,
+        y_size = None,
+        pixelscale = None,
+        verbose = True,
+        overwrite = False)
+# %%
+# %%

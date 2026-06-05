@@ -22,6 +22,8 @@ import astropy.units as u
 
 from ezphot.configuration import Configuration
 from ezphot.helper import Helper
+from ezphot.error import *
+
 #%%
 
 # class LazyFileHandler(logging.FileHandler):
@@ -82,7 +84,7 @@ class BaseImage(Configuration):
         path = Path(path)
 
         self.helper = Helper()
-        self.path = path
+        self.path = Path(path).resolve()
         self._hdul = None
         self._data = None
         self._header = Header()
@@ -184,14 +186,14 @@ class BaseImage(Configuration):
         self.header
         
     def show(self, 
-            coord_type: str = "pixel",
+            coord_type: str = "coord",
             cmap='gray', 
             scale='zscale', 
             downsample=4, 
             figsize=(8, 6), 
             title=None, 
             save_path: str = False,
-            close_fig: bool = True):
+            close_fig: bool = False):
         """
         Visualize the FITS image with optional WCS overlay and downsampling.
         """
@@ -313,7 +315,7 @@ class BaseImage(Configuration):
                       # Position paramters
                       x: float,
                       y: float,
-                      coord_type: str = 'pixel',
+                      coord_type: str = 'coord',
                       # Aperture parameters
                       radius_arcsec: float = None,
                       a_arcsec: float = None,
@@ -394,7 +396,25 @@ class BaseImage(Configuration):
         else:
             raise ValueError("coord_type must be 'pixel' or 'coord'.")
 
-        x_pix, y_pix = int(x_pix), int(y_pix)
+        ny, nx = data.shape
+
+        # coverage check: target position itself must be on the image
+        if not (0 <= x_pix < nx and 0 <= y_pix < ny):
+            raise OutofCoverageError(
+                f"Requested position ({x_pix:.2f}, {y_pix:.2f}) is outside image coverage "
+                f"for image shape ({ny}, {nx})."
+            )
+
+        x_int = int(x_pix)
+        y_int = int(y_pix)
+
+        # optional: if your image contains uncovered regions as NaN
+        if not np.isfinite(data[y_int, x_int]):
+            raise OutofCoverageError(
+                f"Requested position ({x_pix:.2f}, {y_pix:.2f}) is not covered by valid image data."
+            )
+
+        x_pix, y_pix = x_int, y_int
 
         # Extract zoom window
         x_min = max(0, x_pix - zoom_radius_pixel)
@@ -709,6 +729,10 @@ class BaseImage(Configuration):
     @property 
     def ra(self):
         """Right ascension of the target."""
+        center = self.center
+        if center['ra'] is not None:
+            return center['ra']
+        
         header = self.header
         for key in self._key_variants['RA']:
             if key in header:
@@ -718,6 +742,10 @@ class BaseImage(Configuration):
     @property
     def dec(self):
         """Declination of the target."""
+        center = self.center
+        if center['dec'] is not None:
+            return center['dec']
+        
         header = self.header
         for key in self._key_variants['DEC']:
             if key in header:
@@ -915,15 +943,6 @@ class BaseImage(Configuration):
         return None
     
     @property
-    def maskpath(self):
-        """Path to the mask image."""
-        header = self.header
-        for key in self._key_variants['MASKPATH']:
-            if key in header:
-                return str(header[key])
-        return None
-    
-    @property
     def masktype(self):
         """Type of the mask image."""
         header = self.header
@@ -933,28 +952,10 @@ class BaseImage(Configuration):
         return None
     
     @property
-    def bkgpath(self):
-        """Path to the background image."""
-        header = self.header
-        for key in self._key_variants['BKGPATH']:
-            if key in header:
-                return str(header[key])
-        return None
-    
-    @property
     def bkgtype(self):
         """Type of the background image."""
         header = self.header
         for key in self._key_variants['BKGTYPE']:
-            if key in header:
-                return str(header[key])
-        return None
-    
-    @property
-    def emappath(self):
-        """Path to the emap image."""
-        header = self.header
-        for key in self._key_variants['EMAPPATH']:
             if key in header:
                 return str(header[key])
         return None
@@ -1006,20 +1007,22 @@ class BaseImage(Configuration):
         y_center = (self.naxis2 - 1) / 2
         ra = dec = None
 
-        if self.wcs is not None:
+        if self.wcs.has_celestial:
             try:
                 skycoord = self.wcs.pixel_to_world(x_center, y_center)
                 ra = skycoord.ra.deg
                 dec = skycoord.dec.deg
             except Exception as e:
                 print(f"WCS conversion failed: {e}")
-
+        
         return {'x': x_center, 'y': y_center, 'ra': ra, 'dec': dec}
         
     @property
     def pixelscale(self):
         """Pixel scale of the image."""
         try:
+            if not self.wcs.has_celestial:
+                return None
             return proj_plane_pixel_scales(self.wcs) * 3600  # Convert to arcseconds
         except:
             return None
@@ -1079,8 +1082,8 @@ class BaseImage(Configuration):
             'DATE-LOC': ['DATE-LOC', 'DATE-LTC', 'LOCDATE', 'LTCDATE'],
             'JD' : ['JD', 'JD-HELIO', 'JD-UTC', 'JD-OBS'],
             'MJD' : ['MJD', 'MJD-HELIO', 'MJD-UTC', 'MJD-OBS'],
-            'RA': ['CRVAL1', 'RA', 'OBJCTRA', 'OBSRA'],
-            'DEC': ['CRVAL2', 'DEC', 'DECL', 'DEC.', 'DECL.', 'CRVAL2', 'OBJCTDEC', 'OBSDEC'],   
+            'RA': ['RA', 'OBJCTRA', 'OBSRA'],
+            'DEC': ['DEC', 'DECL', 'DEC.', 'DECL.', 'OBJCTDEC', 'OBSDEC'],   
             'TELESCOP' : ['TELESCOP', 'TELNAME'],
             'BINNING': ['BINNING', 'XBINNING'],
             'OBJECT': ['OBJECT', 'OBJNAME', 'TARGET', 'TARNAME'],
@@ -1103,17 +1106,14 @@ class BaseImage(Configuration):
             'SKYVAL': ['SKYVAL', 'SKY_VAL'],
             'ZP': ['ZP_AUTO', 'ZP_2'],
             'ZPERR': ['ZPERR_AUTO', 'EZP_2'],
-            'DEPTH': ['UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5_4'],
+            'DEPTH': ['UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5_4'],
             # Path information
             'SAVEPATH': ['SAVEPATH'],
             'BIASPATH': ['BIASPATH'],
             'DARKPATH': ['DARKPATH'],
             'FLATPATH': ['FLATPATH'],
-            'BKGPATH': ['BKGPATH'],
             'BKGTYPE': ['BKGTYPE'],
-            'EMAPPATH': ['EMAPPATH'],
             'EMAPTYPE': ['EMAPTYPE'],
-            'MASKPATH': ['MASKPATH'],
             'MASKTYPE': ['MASKTYPE'],
         }
 
@@ -1127,4 +1127,3 @@ class BaseImage(Configuration):
         else:
             telkey = f"{telinfo['telescope']}_{telinfo['ccd']}_{telinfo['binning']}x{telinfo['binning']}"
         return telkey
-

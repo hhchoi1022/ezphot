@@ -12,6 +12,10 @@ import functools
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Optional, Tuple
+import portalocker
+import uuid
+import tempfile
+
 
 # External libraries
 import numpy as np
@@ -29,6 +33,7 @@ from astropy.wcs.utils import proj_plane_pixel_scales
 from astropy.convolution import convolve, Gaussian2DKernel
 # Custom config
 from ezphot.configuration import Configuration
+from ezphot.error import ExternalToolError
 
 # Suppress all warnings
 warnings.filterwarnings('ignore')
@@ -720,12 +725,12 @@ class PhotometryHelper(Configuration):
                     # Attempt to convert value to appropriate type
                     try:
                         # Handle lists
-                        if ',' in value:
-                            value = [float(v) if '.' in v else int(v)
-                                    for v in value.split(',')]
-                        else:
-                            # Convert to float if possible
-                            value = float(value) if '.' in value else int(value)
+                        # if ',' in value:
+                        #     value = [float(v) if '.' in v else int(v)
+                        #             for v in value.split(',')]
+                        # else:
+                        # # Convert to float if possible
+                        value = float(value) if '.' in value else int(value)
                     except ValueError:
                         # Keep as string if conversion fails
                         pass
@@ -1458,9 +1463,6 @@ class PhotometryHelper(Configuration):
         Run SExtractor followed by PSFEx on the specified image using the provided configuration and parameters.
         """
         from pathlib import Path
-        import os
-        import subprocess
-        import datetime
 
         self.print('Start PSFEx process...=====================', verbose)
         current_dir = Path.cwd()
@@ -1498,28 +1500,20 @@ class PhotometryHelper(Configuration):
             abspath = output_file_path.parent / (file_.stem + '_' + output_file_path.stem + file_.suffix)
             abspath_fits_files.append(abspath)
             
-        # Build PSFEx parameter string
-        psfexparams_str = ' '.join([f"-{key} {value}" for key, value in psfex_params.items()])
-
-        command = f"psfex {output_file} -c {psfex_configfile} {psfexparams_str}"
-
-        try:
-            os.chdir(target_path.parent)
-            self.print(f'RUN COMMAND: {command}', verbose)
-            result = subprocess.run(command, shell=True, check=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if verbose:
-                self.print(result.stdout.decode(), verbose)
-                self.print(result.stderr.decode(), verbose)
-
-            self.print("PSFEx process finished=====================", verbose)
-            return abspath_fits_files
-        except subprocess.CalledProcessError as e:
-            self.print(f"Error during PSFEx execution: {e.stderr.decode()}", verbose)
-            return None
-        finally:
-            os.chdir(current_dir)  # Ensure directory is reset
-    
+        # Build PSFEx command
+        command = [
+            "psfex",
+            str(output_file),
+            "-c",
+            str(psfex_configfile),
+        ]
+        for k,v in psfex_params.items():
+            command += [f"-{k}", str(v)]
+        
+        result = self.run_command(command, cwd = target_path.parent, timeout = 900)
+        self.print("PSFEx process finished=====================", verbose)
+        return True, abspath_fits_files
+            
     def run_hotpants(self,
                      target_path: Union[str, Path],
                      reference_path: Union[str, Path],
@@ -1544,16 +1538,15 @@ class PhotometryHelper(Configuration):
                      bgo: int = 1,
                      nsx: int = 10,
                      nsy: int = 10,
-                     r: int = 10) -> str:
+                     r: int = 10,
+                     ng: str = '3 6 0.70 4 1.50 2 3.00') -> str:
         """
         Run Hotpants for image subtraction.
         """
         from pathlib import Path
-        import subprocess
 
         target_path = Path(target_path)
         reference_path = Path(reference_path)
-        current_dir = Path.cwd()
 
         if not target_path.is_file():
             raise FileNotFoundError(f"Target image {target_path} does not exist.")
@@ -1588,6 +1581,14 @@ class PhotometryHelper(Configuration):
             '-nsy', str(nsy),
             '-r', str(r),
         ])
+        
+        if ng is not None:
+            if isinstance(ng, str):
+                command.extend(['-ng'] + ng.split())
+            elif isinstance(ng, (list, tuple)):
+                command.extend(['-ng'] + [str(v) for v in ng])
+            else:
+                raise TypeError("ng must be str, list, tuple, or None")
 
         if convolve_path:
             convolve_path = Path(convolve_path)
@@ -1603,33 +1604,8 @@ class PhotometryHelper(Configuration):
             command.extend(['-ssf', str(stamp)])
 
         self.print(f"RUN COMMAND: {' '.join(command)}", verbose)
-
-        try:
-            result = subprocess.run(
-                command,
-                check=True,
-                text=True,
-                capture_output=True,
-                timeout=900
-            )
-            if verbose:
-                self.print(result.stdout, verbose)
-                self.print(result.stderr, verbose)
-
-            self.print(f"Image subtraction completed successfully. Output saved to {target_outpath}", verbose)
-            return str(target_outpath)
-
-        except subprocess.CalledProcessError as e:
-            self.print(f"Error during hotpants execution: {e.stderr}", verbose)
-            return ""
-
-        except subprocess.TimeoutExpired:
-            self.print(f"Hotpants process timed out after 900 seconds.", verbose)
-            return ""
-        
-        except Exception as e:
-            self.print(f"An unexpected error occurred: {str(e)}", verbose)
-            return ""
+        result = self.run_command(command, cwd = target_path.parent, timeout = 900)
+        return True, target_outpath
 
     def run_astrometry(self,
                        target_path: Union[str, Path], 
@@ -1644,23 +1620,20 @@ class PhotometryHelper(Configuration):
         """
         Run the Astrometry.net process to solve WCS coordinates.
         """
-        import os
-        import subprocess
-        import tempfile
 
-        current_dir = Path.cwd()
+        # current_dir = Path.cwd()
         target_path = Path(target_path)
         target_dir = target_path.parent
         sexconfig_path = Path(astrometry_sexconfigfile)
         hdr = fits.getheader(target_path)
-        if not ra:
+        if ra is None:
             ra_keys = ['RA', 'OBJCTRA', 'CRVAL1']
             for ra_key in ra_keys:
                 if ra_key in hdr.keys():
                     ra = hdr[ra_key]
                     self.print(f'RA key found in header: {ra}', verbose)
                     break
-        if not dec:
+        if dec is None:
             dec_keys = ['DEC', 'OBJCTDEC', 'CRVAL2']
             for dec_key in dec_keys:
                 if dec_key in hdr.keys():
@@ -1673,100 +1646,74 @@ class PhotometryHelper(Configuration):
         if not sexconfig_path.is_file():
             raise FileNotFoundError(f"SExtractor config file {sexconfig_path} does not exist.")
 
-        try:
-            self.print('Start Astrometry process...=====================', verbose)
-
-            with tempfile.TemporaryDirectory(dir = target_dir) as tmpdir:
-                tmpdir = Path(tmpdir)
-                os.chdir(tmpdir)
-                # Copy configs into tmpdir
-                for ext in ['.param', '.conv', '.nnw']:
-                    for file in Path(self.sexpath).glob(f'*{ext}'):
-                        shutil.copy(file, tmpdir)
-                        
-                # # Set up directories and copy configuration files
-                self.print(f'Solving WCS using Astrometry with RA/Dec of {ra}/{dec} and radius of {radius} deg', verbose)
-
-                # Define output path
-                if not target_outpath:
-                    target_outpath = target_dir / f'astrometry_{target_path.name}'
-                else:
-                    target_outpath = Path(target_outpath)
+        self.print('Start Astrometry process...=====================', verbose)
+        
+        tmpdir_path = Path.home() / '.astrometry' /'tmp'
+        tmpdir_path.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir = tmpdir_path) as tmpdir:
+            tmpdir = Path(tmpdir)
+            # Copy configs into tmpdir
+            for ext in ['.param', '.conv', '.nnw', '.psf']:
+                for file in Path(self.sexpath).glob(f'*{ext}'):
+                    shutil.copy(file, tmpdir)
                     
-                # Rename target_path if target_outpath and target_path are the same
-                remove_tmpfile = False
-                if target_outpath.resolve() == target_path.resolve():
-                    tmp_target_path = target_path.with_name(target_path.stem + '_tmp.fits')
-                    target_path.rename(tmp_target_path)  # Rename the actual file
-                    target_path = tmp_target_path  # Update reference in script
-                    remove_tmpfile = True
+            # # Set up directories and copy configuration files
+            self.print(f'Solving WCS using Astrometry with RA/Dec of {ra}/{dec} and radius of {radius} deg', verbose)
 
-                # Build the command
-                command = [
-                    'solve-field', str(target_path),
-                    '--dir', str(tmpdir),
-                    '--cpulimit', '300',
-                    '--use-source-extractor',
-                    '--source-extractor-config', str(sexconfig_path),
-                    '--x-column', 'X_IMAGE',
-                    '--y-column', 'Y_IMAGE',
-                    '--sort-column', 'MAG_AUTO',
-                    '--sort-ascending',
-                    '--no-remove-lines',
-                    '--uniformize', '0',
-                    '--no-plots',
-                    '--new-fits', str(target_outpath),
-                    '--overwrite'
-                ]
-
-                if ra is not None and dec is not None:
-                    command.extend(['--ra', str(ra), '--dec', str(dec), '--radius', str(radius)])
-                if pixelscale:
-                    command.extend(['--scale-unit', 'arcsecperpix','--scale-low', str(pixelscale - 0.1), '--scale-high', str(pixelscale + 0.1)])
+            # Define output path
+            if not target_outpath:
+                target_outpath = Path(target_dir) / f'astrometry_{target_path.name}'
+            else:
+                target_outpath = Path(target_outpath)
                 
-                # Run astrometry with timeout
-                command_str = ' '.join(command)
-                self.print(f'RUN COMMAND: {command_str}', verbose)
-                result = subprocess.run(command, timeout=900, check=True, text=True, capture_output=True)
-                if verbose:
-                    self.print(result.stdout, verbose)
-                    self.print(result.stderr, verbose)
+            # Rename target_path if target_outpath and target_path are the same
+            remove_tmpfile = False
+            tmp_target_path = target_path
+            if target_outpath.resolve() == target_path.resolve():
+                tmp_target_path = target_path.with_name(target_path.stem + '_tmp.fits')
+                target_path.rename(tmp_target_path)  # Rename the actual file
+                remove_tmpfile = True
+
+            # Build the command
+            command = [
+                'solve-field', str(tmp_target_path),
+                '--dir', str(tmpdir),
+                '--cpulimit', '300',
+                '--use-source-extractor',
+                '--source-extractor-config', str(sexconfig_path),
+                '--x-column', 'X_IMAGE',
+                '--y-column', 'Y_IMAGE',
+                '--sort-column', 'MAG_AUTO',
+                '--sort-ascending',
+                '--no-remove-lines',
+                '--uniformize', '0',
+                '--no-plots',
+                '--new-fits', str(target_outpath),
+                '--overwrite'
+            ]
+
+            if ra is not None and dec is not None:
+                command.extend(['--ra', str(ra), '--dec', str(dec), '--radius', str(radius)])
+            if pixelscale:
+                command.extend(['--scale-unit', 'arcsecperpix','--scale-low', str(pixelscale - 0.1), '--scale-high', str(pixelscale + 0.1)])
+            
+            # Run astrometry with timeout
+            command_str = ' '.join(command)
+            self.print(f'RUN COMMAND: {command_str}', verbose)
+            try:
+                result = self.run_command(command, cwd = tmpdir, timeout = 900)
                     
                 # Check if the output file was created
-                solved_file = tmpdir / Path(target_path).with_suffix('.solved').name              
+                solved_file = Path(tmpdir) / Path(tmp_target_path).with_suffix('.solved').name              
                 if solved_file.is_file():
-                    # Check the number of output files
-                    #orinum = int(subprocess.check_output("ls C*.fits | wc -l", shell=True).strip())
-                    #resnum = int(subprocess.check_output("ls a*.fits | wc -l", shell=True).strip())
-
-                    # Clean up intermediate files
-                    #if remove:
-                    #    os.system(f'rm -f tmp* *.conv default.nnw *.wcs *.rdls *.corr *.xyls *.solved *.axy *.match check.fits *.param {sexconfig_path.name}')
-
-                    if remove_tmpfile:
-                        os.remove(tmp_target_path)
                     self.print('Astrometry process finished=====================', verbose)
                     return True, str(target_outpath)
-                else:
-                    if remove_tmpfile:
-                        tmp_target_path.rename(target_path)
-                    self.print('Astrometry process failed=====================', verbose)
-                    return False, target_path
-            
-        except subprocess.TimeoutExpired:
-            self.print("The astrometry process exceeded the timeout limit.", verbose)
-            return False, target_path
-        except subprocess.CalledProcessError as e:
-            self.print(f"An error occurred while running the astrometry process: {e}", verbose)
-            return False, target_path
-        except Exception as e:
-            self.print(f"An unknown error occurred while running the astrometry process: {e}", verbose)
-            return False, target_path
-        finally:
-            if 'tmp_target_path' in locals() and tmp_target_path.exists():
-                tmp_target_path.rename(target_path)
-            os.chdir(current_dir)
-
+                else:        
+                    raise ExternalToolError(f"Astrometry process failed: {result.stderr}")
+            finally:
+                if remove_tmpfile and tmp_target_path.exists():
+                    tmp_target_path.unlink()
+                    
     def run_sextractor(self, 
                        target_path: Union[str, Path], 
                        sex_configfile: Union[str, Path], 
@@ -1804,17 +1751,43 @@ class PhotometryHelper(Configuration):
         This method runs SExtractor on the specified image using the provided configuration and parameters.
         """
         self.print('Start SExtractor process...=====================', verbose)
-
-        # Switch to the SExtractor directory
-        target_path = Path(target_path)
-        current_path = Path.cwd()
-        os.chdir(self.sexpath)
         
+        def prepare_param_file_with_apertures(
+            base_param_file,
+            len_apertures,
+            tmp_param_file
+        ):
+            """
+            Create a process-safe temporary SExtractor parameter file
+            """
+            base_param_file = Path(base_param_file)
+            with portalocker.Lock(base_param_file, mode='r', timeout=30):
+                with open(base_param_file, 'r') as f:
+                    lines = f.readlines()
+
+            new_lines = []
+            for line in lines:
+                if 'FLUX_APER' in line:
+                    new_lines.append(f'FLUX_APER[{len_apertures}]\n')
+                elif 'FLUXERR_APER' in line:
+                    new_lines.append(f'FLUXERR_APER[{len_apertures}]\n')
+                elif 'MAG_APER' in line:
+                    new_lines.append(f'MAG_APER[{len_apertures}]\n')
+                elif 'MAGERR_APER' in line:
+                    new_lines.append(f'MAGERR_APER[{len_apertures}]\n')
+                else:
+                    new_lines.append(line)
+
+            with open(tmp_param_file, 'w') as f:
+                f.writelines(new_lines)
+
+            return tmp_param_file
+
+        target_path = Path(target_path)        
         # Load and apply SExtractor parameters
         default_params = self.load_config(sex_configfile)
         if not sex_params:
             sex_params = dict()
-        sexparams_str = ''
         if not target_outpath:
             target_outpath = target_path.parent / f"{target_path.stem}.cat"
         sex_params['CATALOG_NAME'] = str(target_outpath)
@@ -1827,40 +1800,61 @@ class PhotometryHelper(Configuration):
             sex_params['WEIGHT_GAIN'] = 'N'
             sex_params['WEIGHT_IMAGE'] = str(target_weight)
             sex_params['WEIGHT_TYPE'] = str(weight_type)
+            
+        tmpdir_path = Path.home() / '.sextractor' /'tmp'
+        tmpdir_path.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir = tmpdir_path) as tmpdir:
+            tmpdir = Path(tmpdir)
+            for ext in ['.param', '.conv', '.nnw', '.psf']:
+                for file in Path(self.sexpath).glob(f'*{ext}'):
+                    shutil.copy(file, tmpdir)
+                    
+            # modify parameter file with lock (Must be multiprocess safe)
+            if not 'PARAMETERS_NAME' in sex_params.keys():
+                tmp_param_file = tmpdir / 'sex.param'
+                if 'PHOT_APERTURES' in sex_params.keys():
+                    len_apertures = len(sex_params['PHOT_APERTURES'].split(','))
+                else:
+                    len_apertures = len(default_params['PHOT_APERTURES'].split(','))
+                    
+                if len_apertures > 1:
+                    tmp_param = prepare_param_file_with_apertures(
+                        self.sexpath / 'sex.param',
+                        len_apertures,
+                        tmp_param_file
+                    )
+                    sex_params['PARAMETERS_NAME'] = str(tmp_param)
+                    
+            command = [
+                'source-extractor',
+                str(target_path),
+                '-c',
+                str(sex_configfile)
+            ]
 
-        for key, value in sex_params.items():
-            sexparams_str += f'-{key} {value} '        
-
-        # Command to run SExtractor
-        command = f"source-extractor {target_path} -c {sex_configfile} {sexparams_str}"
-        #os.makedirs(os.path.dirname(all_params['CATALOG_NAME']), exist_ok=True)
-        self.print(f'RUN COMMAND: {command}', verbose)
-
-        try:
+            for key, value in sex_params.items():
+                command.extend([f'-{key}', str(value)])
+            
+            command_str = ' '.join(command)
+            #os.makedirs(os.path.dirname(all_params['CATALOG_NAME']), exist_ok=True)
+            self.print(f'RUN COMMAND: {command_str}', verbose)
+            
             # Run the SExtractor command using subprocess.run
-            result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stderr = result.stderr.decode('utf-8', errors='ignore')
+            result = self.run_command(command, cwd = tmpdir, timeout = 900)
+            stderr = result.stderr
 
             # Pattern to match background and RMS
             match = re.search(r'Background:\s*([-+eE0-9.]+)\s+RMS:\s*([-+eE0-9.]+)', stderr)
             global_bkgval = match.group(1) if match else None
             global_bkgrms = match.group(2) if match else None
-
-            result_file = Path(target_outpath)
             self.print("SExtractor process finished=====================", verbose)
             self.print(f'Output path: {target_outpath}', verbose)
             if return_result:
                 # Read the catalog produced by SExtractor
                 sexresult = ascii.read(sex_params['CATALOG_NAME'])
-                os.chdir(current_path)
                 return True, sexresult, global_bkgval, global_bkgrms
             else:
-                os.chdir(current_path)
                 return True, sex_params['CATALOG_NAME'], global_bkgval, global_bkgrms
-        except Exception as e:
-            self.print(f"Error during SExtractor execution: {e}", verbose)
-            os.chdir(current_path)
-            return False, None, None, None
 
     def run_scamp(self, 
                   target_path: Union[str, List[str], Path, List[Path]], 
@@ -1891,7 +1885,6 @@ class PhotometryHelper(Configuration):
         """
         from pathlib import Path
         import os
-        import subprocess
         import re
         from tqdm import tqdm
         from astropy.io import fits
@@ -1938,89 +1931,87 @@ class PhotometryHelper(Configuration):
                 sex_params= scamp_sexparams, 
                 target_outpath= output_dir / (image.name + ".scamp.cat"),
                 return_result= False, 
-                verbose= False)
+                verbose= verbose)
             
             if sex_result:
                 sex_output_images[str(image)] = output_file
 
         # Filter out images that failed
         if not sex_output_images:
-            self.print("No valid SExtractor catalogs generated. Aborting SCAMP.", verbose)
-            return None
+            raise ExternalToolError("No valid SExtractor catalogs generated. Aborting SCAMP.")
 
         scamp_output_images = {key: value.replace('.cat', '.head') for key, value in sex_output_images.items()}
         all_images_str = ' '.join(sex_output_images.values())
 
         # Load and apply SCAMP parameters
         scamp_params = scamp_params or {}
-        scampparams_str = ' '.join([f'-{key} {value}' for key, value in scamp_params.items()])
 
         # SCAMP command
-        command = f'scamp {all_images_str} -c {scamp_configfile} {scampparams_str}'
+        command = ['scamp', 
+                   str(all_images_str), 
+                   '-c', 
+                   str(scamp_configfile)]
+        for key, value in scamp_params.items():
+            command.extend([f'-{key}', str(value)])
+        command_str = ' '.join(command)
 
-        try:
-            current_path = Path.cwd()
-            result_dir = Path(self.scamppath) / 'result'
-            result_dir.mkdir(parents=True, exist_ok=True)
-            os.chdir(result_dir)
+        tmpdir_path = Path.home() / '.scamp' /'tmp'
+        tmpdir_path.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir = tmpdir_path) as tmpdir:
+            tmpdir = Path(tmpdir)
+            try:
+                self.print(f'RUN COMMAND: {command_str}', verbose)
+                result = self.run_command(command, cwd = tmpdir, timeout = 900)
+                
+                is_succeeded = [Path(scamp_output).is_file() for scamp_output in scamp_output_images.values()]
+                
+                if all(is_succeeded):    
+                    self.print("SCAMP process finished=====================", verbose)
+                else:
+                    self.print("SCAMP process failed. Some output files are missing.", verbose)
+                    raise ExternalToolError(f"SCAMP process failed: {result.stderr}")
+                
+                if overwrite:
+                    def sanitize_header(header: fits.Header) -> fits.Header:
+                        """
+                        Remove non-ASCII and non-printable characters from a FITS header.
+                        """
+                        sanitized_header = fits.Header()
+                        for card in header.cards:
+                            key, value, comment = card
+                            if isinstance(value, str):
+                                value = re.sub(r'[^\x20-\x7E]+', '', value)
+                            sanitized_header[key] = (value, comment)
+                        return sanitized_header
 
-            self.print(f'RUN COMMAND: {command}', verbose)
-            result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
+                    def update_fits_with_head(image_file: Path, head_file: Path):
+                        """
+                        Update the FITS image header with WCS info from SCAMP-generated .head file.
+                        """
+                        with open(head_file, 'r') as head:
+                            head_content = head.read()
+                        head_header = fits.Header.fromstring(head_content, sep='\n')
+                        head_header = sanitize_header(head_header)
+
+                        with fits.open(image_file, mode='update') as hdul:
+                            hdul[0].header.update(head_header)
+                            hdul.flush()
+
+                        self.print(f"Updated WCS for {image_file} using {head_file}", verbose)
+
+                    for (image, header), result in zip(scamp_output_images.items(), is_succeeded):
+                        update_fits_with_head(Path(image), Path(header))
+                        # Remove header file
+                        os.remove(header)
+                    # When updating files, return the updated file names
+                    return is_succeeded, list(scamp_output_images.keys())
+                else:
+                    # When not updating files, return the output files and headers
+                    return is_succeeded, scamp_output_images
             
-            is_succeeded = [Path(scamp_output).is_file() for scamp_output in scamp_output_images.values()]
-            
-            if all(is_succeeded):    
-                self.print("SCAMP process finished=====================", verbose)
-            else:
-                self.print("SCAMP process failed. Some output files are missing.", verbose)
-                return None
-            
-            if overwrite:
-                def sanitize_header(header: fits.Header) -> fits.Header:
-                    """
-                    Remove non-ASCII and non-printable characters from a FITS header.
-                    """
-                    sanitized_header = fits.Header()
-                    for card in header.cards:
-                        key, value, comment = card
-                        if isinstance(value, str):
-                            value = re.sub(r'[^\x20-\x7E]+', '', value)
-                        sanitized_header[key] = (value, comment)
-                    return sanitized_header
-
-                def update_fits_with_head(image_file: Path, head_file: Path):
-                    """
-                    Update the FITS image header with WCS info from SCAMP-generated .head file.
-                    """
-                    with open(head_file, 'r') as head:
-                        head_content = head.read()
-                    head_header = fits.Header.fromstring(head_content, sep='\n')
-                    head_header = sanitize_header(head_header)
-
-                    with fits.open(image_file, mode='update') as hdul:
-                        hdul[0].header.update(head_header)
-                        hdul.flush()
-
-                    self.print(f"Updated WCS for {image_file} using {head_file}", verbose)
-
-                for (image, header), result in zip(scamp_output_images.items(), is_succeeded):
-                    update_fits_with_head(Path(image), Path(header))
-                    # Remove header file
-                    os.remove(header)
-                # When updating files, return the updated file names
-                return is_succeeded, list(scamp_output_images.keys())
-            else:
-                # When not updating files, return the output files and headers
-                return is_succeeded, scamp_output_images
-
-        except subprocess.CalledProcessError as e:
-            self.print(f"Error during SCAMP execution: {e}", verbose)
-            return None
-        finally:
-            # Remove cat file
-            for cat in sex_output_images.values():
-                os.remove(cat)
-            os.chdir(current_path)
+            finally:
+                for cat in sex_output_images.values():
+                    os.remove(cat)
 
     def run_swarp(self,
                   # Input parameters
@@ -2184,46 +2175,90 @@ class PhotometryHelper(Configuration):
             swarp_params['DELETE_TMPFILES'] = 'N'
             target_outlist = [Path(swarp_params['RESAMPLE_DIR']) / (file_.stem + all_params['RESAMPLE_SUFFIX']) for file_ in target_path]
             weights_outlist = [Path(swarp_params['RESAMPLE_DIR']) / (file_.stem + '_resamp.fits')for file_ in weight_inpath] if weight_inpath is not None else []
-            output_filelist = [target_outlist, weights_outlist]
         # When combine is True, combine the images. If combine_type == 'weighted', use the weighted mean
         else:
             swarp_params['COMBINE'] = 'Y'
             swarp_params['COMBINE_TYPE'] = combine_type.upper()
-            swarp_params['DELETE_TMPFILES'] = 'Y'              
-            output_filelist = [swarp_params['IMAGEOUT_NAME'], swarp_params['WEIGHTOUT_NAME']]    
+            swarp_params['DELETE_TMPFILES'] = 'Y'      
+            target_outlist = [swarp_params['IMAGEOUT_NAME']]
+            weights_outlist = [swarp_params['WEIGHTOUT_NAME']]
 
         # Input and output file settings
         if subbkg:
             swarp_params['SUBTRACT_BACK'] = 'Y'
             swarp_params['BACK_SIZE'] = box_size
-            swarp_params['BACK_FILTERSIZE'] = filter_size
-            
-        swarpparams_str = ''
-        
-        for key, value in swarp_params.items():
-            swarpparams_str += f'-{key} {value} '   
+            swarp_params['BACK_FILTERSIZE'] = filter_size 
         
         # Command to run SWARP
         all_images_str = ' '.join([str(img) for img in target_path])
-        command = f'SWarp {all_images_str} -c {swarp_configfile} {swarpparams_str}'
+        command = ['SWarp', 
+                   str(all_images_str), 
+                   '-c', 
+                   str(swarp_configfile)]
+        
+        for key, value in swarp_params.items():
+            command.extend([f'-{key}', str(value)])
+        command_str = ' '.join(command)
         
         if fill_zero_tonan:
             for path in target_path:
-                image = fits.open(path)
-                # If data is 0 value, fill it with nan_value
-                image[0].data[np.where(image[0].data == 0)] = np.nan
-                image.writeto(path, overwrite=True)
+                with fits.open(path) as image:
+                    image[0].data[image[0].data == 0] = np.nan
+                    image.writeto(path, overwrite=True)
+                    
+        self.print(f'RUN COMMAND: {command_str}', verbose)
+        result = self.run_command(command, cwd = None, timeout = 900)
+        self.print("SWARP process finished=====================", verbose)
+        return True, target_outlist, weights_outlist
+
         
+    def run_command(self, command, cwd=None, timeout=900):
+        import subprocess
+
         try:
-            self.print(f'RUN COMMAND: {command}', verbose)
-            current_path = os.getcwd()
-            # Run the SExtractor command using subprocess.run
-            subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            self.print("SWARP process finished=====================", verbose)
-            return output_filelist
+            result = subprocess.run(
+                command,
+                cwd=cwd,
+                timeout=timeout,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return result
+
+        except subprocess.TimeoutExpired as e:
+            raise ExternalToolError(
+                f"Command timed out after {timeout}s\n"
+                f"Command: {' '.join(command)}"
+            )
+
+        except subprocess.CalledProcessError as e:
+            raise ExternalToolError(
+                f"Command failed with exit code {e.returncode}\n"
+                f"Command: {' '.join(command)}\n\n"
+                f"STDOUT:\n{e.stdout}\n\n"
+                f"STDERR:\n{e.stderr}"
+            )
+
+        except FileNotFoundError:
+            raise ExternalToolError(
+                f"Executable not found: {command[0]}"
+            )
+
+        except PermissionError:
+            raise ExternalToolError(
+                f"Permission denied when executing: {command[0]}"
+            )
+
+        except OSError as e:
+            raise ExternalToolError(
+                f"OS error while executing command:\n{e}"
+            )
+
         except Exception as e:
-            self.print(f"Error during SWARP execution: {e}", verbose)
-            return [None, None]
+            raise ExternalToolError(
+                f"Unexpected error while executing command:\n{e}"
+            )
 
     def open_file_editor(self, path):
         if sys.platform.startswith("darwin"):   # macOS
@@ -2333,40 +2368,3 @@ class PhotometryHelper(Configuration):
         else:
             return reg
         
-        
-        
-        
-#%%
-from astropy.io import fits
-self = PhotometryHelper()
-path = '/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits'
-header = fits.getheader(path)
-self.estimate_telinfo(path, header)
-#helper.estimate_telinfo('/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits', fits.getheader('/home/hhchoi1022/ezphot/data/scidata/KCT/KCT_STX16803_1x1/NGC1566/KCT/r/Calib-KCT_STX16803-NGC1566-20221106-052754-r-120.fits'))
-        
-# from astropy.io import ascii
-# tbl = ascii.read('~/code/ezphot/ezphot/configuration/common/CCD.dat', format = 'fixed_width')
-# # %%
-# tbl.remove_columns(['key', 'value', 'suffix', 'x', 'y', 'fovx', 'fovy', 'foveff'])
-# # %%
-# tbl.rename_column('mode', 'readoutmode')
-# # %%
-# tbl.remove_column('fov')
-# # %%
-# from astropy.table import Table
-# tbl_new = Table()
-# tbl_new['telescope'] = tbl['obs']
-# tbl_new['ccd'] = tbl['ccd']
-# tbl_new['binning'] = tbl['binning']
-# tbl_new['pixelscale'] = tbl['pixelscale']
-# tbl_new['readoutmode'] = tbl['readoutmode']
-# tbl_new['gain'] = tbl['gain']
-# tbl_new['readnoise'] = tbl['readnoise']
-# tbl_new['darkcurrent'] = tbl['dark']
-
-# # %%
-# tbl_new.write('~/ezphot/config/common/CCD.dat', format = 'ascii.fixed_width', overwrite = True)
-# # %%
-
-
-# %%

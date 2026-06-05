@@ -1,0 +1,153 @@
+inputs:
+  tile_name: Test
+  input_catalog: input_catalog.csv
+  image_list_file: image_list.txt
+  gaiaxp_synphot_csv: gaiaxp_synphot.csv
+outputs:
+  work_dir: ./work
+  epsf_dir: ePSF
+  patches_dir: patches
+  patch_inputs_dir: patch_inputs
+  tractor_out_dir: tractor_out_patches
+  final_catalog: final_catalog_with_fit.csv
+  cropped_images_dir: cropped_images
+image_scaling:
+  zp_ref: 25.0
+crop:
+  enabled: true
+  margin: 500
+  plot_pre_crop: true
+  display_downsample: 4
+  post_crop_display_downsample: 4
+  overlay_catalog: true
+  overlay_downsample_full: 1
+  overlay_downsample_crop: 1
+checks:
+  require_wcs_alignment: true
+  wcs_tolerance:
+    crval: 1.0e-06
+    crpix: 1.0e-06
+    cd: 1.0e-09
+    cdelt: 1.0e-09
+  require_same_shape: true
+source_saturation_cut:
+  enabled: true
+  radius_pix: 20.0
+  require_all_bands: false
+logging:
+  ignore_warnings: true
+  level: INFO
+  file: null
+  format: '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
+performance:
+  frame_prep_workers: auto
+  white_stack_workers: auto
+epsf:
+  use_gaiaxp: true
+  epsf_ngrid: 7
+  ngrid: 6
+  skip_empty_epsf_patches: true
+  thresh_sigma: 10.0
+  minarea: 25
+  cutout_size: 61
+  edge_pad: 10
+  min_sep: 30.0
+  max_stars: 30
+  q_range:
+  - 0.95
+  - 1.05
+  psfstar_mode: sep+gaia
+  gaia_mag_min: 10.0
+  gaia_mag_max: 30.0
+  gaia_snap_to_sep: true
+  gaia_forced_k_fwhm: 1.5
+  gaia_forced_rmin_pix: 3.0
+  gaia_forced_rmax_pix: 15.0
+  gaia_snr_min: 20.0
+  gaia_match_r_pix: 5.0
+  gaia_seed_sat_r: 5
+  gaia_seed_sat_div: 1.3
+  oversamp: 1
+  maxiters: 30
+  do_clip: true
+  recenter_boxsize: 9
+  final_psf_size: 55
+  save_star_montage_max: 100
+  parallel_bands: true
+  max_workers: auto
+  background_subtract_patch: true
+  background_boxsize: 96
+  background_filtersize: 9
+  background_source_mask_sigma: 3.0
+  background_mask_dilate: 1
+  star_local_bkg_subtract: true
+  star_local_bkg_annulus_rin_pix: 20.0
+  star_local_bkg_annulus_rout_pix: 30.0
+  star_local_bkg_sigma: 3.0
+  star_local_bkg_minpix: 30
+  save_patch_background_diagnostics: true
+  save_star_local_background_diagnostics: true
+  diagnostics_show_colorbar: true
+  save_growth_curve: true
+  save_residual_diagnostics: true
+  residual_diag_max_stars: 100
+patches:
+  halo_pix_min: 20
+patch_inputs:
+  save_patch_inputs: true
+  skip_empty_patch: true
+  include_wcs_in_payload: false
+  max_workers: 16
+  gzip_compresslevel: 1
+  keep_payloads_in_memory: false
+patch_run:
+  enable_multi_band_simultaneous_fitting: true
+  python_exe: python
+  resume: false
+  max_workers: 32
+  threads_per_process: 1
+  gal_model: exp
+  n_opt_iters: 20
+  dlnp_stop: 1.0e-06
+  r_ap: 5.0
+  eps_flux: 0.0001
+  sersic_n_init: 3.0
+  re_fallback_pix: 3.0
+  psf_model: pixelized
+  psf_fallback_model: moffat
+  min_epsf_nstars_for_use: 2
+  ncircular_gaussian_n: 3
+  hybrid_psf_n: 9
+  gaussian_mixture_n: 4
+  fallback_default_fwhm_pix: 4.0
+  fallback_stamp_radius_pix: 25.0
+  cutout_size: 100
+  cutout_max_sources: null
+  cutout_start: 0
+  cutout_data_p_lo: 1
+  cutout_data_p_hi: 99
+  cutout_model_p_lo: 1
+  cutout_model_p_hi: 99
+  cutout_resid_p_abs: 99
+  no_cutouts: false
+  no_patch_overview: false
+  flag_maxiter_margin: 0
+moffat_psf:
+  fwhm_default_pix: 4.0
+  beta: 3.5
+  radius_pix: 25.0
+  module_path: null
+merge:
+  pattern: '*_cat_fit.csv'
+  wcs_fits: null
+plotting:
+  dpi: 300
+zp:
+  enabled: true
+  inject_gaia_sources: true
+  gaia_mag_min: 8.0
+  gaia_mag_max: 18.0
+  match_radius_arcsec: 3.0
+  min_box_size_pix: 3000
+  clip_sigma: 3.0
+  clip_max_iters: 10

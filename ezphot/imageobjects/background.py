@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Union
 from types import SimpleNamespace
+import fnmatch
 
 import numpy as np
 from astropy.io import fits
@@ -54,7 +55,7 @@ class Status:
 class Info:
     """Stores metadata for the mask."""
 
-    INFO_FIELDS = ["TGTPATH", "MASKPATH", "BKGTYPE", "BKGIS2D", "BKGVALU", "BKGSIG", "BKGITER", "BKGBOX", "BKGFILT"]
+    INFO_FIELDS = ["TGTPATH", "BKGTYPE", "BKGIS2D", "BKGVALU", "BKGSIG", "BKGITER", "BKGBOX", "BKGFILT"]
     
     def __init__(self, **kwargs):
         self._fields = {field: kwargs.get(field, None) for field in self.INFO_FIELDS}
@@ -214,31 +215,13 @@ class Background(DummyImage):
         self.save_info()
         self.path = self.savepath.savepath
         self.loaded = True
-        
+
     def remove(self, 
             remove_main: bool = True, 
             remove_connected_files: bool = True,
-            skip_exts: list = ['.png', '.cat'],
-            verbose: bool = False) -> dict:
-        """
-        Remove the main FITS file and/or associated connected files.
+            skip_patterns: list = ['*.png', '*.cat'],
+            verbose: bool = True) -> dict:
 
-        Parameters
-        ----------
-        remove_main : bool
-            If True, remove the main FITS file (self.path)
-        remove_connected_files : bool
-            If True, remove associated files (status, mask, coadd, etc.)
-        skip_exts : list
-            List of file extensions to skip (e.g. ['.png', '.cat'])
-        verbose : bool
-            If True, print removal results
-
-        Returns
-        -------
-        dict
-            {file_path (str): success (bool)} for each file attempted
-        """
         removed = {}
 
         def try_remove(p: Union[str, Path]):
@@ -255,6 +238,12 @@ class Background(DummyImage):
                     return False
             return False
 
+        def should_skip(p: Path):
+            for pattern in skip_patterns:
+                if fnmatch.fnmatch(p.name, pattern):
+                    return True
+            return False
+
         # Remove main FITS file
         if remove_main and self.path and self.path.is_file():
             removed[str(self.path)] = try_remove(self.path)
@@ -262,10 +251,12 @@ class Background(DummyImage):
         # Remove connected files
         if remove_connected_files:
             for f in self.connected_files:
-                if f.suffix in skip_exts:
+
+                if should_skip(f):
                     if verbose:
-                        print(f"[SKIP] {f} (skipped due to extension)")
+                        print(f"[SKIP] {f} (matched skip pattern)")
                     continue
+
                 removed[str(f)] = try_remove(f)
 
         return removed

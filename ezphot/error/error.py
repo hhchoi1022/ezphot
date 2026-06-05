@@ -1,4 +1,8 @@
 
+class ExternalToolError(RuntimeError):
+    """Error raised when an external tool fails."""
+    pass
+
 class PlatesolveError(Exception):
     """Custom exception raised when plate solving fails."""
 
@@ -30,3 +34,8 @@ class MaskingError(Exception):
         if self.error_code is not None:
             parts.append(f"[Code: {self.error_code}]")
         return ' '.join(parts)
+
+
+class OutofCoverageError(Exception):
+    """Raised when the requested position is outside the image coverage."""
+    pass

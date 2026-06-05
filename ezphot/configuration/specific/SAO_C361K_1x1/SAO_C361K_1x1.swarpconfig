@@ -31,11 +31,13 @@ CELESTIAL_TYPE         NATIVE          # NATIVE, PIXEL, EQUATORIAL,
 PROJECTION_TYPE        TAN             # Any WCS projection code or NONE
 PROJECTION_ERR         0.001           # Maximum projection error (in output
                                        # pixels), or 0 for no approximation
-CENTER_TYPE            ALL             # MANUAL, ALL or MOST
+CENTER_TYPE            MANUAL             # MANUAL, ALL or MOST
 CENTER         00:00:00.0, +00:00:00.0 # Coordinates of the image center
-PIXELSCALE_TYPE        MEDIAN          # MANUAL,FIT,MIN,MAX or MEDIAN
-PIXEL_SCALE            0.0             # Pixel scale
-IMAGE_SIZE             0               # Image size (0 = AUTOMATIC)
+PIXELSCALE_TYPE        MANUAL          # MANUAL,FIT,MIN,MAX or MEDIAN
+PIXEL_SCALE     0.39       # Pixel scale
+
+IMAGE_SIZE      10500.0,7000.0 # Image size (0 = AUTOMATIC)
+
  
 #-------------------------------- Resampling ----------------------------------
  
@@ -51,12 +53,13 @@ INTERPOLATE            N               # Interpolate bad input pixels (Y/N)?
                                        # (all or for each image)
  
 FSCALASTRO_TYPE        FIXED           # NONE,FIXED, or VARIABLE
-FSCALE_KEYWORD         FLXSCALE        # FITS keyword for the multiplicative
+FSCALE_KEYWORD         NONE        # FITS keyword for the multiplicative
                                        # factor applied to each input image
 FSCALE_DEFAULT         1.0             # Default FSCALE value if not in header
  
 GAIN_KEYWORD           GAIN            # FITS keyword for effect. gain (e-/ADU)
-GAIN_DEFAULT           0.0             # Default gain if no FITS keyword found
+GAIN_DEFAULT    7.02       # Default gain if no FITS keyword found
+
  
 #--------------------------- Background subtraction ---------------------------
  

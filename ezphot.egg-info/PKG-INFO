@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ezphot
-Version: 0.4.0
+Version: 0.4.15
 Summary: Easy and flexible photometry toolkit in Python, from preprocessing to analysis, for various telescopes.
 Author: Hyeonho Choi
 Classifier: Programming Language :: Python :: 3
@@ -9,8 +9,8 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: astroalign>=2.6.1
-Requires-Dist: astropy>=7.1.0
+Requires-Dist: astroalign
+Requires-Dist: astropy
 Requires-Dist: astroquery>=0.4.10
 Requires-Dist: astroscrappy>=1.2.0
 Requires-Dist: bottleneck>=1.5.0
@@ -36,6 +36,10 @@ Requires-Dist: scikit-learn>=1.7.0
 Requires-Dist: statsmodels>=0.14.5
 Requires-Dist: tqdm>=4.67.1
 Requires-Dist: scikit-image>=0.24.0
+Requires-Dist: pyphot==1.7.0
+Requires-Dist: specutils
+Requires-Dist: portalocker
+Requires-Dist: mocpy
 Dynamic: author
 Dynamic: classifier
 Dynamic: description

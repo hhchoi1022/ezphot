@@ -60,8 +60,7 @@ class Platesolve:
                         
                          # Other parameters
                          overwrite: bool = True,
-                         verbose: bool = True,
-                         **kwargs
+                         verbose: bool = True
                          ):
         """
         Solve astrometry using Astrometry.net.
@@ -90,14 +89,12 @@ class Platesolve:
             astrometry_sexconfigfile = target_img.config['ASTROMETRY_SEXCONFIG'],
             ra = target_img.ra,
             dec = target_img.dec,
-            radius = max(target_img.fovx, target_img.fovy) / 2,
+            radius = 2,
             pixelscale = target_img.telinfo['pixelscale'],
             target_outpath = target_outpath,
             verbose = verbose,
         )
-        if not result:
-            raise PlatesolveError("Astrometry failed", target_img.path)
-        else:
+        if result:
             output_img = type(target_img)(path = astrometry_output_images, telinfo = target_img.telinfo, status = target_img.status.copy(), load = True)
             output_img.update_status('ASTROMETRY')
             return output_img
@@ -133,12 +130,8 @@ class Platesolve:
             The output image(s) with astrometry solution.
         """
         target_imglist = target_img if isinstance(target_img, list) else [target_img]
-        target_imglist_path = [target_img.path for target_img in target_imglist]
-        
-        if overwrite:
-            output_dir = target_imglist[0].savepath.savedir
-        else:
-            output_dir = target_imglist[0].path.parent
+        target_imglist_path = [target_img.path for target_img in target_imglist]        
+        output_dir = target_imglist[0].savepath.savedir
             
         scamp_results, scamp_output_images = self.helper.run_scamp(
             target_path = target_imglist_path,
@@ -160,4 +153,9 @@ class Platesolve:
                 output_img.update_status('SCAMP')
                 output_imglist.append(output_img)
             return output_imglist
-    
+# %%
+if __name__ == "__main__":
+    from ezphot.imageobjects import ScienceImage
+    from ezphot.methods.platesolve import Platesolve
+    target_img = ScienceImage('/lyman/data1/obsdata/7DT03/2026-03-02_gain2750_ToO/7DT03_20260303_031227_T01222_m700_1x1_100.0s_0000.fits')
+    platesolve = Platesolve()

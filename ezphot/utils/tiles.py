@@ -115,7 +115,7 @@ class Tiles:
                     list_overlapped_areas.append(overlapped_areas)
 
         if not list_matched_tiles:
-            return Table(), list_matched_coords, None
+            return Table(), None, None
 
         fig_path = None
         if visualize:
@@ -129,11 +129,20 @@ class Tiles:
             matched_tbl_single['overlapped_area'] = overlapped_areas
             matched_tbl_single['is_within_boundary'] = np.array(distance_to_boundaries) > match_tolerance_minutes/60
             matched_tbl = vstack([matched_tbl, matched_tbl_single])
+            
+        from collections import defaultdict
+
+        tile_source_map = defaultdict(list)
+
+        for tile_id, src_idx in zip(matched_tbl['id'], matched_tbl['matched_idx']):
+            tile_source_map[tile_id].append(src_idx)
+
+        tile_source_map = dict(tile_source_map)
         
         _, unique_indices = np.unique(matched_tbl['id'], return_index=True)
         unique_table = matched_tbl[sorted(unique_indices)]
-        
-        return unique_table, list_matched_coords, fig_path
+
+        return unique_table, tile_source_map, fig_path
 
     def _find_innermost_tile(self, polygons_by_id, target_point):
         """
@@ -330,3 +339,5 @@ class Tiles:
         dec_list = circle_coords.dec.deg
         return Polygon(zip(ra_list, dec_list))
 
+
+# %%

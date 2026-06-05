@@ -59,6 +59,8 @@ class CatalogSet:
             observatory=None,
             telname=None
         )
+        self._df = None
+        self._target_df = None
         self._last_mode = "select"  # <-- Track last mode (select or exclude)
     
     def __repr__(self):
@@ -89,84 +91,14 @@ class CatalogSet:
         # Final plain text output
         help_text = ""
         print(f"Help for {self.__class__.__name__}\n{help_text}\n\nPublic methods:\n" + "\n".join(lines))
-    
-    # def search_catalogs(self,
-    #                     target_name: str,
-    #                     search_key: str = '.cat',
-    #                     folder: str = None,
-    #                     recursive: bool = True,
-    #                     n_proc: int = 16):
-    #     """
-    #     Search for catalogs in the given folder.
         
-    #     Parameters
-    #     ----------
-    #     target_name : str
-    #         Name of the target.
-    #     search_key : str
-    #         Search key for catalogs.
-    #     folder : str, optional
-    #         Folder to search for catalogs.
-    #     recursive : bool, optional
-    #         If True, search recursively in the given folder.
-    #     n_proc : int, optional
-    #         Number of processes to use for loading catalogs.
-
-    #     Returns
-    #     -------
-    #     succeeded_catalogs : list[Catalog]
-    #         List of Catalog instances that were successfully loaded.
-    #     failed_catalogs : list[str]
-    #         List of paths that failed to load.
-    #     skipped_catalogs : list[str]
-    #         List of paths that were skipped.
-    #     """
-    #     if folder is None:
-    #         folder = self.helper.config['SCIDATA_DIR']
-    #     folder = Path(folder)
-
-    #     target_dir = next(folder.rglob(f"*{target_name}*"), None)
-    #     print(f"Folder found: {target_dir}")
-    #     if target_dir is None or not target_dir.is_dir():
-    #         print(f"[WARNING] No matching subdirectory for target_name: {target_name}")
-    #         return
-
-    #     catalog_files = list(target_dir.rglob(f"*{search_key}")) if recursive else list(target_dir.glob(f"*{search_key}"))
-    #     print(f"Catalog files: {len(catalog_files)}")
-
-    #     existing_paths = [str(cat.path) for cat in self.catalogs]
-    #     args = [(catalog_file, existing_paths) for catalog_file in catalog_files]
-
-    #     succeeded_catalogs = []
-    #     failed_catalogs = []
-    #     skipped_catalogs = []
-
-    #     with ProcessPoolExecutor(max_workers=n_proc) as executor:
-    #         results = list(tqdm(executor.map(self._load_catalog_worker, args), total=len(args), desc="Loading catalogs"))
-
-    #     for status, path, catalog in results:
-    #         if status == 'success':
-    #             succeeded_catalogs.append(catalog)
-    #             print(f"[LOADED] {path}")
-    #         elif status == 'skipped':
-    #             skipped_catalogs.append(path)
-    #             print(f"[SKIPPED] {path}")
-    #         else:
-    #             failed_catalogs.append(path)
-    #             print(f"[FAILED] {path}")
-
-    #     self.catalogs.extend(succeeded_catalogs)
-    #     self.catalogs.sort(key=lambda x: x.path)
-
-    #     return succeeded_catalogs, failed_catalogs, skipped_catalogs
-    
     def merge_catalogs(self,
         max_distance_arcsec=3.0,
         ra_key='X_WORLD',
         dec_key='Y_WORLD',
-        data_keys=['MAGSKY_AUTO', 'MAGERR_AUTO', 'MAGSKY_APER', 'MAGERR_APER',
-                'MAGSKY_APER_1', 'MAGERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2',
-                'MAGSKY_APER_3', 'MAGERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC'],
+        data_keys=['MAGSKY_AUTO', 'MAGERR_AUTO', 'ZP_AUTO', 'ZPERR_AUTO', 'MAGSKY_APER', 'MAGERR_APER', 'ZP_APER', 'ZPERR_APER',
+                'MAGSKY_APER_1', 'MAGERR_APER_1', 'ZP_APER_1', 'ZPERR_APER_1', 'MAGSKY_APER_2', 'MAGERR_APER_2', 'ZP_APER_2', 'ZPERR_APER_2',
+                'MAGSKY_APER_3', 'MAGERR_APER_3', 'ZP_APER_3', 'ZPERR_APER_3', 'MAGSKY_CIRC', 'MAGERR_CIRC'],
         join_type='outer'
         ):
         """
@@ -246,7 +178,7 @@ class CatalogSet:
             df['catalog_id'] = i
             df['match_id'] = -1  # placeholder
             dfs.append(df)
-            coords.append(SkyCoord(tbl[ra_key] * u.deg, tbl[dec_key] * u.deg))
+            coords.append(SkyCoord(tbl[ra_key].value * u.deg, tbl[dec_key].value * u.deg))
 
         if len(dfs) == 0:
             return None, {}
@@ -281,6 +213,8 @@ class CatalogSet:
 
             if join_type == 'outer' and len(unmatched) > 0:
                 merged_df = pd.concat([merged_df, unmatched], ignore_index=True)
+                
+            merged_df = merged_df.drop_duplicates('match_id', keep = 'first')
 
         # Step 3: Add detection count
         main_key = data_keys[0]
@@ -290,7 +224,6 @@ class CatalogSet:
         idx_cols = [col for col in merged_df.columns if '_idx' in col]
         is_dummy_row = merged_df[idx_cols].isna().all(axis=1)
         merged_df = merged_df[~is_dummy_row].copy()
-        merged_df = merged_df.drop_duplicates('match_id', keep = 'first')
         merged_tbl = Table.from_pandas(merged_df)
         
         # Add coord column
@@ -511,6 +444,49 @@ class CatalogSet:
             'telname': telname,
         }
         self._last_mode = "select"  # <-- mark as select
+        
+    def divide_catalogs(
+        self,
+        by_filter: bool = False, # True when LC is required
+        by_exptime: bool = False,
+        by_objname: bool = True,
+        by_telname: bool = False,
+        by_observatory: bool = False,
+        by_obsdate: bool = True, # False when LC is required
+        obsdate_delta: float = 0.5,
+        obsdate_key: str = 'obsdate',
+    ):
+        """
+        Divide CatalogSet into multiple CatalogSet groups.
+        """
+
+        group_keys = ['filter', 'exptime', 'objname', 'observatory', 'telname', 'group']
+        group_bools = [by_filter, by_exptime, by_objname, by_observatory, by_telname, by_obsdate]
+        group_keys_applied = [k for k, b in zip(group_keys, group_bools) if b]
+
+        df = self.target_df
+        df['mjd'] = Time(df['obsdate'].tolist()).mjd
+        groupped_tbl = self.helper.group_table(Table.from_pandas(df), key = 'mjd', tolerance = obsdate_delta)
+        df = groupped_tbl.to_pandas()
+        if df.empty:
+            return []
+
+        if by_obsdate:
+            tbl = Table.from_pandas(df)
+            tbl['mjd'] = Time(tbl[obsdate_key].tolist()).mjd
+            tbl = self.helper.group_table(tbl, key='mjd', tolerance=obsdate_delta)
+        else:
+            tbl = Table.from_pandas(df)
+
+        groups = tbl.group_by(group_keys_applied).groups
+
+        all_sets = []
+        for g in groups:
+            catalogs = [row['catalog'] for row in g]
+            all_sets.append(CatalogSet(catalogs))
+
+        return all_sets
+
 
     def select_sources(self, 
                        x, 
@@ -542,13 +518,55 @@ class CatalogSet:
         for cat in tqdm(self.target_catalogs, desc = 'Selecting sources...'):
             cat.select_sources(x, y, unit=unit, matching_radius=matching_radius, x_key=x_key, y_key=y_key)
         
+    # @property
+    # def df(self):
+    #     """
+    #     Return a DataFrame containing metadata of all catalogs.
+    #     """
+    #     if len(self.catalogs) == 0:
+    #         return pd.DataFrame()
+    #     rows = []
+    #     for cat in self.catalogs:
+    #         info = cat.info
+    #         rows.append({
+    #             'catalog': cat,
+    #             'path': info.path,
+    #             'filter': info.filter,
+    #             'exptime': info.exptime,
+    #             'obsdate': info.obsdate,
+    #             'observatory': info.observatory,
+    #             'telname': info.telname,
+    #             'objname': info.objname,
+    #             'seeing': info.seeing,
+    #             'depth': info.depth,
+    #             'ra': info.ra,
+    #             'dec': info.dec,
+    #             'fov_ra': info.fov_ra,
+    #             'fov_dec': info.fov_dec,
+    #         })
+    #     return pd.DataFrame(rows)
+    
+    @property
+    def target_df(self):
+        """DataFrame of selected catalogs."""
+        if len(self.target_catalogs) == 0:
+            return pd.DataFrame()
+
+        # indices of selected catalogs in master list
+        indices = [self.catalogs.index(cat) for cat in self.target_catalogs]
+        return self.df.loc[indices].copy()
+
+    
     @property
     def df(self):
-        """
-        Return a DataFrame containing metadata of all catalogs.
-        """
+        """Pandas DataFrame of all catalogs (cached)."""
+        if self._df is not None:
+            return self._df
+
         if len(self.catalogs) == 0:
-            return pd.DataFrame()
+            self._df = pd.DataFrame()
+            return self._df
+
         rows = []
         for cat in self.catalogs:
             info = cat.info
@@ -568,7 +586,10 @@ class CatalogSet:
                 'fov_ra': info.fov_ra,
                 'fov_dec': info.fov_dec,
             })
-        return pd.DataFrame(rows)
+
+        self._df = pd.DataFrame(rows)
+        return self._df
+
 
     def _load_catalog_worker(self, args):
         catalog_file, existing_paths = args

@@ -1,22 +1,25 @@
 #%%
 import inspect
-from typing import Union
-from itertools import cycle
+from typing import Union, List
 
+import re
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import cKDTree
 from scipy.optimize import curve_fit
 from astropy.table import Table, vstack
 from astropy.stats import sigma_clipped_stats, SigmaClip
 from astropy.coordinates import SkyCoord
 from astropy.modeling import models, fitting
+import astropy.units as u
+import matplotlib.colors as mcolors
+
 
 from ezphot.helper import Helper
 from ezphot.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from ezphot.dataobjects import Catalog
 from ezphot.skycatalog import SkyCatalogUtility
 from ezphot.utils import *
+
 #%%
 
 class PhotometricCalibration:
@@ -63,27 +66,37 @@ class PhotometricCalibration:
                                 target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
                                 target_catalog: Catalog,
                                 catalog_type: str = 'GAIAXP',
-                                max_distance_second: float = 1.0,
+                                catalog_version: str = 'v1',
+                                max_distance_second: float = 2.5,
+                                min_number_of_sources: int = 10,
                                 calculate_color_terms: bool = True,
                                 calculate_mag_terms: bool = True,
                                 
                                 # Selection parameters
-                                mag_lower: float = 13,
-                                mag_upper: float = 15,
-                                dynamic_mag_range: bool = True,
+                                mag_lower: float = 12,
+                                mag_upper: float = 16,
+                                snr_lower: float = 10,
+                                snr_upper: float = 150,
+                                dynamic_mag_range: bool = False,
                                 classstar_lower: float = 0.8,
                                 elongation_upper: float = 1.7,
                                 elongation_sigma: float = 5,
-                                fwhm_lower: float = 1,
+                                fwhm_lower_arcsec: float = 1,
+                                fwhm_upper_arcsec: float = 10,
                                 fwhm_sigma: float = 5,
                                 flag_upper: int = 1,
                                 maskflag_upper: int = 1,
-                                inner_fraction: float = 0.7, # Fraction of the images
-                                isolation_radius: float = 10.0,
+                                ra_deg: float = None,
+                                dec_deg: float = None,
+                                radius_arcsec: float = 1500,    
+                                inner_fraction: float = 0.9, # Fraction of the images. If ra, dec, radius_arcsec is given, inner_fraction is ignored.
+                                isolation_radius_arcsec: float = 10.0,
+                                
                                 magnitude_key: str = 'MAG_AUTO',
-                                fwhm_key: str = 'FWHM_IMAGE',
-                                x_key: str = 'X_IMAGE',
-                                y_key: str = 'Y_IMAGE',
+                                magnitudeerr_key: str = 'MAGERR_AUTO',
+                                fwhm_key: str = 'FWHM_WORLD',
+                                ra_key: str = 'X_WORLD',
+                                dec_key: str = 'Y_WORLD',
                                 classstar_key: str = 'CLASS_STAR',
                                 elongation_key: str = 'ELONGATION',
                                 flag_key: str = 'FLAGS',
@@ -95,8 +108,7 @@ class PhotometricCalibration:
                                 verbose: bool = True,
                                 visualize: bool = True,
                                 save_fig: bool = False,
-                                save_refcat: bool = True,
-                                **kwargs):
+                                save_refcat: bool = True):
 
         """
         Perform photometric calibration of astronomical images.
@@ -165,8 +177,6 @@ class PhotometricCalibration:
             Whether to save the figure.
         save_refcat : bool, optional
             Whether to save the reference catalog.
-        **kwargs : dict, optional
-            Additional keyword arguments.
             
         Returns
         -------
@@ -185,7 +195,9 @@ class PhotometricCalibration:
             dec = target_img.dec,
             fov_ra = target_img.fovx,
             fov_dec = target_img.fovy,
+            objname = target_img.objname,
             catalog_type = catalog_type,
+            catalog_version = catalog_version,
             verbose = verbose
         )
         if len(catalogs) == 0:
@@ -283,45 +295,59 @@ class PhotometricCalibration:
         target_catalog.data[magnitude_sky_key] = target_catalog.data[magnitude_key] + zp_median_all
 
         # Filter out reference sources
-        filtered_catalog, _, target_seeing = self.select_stars(
-            target_catalog = target_catalog,
-            verbose = verbose,
-            visualize = visualize,
-            save = False,
-            save_fig = save_fig, 
-            mag_lower = mag_min,
-            mag_upper = mag_max,
-            classstar_lower = classstar_lower,
-            elongation_upper = elongation_upper,
-            elongation_sigma = elongation_sigma,
-            fwhm_lower = fwhm_lower,
-            fwhm_sigma = fwhm_sigma,
-            flag_upper = flag_upper,
-            maskflag_upper = maskflag_upper,
-            magnitude_key = magnitude_sky_key,
-            fwhm_key = fwhm_key,
-            x_key = x_key,
-            y_key = y_key,
-            classstar_key = classstar_key,
-            elongation_key = elongation_key,
-            flag_key = flag_key,
-            maskflag_key = maskflag_key,
-            inner_fraction = inner_fraction,
-            isolation_radius = isolation_radius
-            )
-        
-        filtered_catalog_data = filtered_catalog.data
-        catalog_coord = SkyCoord(filtered_catalog_data['X_WORLD'], filtered_catalog_data['Y_WORLD'], unit='deg')
-        reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
-        obj_indices, ref_indices, unmatched_obj_indices = self.helper.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
-        matched_obj = filtered_catalog_data[obj_indices]
-        matched_ref = all_references[ref_indices]
-        filtered_catalog.data = matched_obj
+        for i in range(5):
+            filtered_catalog, _, target_seeing = self.select_stars(
+                target_catalog = target_catalog,
+                mag_lower = mag_min,
+                mag_upper = mag_max,
+                snr_lower = snr_lower,
+                snr_upper = snr_upper,
+                classstar_lower = classstar_lower,
+                elongation_upper = elongation_upper,
+                elongation_sigma = elongation_sigma,
+                fwhm_lower_arcsec = fwhm_lower_arcsec,
+                fwhm_upper_arcsec = fwhm_upper_arcsec,
+                fwhm_sigma = fwhm_sigma,
+                flag_upper = flag_upper,
+                maskflag_upper = maskflag_upper,
+                ra_deg = ra_deg,
+                dec_deg = dec_deg,
+                radius_arcsec = radius_arcsec,
+                inner_fraction = inner_fraction,
+                isolation_radius_arcsec = isolation_radius_arcsec,
 
+                save = False,
+                verbose = verbose,
+                visualize = visualize,
+                save_fig = save_fig, 
+
+                magnitude_key = magnitude_sky_key,
+                magnitudeerr_key = magnitudeerr_key,
+                fwhm_key = fwhm_key,
+                ra_key = ra_key,
+                dec_key = dec_key,
+                classstar_key = classstar_key,
+                elongation_key = elongation_key,
+                flag_key = flag_key,
+                maskflag_key = maskflag_key,
+                )
+            filtered_catalog_data = filtered_catalog.data
+            catalog_coord = SkyCoord(filtered_catalog_data['X_WORLD'], filtered_catalog_data['Y_WORLD'], unit='deg')
+            reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
+            obj_indices, ref_indices, unmatched_obj_indices = self.helper.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
+            matched_obj = filtered_catalog_data[obj_indices]
+            matched_ref = all_references[ref_indices]
+            filtered_catalog.data = matched_obj
+            if len(matched_obj) < min_number_of_sources:
+                mag_max += 0.5
+                classstar_lower = np.max([0.0, classstar_lower - 0.1])
+                self.helper.print(f"[WARN] No enough sources found. Increasing mag_max to {mag_max}, classstar_lower to {classstar_lower}", verbose)
+            else:
+                break
 
         # Update the target image header
-        update_kwargs['PEEING'] = (target_seeing, "Seeing FWHM in pixel")
-        update_kwargs['SEEING'] = (target_seeing * np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
+        update_kwargs['SEEING'] = (target_seeing, "Seeing FWHM in pixel")
+        update_kwargs['PEEING'] = (target_seeing / np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
 
         if 'SKYVAL' in filtered_catalog_data.colnames:
             skyval = float(filtered_catalog_data['SKYVAL'][0])
@@ -371,8 +397,6 @@ class PhotometricCalibration:
             
             # Calculate zero point
             zp = matched_ref[mag_key_ref] - matched_obj[mag_key]
-            #if magerr_key_ref in matched_ref.colnames:
-            #    zperr = np.sqrt(matched_ref[magerr_key_ref]**2 + matched_objf[magerr_key]**2)
             sc = SigmaClip(sigma=3.0, maxiters=5)
             masked = sc(zp)
             zp_cleaned_indices = np.where(~masked.mask)[0]
@@ -411,13 +435,31 @@ class PhotometricCalibration:
                 ('r', 'i'),
                 ('B', 'V'),
                 ('V', 'R'),
-                ('R', 'I'),
-                ('m475', 'm625'), # g-r
-                ('m625', 'm750'), # r-i
-                ('m450', 'm550'), # B-V
-                ('m550', 'm650'), # V-R
-                ('m650', 'm800') # R-I
+                ('R', 'I')
                 ]
+                for filt_ in ['g', 'r', 'i', 'B', 'V', 'R', 'I']:
+                    color_terms.append((target_img.filter, filt_))
+                
+                if target_img.filter.startswith('m'):
+                    target_filter_nm = float(re.findall(r'\d+', target_img.filter)[0])
+
+                    all_filters_in_matched_ref = matched_ref.colnames
+                    all_filters_nm_in_matched_ref = np.array([
+                        float(re.findall(r'\d+', f)[0])
+                        for f in all_filters_in_matched_ref
+                        if f.startswith('m')
+                    ])
+                    
+                    nearby_idx = np.where(
+                        (np.abs(all_filters_nm_in_matched_ref - target_filter_nm) < 350) &
+                        (np.abs(all_filters_nm_in_matched_ref - target_filter_nm) > 150)
+                    )[0]
+
+                    nearby_filters_nm = all_filters_nm_in_matched_ref[nearby_idx]
+
+                    for filt_nm in nearby_filters_nm:
+                        color_terms.append((target_img.filter, f'm{int(filt_nm)}'))
+                                      
                 reference_tbl = matched_ref[zp_cleaned_indices]
                 for f1, f2 in color_terms:
                     key1 = f'{f1}_mag'
@@ -470,60 +512,312 @@ class PhotometricCalibration:
                 except Exception as e:
                     self.helper.print(f"[WARN] [{mag_key}] Magnitude term fit failed: {e}", verbose)
 
-            # Draw spatial variation of the zeropoint (density map)
+            # Save spatial variation of the zeropoint (density map)
             if visualize or save_fig:
-                zp_residual = zp - zp_median
-                x_key = 'X_IMAGE'
-                y_key = 'Y_IMAGE'
-                x = matched_obj[x_key]
-                y = matched_obj[y_key]
-                c = zp_residual
+                if 'zp_maps' not in locals():
+                    zp_maps = {}
+                    zp_errs = {}
+                    zp_extent = None
 
-                # Data
                 zp_residual = zp - zp_median
-                x_key = 'X_IMAGE'
-                y_key = 'Y_IMAGE'
-                x = matched_obj[x_key]
-                y = matched_obj[y_key]
-                c = zp_residual
+                x = matched_obj['X_IMAGE']
+                y = matched_obj['Y_IMAGE']
+                zp_residual_cleaned = zp_residual[zp_cleaned_indices]
+                x_cleaned = x[zp_cleaned_indices]
+                y_cleaned = y[zp_cleaned_indices]
+
                 bins = 100
+                X, Y = np.meshgrid(
+                    np.linspace(x_cleaned.min(), x_cleaned.max(), bins),
+                    np.linspace(y_cleaned.min(), y_cleaned.max(), bins)
+                )
 
-                # Create meshgrid
-                X, Y = np.meshgrid(np.linspace(x.min(), x.max(), bins),
-                                np.linspace(y.min(), y.max(), bins))
-
-                # Fit 2D polynomial
-                poly2d = models.Polynomial2D(degree=15)
+                poly2d = models.Polynomial2D(degree=2)
                 fitter = fitting.LinearLSQFitter()
-                zp_model = fitter(poly2d, x, y, c)  # fit to residuals
+                zp_model = fitter(poly2d, x_cleaned, y_cleaned, zp_residual_cleaned)
                 Z = zp_model(X, Y)
 
-                # Plot density map
-                plt.figure(figsize=(10, 8))
-                plt.imshow(Z, origin='lower', extent=[x.min(), x.max(), y.min(), y.max()], cmap='viridis')
-                cbar = plt.colorbar(label='Modeled ZP Variation')
-                cbar.ax.tick_params(labelsize=12)
+                zp_maps[mag_key] = Z
+                zp_errs[mag_key] = zp_err
+                zp_extent = [x.min(), x.max(), y.min(), y.max()]
 
-                # Add contour lines at ±zp_err
-                contours = plt.contour(X, Y, Z, levels=[-zp_err, zp_err], colors='white', linewidths=1.5)
-                plt.clabel(contours, inline=True, fontsize=14, fmt="%.3f")  # Increased font size
+        # Visualization for 2D ZP map
+        if (visualize or save_fig) and 'zp_maps' in locals():
 
-                # Overlay points
-                plt.scatter(x, y, c='k', s=5, alpha=0.3)
+            n = len(zp_maps)
+            ncols = int(np.ceil(np.sqrt(n)))
+            nrows = int(np.ceil(n / ncols))
 
-                # Labels and title with larger fonts
-                plt.title(r'[%s] 2D Zeropoint Gradient (± $1σ_{ZP}(%.3f)$ contour)'%(zp_key, zp_err), fontsize=16)
-                plt.xlabel(x_key, fontsize=14)
-                plt.ylabel(y_key, fontsize=14)
-                plt.tick_params(axis='both', which='major', labelsize=12)
+            fig, axes = plt.subplots(
+                nrows, ncols,
+                figsize=(4.5*ncols, 3.5*nrows),
+                sharex=True,
+                sharey=True,
+                dpi=300
+            )
+            axes = np.atleast_2d(axes)
 
-                if save_fig:
-                    fig_path = str(target_img.savepath.catalogpath) + f'.{zp_key}.2D.png'
-                    plt.savefig(fig_path, dpi=300)
-                    self.helper.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
-                if visualize:
-                    plt.show()
-                plt.close()
+            vmin = min(np.nanmin(Z) for Z in zp_maps.values())
+            vmax = max(np.nanmax(Z) for Z in zp_maps.values())
+            
+            # --- global colormap & norm ---
+            cmap = plt.cm.viridis
+
+            if vmin < 0 < vmax:
+                norm = mcolors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+            else:
+                norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+            for ax, (mag_key, Z) in zip(axes.flat, zp_maps.items()):
+
+                im = ax.imshow(
+                    Z,
+                    origin='lower',
+                    extent=zp_extent,
+                    cmap=cmap,
+                    norm=norm
+                )
+
+                ax.set_title(mag_key, fontsize=14)
+                ax.set_xlabel('X_IMAGE', fontsize=14)
+                ax.set_ylabel('Y_IMAGE', fontsize=14)
+                ax.tick_params(axis='both', labelsize=12)
+
+                err = zp_errs[mag_key]
+                if np.isfinite(err) and err > 0:
+                    CS = ax.contour(
+                        X, Y, Z,
+                        levels=[-err, err],
+                        colors='white',
+                        linewidths=1
+                    )
+                    ax.clabel(
+                        CS,
+                        fmt=lambda v: f'{v:+.3f}',
+                        fontsize=11,
+                        inline=True
+                    )
+
+                # --- scatter: mag_key별 residual ---
+                info = zp_info[mag_key]
+                x = info['ZP_target']['X_IMAGE']
+                y = info['ZP_target']['Y_IMAGE']
+                zp_residual = info['ZP_all'] - info['ZP_median']
+
+                ax.scatter(
+                    x, y,
+                    c=zp_residual,
+                    cmap=cmap,
+                    norm=norm,
+                    s=15,
+                    edgecolor='k',
+                    linewidth=0.3,
+                    alpha=0.7,
+                    zorder=10
+                )
+
+            for ax in axes.flat[len(zp_maps):]:
+                ax.axis('off')
+
+            cbar = fig.colorbar(
+                im,
+                ax=axes.ravel().tolist(),
+                orientation='horizontal',
+                location='bottom',
+                shrink=0.9,
+                pad=0.08
+            )
+
+            cbar.set_label('ZP spatial residual (mag)', fontsize=18)
+            cbar.ax.tick_params(labelsize=14)
+
+            fig.suptitle('2D Zeropoint Spatial Variation (all apertures)', fontsize=20)
+            fig.tight_layout(rect=[0, 0.3, 1, 0.985])
+
+            if save_fig:
+                fig.savefig(str(target_img.savepath.catalogpath) + '.zp_2d.png', dpi=300)
+
+            if visualize:
+                plt.show()
+            plt.close(fig)
+        
+        # Visualization for ZP vs reference magnitude
+        if visualize or save_fig:            
+
+            n = len(zp_info)
+            ncols = int(np.ceil(np.sqrt(n)))
+            nrows = int(np.ceil(n / ncols))
+
+            fig, axes = plt.subplots(
+                nrows, ncols,
+                figsize=(4.5*ncols, 4*nrows),
+                sharex=True,
+                sharey=True,
+                dpi=300
+            )
+            axes = np.atleast_2d(axes)
+
+            for ax, (mag_key, info) in zip(axes.flat, zp_info.items()):
+                ref_mag = info['ZP_reference'][mag_key_ref]
+                zp = info['ZP_all']              # absolute ZP
+                zp_med = info['ZP_median']
+                zp_err = info['ZP_err']
+
+                ax.scatter(ref_mag, zp, marker = 'o', facecolor = 'none', edgecolor = 'k', s=15, alpha=0.4)
+                ax.axhline(zp_med, color='k', ls='--', lw=1)
+                
+                ax.fill_between(
+                    [ref_mag.min(), ref_mag.max()],
+                    zp_med - zp_err,
+                    zp_med + zp_err,
+                    color='k',
+                    alpha=0.1
+                )                
+                
+                ax.set_title(
+                    f'{mag_key}\n'
+                    f'ZP={zp_med:.3f} ± {zp_err:.3f}',
+                    fontsize=14
+                )
+                ax.invert_xaxis()
+                ax.tick_params(axis='both', labelsize=14)
+
+                # optional magnitude-term fit
+                k_key = mag_key.replace('MAG_', 'K_MAG_')
+                if calculate_mag_terms and k_key in mag_term_info:
+                    a = mag_term_info[k_key]['slope']
+                    b = mag_term_info[k_key]['intercept']
+                    xfit = np.linspace(ref_mag.min(), ref_mag.max(), 100)
+                    ax.plot(xfit, a*xfit + b + zp_med, 'b--', lw=1)
+
+            for ax in axes.flat[len(zp_info):]:
+                ax.axis('off')
+
+            fig.supxlabel('Reference magnitude', fontsize=20)
+            fig.supylabel('Zeropoint', fontsize=20)
+            fig.suptitle(f'ZP ({target_img.filter}) vs Reference Magnitude', fontsize=30)
+            fig.tight_layout(rect=[0.03, 0, 0.97, 0.97])
+
+            if save_fig:
+                fig_path = str(target_img.savepath.catalogpath) + '.zp_mag.png'
+                fig.savefig(fig_path, dpi=300)
+                self.helper.print(f"[INFO] ZP vs mag plot saved to {fig_path}", verbose)
+
+            if visualize:
+                plt.show()
+            plt.close(fig)
+            
+        # ============================================================
+        # Visualization: ZP vs g-r color
+        # ============================================================
+        if visualize or save_fig:
+
+            n = len(zp_info)
+            ncols = int(np.ceil(np.sqrt(n)))
+            nrows = int(np.ceil(n / ncols))
+
+            fig, axes = plt.subplots(
+                nrows, ncols,
+                figsize=(4.5*ncols, 4*nrows),
+                sharex=True,
+                sharey=True,
+                dpi=300
+            )
+            axes = np.atleast_2d(axes)
+
+            for ax, (mag_key, info) in zip(axes.flat, zp_info.items()):
+
+                ref = info['ZP_reference']
+
+                # --- g-r color from reference catalog ---
+                if ('g_mag' not in ref.colnames) or ('r_mag' not in ref.colnames):
+                    ax.text(0.5, 0.5, 'no g-r',
+                            transform=ax.transAxes,
+                            ha='center', va='center')
+                    ax.axis('off')
+                    continue
+
+                color = ref['g_mag'] - ref['r_mag']
+
+                zp = info['ZP_all']
+                zp_med = info['ZP_median']
+                zp_err = info['ZP_err']
+
+                zp_res = zp - zp_med   # residual (recommended)
+
+                # --- scatter ---
+                ax.scatter(
+                    color,
+                    zp_res,
+                    s=15,
+                    facecolor='none',
+                    edgecolor='k',
+                    alpha=0.5
+                )
+
+                # --- zero line ---
+                ax.axhline(0.0, color='k', ls='--', lw=1)
+
+                # --- ±1σ band ---
+                ax.fill_between(
+                    [color.min(), color.max()],
+                    -zp_err,
+                    +zp_err,
+                    color='k',
+                    alpha=0.1
+                )
+
+                ax.set_title(
+                    f'{mag_key}\n'
+                    rf'$\sigma_{{ZP}}={zp_err:.3f}$',
+                    fontsize=14
+                )
+
+                ax.tick_params(axis='both', labelsize=14)
+
+                # --- optional color-term fit ---
+                if calculate_color_terms:
+                    # example: g-r
+                    slope_key = mag_key.replace('MAG_', 'K_COLOR_') + '_g-r'
+                    intercept_key = mag_key.replace('MAG_', 'C_COLOR_') + '_g-r'
+
+                    if slope_key in color_term_info:
+                        a = color_term_info[slope_key]['slope']
+                        b = color_term_info[slope_key]['intercept']
+
+                        xfit = np.linspace(color.min(), color.max(), 100)
+                        yfit = a * xfit + b
+
+                        ax.plot(xfit, yfit, 'r--', lw=1)
+
+            for ax in axes.flat[len(zp_info):]:
+                ax.axis('off')
+
+            fig.supxlabel('Reference color (g − r)', fontsize=20)
+            fig.supylabel('ZP residual (mag)', fontsize=20)
+            fig.suptitle(
+                f'ZP residual vs g−r color ({target_img.filter})',
+                fontsize=30
+            )
+            fig.tight_layout(rect=[0.03, 0, 0.97, 0.97])
+
+            if save_fig:
+                fig_path = str(target_img.savepath.catalogpath) + '.zp_color.png'
+                fig.savefig(fig_path, dpi=300)
+                self.helper.print(f"[INFO] ZP vs color plot saved to {fig_path}", verbose)
+
+            if visualize:
+                plt.show()
+            plt.close(fig)
+
+        
+        # update_kwargs = {
+        #     'depth': target_img.depth,
+        #     'seeing': target_img.seeing}
+        
+        # for key, value in update_kwargs.items():
+        #     target_catalog.info.update(key, value)
+        #     filtered_catalog.info.update(key, value)
 
         # Final: Update the header
         if update_header:
@@ -533,135 +827,10 @@ class PhotometricCalibration:
                 else:
                     target_img.header[key] = (value, "")
         
-        # Update the target image status
+        # Update the target image
         target_img.update_status('ZPCALC')
-        
-        # Write the target image 
         target_img.write(verbose = verbose) 
-        
-        if visualize or save_fig:            
-            zp_median = zp_info[magnitude_key]['ZP_median']
-            
-            plt.figure(dpi = 300)
-            plt.title(f'{zp_key_ref} calculation for {target_img.filter} band')
-            plt.xlabel(f'Photometric reference ({target_img.filter})')
-            plt.ylabel(f'{zp_key_ref}')
-            
-            # Plot scatter with FWHM_IMAGE as color
-            # Set custom color limits for FWHM
-            sc = plt.scatter(
-                matched_ref_all[mag_key_ref], zp_all,
-                c=matched_obj_all['FWHM_IMAGE'],
-                vmin=target_seeing,
-                vmax=target_seeing + 2,
-                alpha=0.15,
-                label=f'All targets [{len(matched_ref_all)}]'
-            )
-            plt.scatter(zp_info[magnitude_key]['ZP_reference'][mag_key_ref], zp_info[magnitude_key]['ZP_all'], c = 'r', alpha = 0.5, label = f'Selected targets [{len(zp_info[magnitude_key]["ZP_target"])}]')
-            plt.errorbar(zp_info[magnitude_key]['ZP_reference'][mag_key_ref], zp_info[magnitude_key]['ZP_all'], yerr = np.sqrt(zp_info[magnitude_key]['ZP_target'][magerr_key]**2 + zp_info[magnitude_key]['ZP_err']**2), fmt='None', c = 'r', alpha=0.5)
-            plt.axhline(zp_median, color='k', linestyle='--', label = 'ZP = %.3f +/- %.3f'%(zp_median, zp_info[magnitude_key]['ZP_err']))
-            # Explicitly attach colorbar to the first scatter
-            plt.colorbar(sc, label='FWHM (pixel)')
-            
-            xmin = max(np.min(matched_ref_all[mag_key_ref]) -1, 9)
-            xmax = min(np.max(matched_ref_all[mag_key_ref]) + 1, 20)
-            plt.xlim(xmin, xmax)
-            plt.ylim(zp_median - 0.5, zp_median + 1)
-            plt.legend()
-            
-            if calculate_mag_terms:
-                popt = list(mag_term_info[f'K_{magnitude_key}'].values())
-                x_fit = np.linspace(xmin, xmax, 100)
-                fit_result = linear(x_fit, *popt) + zp_median
-                plt.plot(x_fit, fit_result, color='b', linestyle='--', label=f'Fit: {popt[0]:.3f}x+{popt[1]:.3f}, [{np.min(fit_result):.3f}~{np.max(fit_result):.3f}]')
-            
-            if save_fig:
-                fig_path = str(target_img.savepath.catalogpath) + '.zp.png'
-                plt.savefig(fig_path, dpi=300)
-                self.helper.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
-            if visualize:
-                plt.show()
-            plt.close()
 
-            if calculate_color_terms:
-
-                # Automatically get all keys from zp_info
-                photometry_keys = list(zp_info.keys())
-
-                # Set up figure
-                plt.figure(figsize=(8,6))
-
-                # Optional: assign different colors and markers
-                colors = ['k', 'r', 'g', 'b', 'm', 'c', 'y']
-                markers = ['o', 's', '^', 'd', 'P', '*', 'v']
-
-                # Setup cycling through colors and markers if many keys
-                color_cycle = cycle(colors)
-                marker_cycle = cycle(markers)
-
-                for mag_key in photometry_keys:
-                    ref_magkey = zp_info[mag_key]['ZP_reference']
-                    target_magkey = zp_info[mag_key]['ZP_target']
-                    zp_all_magkey = zp_info[mag_key]['ZP_all']
-                    zp_median_magkey = zp_info[mag_key]['ZP_median']
-                    zp_err_magkey = zp_info[mag_key]['ZP_err']
-
-                    # g - r color
-                    color = ref_magkey['g_mag'] - ref_magkey['r_mag']
-
-                    # Fit linear model
-                    try:
-                        popt, pcov = curve_fit(linear, color, zp_all_magkey)
-                    except Exception as e:
-                        self.helper.print(f"[WARN] Fitting failed for {mag_key}: {e}", verbose)
-                        continue
-
-                    # Plot scatter
-                    color_ = next(color_cycle)
-                    marker_ = next(marker_cycle)
-                    plt.scatter(color, zp_all_magkey, color=color_, alpha=0.5, marker=marker_, label=f'{mag_key} ({zp_median_magkey:.3f} +/- {zp_err_magkey:.3f})')
-
-                    # Plot fit line
-                    x_fit = np.linspace(np.min(color), np.max(color), 100)
-                    fit_result = linear(x_fit, *popt)
-                    
-                    plt.plot(x_fit, fit_result, color=color_, linestyle='--', label=f'Fit {mag_key}: {popt[0]:.3f}x+{popt[1]:.3f}, [{np.min(fit_result):.3f}~{np.max(fit_result):.3f}]')
-
-                # --- Final plot settings ---
-                plt.axhline(0, color='gray', linestyle=':')
-
-                plt.xlabel('g - r color from reference catalog (mag)')
-                plt.ylabel('Zero point residual (mag)')
-                plt.title('ZP Residual vs Color')
-
-                # Correct ylim setting: based on min and max of all zp_median
-                if photometry_keys:
-                    all_zp_medians = [zp_info[key]['ZP_median'] for key in photometry_keys]
-                    zp_median_min = np.min(all_zp_medians)
-                    zp_median_max = np.max(all_zp_medians)
-                    plt.ylim(zp_median_min - 1, zp_median_max + 1.5)
-
-                # Make legend smaller
-                plt.legend(fontsize=8, loc='best', frameon=True, ncols=2)
-                plt.grid(True)
-                plt.tight_layout()
-                if save_fig:
-                    fig_path = str(target_img.savepath.catalogpath) + '.zp_color.png'
-                    plt.savefig(fig_path, dpi=300)
-                    self.helper.print(f"[INFO] ZP calibration plot saved to {fig_path}", verbose)
-                if visualize:
-                    plt.show()
-                
-                plt.close()
-        
-        update_kwargs = {
-            'depth': target_img.depth,
-            'seeing': target_img.seeing}
-        
-        for key, value in update_kwargs.items():
-            target_catalog.info.update(key, value)
-            filtered_catalog.info.update(key, value)
-            
         if save:
             target_catalog.write(verbose = verbose)
             
@@ -672,8 +841,8 @@ class PhotometricCalibration:
     def apply_zp(self,
                 target_img: Union[ScienceImage, ReferenceImage],
                 target_catalog: Catalog,
-                save: bool = True,
-                verbose: bool = True) -> Table:
+                verbose: bool = True,
+                save: bool = True) -> Table:
         """
         Apply photometric zeropoint corrections using values saved in the FITS header.
         Adds MAGSKY_*, ZP_*, ZPERR_*, UL3_*, UL5_* columns to target_catalog.
@@ -749,164 +918,436 @@ class PhotometricCalibration:
             
         return target_catalog
     
-    def apply_color_terms(self,
-                          target_img: Union[ScienceImage, ReferenceImage],
-                          target_catalog: Catalog,
-                          comparison_catalog: Catalog,                          
-                          max_distance_second: float = 1.0,
-                          save: bool = True,
-                          verbose: bool = False
-                          ):
+    def find_comparison_catalog(self,
+                                target_img,
+                                target_catalog,
+                                max_day_offset=1,
+                                verbose=False):
         """
-        Apply color term correction to target_catalog using compare_catalog_for_color.
-        Color term equation: MAG_corrected = MAG + a*(color) + b
-        where color = compare_catalog[filter_1] - compare_catalog[filter_2]
+        Automatically find a suitable comparison catalog for color-term correction.
+        """
         
-        Parameters
-        ----------
-        target_img : ScienceImage or ReferenceImage
-            The target image to apply color term corrections to.
-        target_catalog : Catalog
-            The catalog to apply color term corrections to.
-        comparison_catalog : Catalog
-            The catalog to use for color term corrections.
-        max_distance_second : float, optional
-            The maximum distance in arcseconds to consider for color term corrections.
-        save : bool, optional
-            Whether to save the catalog.
-        verbose : bool, optional
-            Whether to print verbose output.
-            
-        Returns
-        -------
-        target_catalog: Catalog
-            The updated catalog with color term corrections.
-        """
+        def wavelength_score_gaussian(filt_nm, center=550.0, sigma=150.0):
+            """
+            filt_nm : float or array (nm)
+            """
+            return np.exp(-0.5 * ((filt_nm - center) / sigma)**2)
+
+        from ezphot.utils import DataBrowser
+        from astropy.time import Time
+
+        dbrowser = DataBrowser('scidata')
+        dbrowser.observatory = target_img.observatory
+        dbrowser.objname = target_img.objname
+
+        # --- find catalogs with same filename pattern ---
+        catalog_filename = target_catalog.path.name
+        prefix = catalog_filename.split('_')[0]
+        suffix = catalog_filename.split('_')[-1]
+        pattern = f'{prefix}*{suffix}'
+
+        catalogset = dbrowser.search(pattern=pattern, return_type='catalog')
+
+        # --- time filter ---
+        t0 = Time(target_img.obsdate, format='isot')
+        tmin = t0 - max_day_offset * u.day
+        tmax = t0 + max_day_offset * u.day
+        catalogset.select_catalogs(obs_start=tmin.isot, obs_end=tmax.isot)
+
+        if len(catalogset.catalogs) == 0:
+            raise RuntimeError("No comparison catalogs found within time window")
+
+        # --- classify filters ---
+        target_filter = target_img.filter
+        target_nm = None
+        if target_filter.startswith('m'):
+            target_nm = float(re.findall(r'\d+', target_filter)[0])
+        candidates = []
+
+        for cat in catalogset.catalogs:
+            filt = cat.info.filter
+
+            # skip same filter
+            if filt == target_filter:
+                continue
+
+            score = 0.0
+
+            if target_filter.startswith('m'):
+                if filt.startswith('m'):
+                    nm = float(re.findall(r'\d+', filt)[0])
+                    dnm = abs(nm - target_nm)
+
+                    if not (150 < dnm < 350):
+                        continue  # reject too close / too far
+
+                    score += 3.0
+                    score += wavelength_score_gaussian(nm)  # ⭐ 525nm preference
+
+                else:
+                    # broad band vs medium band
+                    score += 2.0
+                    score += 1.0  # neutral wavelength score
+
+            else:
+                # target is broad band
+                if filt in ['g', 'r', 'i', 'B', 'V', 'R', 'I']:
+                    score += 3.0
+                else:
+                    score += 1.0
+                score += 1.0  # wavelength not meaningful
+
+            # (optional) time preference could go here
+
+            candidates.append((score, cat))
+
+        if len(candidates) == 0:
+            raise RuntimeError("No suitable comparison catalog found")
+
+        # --- choose best ---
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_cat = candidates[0]
+
+        if verbose:
+            self.helper.print(f"[INFO] Comparison catalog selected: {best_cat.info.filter} ({best_cat.info.obsdate})",verbose)
+
+        return best_cat
+    
+    
+    def apply_color_terms(self, target_img: Union[ScienceImage, ReferenceImage], target_catalog: Catalog, 
+                          comparison_catalog: Catalog = None,
+                          magkey_suffix: Union[str, List[str]] = 'MAGSKY_',
+                          max_distance_arcsec: float = 2.5, 
+                          save: bool = True, 
+                          verbose: bool = False):
+        
+        self._backup_magsky_once(target_catalog)
+
         def linear(x, a, b):
             return a * x + b
         
-        # 0. Cross-match catalogs
+        def select_catalog_rows(merged_tbl, catalog_idx, data_keys):
+            """
+            Select rows where the given catalog has a detection.
+            """
+            idx_cols = [f"{k}_idx{catalog_idx}" for k in data_keys
+                        if f"{k}_idx{catalog_idx}" in merged_tbl.colnames]
+
+            if len(idx_cols) == 0:
+                raise ValueError("No matching columns found for catalog_idx")
+
+            mask = np.zeros(len(merged_tbl), dtype=bool)
+            for col in idx_cols:
+                mask |= np.isfinite(merged_tbl[col])
+
+            return merged_tbl[mask]
+        
+        if comparison_catalog is None:
+            comparison_catalog = self.find_comparison_catalog(
+                target_img, target_catalog, max_day_offset=1, verbose=verbose
+            )
+            
+        num_to_row = {
+            int(n): i
+            for i, n in enumerate(target_catalog.data['NUMBER'])
+        }
         from ezphot.dataobjects import CatalogSet
         catalog_dataset = CatalogSet([target_catalog, comparison_catalog])
-        magsky_key_all = [col for col in target_catalog.data.colnames if col.startswith('MAGSKY_')]
-        mag_key_all = [col.replace('MAGSKY_','MAG_') for col in magsky_key_all]
-        merged_catalog, merged_metadata = catalog_dataset.merge_catalogs(max_distance_second = max_distance_second, join_type = 'outer', data_keys = magsky_key_all)
-        target_catalog_data = merged_catalog[:len(target_catalog.data)]
-        filter_1_key = target_catalog.info.filter
-        filter_2_key = comparison_catalog.info.filter
+        if isinstance(magkey_suffix, str):
+            magkey_suffix = [magkey_suffix]
+        magsky_keys = []
+        for magkey_suffix in magkey_suffix:
+            magsky_keys.extend([c for c in target_catalog.data.colnames
+                                if c.startswith(magkey_suffix)])
+
+        merged_catalog, merged_metadata = catalog_dataset.merge_catalogs(
+            max_distance_arcsec=max_distance_arcsec,
+            join_type='outer',
+            data_keys=magsky_keys + ['NUMBER']
+        )
+
+        target_catalog_data = select_catalog_rows(
+            merged_catalog,
+            catalog_idx=0,
+            data_keys=magsky_keys
+        )
+        order = [
+            num_to_row[int(n)]
+            for n in target_catalog_data['NUMBER_idx0']
+        ]
+
+        order = np.array(order, dtype=int)        
         
         header = target_img.header
-        
-        for magsky_key in magsky_key_all:
-            slope_key_try1 = magsky_key.replace('MAGSKY_', 'K_COLOR_') + f'_{filter_1_key}-{filter_2_key}'
-            intercept_key_try1 = magsky_key.replace('MAGSKY_', 'C_COLOR_') + f'_{filter_1_key}-{filter_2_key}'
-            slope_key_try2 = magsky_key.replace('MAGSKY_', 'K_COLOR_') + f'_{filter_2_key}-{filter_1_key}'
-            intercept_key_try2 = magsky_key.replace('MAGSKY_', 'C_COLOR_') + f'_{filter_2_key}-{filter_1_key}'
-            magsky_filter_1_key = magsky_key + '_idx0'
-            magsky_filter_2_key = magsky_key + '_idx1'
-            # Calculate color term
-            if slope_key_try1 in header and intercept_key_try1 in header:
-                slope = header[slope_key_try1]
-                intercept = header[intercept_key_try1]
-                color = target_catalog_data[magsky_filter_1_key] - target_catalog_data[magsky_filter_2_key]
-                color_key = f'{filter_1_key}-{filter_2_key}'
-            elif slope_key_try2 in header and intercept_key_try2 in header:
-                slope = header[slope_key_try2]
-                intercept = header[intercept_key_try2]
-                color = target_catalog_data[magsky_filter_2_key] - target_catalog_data[magsky_filter_1_key]
-                color_key = f'{filter_2_key}-{filter_1_key}'
-            else:
-                self.helper.print(f"[WARNING] Color term keys '{slope_key_try1}' or '{intercept_key_try1}' not found in FITS header.", verbose)
-                continue
-            color_term = linear(color, slope, intercept)
-            # Update target_catalog with color term
-            colorterm_key = magsky_key.replace('MAGSKY_', 'CTERM_')
-            corrmag_key = magsky_key.replace('MAGSKY_', 'C_CORR_MAGSKY_')
-            target_catalog.data[corrmag_key] = target_catalog.data[magsky_key] + color_term
-            target_catalog.data[colorterm_key] = color_term
-            target_catalog.data[color_key] = color
-        
-        if save:
-            target_catalog.write(verbose = verbose)    
+        tab = target_catalog.data[order]
 
-        return target_catalog
-            
-    def apply_mag_terms(self,
-                        target_img: Union[ScienceImage, ReferenceImage],
-                        target_catalog: Catalog,
-                        save: bool = True,
-                        verbose: bool = False):
-        """
-        Apply magnitude term correction to target_catalog using values saved in the FITS header.
-        Magnitude term equation: MAG_corrected = MAG + a*(MAG) + b
+        f1 = target_catalog.info.filter
+        f2 = comparison_catalog.info.filter
+
+        for k in magsky_keys:
+            cterm_key = k.replace('MAGSKY_', 'CTERM_')
+            if cterm_key in target_catalog.data.colnames:
+                continue
+            slope_key_12 = k.replace('MAGSKY_', 'K_COLOR_') + f'_{f1}-{f2}'
+            intercept_key_12 = k.replace('MAGSKY_', 'C_COLOR_') + f'_{f1}-{f2}'
+            slope_key_21 = k.replace('MAGSKY_', 'K_COLOR_') + f'_{f2}-{f1}'
+            intercept_key_21 = k.replace('MAGSKY_', 'C_COLOR_') + f'_{f2}-{f1}'
+
+            m1 = k + '_idx0'
+            m2 = k + '_idx1'
+
+            if slope_key_12 in header and intercept_key_12 in header:
+                a = float(header[slope_key_12])
+                b = float(header[intercept_key_12])
+                color = np.array(target_catalog_data[m1] - target_catalog_data[m2], dtype=float)
+            elif slope_key_21 in header and intercept_key_21 in header:
+                a = float(header[slope_key_21])
+                b = float(header[intercept_key_21])
+                color = np.array(target_catalog_data[m2] - target_catalog_data[m1], dtype=float)
+            else:
+                self.helper.print(f"[WARN] No color-term coeffs for {k}", verbose)
+                target_catalog.data[cterm_key] = np.zeros(len(target_catalog.data), dtype=float)
+                continue
+
+            cterm = linear(color, a, b)
+
+            # NaN-safe
+            cterm[~np.isfinite(cterm)] = 0.0
+            tab[k] = target_catalog_data[m1] + cterm
+            tab[cterm_key] = cterm
         
-        Parameters
-        ----------
-        target_img : ScienceImage or ReferenceImage
-            The target image to apply magnitude term corrections to.
-        target_catalog : Catalog
-            The catalog to apply magnitude term corrections to.
-        save : bool, optional
-            Whether to save the catalog.
-        verbose : bool, optional
-            Whether to print verbose output.
-            
-        Returns
-        -------
-        target_catalog: Catalog
-            The updated catalog with magnitude term corrections.
-        """
+        target_catalog.data = tab
+        if save:
+            target_catalog.write(verbose=verbose)
+        return target_catalog
+
+    def apply_mag_terms(self, target_img: Union[ScienceImage, ReferenceImage], target_catalog: Catalog, 
+                        magkey_suffix: Union[str, List[str]] = 'MAGSKY_', 
+                        verbose: bool = False,
+                        save: bool = True):
+
+        self._backup_magsky_once(target_catalog)
+        
         def linear(x, a, b):
             return a * x + b
         
-        target_catalog_data = target_catalog.data
-        magsky_key_all = [
-            col for col in target_catalog_data.colnames
-            if col.startswith('MAGSKY_') and not np.all(target_catalog_data[col] == 0)
-        ]
         header = target_img.header
+        tab = target_catalog.data.copy()
+        
+        if isinstance(magkey_suffix, str):
+            magkey_suffix = [magkey_suffix]
+        magsky_keys = []
+        for magkey_suffix in magkey_suffix:
+            magsky_keys.extend([c for c in tab.colnames
+                                if c.startswith(magkey_suffix)])
+            
+        for k in magsky_keys:
+            mterm_key = k.replace('MAGSKY_', 'MTERM_')
+            if mterm_key in tab.colnames:
+                continue
+            slope_key = k.replace('MAGSKY_', 'K_MAG_')
+            intercept_key = k.replace('MAGSKY_', 'C_MAG_')
 
-        for magsky_key in magsky_key_all:
-            slope_key = magsky_key.replace('MAGSKY_', 'K_MAG_')
-            intercept_key = magsky_key.replace('MAGSKY_', 'C_MAG_')
             if slope_key not in header or intercept_key not in header:
-                self.helper.print (f"[WARNING] Color term keys '{slope_key}' or '{intercept_key}' not found in FITS header.", verbose)
+                self.helper.print(f"[WARN] No mag-term coeffs for {k}", verbose)
+                tab[mterm_key] = np.zeros(len(tab), dtype=float)
                 continue
-            # Calculate mag term
-            slope = header[slope_key]
-            intercept = header[intercept_key]
-            mag = target_catalog_data[magsky_key]
-            mag_term = linear(mag, slope, intercept)
-            # Update target_catalog with mag term
-            magterm_key = magsky_key.replace('MAGSKY_', 'MTERM_')
-            corrmag_key = magsky_key.replace('MAGSKY_', 'M_CORR_MAGSKY_')
-            if magsky_key not in target_catalog_data.colnames:
-                self.helper.print (f"[WARNING] '{magsky_key}' not found in target catalog.", verbose)
-                continue
-            target_catalog_data[corrmag_key] = target_catalog_data[magsky_key] + mag_term
-            target_catalog_data[magterm_key] = mag_term
+
+            a = float(header[slope_key])
+            b = float(header[intercept_key])
+
+            mag0 = np.array(tab[k], dtype=float)
+            mterm = linear(mag0, a, b)
             
+            mterm[~np.isfinite(mterm)] = 0.0
+            tab[k] = mag0 + mterm
+            tab[mterm_key] = mterm
+
+        # do NOT overwrite MAGSKY here; let apply_all_terms handle it
+        target_catalog.data = tab
         if save:
-            target_catalog.write(verbose = verbose)
-            
+            target_catalog.write(verbose=verbose)
         return target_catalog
+
+    def _backup_magsky_once(self, catalog):
+        """
+        Backup MAGSKY_* → ORIGIN_MAGSKY_* (only once)
+        """
+        for col in catalog.data.colnames:
+            if col.startswith('MAGSKY_') and not col.startswith('ORIGIN_MAGSKY_'):
+                orig_col = col.replace('MAGSKY_', 'ORIGIN_MAGSKY_')
+                if orig_col not in catalog.data.colnames:
+                    catalog.data[orig_col] = catalog.data[col].copy()
+
+
+
+
+    # def apply_color_terms(self,
+    #                       target_img: Union[ScienceImage, ReferenceImage],
+    #                       target_catalog: Catalog,
+    #                       comparison_catalog: Catalog = None,                          
+    #                       max_distance_arcsec: float = 2.5,
+    #                       save: bool = True,
+    #                       verbose: bool = False
+    #                       ):
+    #     """
+    #     Apply color term correction to target_catalog using compare_catalog_for_color.
+    #     Color term equation: MAG_corrected = MAG + a*(color) + b
+    #     where color = compare_catalog[filter_1] - compare_catalog[filter_2]
+        
+    #     Parameters
+    #     ----------
+    #     target_img : ScienceImage or ReferenceImage
+    #         The target image to apply color term corrections to.
+    #     target_catalog : Catalog
+    #         The catalog to apply color term corrections to.
+    #     comparison_catalog : Catalog
+    #         The catalog to use for color term corrections.
+    #     max_distance_second : float, optional
+    #         The maximum distance in arcseconds to consider for color term corrections.
+    #     save : bool, optional
+    #         Whether to save the catalog.
+    #     verbose : bool, optional
+    #         Whether to print verbose output.
+            
+    #     Returns
+    #     -------
+    #     target_catalog: Catalog
+    #         The updated catalog with color term corrections.
+    #     """
+    #     def linear(x, a, b):
+    #         return a * x + b
+
+    #     if comparison_catalog is None:
+    #         comparison_catalog = self.find_comparison_catalog(target_img, target_catalog,
+    #                                                           max_day_offset = 1,
+    #                                                           verbose = verbose)
+    #     # 0. Cross-match catalogs
+    #     from ezphot.dataobjects import CatalogSet
+    #     catalog_dataset = CatalogSet([target_catalog, comparison_catalog])
+    #     magsky_key_all = [col for col in target_catalog.data.colnames if col.startswith('MAGSKY_')]
+    #     mag_key_all = [col.replace('MAGSKY_','MAG_') for col in magsky_key_all]
+    #     merged_catalog, merged_metadata = catalog_dataset.merge_catalogs(max_distance_arcsec = max_distance_arcsec, join_type = 'outer', data_keys = magsky_key_all)
+    #     target_catalog_data = merged_catalog[:len(target_catalog.data)]
+    #     filter_1_key = target_catalog.info.filter
+    #     filter_2_key = comparison_catalog.info.filter
+        
+    #     header = target_img.header
+        
+    #     for magsky_key in magsky_key_all:
+    #         slope_key_try1 = magsky_key.replace('MAGSKY_', 'K_COLOR_') + f'_{filter_1_key}-{filter_2_key}'
+    #         intercept_key_try1 = magsky_key.replace('MAGSKY_', 'C_COLOR_') + f'_{filter_1_key}-{filter_2_key}'
+    #         slope_key_try2 = magsky_key.replace('MAGSKY_', 'K_COLOR_') + f'_{filter_2_key}-{filter_1_key}'
+    #         intercept_key_try2 = magsky_key.replace('MAGSKY_', 'C_COLOR_') + f'_{filter_2_key}-{filter_1_key}'
+    #         magsky_filter_1_key = magsky_key + '_idx0'
+    #         magsky_filter_2_key = magsky_key + '_idx1'
+    #         # Calculate color term
+    #         if slope_key_try1 in header and intercept_key_try1 in header:
+    #             slope = header[slope_key_try1]
+    #             intercept = header[intercept_key_try1]
+    #             color = target_catalog_data[magsky_filter_1_key] - target_catalog_data[magsky_filter_2_key]
+    #             color_key = f'{filter_1_key}-{filter_2_key}'
+    #         elif slope_key_try2 in header and intercept_key_try2 in header:
+    #             slope = header[slope_key_try2]
+    #             intercept = header[intercept_key_try2]
+    #             color = target_catalog_data[magsky_filter_2_key] - target_catalog_data[magsky_filter_1_key]
+    #             color_key = f'{filter_2_key}-{filter_1_key}'
+    #         else:
+    #             self.helper.print(f"[WARNING] Color term keys '{slope_key_try1}' or '{intercept_key_try1}' not found in FITS header.", verbose)
+    #             continue
+    #         color_term = linear(color, slope, intercept)
+    #         # Update target_catalog with color term
+    #         corrected_magsky_key = magsky_key.replace('MAGSKY_', 'MAGSKY_CORR_')
+    #         colorterm_key = magsky_key.replace('MAGSKY_', 'CTERM_')
+    #         corrmag_key = magsky_key.replace('MAGSKY_', 'C_CORR_MAGSKY_')
+    #         target_catalog.data[corrmag_key] = target_catalog.data[magsky_key] + color_term
+    #         target_catalog.data[colorterm_key] = color_term
+    #         target_catalog.data[color_key] = color
+        
+    #     if save:
+    #         target_catalog.write(verbose = verbose)    
+
+    #     return target_catalog
+            
+    # def apply_mag_terms(self,
+    #                     target_img: Union[ScienceImage, ReferenceImage],
+    #                     target_catalog: Catalog,
+    #                     save: bool = True,
+    #                     verbose: bool = False):
+    #     """
+    #     Apply magnitude term correction to target_catalog using values saved in the FITS header.
+    #     Magnitude term equation: MAG_corrected = MAG + a*(MAG) + b
+        
+    #     Parameters
+    #     ----------
+    #     target_img : ScienceImage or ReferenceImage
+    #         The target image to apply magnitude term corrections to.
+    #     target_catalog : Catalog
+    #         The catalog to apply magnitude term corrections to.
+    #     save : bool, optional
+    #         Whether to save the catalog.
+    #     verbose : bool, optional
+    #         Whether to print verbose output.
+            
+    #     Returns
+    #     -------
+    #     target_catalog: Catalog
+    #         The updated catalog with magnitude term corrections.
+    #     """
+    #     def linear(x, a, b):
+    #         return a * x + b
+        
+    #     target_catalog_data = target_catalog.data
+    #     magsky_key_all = [
+    #         col for col in target_catalog_data.colnames
+    #         if col.startswith('MAGSKY_') and not np.all(target_catalog_data[col] == 0)
+    #     ]
+    #     header = target_img.header
+
+    #     for magsky_key in magsky_key_all:
+    #         slope_key = magsky_key.replace('MAGSKY_', 'K_MAG_')
+    #         intercept_key = magsky_key.replace('MAGSKY_', 'C_MAG_')
+    #         if slope_key not in header or intercept_key not in header:
+    #             self.helper.print (f"[WARNING] Color term keys '{slope_key}' or '{intercept_key}' not found in FITS header.", verbose)
+    #             continue
+    #         # Calculate mag term
+    #         slope = header[slope_key]
+    #         intercept = header[intercept_key]
+    #         mag = target_catalog_data[magsky_key]
+    #         mag_term = linear(mag, slope, intercept)
+    #         # Update target_catalog with mag term
+    #         magterm_key = magsky_key.replace('MAGSKY_', 'MTERM_')
+    #         corrmag_key = magsky_key.replace('MAGSKY_', 'M_CORR_MAGSKY_')
+    #         if magsky_key not in target_catalog_data.colnames:
+    #             self.helper.print (f"[WARNING] '{magsky_key}' not found in target catalog.", verbose)
+    #             continue
+    #         target_catalog_data[corrmag_key] = target_catalog_data[magsky_key] + mag_term
+    #         target_catalog_data[magterm_key] = mag_term
+            
+    #     if save:
+    #         target_catalog.write(verbose = verbose)
+            
+    #     return target_catalog
 
     def select_stars(self,
                      target_catalog: Catalog,
-                     mag_lower: float = None,
-                     mag_upper: float = None,
-                     #snr_lower: float = 10,
-                     #snr_upper: float = 300,
+                     mag_lower: float = 12,
+                     mag_upper: float = 16,
+                     snr_lower: float = 10,
+                     snr_upper: float = 300,
                      classstar_lower: float = 0.8,
                      elongation_upper: float = 1.5,
                      elongation_sigma: float = 5,
-                     fwhm_lower: float = 1,
-                     fwhm_upper: float = 15,
+                     fwhm_lower_arcsec: float = 1,
+                     fwhm_upper_arcsec: float = 15,
                      fwhm_sigma: float = 5,
                      flag_upper: int = 1,
                      maskflag_upper: int = 1,
+                     ra_deg: float = None,
+                     dec_deg: float = None,
+                     radius_arcsec: float = None,
                      inner_fraction: float = 0.7, # Fraction of the images
-                     isolation_radius: float = 5.0,
+                     isolation_radius_arcsec: float = 10.0,
                      
                      save: bool = False,
                      verbose: bool = True,
@@ -914,9 +1355,10 @@ class PhotometricCalibration:
                      save_fig: bool = False,
                      
                      magnitude_key: str = 'MAG_AUTO',
-                     fwhm_key: str = 'FWHM_IMAGE',
-                     x_key: str = 'X_IMAGE',
-                     y_key: str = 'Y_IMAGE',
+                     magnitudeerr_key: str = 'MAGERR_AUTO',
+                     fwhm_key: str = 'FWHM_WORLD',
+                     ra_key: str = 'X_WORLD',
+                     dec_key: str = 'Y_WORLD',
                      classstar_key: str = 'CLASS_STAR',
                      elongation_key: str = 'ELONGATION',
                      flag_key: str = 'FLAGS',
@@ -984,83 +1426,85 @@ class PhotometricCalibration:
         def _plot_if_visualize(x, y, color, label, alpha=0.4):
             if visualize or save_fig:  # or pass `visualize` as a parameter
                 plt.scatter(x, y, c=color, alpha=alpha, label=label)
-        _plot_if_visualize(target_catalog_data[magnitude_key], target_catalog_data[fwhm_key], 'k', label = 'All sources', alpha = 0.3)#, c = sources[x_key])
+        _plot_if_visualize(target_catalog_data[magnitude_key], target_catalog_data[fwhm_key]*3600, 'k', label = 'All sources', alpha = 0.3)#, c = sources[x_key])
         filtered_catalog_data = target_catalog_data.copy()
-        self.helper.print(f'Initial sources: {len(filtered_catalog_data)}')
+        self.helper.print(f'Initial sources: {len(filtered_catalog_data)}', verbose)
         filter_info = {'initial': len(filtered_catalog_data)}
 
         # Step 0: FWHM cut: remove too small sources
         if fwhm_key not in filtered_catalog_data.keys():
             self.helper.print(f"Warning: '{fwhm_key}' not found in target_catalog.", verbose)
         else:
-            abs_fwhm_mask = (filtered_catalog_data[fwhm_key] > fwhm_lower) & (filtered_catalog_data[fwhm_key] < fwhm_upper)
+            abs_fwhm_mask = (filtered_catalog_data[fwhm_key] > fwhm_lower_arcsec/3600) & (filtered_catalog_data[fwhm_key] < fwhm_upper_arcsec/3600)
             filtered_catalog_data = filtered_catalog_data[abs_fwhm_mask]
             
             filter_info['after_fwhm_abs'] = len(filtered_catalog_data)
-            self.helper.print(f"[FWHM ABS CUT]: {len(filtered_catalog_data)} sources passed {fwhm_lower} < FWHM < {fwhm_upper} ", verbose)
+            self.helper.print(f"[FWHM ABS CUT]: {len(filtered_catalog_data)} sources passed {fwhm_lower_arcsec} < FWHM < {fwhm_upper_arcsec} ", verbose)
         filter_info['after_fwhm_abs'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'm', label = 'FWHM(Asvolute) cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'm', label = 'FWHM(Asvolute) cut', alpha = 0.3)
 
-        # Step 1: Inner region cut
-        if x_key not in filtered_catalog_data.keys() or y_key not in filtered_catalog_data.keys():
-            self.helper.print(f"Warning: '{x_key}' or '{y_key}' not found in target_catalog.", verbose)
-        else:
-            x_vals = filtered_catalog_data[x_key]
-            y_vals = filtered_catalog_data[y_key]
-
-            x_min, x_max = np.min(x_vals), np.max(x_vals)
-            y_min, y_max = np.min(y_vals), np.max(y_vals)
-
-            x_center = (x_min + x_max) // 2
-            y_center = (y_min + y_max) // 2
-            x_half_range = (x_max - x_min) * inner_fraction // 2
-            y_half_range = (y_max - y_min) * inner_fraction // 2
+        # Step 1: Inner region cut        
+        if ra_key not in filtered_catalog_data.keys() or dec_key not in filtered_catalog_data.keys():
+            self.helper.print(f"Warning: '{ra_key}' or '{dec_key}' not found in sources.", verbose)
+        elif ra_deg is not None and dec_deg is not None and radius_arcsec is not None:
+            # If ra_deg, dec_deg, radius_arcsec is given, use them to select the nearby sources
+            ra_vals = filtered_catalog_data[ra_key]
+            dec_vals = filtered_catalog_data[dec_key]
+            catalog_coords = SkyCoord(ra = ra_vals, dec = dec_vals, unit = (u.deg, u.deg))
+            input_coords = SkyCoord(ra = ra_deg, dec = dec_deg, unit = (u.deg, u.deg))
+            distances = catalog_coords.separation(input_coords)
+            nearby_mask = distances < radius_arcsec * u.arcsec
+            filtered_catalog_data = filtered_catalog_data[nearby_mask]
+            self.helper.print(f'[NEARBYREGION CUT] {len(filtered_catalog_data)} sources passed within {radius_arcsec} arcsec', verbose)
+        else:        
+            # If ra_deg, dec_deg, radius_arcsec is not given, use inner_fraction to select the inner region sources
+            ra_vals = filtered_catalog_data[ra_key]
+            dec_vals = filtered_catalog_data[dec_key]
+            catalog_coords = SkyCoord(ra = ra_vals, dec = dec_vals, unit = (u.deg, u.deg))
+            center = SkyCoord(np.median(catalog_coords.ra.deg)*u.deg, np.median(catalog_coords.dec.deg)*u.deg)
             
-            x_inner_min = x_center - x_half_range
-            x_inner_max = x_center + x_half_range
-            y_inner_min = y_center - y_half_range
-            y_inner_max = y_center + y_half_range
-
-            inner_mask = (
-                (x_vals >= x_inner_min) & (x_vals <= x_inner_max) &
-                (y_vals >= y_inner_min) & (y_vals <= y_inner_max)
-            )
+            # radius that corresponds to inner_fraction of the catalog footprint (simple heuristic)
+            sep = catalog_coords.separation(center)
+            rmax = np.nanpercentile(sep.arcsec, inner_fraction * 100)
+            inner_mask = sep.arcsec <= rmax
             filtered_catalog_data = filtered_catalog_data[inner_mask]
-            self.helper.print(f'[INNERREGION CUT] {len(filtered_catalog_data)} sources passed within X = [{x_inner_min},{x_inner_max}], Y = [{y_inner_min},{y_inner_max}]', verbose)
-        filter_info['after_innerregion'] = len(filtered_catalog_data)
+            self.helper.print(f'[INNERREGION CUT] {len(filtered_catalog_data)} sources passed within {rmax} arcsec', verbose)
         
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'r', label = 'InnerRegion cut', alpha = 0.3)
+        filter_info['after_region'] = len(filtered_catalog_data)        
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'r', label = 'Region cut', alpha = 0.3)
 
         # Step 2: Isolation
-        if x_key not in filtered_catalog_data.keys() or y_key not in filtered_catalog_data.keys():
-            self.helper.print(f"Warning: '{x_key}' or '{y_key}' not found in sources.", verbose)
+        if ra_key not in filtered_catalog_data.keys() or dec_key not in filtered_catalog_data.keys():
+            self.helper.print(f"Warning: '{ra_key}' or '{dec_key}' not found in sources.", verbose)
         else:
-            # Step 1.1: Build KD-tree
-            positions = np.vstack([filtered_catalog_data[x_key].value, filtered_catalog_data[y_key].value]).T
-            tree = cKDTree(positions)
-            neighbors = tree.query_ball_tree(tree, r=isolation_radius)
+            coords = SkyCoord(ra = filtered_catalog_data[ra_key], dec = filtered_catalog_data[dec_key], unit = (u.deg, u.deg))
+            idx1, idx2, sep2d, _ = coords.search_around_sky(coords, isolation_radius_arcsec * u.arcsec)
+            # count neighbors for each object (exclude itself)
+            neighbor_count = np.bincount(idx1, minlength=len(coords)) - 1
 
-            # Step 1.2: Keep only isolated sources
-            isolated_mask = np.array([len(nbrs) == 1 for nbrs in neighbors])
+            isolated_mask = neighbor_count == 0
             filtered_catalog_data = filtered_catalog_data[isolated_mask]
-            self.helper.print(f'[ISOLATION CUT] {len(filtered_catalog_data)} sources passed with isolation radius {isolation_radius} pixels', verbose)
+            self.helper.print(f'[ISOLATION CUT] {len(filtered_catalog_data)} sources passed with isolation radius {isolation_radius_arcsec} arcsec', verbose)
         filter_info['after_isolation'] = len(filtered_catalog_data)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'g', label = 'Isolation cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'g', label = 'Isolation cut', alpha = 0.3)
 
         # Step 3: MAG cut
-        if magnitude_key not in filtered_catalog_data.keys():
-            self.helper.print(f"Warning: '{magnitude_key}' not found in sources.", verbose)
-        else:
+        if mag_lower is not None and mag_upper is not None:
             if mag_lower is not None:
                 filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[magnitude_key] > mag_lower)]
             if mag_upper is not None:
-                filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[magnitude_key] < mag_upper)]
-            if mag_lower is not None and mag_upper is not None:
-                self.helper.print(f"[MAG CUT]: {len(filtered_catalog_data)} sources passed {mag_lower} < {magnitude_key} < {mag_upper}", verbose)
+                filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[magnitude_key] < mag_upper)]                
+            self.helper.print(f"[MAG CUT]: {len(filtered_catalog_data)} sources passed {mag_lower} < {magnitude_key} < {mag_upper}", verbose)
+        else:
+            snr = 1.085736/filtered_catalog_data[magnitudeerr_key]
+            snr_mask = (snr > snr_lower) & (snr < snr_upper)
+            filtered_catalog_data = filtered_catalog_data[snr_mask]
+            self.helper.print(f"[SNR CUT]: {len(filtered_catalog_data)} sources passed {snr_lower} < SNR < {snr_upper}", verbose)
+        
         filter_info['after_magcut'] = len(filtered_catalog_data)
             
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'b', label = 'MAG cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'b', label = 'MAG cut', alpha = 0.3)
 
         # Step 4: CLASS_STAR cut
         if classstar_key not in filtered_catalog_data.keys():
@@ -1071,25 +1515,29 @@ class PhotometricCalibration:
             self.helper.print(f"[CLASSSTAR CUT]: {len(filtered_catalog_data)} sources passed CLASS_STAR > {classstar_lower}", verbose)
         filter_info['after_classstar'] = len(filtered_catalog_data)
  
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'cyan', label = 'ClassStar cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'cyan', label = 'ClassStar cut', alpha = 0.3)
 
         # Step 5: FWHM absolute and relative cut
         if fwhm_key not in filtered_catalog_data.keys():
             self.helper.print(f"Warning: '{fwhm_key}' not found in sources.", verbose)
         else:
-            # Stel 5.2: Relative cut: sigma-clipped sources
+            # Step 5.1: Absolute cut: remove too small sources
+            abs_fwhm_mask = (filtered_catalog_data[fwhm_key] > fwhm_lower_arcsec/3600) & (filtered_catalog_data[fwhm_key] < fwhm_upper_arcsec/3600)
+            filtered_catalog_data = filtered_catalog_data[abs_fwhm_mask]
+            
+            # Step 5.2: Relative cut: sigma-clipped sources
             fwhm_values = filtered_catalog_data[fwhm_key]
             fwhm_mean, fwhm_median, fwhm_std = sigma_clipped_stats(fwhm_values, sigma=5.0, maxiters=10)
             clip_mask = np.abs(fwhm_values - fwhm_median) <= fwhm_sigma * fwhm_std
             filtered_catalog_data = filtered_catalog_data[clip_mask]
-            filter_info['after_fwhm_percentile'] = len(filtered_catalog_data)
+            filter_info['after_fwhm'] = len(filtered_catalog_data)
             self.helper.print(
-                f"[FWHM CUT]: {len(filtered_catalog_data)} sources passed within ±{fwhm_sigma} sigma"
-                f"around median ({fwhm_median:.2f} ± {fwhm_std:.2f})",
+                f"[FWHM CUT]: {len(filtered_catalog_data)} sources passed {fwhm_lower_arcsec} < FWHM < {fwhm_upper_arcsec} and within ±{fwhm_sigma} sigma"
+                f"around median ({fwhm_median*3600:.2f} ± {fwhm_sigma* fwhm_std*3600:.2f}) arcsec",
                 verbose
             ) 
             
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'orange', label = 'FWHM(Relative) cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'orange', label = 'FWHM(Relative) cut', alpha = 0.3)
 
         # Step 6: Elongation cut
         if elongation_key not in filtered_catalog_data.keys():
@@ -1110,7 +1558,7 @@ class PhotometricCalibration:
 
             self.helper.print(f"[ELONGATION CUT]: {len(filtered_catalog_data)} passed elongation < {elongation_upper} and within ±{elongation_sigma} sigma of median ({elong_median:.2f} ± {elong_std:.2f})", verbose)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'purple', label = 'Elongation cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'purple', label = 'Elongation cut', alpha = 0.3)
         
         # Step 7: Flag cut
         if flag_key not in filtered_catalog_data.keys():
@@ -1120,7 +1568,7 @@ class PhotometricCalibration:
             filtered_catalog_data = filtered_catalog_data[flag_mask]
             self.helper.print(f"[FLAG CUT]: {len(filtered_catalog_data)} sources passed FLAGS <= {flag_upper}", verbose)
         filter_info['after_flag'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'magenta', label = 'Flag cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'magenta', label = 'Flag cut', alpha = 0.3)
         
         # Step 8: Mask flag cut
         if maskflag_key not in filtered_catalog_data.keys():
@@ -1130,11 +1578,11 @@ class PhotometricCalibration:
             filtered_catalog_data = filtered_catalog_data[maskflag_mask]
             self.helper.print(f"[MASKFLAG CUT]: {len(filtered_catalog_data)} sources passed IMAFLAGS_ISO <= {maskflag_upper}", verbose)
         filter_info['after_maskflag'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'brown', label = 'MaskFlag cut', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'brown', label = 'MaskFlag cut', alpha = 0.3)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key], 'red', label = 'Final selected', alpha = 0.3)
+        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'red', label = 'Final selected', alpha = 0.3)
 
-        seeing = np.median(filtered_catalog_data[fwhm_key])
+        seeing = np.median(filtered_catalog_data[fwhm_key]) * 3600
         filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info.copy(), load = False)
         filtered_catalog.data = filtered_catalog_data
         filtered_catalog.info.path = str(target_catalog.savepath.refcatalogpath)
@@ -1213,7 +1661,6 @@ class PhotometricCalibration:
         saturation_level : float
             The saturation level of the reference magnitude range.
         """
-        from astropy.stats import sigma_clipped_stats, SigmaClip
         
         # === ??? ?? ===
         catalog_data = target_catalog.data
@@ -1286,7 +1733,6 @@ class PhotometricCalibration:
         # === mag_max ??: ZP_err ? ?? ===
         # ?? ???? baseline? ???? ??
         mid_mask = (bin_centers < np.percentile(bin_centers, 50)) & (bin_centers > mag_min)
-        from astropy.stats import sigma_clipped_stats, SigmaClip
 
         # Sigma clipping to reject outliers
         sigmaclip = SigmaClip(sigma=2, maxiters=5)
@@ -1355,3 +1801,41 @@ class PhotometricCalibration:
             plt.close()
 
         return mag_min, mag_max, zp, zp_err, saturation_level
+    
+    def stable_zp_indices(self, zp_list, zp_err_list, mode='self'):
+        """
+        Find indices where adjacent ZP differences are smaller than ZP error.
+
+        Parameters
+        ----------
+        zp : array-like
+            ZP values (length N)
+        zp_err : array-like
+            ZP errors (length N)
+        mode : {'self', 'next', 'combined'}
+            self     : |ZP[i+1] - ZP[i]| < err[i]
+            next     : |ZP[i+1] - ZP[i]| < err[i+1]
+            combined : |ZP[i+1] - ZP[i]| < sqrt(err[i]^2 + err[i+1]^2)
+
+        Returns
+        -------
+        idx : ndarray
+            Indices i where condition holds (refers to ZP[i])
+        """
+        zp = np.asarray(zp_list)
+        zp_err = np.asarray(zp_err_list)
+
+        dzp = np.abs(zp[1:] - zp[:-1])
+
+        if mode == 'self':
+            sigma = zp_err[:-1]
+        elif mode == 'next':
+            sigma = zp_err[1:]
+        elif mode == 'combined':
+            sigma = np.sqrt(zp_err[:-1]**2 + zp_err[1:]**2)
+        else:
+            raise ValueError("mode must be 'self', 'next', or 'combined'")
+
+        idx = np.where(dzp < sigma)[0]
+        return idx, dzp, sigma
+# %%

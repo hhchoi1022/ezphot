@@ -584,5 +584,3 @@ class ImageQuerier(HIPS2FITS):
             verbose=verbose,
             save_path=save_path
         )
-
-

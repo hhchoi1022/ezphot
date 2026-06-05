@@ -11,7 +11,8 @@ PARAMETERS_NAME  psfex.param    # name of the file containing catalog contents
 #------------------------------- Extraction ----------------------------------
  
 DETECT_TYPE      CCD            # CCD (linear) or PHOTO (with gamma correction)
-DETECT_MINAREA   10              # min. # of pixels above threshold
+DETECT_MINAREA  20         # min. # of pixels above threshold
+
 DETECT_MAXAREA   75              # max. # of pixels above threshold (0=unlimited)
 THRESH_TYPE      RELATIVE       # threshold type: RELATIVE (in sigmas)
                                 # or ABSOLUTE (in ADUs)
@@ -48,7 +49,8 @@ FLAG_TYPE        OR             # flag pixel combination: OR, AND, MIN, MAX
 
 #------------------------------ Photometry -----------------------------------
  
-PHOT_APERTURES   10             # MAG_APER aperture diameter(s) in pixels
+PHOT_APERTURES  12.82,17.95,25.64 # MAG_APER aperture diameter(s) in pixels
+
 PHOT_AUTOPARAMS  2.5,3.5        # MAG_AUTO parameters: <Kron_fact>,<min_radius>
 PHOT_PETROPARAMS 2.0,3.5        # MAG_PETRO parameters: <Petrosian_fact>,
                                 # <min_radius>
@@ -61,13 +63,16 @@ SATUR_KEY        SATURATE       # keyword for saturation level (in ADUs)
  
 MAG_ZEROPOINT    0.0            # magnitude zero-point
 MAG_GAMMA        4.0            # gamma of emulsion (for photographic scans)
-GAIN             1.35         # detector gain in e-/ADU
+GAIN            7.02       # detector gain in e-/ADU
+
 GAIN_KEY         EGAIN          # keyword for detector gain in e-/ADU
-PIXEL_SCALE      0.724          # size of pixel in arcsec (0=use FITS WCS info)
+PIXEL_SCALE     0.39       # size of pixel in arcsec (0=use FITS WCS info)
+
  
 #------------------------- Star/Galaxy Separation ----------------------------
  
-SEEING_FWHM      4              # stellar FWHM in arcsec
+SEEING_FWHM     2.5        # stellar FWHM in arcsec
+
 STARNNW_NAME     default.nnw    # Neural-Network_Weight table filename
  
 #------------------------------ Background -----------------------------------

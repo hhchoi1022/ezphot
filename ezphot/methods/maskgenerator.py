@@ -200,7 +200,7 @@ class MaskGenerator():
         if target_mask is None:
             target_mask = Mask(target_img.savepath.srcmaskpath, masktype = 'source', load=False)
             if target_mask.is_exists:
-                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_patterns = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
         self.helper.print(f"Masking source... [sigma = {sigma}, mask_radius_factor = {mask_radius_factor}]", verbose)
@@ -349,7 +349,7 @@ class MaskGenerator():
             else:
                 self.helper.print(f"Unknown mask type: {mask_type}. Using 'invalid' as default.", verbose)
             if target_mask.is_exists:
-                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_patterns = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
 
@@ -485,7 +485,7 @@ class MaskGenerator():
         if target_mask is None:
             target_mask = Mask(target_img.savepath.crmaskpath, masktype = 'cosmicray', load=False)
             if target_mask.is_exists:
-                target_mask.remove(remove_main = True, remove_connected_files = True, skip_exts = [], verbose = False)
+                target_mask.remove(remove_main = True, remove_connected_files = True, skip_patterns = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
         # Load information from target_img

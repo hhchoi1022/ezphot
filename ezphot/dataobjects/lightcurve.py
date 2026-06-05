@@ -20,6 +20,8 @@ from astropy.table import MaskedColumn
 from ezphot.dataobjects import CatalogSet
 from ezphot.helper import Helper
 from ezphot.utils import CatalogQuerier
+from ezphot.error import *
+
 #%%
 class LightCurve:
     """
@@ -45,52 +47,83 @@ class LightCurve:
         #     raise TypeError("source_catalogs must be an instance of CatalogSet")
         self.helper = Helper()
         self.catalogset = catalogset
-        self.source_catalogs = {i: catalog for i, catalog in enumerate(catalogset.catalogs)}
+        self.source_catalogs = None
+        if self.catalogset is not None:
+            self.source_catalogs = {i: catalog for i, catalog in enumerate(self.catalogset.catalogs)}
         self.plt_params = self._plt_params()
         self.CatalogQuerier = CatalogQuerier(catalog_key = None)
         self.data = None
         
     FILTER_OFFSET = {
         # 7DT Medium band filters
-        'm400': -5.0, 'm412': -4.75, 'm425': -4.5, 'm437': -4.25,
-        'm450': -4.0, 'm462': -3.75, 'm475': -3.5, 'm487': -3.25,
-        'm500': -3.0, 'm512': -2.75, 'm525': -2.5, 'm537': -2.25,
-        'm550': -2.0, 'm562': -1.75, 'm575': -1.5, 'm587': -1.25,
-        'm600': -1.0, 'm612': -0.75, 'm625': -0.5, 'm637': -0.25,
-        'm650': 0.0, 'm662': 0.25, 'm675': 0.5, 'm687': 0.75,
-        'm700': 1.0, 'm712': 1.25, 'm725': 1.5, 'm737': 1.75,
-        'm750': 2.0, 'm762': 2.25, 'm775': 2.5, 'm787': 2.75,
-        'm800': 3.5, 'm812': 4.0, 'm825': 4.5, 'm837': 5.0,
-        'm850': 6.0, 'm862': 6.5, 'm875': 8.5, 'm887': 9.0,
+        'm375w': -8.0,  'm386': -7.5,  'm400': -7.0,  'm425w': -6.5,
+        'm425':  -6.0,  'm438': -5.5,  'm450': -5.0,  'm466w': -4.5,
+
+        'm475':  -4.0,  'm483': -3.5,  'm500': -3.0,  'm512': -2.5,
+        'm525':  -2.0,  'm534': -1.5,  'm550': -1.0,  'm561': -0.5,
+
+        'm575':   0.0,  'm586':  0.5,  'm600':  1.0,  'm615':  1.5,
+        'm625':   2.0,  'm640':  2.5,  'm650':  3.0,  'm661':  3.5,
+
+        'm675':   4.0,  'm692w': 4.5,  'm700':  5.0,  'm710w': 5.5,
+        'm725':   6.0,  'm750':  6.5,  'm769w': 7.0,  'm775':  7.5,
+
+        'm800':   8.0,  'm825':  8.5,  'm832w': 9.0,  'm850':  9.5,
+        'm875':  10.0,
         # SDSS ugriz and Johnson-Cousins UBVRI
-        'u': -2.0, 'g': 0, 'r': 1, 'i': 2.0, 'z': 3.0,
-        'U': -2.5, 'B': -1.5, 'V': -0.5, 'R': 0.5, 'I': 1.5}
+        'u': -9.0, 'g': -3.5, 'r': 1.5, 'i': 6.5, 'z': 11.5,
+        'U': -9.5, 'B': -6.5, 'V': -0, 'R': 0.5, 'I': 1.5,
+        'UVW2': -10.0, 'UVM2': -9.0, 'UVW1': -8.0,
+        'G': 1.5
+        }
     
     # Global: Filter effective wavelengths (nm)
-    FILTER_WAVELENGTHS_NM = {
-        'm400': 400, 'm412': 412, 'm425': 425, 'm437': 437, 'm450': 450,
-        'm462': 462, 'm475': 475, 'm487': 487, 'm500': 500, 'm512': 512,
-        'm525': 525, 'm537': 537, 'm550': 550, 'm562': 562, 'm575': 575,
-        'm587': 587, 'm600': 600, 'm612': 612, 'm625': 625, 'm637': 637,
-        'm650': 650, 'm662': 662, 'm675': 675, 'm687': 687, 'm700': 700,
-        'm712': 712, 'm725': 725, 'm737': 737, 'm750': 750, 'm762': 762,
-        'm775': 775, 'm787': 787, 'm800': 800, 'm812': 812, 'm825': 825,
-        'm837': 837, 'm850': 850, 'm862': 862, 'm875': 875, 'm887': 887}
+    FILTER_PIVOT_WAVELENGTH_NM = {
+        'm375w' : 382.4, 'm425w' : 427.2, 'm466w' : 467.7, 'm692w' : 690.6,
+        'm710w' : 708.4, 'm769w' : 767.6, 'm832w' : 830.0, 
+        'm386' : 387.5, 'm400' : 401.3, 'm425' : 425.5, 'm438' : 438.3,
+        'm450' : 450.8, 'm475' : 475.3, 'm483' : 482.5, 'm500' : 500.3,
+        'm512' : 511.9, 'm525' : 524.8, 'm534' : 533.8, 'm550' : 550.1,
+        'm561' : 560.9, 'm575' : 574.9, 'm586' : 585.9, 'm600' : 600.1,
+        'm615' : 614.9, 'm625' : 624.8, 'm640' : 639.5, 'm650' : 650.1,
+        'm661' : 660.7, 'm675' : 674.5, 'm700' : 699.9, 'm725' : 724.6,
+        'm750' : 748.9, 'm775' : 775.2, 'm800' : 799.2, 'm825' : 824.0, 
+        'm850' : 848.3, 'm875' : 872.9,
+        
+        # GAIA filters (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=GAIA/GAIA0.Grp&&mode=browse&gname=GAIA&gname2=GAIA0#filter)
+        # 'Gaia_G': 657.3, 'Gaia_bp': 525.5, 'Gaia_rp': 793.8,
+        
+        # Swift filter (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=Swift&asttype=)
+        # 'Swift_UVW2': 208.6, 'Swift_UVM2': 236.0, 'Swift_UVW1': 263.8, 'Swift_U': 347.1, 'Swift_B': 435.0, 'Swift_V': 541.9,
+        
+        # SDSS ugriz (DOI+2010)
+        # 'u' : 371.4, 'g' : 479.4, 'r' : 616.2, 'i' : 758.7, 'z' : 876.6,
+        # PS1 ugizy (TONRY+2012)
+        # 'g_ps1': 481, 'r_ps1': 617, 'i_ps1': 752, 'z_ps1': 866, 'y_ps1': 962,
+        # Johnson-Cousins UBVRI (Ground based, https://mfouesneau.github.io/pyphot/libcontent.html)
+        # 'U' : 364.6, 'B' : 433.0, 'V' : 549.3, 'R' : 652.7, 'I' : 789.1,
+        # 2MASS JHK (COHEN+2003)
+        # 'J': 1235, 'H': 1662, 'K': 2159,
+        # WISE W1-W4 (https://svo2.cab.inta-csic.es/svo/theory/fps/index.php?mode=browse&gname=WISE&asttype=)
+        # 'W1': 3352.6, 'W2': 4620.8, 'W3': 11560.8, 'W4': 22088.3,
+        }
 
     # Compute normalized color map
-    _wls = np.array(list(FILTER_WAVELENGTHS_NM.values()))
+    _wls = np.array(list(FILTER_PIVOT_WAVELENGTH_NM.values()))
     _normed_wls = (_wls - _wls.min()) / (_wls.max() - _wls.min())
     _cmap = plt.cm.plasma
     _rgba_colors = _cmap(_normed_wls)
     _hex_colors = [mcolors.to_hex(c) for c in _rgba_colors]
 
     # ? Global dictionary
-    FILTER_COLOR = dict(zip(FILTER_WAVELENGTHS_NM.keys(), _hex_colors))
+    FILTER_COLOR = dict(zip(FILTER_PIVOT_WAVELENGTH_NM.keys(), _hex_colors))
     
     # Step 2: Override for broadbands (fixed colors)
     FILTER_COLOR.update({
         'u': 'cyan', 'g': 'green', 'r': 'red', 'i': 'yellow', 'z': 'brown', 'y': 'darkorange',    
         'U': 'blue', 'B': 'royalblue', 'V': 'limegreen', 'R': 'firebrick', 'I': 'maroon',
+        'Gaia_G': 'g', 'Gaia_bp': 'b', 'Gaia_rp': 'r',
+        'Swift_UVW2': 'c', 'Swift_UVM2': 'm', 'Swift_UVW1': 'y', 'Swift_U': 'k', 'Swift_B': 'r', 'Swift_V': 'g'
     })   
     
     MARKER_CYCLE = ['P', '*', 'X', 'v']
@@ -102,20 +135,21 @@ class LightCurve:
     }
     
     def __repr__(self):
-        txt = f'LIGHTCURVE OBJECT (n_catalogs = {len(self.source_catalogs.catalogs)})\n'
+        txt = f'LIGHTCURVE OBJECT (n_catalogs = {len(self.source_catalogs.values())})\n'
         txt += str(self.plt_params)
         return txt
 
     def plot(self,
-             ra: float,
-             dec: float,
+             ra: float = None,
+             dec: float = None,
              filter: str = None,
              matching_radius_arcsec: float = 5.0,
              ra_key: str = 'X_WORLD',
              dec_key: str = 'Y_WORLD',
              flux_key: str = 'MAGSKY_AUTO',
              fluxerr_key: str = 'MAGERR_AUTO',
-             
+             zperr_key: str = 'ZPERR_AUTO',
+             depth_key: str = 'UL5SKY_AUTO',
              plot_all_in_one_figure: bool = True,
              apply_offset: bool = True,
              overplot_stamp: bool = False,
@@ -152,6 +186,12 @@ class LightCurve:
         tbl : astropy.table.Table
             Table of data.
         """
+        def _get_col(tbl, key):
+            if (key in tbl.colnames) and not all(getmaskarray(tbl[key])):
+                return np.array(tbl[key], dtype=float)
+            else:
+                return np.full(len(tbl), np.nan)
+        
         # 1. Prepare data
         # 1.1. Data formatting
         if self.data is None:
@@ -161,6 +201,8 @@ class LightCurve:
                 dec_key = dec_key,
                 flux_key=flux_key,
                 fluxerr_key=fluxerr_key,
+                zperr_key=zperr_key,
+                depth_key=depth_key,
                 matching_radius_arcsec=matching_radius_arcsec,
             )
         if self.data is None or len(self.data) == 0:
@@ -171,31 +213,43 @@ class LightCurve:
         # 1.2. If filter is provided, filter the table to the closest group in time
         if filter is not None:
             tbl = tbl[tbl['filter'] == filter]
-        
-        # 1.3. Non-detection mask 
-        if flux_key in tbl.colnames and fluxerr_key in tbl.colnames:
-            mag = tbl[flux_key]
-            err = tbl[fluxerr_key]
-
-            mask_mag = getmaskarray(mag)    # True if masked (--)
-            mask_err = getmaskarray(err)
-
-            valid_detection = (
-                (~mask_mag) & (~mask_err) 
-                # (~np.isfinite(mag).mask) & (~np.isfinite(err).mask)
-            )
             
-            # if len(tbl) == 0:
-            #     self.helper.print("[WARNING] No valid detections — skipping plot.", verbose)
-            #     return None, None, None
+        if fluxerr_key is not None and all(getmaskarray(tbl[fluxerr_key])):
+            print(f"[WARNING] {fluxerr_key} not found/or all masked in table. Ignoring flux error component.")
+        if zperr_key is not None and all(getmaskarray(tbl[zperr_key])):
+            print(f"[WARNING] {zperr_key} not found/or all masked in table. Ignoring zp error component.")
+        if depth_key is not None and all(getmaskarray(tbl[depth_key])):
+            print(f"[WARNING] {depth_key} not found/or all masked in table. Ignoring depth plot.")
+        
+        # 1.3. Genearte detection mask
+        mag = tbl[flux_key]
+        mask_mag = getmaskarray(mag)
+        valid_detection = (~mask_mag)
+        if fluxerr_key is not None and not all(getmaskarray(tbl[fluxerr_key])):
+            err = tbl[fluxerr_key]
+            mask_err = getmaskarray(err)
+            valid_detection &= (~mask_err)
             
         # 1.4. Build arrays
         is_mag = "MAG" in flux_key.upper()
-        mags  = np.array(tbl[flux_key], dtype=float)
-        magerrs = np.array(tbl[fluxerr_key], dtype=float)
-        zperrs = np.array(tbl['zp_err'], dtype=float)
-        depths = np.array(tbl['depth'], dtype=float)
-        errs  = np.array([self._combine_err(m, z) for m, z in zip(magerrs, zperrs)], dtype=float)
+        mags = _get_col(tbl, flux_key)
+        magerrs = _get_col(tbl, fluxerr_key)
+        zperrs  = _get_col(tbl, zperr_key)
+        depths  = _get_col(tbl, depth_key)
+        if (magerrs is not None) and (zperrs is not None):
+            errs = np.array([
+                self._combine_err(m, z)
+                for m, z in zip(magerrs, zperrs)
+            ], dtype=float)
+        else:
+            errs = magerrs  # fallback
+        
+        # mags  = np.array(tbl[flux_key], dtype=float)
+        # magerrs = np.array(tbl[fluxerr_key], dtype=float)
+        # zperrs = np.array(tbl['zp_err'], dtype=float)
+        # depths = np.array(tbl['depth'], dtype=float)
+        # errs  = np.array([self._combine_err(m, z) for m, z in zip(magerrs, zperrs)], dtype=float)
+        
         mjds = np.array(tbl['mjd'], dtype=float)
         telname = np.array(tbl['telname'], dtype=object)
         obs = np.array(tbl['observatory'], dtype=object)
@@ -264,6 +318,7 @@ class LightCurve:
             legend_filter_all = []
             legend_observatory_all = []
             figures = dict()
+            axes = dict()
             figures_detection = dict()
             for group, color, marker, offset in group_iter:
                 m = (groups == group)
@@ -366,7 +421,6 @@ class LightCurve:
                 if overplot_stamp:
                     if overplot_stamp_together:
                         ax_detection.axis('off')
-                        
                         self.show_detection(
                             ra, dec,
                             filter=filter,
@@ -406,7 +460,7 @@ class LightCurve:
                             ax_container=None,   
                         )
                         figures_detection[group] = detection_figure
-                              
+                
                 filter_label_str = (f'{group.split("|")[0]}{offset:+.1f}' if offset != 0 else group.split("|")[0])
                 legend_filter = [Line2D([0], [0],
                                         marker = 'o',
@@ -476,6 +530,7 @@ class LightCurve:
                         )
                     ax.add_artist(leg2)    
                     figures[group] = fig
+                    axes[group] = ax
             
             if plot_multiple_lightcurve:
                 ax.set_xlabel("Obsdate [MJD]", fontsize=self.plt_params.xlabel_fontsize)
@@ -513,8 +568,9 @@ class LightCurve:
                     )
                 ax.add_artist(leg2)    
                 figures[group] = fig
+                axes[group] = ax
 
-            return figures, figures_detection, tbl
+            return figures, figures_detection, axes, tbl
         
     def show_detection(self,
                        ra: float,
@@ -654,32 +710,39 @@ class LightCurve:
                 if is_masked(row[flux_key]) or is_masked(row[fluxerr_key]):
                     c = 'r'
                     label = 'Not detected'
-                
-                if np.isinf(row[flux_key]) or np.isinf(row[fluxerr_key]):
-                    c = 'r'
-                    label = 'Out of coverage'
                     
                 if np.isnan(row[flux_key]) or np.isnan(row[fluxerr_key]):
                     c = 'r'
                     label = 'Nan/Negative Flux'
                     
-                target_img.show_position(
-                    ra_detection, dec_detection,
-                    radius_arcsec=aperture_radius_arcsec,
-                    coord_type='coord',
-                    downsample=downsample,
-                    zoom_radius_pixel=zoom_radius_pixel,
-                    cmap=cmap,
-                    scale=scale,
-                    figsize = (3,3),
-                    aperture_linewidth = aperture_linewidth,
-                    aperture_color = c,
-                    aperture_label = label,
-                    ax=ax,
-                    title=None,
-                    title_fontsize = None
-                )
-                target_img.clear(verbose = False)
+                try:
+                    target_img.show_position(
+                        ra_detection, dec_detection,
+                        radius_arcsec=aperture_radius_arcsec,
+                        coord_type='coord',
+                        downsample=downsample,
+                        zoom_radius_pixel=zoom_radius_pixel,
+                        cmap=cmap,
+                        scale=scale,
+                        figsize = (3,3),
+                        aperture_linewidth = aperture_linewidth,
+                        aperture_color = c,
+                        aperture_label = label,
+                        ax=ax,
+                        title=None,
+                        title_fontsize = None
+                    )
+                    target_img.clear(verbose = False)
+                except OutofCoverageError:
+                    c = 'r'
+                    label = 'Out of coverage'
+                    ax.text(
+                        0.5, 0.98, f'{Time(obsdate, format= "mjd").datetime.strftime("%m-%d %H:%M")} ({telname})',
+                        transform=ax.transAxes,
+                        ha='center',
+                        va='top',
+                    )
+                    ax.set_frame_on(False)
                 
                 ax.text(
                     0.5, 0.98, f'{Time(obsdate, format= "mjd").datetime.strftime("%m-%d %H:%M")} ({telname})',
@@ -736,6 +799,8 @@ class LightCurve:
                             dec_key: str = 'Y_WORLD',
                             flux_key: Union[str, list[str]] = None,
                             fluxerr_key: Union[str, list[str]] = None, 
+                            zperr_key: Union[str, list[str]] = None,
+                            depth_key: Union[str, list[str]] = None,
                             matching_radius_arcsec=5.0,
                             verbose: bool = True):
         """
@@ -771,29 +836,36 @@ class LightCurve:
         # Normalize keys to lists
         flux_keys = ['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4']
         fluxerr_keys = ['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4']
+        zperr_keys = ['ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_3', 'ZPERR_APER_4']
+        depth_keys = ['UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5SKY_APER_4']
         
         if flux_key is not None:
             flux_keys.extend(np.atleast_1d(flux_key))
         if fluxerr_key is not None:
             fluxerr_keys.extend(np.atleast_1d(fluxerr_key))
+        if zperr_key is not None:
+            zperr_keys.extend(np.atleast_1d(zperr_key))
+        if depth_key is not None:
+            depth_keys.extend(np.atleast_1d(depth_key))
         
         flux_keys = list(set(flux_keys))
         fluxerr_keys = list(set(fluxerr_keys))
-
-        if len(flux_keys) != len(fluxerr_keys):
-            raise ValueError("flux_keys and fluxerr_keys must have the same length.")
+        zperr_keys = list(set(zperr_keys))
+        depth_keys = list(set(depth_keys))
         
         # Ensure merged table exists (pulling at least the requested keys + their ZPERR counterparts)
         needed_data_keys = set()
-        for fk, fek in zip(flux_keys, fluxerr_keys):
+        for fk, fek, zek, dk in zip(flux_keys, fluxerr_keys, zperr_keys, depth_keys):
             needed_data_keys.add(fk)
             needed_data_keys.add(fek)
-            needed_data_keys.add(fek.replace('MAGERR', 'ZPERR'))
+            needed_data_keys.add(zek)
+            needed_data_keys.add(dk)
 
         total_number_sources = 0
         for catalog in tqdm(list(self.source_catalogs.values()), desc="Reading catalogs..."):
             catalog.data
             total_number_sources += catalog.nselected
+            
         if total_number_sources > 50000:
             self.helper.print(f"Total number of sources is greater than 30000. Only target nearby the given coordinates will be used for merged_tbl", verbose)
         
@@ -925,6 +997,23 @@ class LightCurve:
         matched_catalog, matched_input, unmatched_catalog = self.helper.cross_match(catalog_coords, input_coords, matching_radius_arcsec)
         print(f"Matched {len(matched_catalog)} sources out of {len(input_coords)} input positions.")
         return self.merged_tbl[matched_catalog]
+    
+    @property
+    def data(self):
+        return self._data
+    
+    @data.setter
+    def data(self, value):
+        self._data = value
+        try:
+            if self.catalogset is None:
+                self.helper.print('Loading catalogs from input table...', True)
+                catalog_pathlist = value['path']
+                catalog_list = [Catalog(path) for path in catalog_pathlist]
+                self.catalogset = CatalogSet(catalog_list)
+                self.source_catalogs = {i: catalog for i, catalog in enumerate(self.catalogset.catalogs)}
+        except:
+            pass
     
     def _combine_err(self, meas_err, zp_err):
         """Quadrature-combine measurement and zeropoint error when both finite."""
@@ -1203,3 +1292,38 @@ class LightCurve:
                 return txt
         return PlotParams()
     
+# %%
+
+# %%
+
+if __name__ == '__main__':
+    from ezphot.utils import DataBrowser
+    dbrowser = DataBrowser('scidata')
+    dbrowser.objname = 'T22956'
+    catalog_set = dbrowser.search(pattern='coadd_scaled*com.fits.cat', return_type='catalog')
+    self = LightCurve(catalog_set)
+    self.extract_source_info(ra = 233.8575139, dec = 12.0577883, flux_key = 'MAGSKY_APER_2', fluxerr_key = 'MAGERR_APER_2', zperr_key = 'ZPERR_APER_2', depth_key = 'UL5SKY_APER_2', matching_radius_arcsec = 5.0, verbose = True)
+# %%
+if __name__ == '__main__':
+    self = LightCurve(catalog_set)
+    self.extract_source_info(ra = 233.8575139, dec = 12.0577883, flux_key = 'MAGSKY_APER_2', fluxerr_key = 'MAGERR_APER_2', zperr_key = 'ZPERR_APER_2', depth_key = 'UL5SKY_APER_2', matching_radius_arcsec = 5.0, verbose = True)
+
+    ra = 233.8575139
+    dec = 12.0577883
+    filter = None
+    matching_radius_arcsec = 5.0
+    ra_key = 'X_WORLD'
+    dec_key = 'Y_WORLD'
+    flux_key = 'MAGSKY_APER_2'
+    fluxerr_key = 'MAGERR_APER_2'
+    zperr_key = 'ZPERR_APER_2'
+    depth_key = 'UL5SKY_APER_2'
+    plot_all_in_one_figure = False
+    apply_offset = True
+    overplot_stamp = True
+    
+    verbose = True
+    title = None
+    result = self.plot(ra = ra, dec = dec, filter = filter, matching_radius_arcsec = matching_radius_arcsec, ra_key = ra_key, dec_key = dec_key, flux_key = flux_key, fluxerr_key = fluxerr_key, zperr_key = zperr_key, depth_key = depth_key, plot_all_in_one_figure = plot_all_in_one_figure, apply_offset = apply_offset, overplot_stamp = overplot_stamp, verbose = verbose, title = title)
+
+#%%

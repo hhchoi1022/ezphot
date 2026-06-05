@@ -239,6 +239,8 @@ class Configuration:
             SDTDATA_SCISOURCEDIR = str(self.path_data / 'connecteddata' / '7DT' / 'processed_1x1_gain2750'),
             SDTDATA_SCIDESTDIR = str(self.path_data / 'scidata' / '7DT' / '7DT_C361K_HIGH_1x1')
         )
+        
+        synphot_config = dict(SYNPHOT_FILTERDIR = str(self.path_config_global / 'transmission'))
 
         for cfg, name in [
             (calibdata_config, 'calibdata.config'),
@@ -247,7 +249,8 @@ class Configuration:
             (catalog_config, 'catalog.config'),
             (observatory_config, 'observatory.config'),
             (sdtdata_config, 'sdtdata.config'),
-            (obsdata_config, 'obsdata.config')
+            (obsdata_config, 'obsdata.config'),
+            (synphot_config, 'synphot.config')
         ]:
             self._make_configfile(cfg, name, self.path_config_global)
 
@@ -304,7 +307,7 @@ class Configuration:
             # Update based on telescope properties
             update_dict['GAIN_DEFAULT'] = telinfo['gain']
             update_dict['PIXEL_SCALE'] = telinfo['pixelscale']
-            update_dict['IMAGE_SIZE'] = f'{round(1.1*telinfo["x"],-2)},{round(1.1*telinfo["y"],-2)}'
+            # update_dict['IMAGE_SIZE'] = f'{round(1.1*telinfo["x"],-2)},{round(1.1*telinfo["y"],-2)}'
 
         self._update_defulatconfig(update_dict, default_path, output_path)
 
@@ -397,6 +400,3 @@ if __name__ == '__main__':
         config = Configuration(telkey=key)
         config.register_telescope()
         print(config.config)
-#%
-
-# %%

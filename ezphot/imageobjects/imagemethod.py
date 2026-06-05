@@ -174,21 +174,21 @@ class ImageMethod:
         """
         from ezphot.methods import Platesolve
         platesolve = Platesolve()
-        output_img = platesolve.solve_astrometry(
+        self = platesolve.solve_astrometry(
             target_img = self,
             overwrite = overwrite,
             verbose = verbose
             )
         
-        output_img = platesolve.solve_scamp(
+        self = platesolve.solve_scamp(
             target_img = self,
             scamp_sexparams = scamp_sexparams,
             scamp_params = scamp_params,
-            overwrite = overwrite,
+            overwrite = True,
             verbose = verbose
-        )
+        )[0]
         
-        return output_img
+        return self
         
     def calculate_invalidmask(self,
                               threshold_invalid_connection: int = 100000,
@@ -356,6 +356,7 @@ class ImageMethod:
                       is_2D_bkg: bool = True,
                       box_size: int = 64,
                       filter_size: int = 3,
+                      correct_global_offset: bool = True,
                       save: bool = False,
                       verbose: bool = True,
                       visualize: bool = True,
@@ -377,6 +378,8 @@ class ImageMethod:
             The box size for the background estimation.
         filter_size : int
             The filter size for the background estimation.
+        correct_global_offset : bool
+            If True, correct the global offset of the background map.
         save : bool
             If True, save the background map.
         verbose : bool
@@ -400,6 +403,7 @@ class ImageMethod:
             is_2D_bkg = is_2D_bkg,
             box_size = box_size,
             filter_size = filter_size,
+            correct_global_offset = correct_global_offset,
             save = save,
             verbose = verbose,
             visualize = visualize,
@@ -854,6 +858,7 @@ class ImageMethod:
                        detection_sigma: float = 5,
                        aperture_diameter_arcsec: Union[float, list] = [5,7,10],
                        aperture_diameter_seeing: Union[float, list] = [3.5,4.5],
+                       annulus_width_arcsec: Union[float, list] = None,
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
                        save: bool = True,
@@ -909,6 +914,7 @@ class ImageMethod:
             detection_sigma = detection_sigma,
             aperture_diameter_arcsec = aperture_diameter_arcsec,
             aperture_diameter_seeing = aperture_diameter_seeing,
+            annulus_width_arcsec = annulus_width_arcsec,
             saturation_level = saturation_level,
             kron_factor = kron_factor,
             save = save,
@@ -923,7 +929,7 @@ class ImageMethod:
                                    aperture_diameter_arcsec: Union[float, list] = [5,7,10],
                                    aperture_diameter_seeing: Union[float, list] = [3.5,4.5],
                                    annulus_width_arcsec: Union[float, list] = None,
-                                   unit: str = 'pixel',
+                                   unit: str = 'coord',
                                    target_bkg: Background = None,
                                    target_bkgrms: Errormap = None,
                                    target_mask: Mask = None,
@@ -1068,28 +1074,37 @@ class ImageMethod:
     def photometric_calibration(self, 
                                 target_catalog,
                                 catalog_type: str = 'GAIAXP',
-                                max_distance_second: float = 1.0,
+                                catalog_version: str = 'v1',
+                                max_distance_second: float = 2.5,
+                                min_number_of_sources: int = 10,
                                 calculate_color_terms: bool = True,
                                 calculate_mag_terms: bool = True,
                                 
                                 # Selection parameters
-                                mag_lower: float = 13,
-                                mag_upper: float = 15,
-                                dynamic_mag_range: bool = True,
+                                mag_lower: float = 12,
+                                mag_upper: float = 16,
+                                snr_lower: float = 10,
+                                snr_upper: float = 150,
+                                dynamic_mag_range: bool = False,
                                 classstar_lower: float = 0.8,
                                 elongation_upper: float = 1.7,
                                 elongation_sigma: float = 5,
-                                fwhm_lower: float = 1,
-                                fwhm_upper: float = 15,
+                                fwhm_lower_arcsec: float = 1,
+                                fwhm_upper_arcsec: float = 10,
                                 fwhm_sigma: float = 5,
                                 flag_upper: int = 1,
                                 maskflag_upper: int = 1,
+                                ra_deg: float = None,
+                                dec_deg: float = None,
+                                radius_arcsec: float = 1500,  
                                 inner_fraction: float = 0.7, # Fraction of the images
-                                isolation_radius: float = 10.0,
+                                isolation_radius_arcsec: float = 10.0,
+                                
                                 magnitude_key: str = 'MAG_AUTO',
-                                fwhm_key: str = 'FWHM_IMAGE',
-                                x_key: str = 'X_IMAGE',
-                                y_key: str = 'Y_IMAGE',
+                                magnitudeerr_key: str = 'MAGERR_AUTO',
+                                fwhm_key: str = 'FWHM_WORLD',
+                                ra_key: str = 'X_WORLD',
+                                dec_key: str = 'Y_WORLD',
                                 classstar_key: str = 'CLASS_STAR',
                                 elongation_key: str = 'ELONGATION',
                                 flag_key: str = 'FLAGS',
@@ -1114,26 +1129,34 @@ class ImageMethod:
             target_img = self,
             target_catalog = target_catalog,
             catalog_type = catalog_type,
+            catalog_version = catalog_version,
             max_distance_second = max_distance_second,
+            min_number_of_sources = min_number_of_sources,
             calculate_color_terms = calculate_color_terms,
             calculate_mag_terms = calculate_mag_terms,
             mag_lower = mag_lower,
             mag_upper = mag_upper,
+            snr_lower = snr_lower,
+            snr_upper = snr_upper,
             dynamic_mag_range = dynamic_mag_range,
             classstar_lower = classstar_lower,
             elongation_upper = elongation_upper,
             elongation_sigma = elongation_sigma,
-            fwhm_lower = fwhm_lower,
-            fwhm_upper = fwhm_upper,
+            fwhm_lower_arcsec = fwhm_lower_arcsec,
+            fwhm_upper_arcsec = fwhm_upper_arcsec,
             fwhm_sigma = fwhm_sigma,
             flag_upper = flag_upper,
             maskflag_upper = maskflag_upper,
+            ra_deg = ra_deg,
+            dec_deg = dec_deg,
+            radius_arcsec = radius_arcsec,
             inner_fraction = inner_fraction,
-            isolation_radius = isolation_radius,
+            isolation_radius_arcsec = isolation_radius_arcsec,
             magnitude_key = magnitude_key,
+            magnitudeerr_key = magnitudeerr_key,
             fwhm_key = fwhm_key,
-            x_key = x_key,
-            y_key = y_key,
+            ra_key = ra_key,
+            dec_key = dec_key,
             classstar_key = classstar_key,
             elongation_key = elongation_key,
             flag_key = flag_key,
@@ -1146,6 +1169,60 @@ class ImageMethod:
             save_refcat = save_refcat)
         
         return result
+    
+    def apply_color_terms(self,
+                          target_catalog,
+                          comparison_catalog = None,
+                          magkey_suffix: Union[str, List[str]] = 'MAGSKY_',
+                          max_distance_arcsec: float = 2.5,
+                          verbose: bool = True,
+                          save: bool = True):
+        from ezphot.methods import PhotometricCalibration
+        from ezphot.dataobjects import Catalog
+        if not isinstance(target_catalog, Catalog):
+            raise ValueError("target_catalog must be a Catalog object.")
+        if comparison_catalog is not None and not isinstance(comparison_catalog, Catalog):
+            raise ValueError("comparison_catalog must be a Catalog object.")
+        photometriccalibration = PhotometricCalibration()
+        target_catalog = photometriccalibration.apply_color_terms(target_img = self, 
+                                                                  target_catalog = target_catalog, 
+                                                                  comparison_catalog = comparison_catalog,
+                                                                  magkey_suffix = magkey_suffix,
+                                                                  max_distance_arcsec = max_distance_arcsec,
+                                                                  verbose = verbose, 
+                                                                  save = save)
+        return target_catalog
+    
+    def apply_mag_terms(self,
+                        target_catalog,
+                        magkey_suffix: Union[str, List[str]] = 'MAGSKY_',
+                        verbose: bool = True,
+                        save: bool = True):
+        from ezphot.methods import PhotometricCalibration
+        from ezphot.dataobjects import Catalog
+        if not isinstance(target_catalog, Catalog):
+            raise ValueError("target_catalog must be a Catalog object.")
+        photometriccalibration = PhotometricCalibration()
+        target_catalog = photometriccalibration.apply_mag_terms(target_img = self, 
+                                                                target_catalog = target_catalog, 
+                                                                verbose = verbose, 
+                                                                save = save)
+        return target_catalog
+    
+    def apply_zp(self,
+                 target_catalog,
+                 verbose: bool = True,
+                 save: bool = True):
+        from ezphot.methods import PhotometricCalibration
+        from ezphot.dataobjects import Catalog
+        if not isinstance(target_catalog, Catalog):
+            raise ValueError("target_catalog must be a Catalog object.")
+        photometriccalibration = PhotometricCalibration()
+        target_catalog = photometriccalibration.apply_zp(target_img = self, 
+                                                         target_catalog = target_catalog,
+                                                         verbose = verbose, 
+                                                         save = save)
+        return target_catalog
 
     def reproject(self, 
                   target_errormap: Optional[Errormap] = None,
@@ -1156,6 +1233,7 @@ class ImageMethod:
                   x_size: Optional[int] = None,
                   y_size: Optional[int] = None,
                   pixelscale: Optional[float] = None,
+                  keep_header_keys: Optional[List[str]] = None,
                   verbose: bool = True,
                   overwrite: bool = False,
                   save: bool = True,
@@ -1182,6 +1260,8 @@ class ImageMethod:
             The size of the image in the y direction for SWarp.
         pixelscale : float
             The pixel scale for SWarp.
+        keep_header_keys : List[str]
+            The keys to keep in the header.
         verbose : bool
             Whether to print verbose output.
         overwrite : bool
@@ -1205,6 +1285,7 @@ class ImageMethod:
             x_size = x_size,
             y_size = y_size,
             pixelscale = pixelscale,
+            keep_header_keys = keep_header_keys,
             verbose = verbose,
             overwrite = overwrite,
             save = save,
@@ -1296,4 +1377,3 @@ class ImageMethod:
             visualize = visualize,
         )
         return result
-# %%

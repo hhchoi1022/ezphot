@@ -295,3 +295,5 @@ class CatalogQuerier:
         catalog_ids['SKYBOT'] = "IMCCE/Skybot"
         return catalog_ids
         
+
+# %%

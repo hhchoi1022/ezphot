@@ -247,7 +247,7 @@ class ImageSet:
         exptime : float or list of float
             Exposure time to select images.
         objname : str or list of str
-            Object name to select images.
+            Object name to select images.e
         obs_start : str or list of str
             Observation start time to select images.
         obs_end : str or list of str
@@ -373,7 +373,6 @@ class ImageSet:
         return all_imgsets
     
     def select_quality_images(self, 
-                              target_imglist: Union[List[ScienceImage], List[ReferenceImage]],
                               min_obsdate: Union[Time, str, float] = None,
                               max_obsdate: Union[Time, str, float] = None,
                               seeing_key: str = 'SEEING',

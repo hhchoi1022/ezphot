@@ -3,6 +3,8 @@
 import inspect
 from typing import Union, Optional
 from pathlib import Path
+from astropy.stats import sigma_clipped_stats
+from typing import Optional
 
 import numpy as np
 import sep
@@ -72,6 +74,7 @@ class BackgroundGenerator:
                           is_2D_bkg: bool = True,
                           box_size: int = 32,
                           filter_size: int = 3,
+                          correct_global_offset: bool = True,
   
                           # Others
                           save: bool = False,
@@ -156,6 +159,20 @@ class BackgroundGenerator:
         
         if target_ivpmask is not None:
             bkg_map[target_ivpmask.data] = np.nan
+            
+            
+        if correct_global_offset:
+            if mask_to_use is not None:
+                sigma_clip = False
+            else:
+                sigma_clip = True
+            global_offset, global_offset_std = self._estimate_global_offset(image_data - bkg_map,
+                                                                            mask = mask_to_use, 
+                                                                            sigma_clip = sigma_clip,
+                                                                            sigma = 5.0, 
+                                                                            maxiters = 5,
+                                                                            use = "mean")
+            bkg_map += global_offset
         
         target_bkg = Background(target_img.savepath.bkgpath, load=False)
         target_bkg.data = bkg_map
@@ -164,7 +181,6 @@ class BackgroundGenerator:
         # Update header of the background image
         update_header_kwargs = dict(
             TGTPATH = str(target_img.path),
-            MASKPATH = str(target_srcmask.path) if target_srcmask is not None else None,
             BKGTYPE = 'SEP',
             BKGIS2D = True,
             BKGVALU = float(np.nanmean(bkg_map)),
@@ -176,7 +192,6 @@ class BackgroundGenerator:
         
         # Update header of the target image
         update_header_kwargs_image = dict(
-            BKGPATH = str(target_bkg.path) if target_bkg.is_exists else None,
             BKGTYPE = 'SEP'
         )
         target_img.header.update(update_header_kwargs_image)
@@ -261,7 +276,7 @@ class BackgroundGenerator:
             mask_to_use = target_mask.data.astype(bool)
             self.helper.print("External mask is loaded.", verbose)
             
-        # image_data = target_img.data.astype(np.float32).copy()
+        image_data = target_img.data.astype(np.float32).copy()
 
         # Step 2: Background estimation
         # Set the background estimation methods
@@ -294,7 +309,6 @@ class BackgroundGenerator:
         # Update header/status 
         update_header_kwargs = dict(
             TGTPATH = str(target_img.path),
-            MASKPATH = str(target_mask.path) if target_mask is not None else None,
             BKGTYPE = 'Photutils',
             BKGIS2D = True,
             BKGVALU = float(np.mean(bkg_map)),
@@ -306,7 +320,6 @@ class BackgroundGenerator:
         
         # Update header of the target image
         update_header_kwargs_image = dict(
-            BKGPATH = str(target_bkg.path) if target_bkg.is_exists else None,
             BKGTYPE = 'Photutils'
         )
         target_img.header.update(update_header_kwargs_image)
@@ -387,7 +400,6 @@ class BackgroundGenerator:
         # Update backgroundimg info
         target_img.header.update(target_bkg.info.to_dict())
         update_header_kwargs = dict(
-            BKGPATH = str(target_bkg.path) if target_bkg.is_exists else None, 
             BKGVALU = 0.0,  # Background value is set to 0 after subtraction
         )
         # Update subbkg info
@@ -481,3 +493,46 @@ class BackgroundGenerator:
             plt.show()
         
         plt.close(fig)
+
+    def _estimate_global_offset(self,
+                                img_sub: np.ndarray,
+                                mask: Optional[np.ndarray] = None,
+                                sigma_clip: bool = False,
+                                sigma: float = 5.0,
+                                maxiters: int = 5,
+                                use: str = "mean"):
+        """
+        Estimate residual global background offset.
+
+        Parameters
+        ----------
+        sigma_clip : bool
+            If True, use sigma-clipped statistics.
+            If False, use simple mean/median (fast).
+        use : str
+            'mean' or 'median'
+        """
+
+        data = np.asarray(img_sub, dtype=np.float64)
+
+        # --- select sky pixels ---
+        if mask is not None:
+            sky = data[np.isfinite(data) & (~mask.astype(bool))]
+        else:
+            sky = data[np.isfinite(data)]
+
+        if sky.size < 1000:
+            # safety fallback
+            sky = data[np.isfinite(data)]
+
+        # --- compute offset ---
+        if sigma_clip:
+            mean, med, std = sigma_clipped_stats(
+                sky, sigma=sigma, maxiters=maxiters
+            )
+            offset = med if use == "median" else mean
+        else:
+            offset = np.median(sky) if use == "median" else np.mean(sky)
+            std = np.std(sky)
+
+        return float(offset), float(std)

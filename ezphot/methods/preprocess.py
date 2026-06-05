@@ -233,7 +233,8 @@ class Preprocess:
 
         return filtered_tbl
 
-    def correct_bdf(self, target_img: ScienceImage, 
+    def correct_bdf(self, 
+                    target_img: ScienceImage, 
                     bias_image: Union[CalibrationImage, MasterImage], 
                     dark_image: Union[CalibrationImage, MasterImage], 
                     flat_image: Union[CalibrationImage, MasterImage],
@@ -852,4 +853,12 @@ class Preprocess:
             
         return master_files
 #%%
+if __name__ == '__main__':
+    self = Preprocess()
+    target_img = ScienceImage('/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01222/7DT14/m625/7DT14_20241205_074017_T01222_m625_1x1_100.0s_0002.fits')
+    bias_image = target_img.get_masterframe(imagetyp = 'BIAS', max_days = 50)[0]
+    dark_image = target_img.get_masterframe(imagetyp = 'DARK', max_days = 50)[0]
+    flat_image = target_img.get_masterframe(imagetyp = 'FLAT', max_days = 50)[0]
+    verbose = True
 
+# %%

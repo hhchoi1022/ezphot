@@ -28,11 +28,11 @@
     HIGH:
       match:
         header:
-          GAIN: 2750
+          GAIN: [1,2750]
     LOW:
       match:
         header:
-          GAIN: 0
+          GAIN: [0,1]
 
 
 KCT:
@@ -170,3 +170,13 @@ LOAO:
           XBINNING: 2
 
   readoutmode: None
+  
+HSC:
+  match:
+    path_contains: ["calexp"]
+
+  ccd: TEMP
+
+  binning: 1
+
+  readoutmode: NORMAL  

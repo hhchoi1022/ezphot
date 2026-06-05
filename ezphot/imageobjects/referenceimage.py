@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Union
 from types import SimpleNamespace
 from dataclasses import dataclass, asdict
+import fnmatch
 
 from astropy.time import Time
 from astropy.io import fits
@@ -94,7 +95,7 @@ class Info:
     """Stores metadata of a FITS image with dot-access."""
     
     INFO_FIELDS = [
-        "SAVEPATH", "BIASPATH", "DARKPATH", "FLATPATH", "BKGPATH", "BKGTYPE", "BKRMSPTH", "EMAPPATH", "EMAPTYPE", "MASKPATH", "MASKTYPE",
+        "SAVEPATH", "BIASPATH", "DARKPATH", "FLATPATH","BKGTYPE", "EMAPTYPE", "MASKTYPE",
         "OBSERVATORY", "CCD", "TELKEY", "TELNAME", "OBSDATE", "NAXIS1", "NAXIS2", "PIXELSCALE", 
         "ALTITUDE", "AZIMUTH", "RA", "DEC", "FOVX", "FOVY", "OBJNAME", "IMGTYPE", "FILTER", "BINNING",
         "EXPTIME", "GAIN", "EGAIN", "CRVAL1", "CRVAL2", "SEEING",
@@ -270,31 +271,13 @@ class ReferenceImage(BaseImage, ImageMethod):
         self.save_info()
         self.path = self.savepath.savepath  # Update path to saved file
         self.loaded = True
-        
+
     def remove(self, 
-               remove_main: bool = True, 
-               remove_connected_files: bool = True,
-               skip_exts: list = ['.png', '.cat'],
-               verbose: bool = False) -> dict:
-        """
-        Remove the main FITS file and/or associated connected files.
+            remove_main: bool = True, 
+            remove_connected_files: bool = True,
+            skip_patterns: list = [],
+            verbose: bool = True) -> dict:
 
-        Parameters
-        ----------
-        remove_main : bool
-            If True, remove the main FITS file (self.path)
-        remove_connected_files : bool
-            If True, remove associated files (status, mask, coadd, etc.)
-        skip_exts : list
-            List of file extensions to skip (e.g. ['.png', '.cat'])
-        verbose : bool
-            If True, print removal results
-
-        Returns
-        -------
-        dict
-            {file_path (str): success (bool)} for each file attempted
-        """
         removed = {}
 
         def try_remove(p: Union[str, Path]):
@@ -311,6 +294,12 @@ class ReferenceImage(BaseImage, ImageMethod):
                     return False
             return False
 
+        def should_skip(p: Path):
+            for pattern in skip_patterns:
+                if fnmatch.fnmatch(p.name, pattern):
+                    return True
+            return False
+
         # Remove main FITS file
         if remove_main and self.path and self.path.is_file():
             removed[str(self.path)] = try_remove(self.path)
@@ -318,14 +307,15 @@ class ReferenceImage(BaseImage, ImageMethod):
         # Remove connected files
         if remove_connected_files:
             for f in self.connected_files:
-                if f.suffix in skip_exts:
+
+                if should_skip(f):
                     if verbose:
-                        print(f"[SKIP] {f} (skipped due to extension)")
+                        print(f"[SKIP] {f} (matched skip pattern)")
                     continue
+
                 removed[str(f)] = try_remove(f)
 
-        return removed
-    
+        return removed    
     def to_scienceimage(self):
         """
         Convert the reference image to a ScienceImage.
@@ -363,7 +353,7 @@ class ReferenceImage(BaseImage, ImageMethod):
             
         # Save the reference image to the reference data directory
         if not self.is_saved:
-            self.write()
+            self.write(verbose = verbose)
         
         def update_reference_summary(
             target_img: Union[ReferenceImage],
@@ -483,7 +473,7 @@ class ReferenceImage(BaseImage, ImageMethod):
             self.remove(
                 remove_main = True,
                 remove_connected_files = True,
-                skip_exts = [],
+                skip_patterns = [],
                 verbose = verbose
             )
             self.helper.print(f"Deregistered {self.savepath.savepath} from {summary_path}", verbose)
@@ -571,7 +561,7 @@ class ReferenceImage(BaseImage, ImageMethod):
         """
         info = Info(
             SAVEPATH = str(self.savepath.savepath), BIASPATH = self.biaspath, DARKPATH = self.darkpath, FLATPATH = self.flatpath, 
-            BKGPATH = self.bkgpath, BKGTYPE = self.bkgtype, EMAPPATH = self.emappath, EMAPTYPE = self.emaptype, MASKPATH = self.maskpath, MASKTYPE = self.masktype,
+            BKGTYPE = self.bkgtype, EMAPTYPE = self.emaptype, MASKTYPE = self.masktype,
             OBSERVATORY =  self.observatory, CCD = self.ccd,
             TELKEY = self.telkey, TELNAME = self.telname, OBSDATE = self.obsdate,
             NAXIS1 = self.naxis1, NAXIS2 = self.naxis2, PIXELSCALE = self.telinfo['pixelscale'],

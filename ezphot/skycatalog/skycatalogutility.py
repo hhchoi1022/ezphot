@@ -31,12 +31,13 @@ class SkyCatalogUtility:
         self.catalog_archive_path = Path(catalog_archive_path) if catalog_archive_path else Path(self.helper.config['CATALOG_DIR']) / 'summary.ascii_fixed_width'
 
     def get_catalogs(self,
-                     ra: float,
-                     dec: float,
+                     ra: float = None,
+                     dec: float = None,
                      objname: str = None,
                      fov_ra: float = 1.0,
                      fov_dec: float = 1.0,
                      catalog_type: str = 'GAIAXP',
+                     catalog_version: str = 'v1',
                      fraction_criteria: float = 0.05,
                      query_when_not_archived: bool = True,
                      verbose: bool = False) -> List[SkyCatalog]:
@@ -57,6 +58,8 @@ class SkyCatalogUtility:
             The field of view in declination.
         catalog_type : str, optional
             The type of catalog to load.
+        catalog_version : str, optional
+            The version of catalog to load.
         fraction_criteria : float, optional
             The fraction of the catalog that must overlap with the target coordinate and FOV.
         query_when_not_archived : bool, optional
@@ -77,45 +80,83 @@ class SkyCatalogUtility:
 
         # Load catalog summary
         catalog_path = self.catalog_archive_path
-        if catalog_path is None:
-            catalog_path = Path(__file__).parent / 'catalog_archive' / 'summary.ascii_fixed_width'
         summary = ascii.read(catalog_path, format='fixed_width')
-        summary = summary[summary['cat_type'] == catalog_type]
-
-        # Fast angular pre-filter
-        ra_arr = np.asarray(summary['ra'])
-        dec_arr = np.asarray(summary['dec'])
-        cos_dec0, sin_dec0 = np.cos(np.radians(dec)), np.sin(np.radians(dec))
-        cos_dec, sin_dec = np.cos(np.radians(dec_arr)), np.sin(np.radians(dec_arr))
-        delta_ra = np.radians(ra_arr - ra)
-        angular_sep = np.degrees(np.arccos(np.clip(sin_dec0 * sin_dec + cos_dec0 * cos_dec * np.cos(delta_ra), -1, 1)))
-
-        search_radius = min(5, 10 * np.sqrt(fov_ra ** 2 + fov_dec ** 2))
-        summary_nearby = summary[angular_sep < search_radius]
-
-        # Target polygon
-        target_poly = make_sky_rectangle(ra, dec, fov_ra, fov_dec)
-
-        # Intersection filter
-        filtered_rows = []
-        for row in summary_nearby:
-            tile_poly = make_sky_rectangle(row['ra'], row['dec'], row['fov_ra'], row['fov_dec'])
-            if tile_poly.intersects(target_poly):
-                intersection_fraction = tile_poly.intersection(target_poly).area / target_poly.area
-                self.helper.print(f"Catalog {row['objname']} intersection fraction: {intersection_fraction:.2f}", verbose)
-                if intersection_fraction >= fraction_criteria:
-                    filtered_rows.append(row)
-
-        # Parallel load
-        # with ThreadPoolExecutor(max_workers=6) as executor:
-        #     catalogs = list(executor.map(self._load_catalog_worker, filtered_rows))
-        catalogs = [self._load_catalog_worker(row) for row in filtered_rows]
-
-        if catalogs:
-            self.helper.print(f"Found {len(catalogs)} catalogs matching the region (fraction > {fraction_criteria}).", verbose)
-        else:
-            self.helper.print("No catalogs found.", verbose)
+        summary = summary[(summary['catalog_type'] == catalog_type) & (summary['catalog_version'] == catalog_version)]
         
+        # Fast angular pre-filter
+        catalogs = None
+        if objname is not None:
+            summary_objname = summary[summary['objname'] == objname]
+            if len(summary_objname) > 0:
+                catalogs = [self._load_catalog_worker(row) for row in summary_objname]
+                return catalogs
+            else:
+                self.helper.print(f"No catalogs found for {objname}", verbose)
+
+        if ra is not None and dec is not None:
+            ra_arr = np.asarray(summary['ra'])
+            dec_arr = np.asarray(summary['dec'])
+            cos_dec0, sin_dec0 = np.cos(np.radians(dec)), np.sin(np.radians(dec))
+            cos_dec, sin_dec = np.cos(np.radians(dec_arr)), np.sin(np.radians(dec_arr))
+            delta_ra = np.radians(ra_arr - ra)
+            angular_sep = np.degrees(np.arccos(np.clip(sin_dec0 * sin_dec + cos_dec0 * cos_dec * np.cos(delta_ra), -1, 1)))
+
+            search_radius = min(5, 10 * np.sqrt(fov_ra ** 2 + fov_dec ** 2))
+            summary_nearby = summary[angular_sep < search_radius]
+
+            # Target polygon
+            target_poly = make_sky_rectangle(ra, dec, fov_ra, fov_dec)
+
+            # Intersection filter
+            from shapely.ops import unary_union
+
+            selected_rows = []
+            selected_intersections = []
+
+            # 1. 모든 intersecting tile의 intersection polygon 저장
+            candidates = []
+
+            for row in summary_nearby:
+                tile_poly = make_sky_rectangle(
+                    row['ra'], row['dec'], row['fov_ra'], row['fov_dec']
+                )
+                if tile_poly.intersects(target_poly):
+                    inter = tile_poly.intersection(target_poly)
+                    if inter.area > 0:
+                        candidates.append((row, inter))
+
+            # 2. intersection 면적 큰 순서로 정렬
+            candidates.sort(key=lambda x: x[1].area, reverse=True)
+
+            # 3. Greedy union
+            union_poly = None
+            for row, inter in candidates:
+                if union_poly is None:
+                    trial_union = inter
+                else:
+                    trial_union = union_poly.union(inter)
+
+                old_cov = 0.0 if union_poly is None else union_poly.area / target_poly.area
+                new_cov = trial_union.area / target_poly.area
+
+                # coverage가 증가하면 채택
+                if new_cov > old_cov:
+                    selected_rows.append(row)
+                    union_poly = trial_union
+
+                if new_cov >= 0.999:  # 거의 full cover
+                    break
+
+            final_coverage = 0.0 if union_poly is None else union_poly.area / target_poly.area
+            self.helper.print(
+                f"Selected {len(selected_rows)} tiles, coverage = {final_coverage:.3f}",
+                verbose
+            )
+            
+            catalogs = [self._load_catalog_worker(row) for row in selected_rows]
+        else:
+            raise RuntimeError('Objname or Coordinate(Ra and dec) must be provided')
+                
         if query_when_not_archived:
             if len(catalogs) == 0:
                 skycatalog = SkyCatalog(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type, overlapped_fraction = fraction_criteria, verbose = verbose)
@@ -156,9 +197,10 @@ class SkyCatalogUtility:
         cutlines = {
             'APASS': dict(e_V_mag=[0.001, 0.2], V_mag=[mag_lower, mag_upper]),
             'GAIA': dict(V_flag=[0, 1], V_mag=[mag_lower, mag_upper]),
-            'GAIAXP': {"pmra": [-20, 20], "pmdec": [-20, 20], "bp-rp": [0.0, 1.5], "g_mean": [mag_lower, mag_upper]},
+            'GAIAXP': {"pmra": [-20, 20], "pmdec": [-20, 20], "bp-rp": [-2, 2], "g_mean": [mag_lower, mag_upper]},
             'PS1': {"gFlags": [0, 10], "g_mag": [mag_lower, mag_upper]},
-            'SMSS': {"ngood": [5, 999], "class_star": [0.3, 1.0], "g_mag": [mag_lower, mag_upper]}
+            'SMSS': {"ngood": [5, 999], "class_star": [0.3, 1.0], "g_mag": [mag_lower, mag_upper]},
+            'GAIAXP_CORR_LAMOST': {"pmra": [-20, 20], "pmdec": [-20, 20], "bp-rp": [-2, 2], "g_mean": [mag_lower, mag_upper]},
         }
 
         if catalog.catalog_type not in cutlines:
@@ -175,12 +217,12 @@ class SkyCatalogUtility:
 
         return ref_sources, applied_kwargs
 
-    
     @staticmethod
     def _load_catalog_worker(row):
         """Worker to load a SkyCatalog from a summary row."""
         return SkyCatalog(objname=row['objname'],
-                          catalog_type=row['cat_type'],
+                          catalog_type=row['catalog_type'],
                           fov_ra=row['fov_ra'],
                           fov_dec=row['fov_dec'],
+                          catalog_version=row['catalog_version'],
                           verbose = False)

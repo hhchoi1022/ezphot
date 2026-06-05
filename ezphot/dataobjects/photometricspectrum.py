@@ -18,7 +18,8 @@ import astropy.units as u
 from astropy.stats import sigma_clipped_stats
 from astropy.table import MaskedColumn
 
-from ezphot.dataobjects import CatalogSet
+
+from ezphot.dataobjects import CatalogSet, Catalog
 from ezphot.helper import Helper
 from ezphot.utils import CatalogQuerier
 
@@ -47,49 +48,65 @@ class PhotometricSpectrum:
         #     raise TypeError("catalogset must be an instance of CatalogSet")
         self.helper = Helper()
         self.catalogset = catalogset
-        self.source_catalogs = {i: catalog for i, catalog in enumerate(catalogset.catalogs)}
+        if self.catalogset is not None:
+            self.source_catalogs = {i: catalog for i, catalog in enumerate(self.catalogset.catalogs)}
+        else:
+            self.source_catalogs = None
         self.merged_tbl = None
         self.metadata = None
         self.plt_params = self._plt_params()
         self.CatalogQuerier = CatalogQuerier(catalog_key = None)
-        self.data = None
+        self._data = None
         
     OFFSET = 2
         
-    EFFECTIVE_WAVELENGTHS_NM = {
-        'm400': 400.0, 'm412': 412.5, 'm425': 425.0, 'm437': 437.5, 
-        'm450': 450.0, 'm462': 462.5, 'm475': 475.0, 'm487': 487.5,
-        'm500': 500.0, 'm512': 512.5, 'm525': 525.0, 'm537': 537.5,
-        'm550': 550.0, 'm562': 562.5, 'm575': 575.0, 'm587': 587.5,
-        'm600': 600.0, 'm612': 612.5, 'm625': 625.0, 'm637': 637.5,
-        'm650': 650.0, 'm662': 662.5, 'm675': 675.0, 'm687': 687.5,
-        'm700': 700.0, 'm712': 712.5, 'm725': 725.0, 'm737': 737.5,
-        'm750': 750.0, 'm762': 762.5, 'm775': 775.0, 'm787': 787.5,
-        'm800': 800.0, 'm812': 812.5, 'm825': 825.0, 'm837': 837.5,
-        'm850': 850.0, 'm862': 862.5, 'm875': 875.0, 'm887': 887.5,
+    FILTER_PIVOT_WAVELENGTH_NM = {
+        'm375w' : 382.4, 'm425w' : 427.2, 'm466w' : 467.7, 'm692w' : 690.6,
+        'm710w' : 708.4, 'm769w' : 767.6, 'm832w' : 830.0, 
+        'm386' : 387.5, 'm400' : 401.3, 'm425' : 425.5, 'm438' : 438.3,
+        'm450' : 450.8, 'm475' : 475.3, 'm483' : 482.5, 'm500' : 500.3,
+        'm512' : 511.9, 'm525' : 524.8, 'm534' : 533.8, 'm550' : 550.1,
+        'm561' : 560.9, 'm575' : 574.9, 'm586' : 585.9, 'm600' : 600.1,
+        'm615' : 614.9, 'm625' : 624.8, 'm640' : 639.5, 'm650' : 650.1,
+        'm661' : 660.7, 'm675' : 674.5, 'm700' : 699.9, 'm725' : 724.6,
+        'm750' : 748.9, 'm775' : 775.2, 'm800' : 799.2, 'm825' : 824.0, 
+        'm850' : 848.3, 'm875' : 872.9,
+        
+        # GAIA filters (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=GAIA/GAIA0.Grp&&mode=browse&gname=GAIA&gname2=GAIA0#filter)
+        'Gaia_G': 657.3, 'Gaia_bp': 525.5, 'Gaia_rp': 793.8,
+        
+        # Swift filter (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=Swift&asttype=)
+        'Swift_UVW2': 208.6, 'Swift_UVM2': 236.0, 'Swift_UVW1': 263.8, 'Swift_U': 347.1, 'Swift_B': 435.0, 'Swift_V': 541.9,
+        
         # SDSS ugriz (DOI+2010)
-        'u': 349.8, 'g': 462.7, 'r': 613.9, 'i': 746.7, 'z': 892.7,
+        'u' : 371.4, 'g' : 479.4, 'r' : 616.2, 'i' : 758.7, 'z' : 876.6,
         # PS1 ugizy (TONRY+2012)
         'g_ps1': 481, 'r_ps1': 617, 'i_ps1': 752, 'z_ps1': 866, 'y_ps1': 962,
         # Johnson-Cousins UBVRI (Ground based, https://mfouesneau.github.io/pyphot/libcontent.html)
-        'U': 363.5, 'B': 429.7, 'V': 547.0, 'R': 647.1, 'I': 787.2,
+        'U' : 364.6, 'B' : 433.0, 'V' : 549.3, 'R' : 652.7, 'I' : 789.1,
         # 2MASS JHK (COHEN+2003)
         'J': 1235, 'H': 1662, 'K': 2159,
         # WISE W1-W4 (https://svo2.cab.inta-csic.es/svo/theory/fps/index.php?mode=browse&gname=WISE&asttype=)
         'W1': 3352.6, 'W2': 4620.8, 'W3': 11560.8, 'W4': 22088.3,
-    }
+        }
     
     FILTER_SHAPE = {
-        'm400': 'o', 'm412': 'o', 'm425': 'o', 'm437': 'o',
-        'm450': 'o', 'm462': 'o', 'm475': 'o', 'm487': 'o',
-        'm500': 'o', 'm512': 'o', 'm525': 'o', 'm537': 'o',
-        'm550': 'o', 'm562': 'o', 'm575': 'o', 'm587': 'o',
-        'm600': 'o', 'm612': 'o', 'm625': 'o', 'm637': 'o',
-        'm650': 'o', 'm662': 'o', 'm675': 'o', 'm687': 'o',
-        'm700': 'o', 'm712': 'o', 'm725': 'o', 'm737': 'o',
-        'm750': 'o', 'm762': 'o', 'm775': 'o', 'm787': 'o',
-        'm800': 'o', 'm812': 'o', 'm825': 'o', 'm837': 'o',
-        'm850': 'o', 'm862': 'o', 'm875': 'o', 'm887': 'o',
+        'm375w': 'o', 'm425w': 'o', 'm466w': 'o', 'm692w': 'o',
+        'm710w': 'o', 'm769w': 'o', 'm832w': 'o',
+        'm386': 'o', 'm400': 'o', 'm425': 'o', 'm438': 'o',
+        'm450': 'o', 'm475': 'o', 'm483': 'o', 'm500': 'o',
+        'm512': 'o', 'm525': 'o', 'm534': 'o', 'm550': 'o',
+        'm561': 'o', 'm575': 'o', 'm586': 'o', 'm600': 'o',
+        'm615': 'o', 'm625': 'o', 'm640': 'o', 'm650': 'o',
+        'm661': 'o', 'm675': 'o', 'm700': 'o', 'm725': 'o',
+        'm750': 'o', 'm775': 'o', 'm800': 'o', 'm825': 'o',
+        'm850': 'o', 'm875': 'o',
+        
+        # GAIA filters (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=GAIA/GAIA0.Grp&&mode=browse&gname=GAIA&gname2=GAIA0#filter)
+        'Gaia_G': 'D', 'Gaia_bp': 'D', 'Gaia_rp': 'D',
+        # Swift filter (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=Swift&asttype=)
+        'Swift_UVW2': 'D', 'Swift_UVM2': 'D', 'Swift_UVW1': 'D', 'Swift_U': 'D', 'Swift_B': 'D', 'Swift_V': 'D',
+        
         # SDSS ugriz
         'u': 's', 'g': 's', 'r': 's', 'i': 's', 'z': 's',
         # PS1 ugizy
@@ -106,17 +123,27 @@ class PhotometricSpectrum:
         # -------------------------------------------------
         # 7DT / Medium-band filters (uniform)
         # -------------------------------------------------
-        'm400': 25, 'm412': 25, 'm425': 25, 'm437': 25,
-        'm450': 25, 'm462': 25, 'm475': 25, 'm487': 25,
-        'm500': 25, 'm512': 25, 'm525': 25, 'm537': 25,
-        'm550': 25, 'm562': 25, 'm575': 25, 'm587': 25,
-        'm600': 25, 'm612': 25, 'm625': 25, 'm637': 25,
-        'm650': 25, 'm662': 25, 'm675': 25, 'm687': 25,
-        'm700': 25, 'm712': 25, 'm725': 25, 'm737': 25,
-        'm750': 25, 'm762': 25, 'm775': 25, 'm787': 25,
-        'm800': 25, 'm812': 25, 'm825': 25, 'm837': 25,
-        'm850': 25, 'm862': 25, 'm875': 25, 'm887': 25,
-
+        'm375w': 50, 'm425w': 50, 'm466w': 45, 'm692w': 47,
+        'm710w': 47, 'm769w': 48, 'm832w': 45,
+        'm386': 27, 'm400': 25, 'm425': 25, 'm438': 28,
+        'm450': 25, 'm475': 25, 'm483': 36, 'm500': 25,
+        'm512': 30, 'm525': 25, 'm534': 25, 'm550': 25,
+        'm561': 21, 'm575': 25, 'm586': 26, 'm600': 25,
+        'm615': 26, 'm625': 25, 'm640': 20, 'm650': 25,
+        'm661': 26, 'm675': 25, 'm700': 25, 'm725': 25,
+        'm750': 25, 'm775': 25, 'm800': 25, 'm825': 25,
+        'm850': 25, 'm875': 25,
+        
+        # -------------------------------------------------
+        # GAIA filters (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=GAIA/GAIA0.Grp&&mode=browse&gname=GAIA&gname2=GAIA0#filter)
+        # -------------------------------------------------
+        'Gaia_G': 440.0, 'Gaia_bp': 253.0, 'Gaia_rp': 296.0,
+        
+        # -------------------------------------------------
+        # Swift filter (https://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=Swift&asttype=)
+        # -------------------------------------------------
+        'Swift_UVW2': 57, 'Swift_UVM2': 51, 'Swift_UVW1': 68, 'Swift_U': 78, 'Swift_B': 98, 'Swift_V': 73,
+        
         # -------------------------------------------------
         # SDSS ugriz (Doi+2010)
         # -------------------------------------------------
@@ -139,21 +166,22 @@ class PhotometricSpectrum:
         'W1': 662.6, 'W2': 1042.2, 'W3': 5505.5, 'W4': 4101.7,
     }
 
-    
     def __repr__(self):
-        txt = f'PHOTOMETRIC SPECTRUM OBJECT (n_catalogs = {len(self.catalogset.catalogs)})\n'
+        txt = f'PHOTOMETRIC SPECTRUM OBJECT (n_catalogs = {len(self.source_catalogs.values())})\n'
         txt += str(self.plt_params)
         return txt
     
     def plot(self, 
-             ra: float,
-             dec: float,
+             ra: float = None,
+             dec: float = None,
              obsdate: str = None,
              matching_radius_arcsec: float = 5.0,
              ra_key: str = 'X_WORLD',
              dec_key: str = 'Y_WORLD',
-             flux_key: str = 'MAGSKY_APER_1',
-             fluxerr_key: str = 'MAGERR_APER_1',
+             flux_key: str = 'MAGSKY_APER_2',
+             fluxerr_key: str = 'MAGERR_APER_2',
+             zperr_key: str = 'ZPERR_APER_2',
+             depth_key: str = 'UL5SKY_APER_2',
              
              plot_all_in_one_figure: bool = True,
              overplot_gaiaxp: bool = False,
@@ -201,6 +229,11 @@ class PhotometricSpectrum:
         tbl : astropy.table.Table
             Table of data.
         """
+        def _get_col(tbl, key):
+            if (key in tbl.colnames) and not all(getmaskarray(tbl[key])):
+                return np.array(tbl[key], dtype=float)
+            else:
+                return np.full(len(tbl), np.nan)
         
         # 1. Prepare data
         # 1.1. Data formatting
@@ -211,11 +244,13 @@ class PhotometricSpectrum:
                 dec_key=dec_key,
                 flux_key=flux_key,
                 fluxerr_key=fluxerr_key,
+                zperr_key=zperr_key,
+                depth_key=depth_key,
                 matching_radius_arcsec=matching_radius_arcsec
             )
         if self.data is None or len(self.data) == 0:
             self.helper.print(f"[WARNING] No sources found within {matching_radius_arcsec}\" of RA={ra}, Dec={dec}", verbose)
-            return None, None, None
+            # return None, None, None
         tbl = self.data.copy()
             
         # 1.2. If obsdate is provided, filter the table to the closest group in time
@@ -237,33 +272,46 @@ class PhotometricSpectrum:
                     f"[WARNING] No data found for obsdate={obsdate}",
                     verbose
                 )
-                return None, None, None
+                # return None, None, None
+                
+        if fluxerr_key is not None and all(getmaskarray(tbl[fluxerr_key])):
+            print(f"[WARNING] {fluxerr_key} not found in table. Ignoring flux error component.")
+        if zperr_key is not None and all(getmaskarray(tbl[zperr_key])):
+            print(f"[WARNING] {zperr_key} not found in table. Ignoring zp error component.")
+        if depth_key is not None and all(getmaskarray(tbl[depth_key])):
+            print(f"[WARNING] {depth_key} not found in table. Ignoring depth plot.")
         
-        # 1.3. Remove non-detection when plotting 
-        if flux_key in tbl.colnames and fluxerr_key in tbl.colnames:
-            mag = tbl[flux_key]
+        # 1.3. Genearte detection mask
+        mag = tbl[flux_key]
+        mask_mag = getmaskarray(mag)
+        valid_detection = (~mask_mag)
+        if fluxerr_key is not None and not all(getmaskarray(tbl[fluxerr_key])):
             err = tbl[fluxerr_key]
-
-            mask_mag = getmaskarray(mag)
             mask_err = getmaskarray(err)
-
-            valid_detection = (
-                (~mask_mag) & (~mask_err) #&
-                # np.isfinite(mag) & np.isfinite(err)
-            )
-
-            if len(tbl) == 0:
-                print("[WARNING] No valid detections — skipping plot.")
-                return None, None, None
+            valid_detection &= (~mask_err)
             
         # 1.4. Build arrays
         is_mag = "MAG" in flux_key.upper()
         wl = np.array([self._band_to_wavelength_nm(b) for b in tbl['filter']], dtype=float)
-        mags  = np.array(tbl[flux_key], dtype=float)
-        magerrs = np.array(tbl[fluxerr_key], dtype=float)
-        zperrs = np.array(tbl['zp_err'], dtype=float)
-        depths = np.array(tbl['depth'], dtype=float)
-        errs  = np.array([self._combine_err(m, z) for m, z in zip(magerrs, zperrs)], dtype=float)
+        mags = _get_col(tbl, flux_key)
+        magerrs = _get_col(tbl, fluxerr_key)
+        zperrs  = _get_col(tbl, zperr_key)
+        depths  = _get_col(tbl, depth_key)
+        if (magerrs is not None) and (zperrs is not None):
+            errs = np.array([
+                self._combine_err(m, z)
+                for m, z in zip(magerrs, zperrs)
+            ], dtype=float)
+        else:
+            errs = magerrs  # fallback
+        
+        # mags  = np.array(tbl[flux_key], dtype=float)
+        # magerrs = np.array(tbl[fluxerr_key], dtype=float)
+        # zps = np.array(tbl[zp_key], dtype=float)
+        # zperrs = np.array(tbl[zperr_key], dtype=float)
+        # depths = np.array(tbl[depth_key], dtype=float)
+        # errs  = np.array([self._combine_err(m, z) for m, z in zip(magerrs, zperrs)], dtype=float)
+        
         mjds = np.array(tbl['mjd'], dtype=float)
         telname = np.array(tbl['telname'], dtype=object)
         obs = np.array(tbl['observatory'], dtype=object)
@@ -283,7 +331,9 @@ class PhotometricSpectrum:
         filt = filt[order]
         groups = groups[order]
         mjd_groups = mjd_groups[order]
-        valid_detection = valid_detection[order]        
+        valid_detection = valid_detection[order]     
+        has_medium_band = any([f.startswith('m') for f in filt[valid_detection]])
+        has_broad_band = any([f in ['u','g','r','i','z','y'] for f in filt[valid_detection]])
         
         unique_groups = sorted(list(set(groups)))
         group_mjds = [Time(g).mjd for g in unique_groups]
@@ -347,6 +397,7 @@ class PhotometricSpectrum:
             
             legend_color_all = []
             figures = dict()
+            axes = dict()
             figures_detection = dict()
             for cg, col in group_iter:
                 m = (groups == cg)
@@ -361,11 +412,16 @@ class PhotometricSpectrum:
                 yerr_detection = np.array(errs[detection_mask], dtype=float)
                 depth_detection = np.array(depths[detection_mask], dtype=float)
                 filter_detection = np.array(filt[detection_mask], dtype=object)
+                is_medium_band = [False]
+                is_broad_band = [False]
+                if len(x_detection) > 0:
+                    is_medium_band = np.array([f.startswith('m') for f in filter_detection])
+                    is_broad_band = ~is_medium_band
+                     
                 y_detection += offset
                 depth_detection += offset
                 y_mean, y_median, y_std = sigma_clipped_stats(y_detection, sigma=3)
-                is_medium_band = np.array([f.startswith('m') for f in filter_detection])
-                is_broad_band = ~is_medium_band
+
 
                 if non_detection_exist:
                     x_non_detection = np.array(wl[non_detection_mask], dtype=float)
@@ -493,7 +549,7 @@ class PhotometricSpectrum:
                             ax_container=None,   
                         )
                         figures_detection[cg] = detection_figure
-                
+                        
                 # --- Legend 1: obsdate_group (color only) ---
                 legend_color = [Line2D([0], [0],
                     marker='o',
@@ -507,15 +563,13 @@ class PhotometricSpectrum:
                 
                 # --- Legend 2: filter type (scatter shape only) ---
                 legend_shape = []
-                has_medium = np.any(is_medium_band)
-                has_broad = np.any(is_broad_band)
-                if has_medium:
+                if has_medium_band:
                     legend_shape_medium = Line2D([0], [0],
                         marker='o', linestyle='None',markersize = 12,
                         markerfacecolor='none', markeredgecolor='k',
                         label='Medium band')
                     legend_shape.append(legend_shape_medium)
-                if has_broad:
+                if has_broad_band:
                     legend_shape_broad = Line2D([0], [0],
                         marker='s', linestyle='None', markersize = 12,
                         markerfacecolor='none', markeredgecolor='k',
@@ -572,6 +626,7 @@ class PhotometricSpectrum:
                         )
                     ax.add_artist(leg2)              
                     figures[cg] = fig
+                    axes[cg] = ax
                                     
             if plot_multiple_spectrum:
                 ax.set_xlabel("Effective Wavelength [nm]", fontsize=self.plt_params.xlabel_fontsize)
@@ -609,83 +664,84 @@ class PhotometricSpectrum:
                     )
                 ax.add_artist(leg2)
                 figures[cg] = fig
+                axes[cg] = ax
                 
             # ---------- External overplots ----------
             # GaiaXP: full low-res spectrum converted to AB mag vs nm
-            coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
-            if overplot_gaiaxp and is_mag:
-                try:
-                    self.CatalogQuerier.change_catalog('GAIAXP')
-                    res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
-                    if len(res) > 0:
-                        gx = res[0]
-                        # nearest source
-                        closest = gx['Source'][0]
-                        gx = gx[gx['Source'] == closest]
-                        wl_nm = np.array(gx['lambda'])
-                        f_si  = np.array(gx['Flux'])
-                        fe_si = np.array(gx['e_Flux'])
-                        wl_AA = wl_nm * 10.0
-                        mag   = np.array(self.helper.flambSI_to_ABmag(f_si, wl_AA), dtype=float)
-                        magerr = np.array(self.helper.fluxerr_to_magerr(flux=f_si, fluxerr=fe_si), dtype=float)
-                        ok = np.isfinite(mag) & (magerr >= 0)
-                        if np.any(ok):
-                            ax.errorbar(wl_nm[ok], mag[ok], yerr=magerr[ok],
-                                        fmt='None', color='magenta', alpha=0.3, label='GaiaXP')
-                    else:
-                        ax.plot([], [], ' ', label='GaiaXP (no data)')
-                except Exception:
-                    ax.plot([], [], ' ', label='GaiaXP (error)')
+            # coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+            # if overplot_gaiaxp and is_mag:
+            #     try:
+            #         self.CatalogQuerier.change_catalog('GAIAXP')
+            #         res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
+            #         if len(res) > 0:
+            #             gx = res[0]
+            #             # nearest source
+            #             closest = gx['Source'][0]
+            #             gx = gx[gx['Source'] == closest]
+            #             wl_nm = np.array(gx['lambda'])
+            #             f_si  = np.array(gx['Flux'])
+            #             fe_si = np.array(gx['e_Flux'])
+            #             wl_AA = wl_nm * 10.0
+            #             mag   = np.array(self.helper.flambSI_to_ABmag(f_si, wl_AA), dtype=float)
+            #             magerr = np.array(self.helper.fluxerr_to_magerr(flux=f_si, fluxerr=fe_si), dtype=float)
+            #             ok = np.isfinite(mag) & (magerr >= 0)
+            #             if np.any(ok):
+            #                 ax.errorbar(wl_nm[ok], mag[ok], yerr=magerr[ok],
+            #                             fmt='None', color='magenta', alpha=0.3, label='GaiaXP')
+            #         else:
+            #             ax.plot([], [], ' ', label='GaiaXP (no data)')
+            #     except Exception:
+            #         ax.plot([], [], ' ', label='GaiaXP (error)')
 
-            # SDSS points (u,g,r,i,z)
-            if overplot_sdss and is_mag:
-                try:
-                    self.CatalogQuerier.change_catalog('SDSS')
-                    res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
-                    if len(res) > 0 and len(res[0]) > 0:
-                        sdss = res[0][0]
-                        bands = ['u','g','r','i','z']
-                        xs, ys, es = [], [], []
-                        for b in bands:
-                            m  = sdss.get(f'{b}mag')
-                            me = sdss.get(f'e_{b}mag')
-                            wl = self._band_to_wavelength_nm(b)
-                            if m is None or me is None or not np.isfinite(wl):
-                                continue
-                            xs.append(wl); ys.append(m); es.append(me)
-                        if xs:
-                            ax.errorbar(xs, ys, yerr=es,
-                                        label='SDSS', **self.plt_params.get_errorbar_kwargs('green','^'))
-                    else:
-                        ax.plot([], [], ' ', label='SDSS (no data)')
-                except Exception:
-                    ax.plot([], [], ' ', label='SDSS (error)')
+            # # SDSS points (u,g,r,i,z)
+            # if overplot_sdss and is_mag:
+            #     try:
+            #         self.CatalogQuerier.change_catalog('SDSS')
+            #         res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
+            #         if len(res) > 0 and len(res[0]) > 0:
+            #             sdss = res[0][0]
+            #             bands = ['u','g','r','i','z']
+            #             xs, ys, es = [], [], []
+            #             for b in bands:
+            #                 m  = sdss.get(f'{b}mag')
+            #                 me = sdss.get(f'e_{b}mag')
+            #                 wl = self._band_to_wavelength_nm(b)
+            #                 if m is None or me is None or not np.isfinite(wl):
+            #                     continue
+            #                 xs.append(wl); ys.append(m); es.append(me)
+            #             if xs:
+            #                 ax.errorbar(xs, ys, yerr=es,
+            #                             label='SDSS', **self.plt_params.get_errorbar_kwargs('green','^'))
+            #         else:
+            #             ax.plot([], [], ' ', label='SDSS (no data)')
+            #     except Exception:
+            #         ax.plot([], [], ' ', label='SDSS (error)')
 
-            # PS1 points (g,r,i,z,y)
-            if overplot_ps1 and is_mag:
-                try:
-                    self.CatalogQuerier.change_catalog('PS1')
-                    res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
-                    if len(res) > 0 and len(res[0]) > 0:
-                        ps1 = res[0][0]
-                        bands = ['g','r','i','z','y']
-                        xs, ys, es = [], [], []
-                        for b in bands:
-                            m  = ps1.get(f'{b}mag')
-                            me = ps1.get(f'e_{b}mag')
-                            wl = self._band_to_wavelength_nm(f'{b}_ps1')  # use PS1-specific pivot
-                            if (m is None) or (me is None) or (not np.isfinite(wl)):
-                                continue
-                            xs.append(wl); ys.append(m); es.append(me)
-                        if xs:
-                            ax.errorbar(xs, ys, yerr=es,
-                                        label='PS1', **self.plt_params.get_errorbar_kwargs('blue','o'))
-                    else:
-                        ax.plot([], [], ' ', label='PS1 (no data)')
-                except Exception:
-                    ax.plot([], [], ' ', label='PS1 (error)')
+            # # PS1 points (g,r,i,z,y)
+            # if overplot_ps1 and is_mag:
+            #     try:
+            #         self.CatalogQuerier.change_catalog('PS1')
+            #         res = self.CatalogQuerier.query(coord=coord, radius_arcsec=matching_radius_arcsec)
+            #         if len(res) > 0 and len(res[0]) > 0:
+            #             ps1 = res[0][0]
+            #             bands = ['g','r','i','z','y']
+            #             xs, ys, es = [], [], []
+            #             for b in bands:
+            #                 m  = ps1.get(f'{b}mag')
+            #                 me = ps1.get(f'e_{b}mag')
+            #                 wl = self._band_to_wavelength_nm(f'{b}_ps1')  # use PS1-specific pivot
+            #                 if (m is None) or (me is None) or (not np.isfinite(wl)):
+            #                     continue
+            #                 xs.append(wl); ys.append(m); es.append(me)
+            #             if xs:
+            #                 ax.errorbar(xs, ys, yerr=es,
+            #                             label='PS1', **self.plt_params.get_errorbar_kwargs('blue','o'))
+            #         else:
+            #             ax.plot([], [], ' ', label='PS1 (no data)')
+            #     except Exception:
+            #         ax.plot([], [], ' ', label='PS1 (error)')
             
-            return figures, figures_detection, tbl
+            return figures, figures_detection, axes, tbl
         
 
     def show_detection(self,
@@ -756,7 +812,7 @@ class PhotometricSpectrum:
             tbl_group = tbl[tbl['obsdate_group'] == obs_group]
 
             # Sort filters by predefined order
-            order_map = {f: i for i, f in enumerate(self.EFFECTIVE_WAVELENGTHS_NM)}
+            order_map = {f: i for i, f in enumerate(self.FILTER_PIVOT_WAVELENGTH_NM)}
             filters = sorted(tbl_group['filter'],
                             key=lambda f: order_map.get(f, np.inf))
 
@@ -841,22 +897,25 @@ class PhotometricSpectrum:
                 if np.isnan(row[flux_key]) or np.isnan(row[fluxerr_key]):
                     c = 'r'
                     label = 'Nan/Negative Flux'
-                target_img.show_position(
-                    ra_detection, dec_detection,
-                    radius_arcsec=aperture_radius_arcsec,
-                    coord_type='coord',
-                    downsample=downsample,
-                    zoom_radius_pixel=zoom_radius_pixel,
-                    cmap=cmap,
-                    scale=scale,
-                    figsize = (3,3),
-                    aperture_linewidth = aperture_linewidth,
-                    aperture_color = c,
-                    aperture_label = label,
-                    ax=ax,
-                    title=None,
-                    title_fontsize = None
-                )
+                try:
+                    target_img.show_position(
+                        ra_detection, dec_detection,
+                        radius_arcsec=aperture_radius_arcsec,
+                        coord_type='coord',
+                        downsample=downsample,
+                        zoom_radius_pixel=zoom_radius_pixel,
+                        cmap=cmap,
+                        scale=scale,
+                        figsize = (3,3),
+                        aperture_linewidth = aperture_linewidth,
+                        aperture_color = c,
+                        aperture_label = label,
+                        ax=ax,
+                        title=None,
+                        title_fontsize = None
+                    )
+                except Exception as e:
+                    print(f'{target_catalog.path.name}:', e)
                 target_img.clear(verbose = False)
                 
                 ax.text(
@@ -905,7 +964,7 @@ class PhotometricSpectrum:
         # --------------------------------------------------
         if obsdate is not None:
             return figures[0]
-        return figures
+        return figures, axes
 
     def extract_source_info(self,
                             ra: float,
@@ -914,6 +973,8 @@ class PhotometricSpectrum:
                             dec_key: str = 'Y_WORLD',
                             flux_key: Union[str, list[str]] = None,
                             fluxerr_key: Union[str, list[str]] = None, 
+                            zperr_key: Union[str, list[str]] = None,
+                            depth_key: Union[str, list[str]] = None,
                             matching_radius_arcsec=5.0,
                             verbose: bool = True):
         """
@@ -933,6 +994,10 @@ class PhotometricSpectrum:
             Photometry value column you want to carry over (e.g., 'MAGSKY_APER_1').
         fluxerr_key : str or sequence of str
             Corresponding error column (e.g., 'MAGERR_APER_1'). Must be same length as `flux_key`.
+        zperr_key : str or sequence of str
+            Corresponding zeropoint error column (e.g., 'ZPERR_APER_1'). Must be same length as `flux_key`.
+        depth_key : str or sequence of str
+            Corresponding depth column (e.g., 'UL5SKY_APER_1'). Must be same length as `flux_key`.
         matching_radius_arcsec : float
             Search radius for the source match.
 
@@ -946,29 +1011,36 @@ class PhotometricSpectrum:
         # Normalize keys to lists
         flux_keys = ['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4']
         fluxerr_keys = ['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4']
-        
+        zperr_keys = ['ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_3', 'ZPERR_APER_4']
+        depth_keys = ['UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5SKY_APER_4']
+
         if flux_key is not None:
             flux_keys.extend(np.atleast_1d(flux_key))
         if fluxerr_key is not None:
             fluxerr_keys.extend(np.atleast_1d(fluxerr_key))
+        if zperr_key is not None:
+            zperr_keys.extend(np.atleast_1d(zperr_key))
+        if depth_key is not None:
+            depth_keys.extend(np.atleast_1d(depth_key))
         
         flux_keys = list(set(flux_keys))
         fluxerr_keys = list(set(fluxerr_keys))
-        
-        if len(flux_keys) != len(fluxerr_keys):
-            raise ValueError("flux_keys and fluxerr_keys must have the same length.")
+        zperr_keys = list(set(zperr_keys))
+        depth_keys = list(set(depth_keys))
 
         # Ensure merged table exists (pulling at least the requested keys + their ZPERR counterparts)
         needed_data_keys = set()
-        for fk, fek in zip(flux_keys, fluxerr_keys):
+        for fk, fek, zek, dk in zip(flux_keys, fluxerr_keys, zperr_keys, depth_keys):
             needed_data_keys.add(fk)
             needed_data_keys.add(fek)
-            needed_data_keys.add(fek.replace('MAGERR', 'ZPERR'))
+            needed_data_keys.add(zek)
+            needed_data_keys.add(dk)
 
         total_number_sources = 0
         for catalog in tqdm(self.catalogset.catalogs, desc="Reading catalogs..."):
             catalog.data
             total_number_sources += catalog.nselected
+            
         if total_number_sources > 50000:
             self.helper.print(f"Total number of sources is greater than 30000. Only target nearby the given coordinates will be used for merged_tbl", verbose)
         
@@ -1001,6 +1073,7 @@ class PhotometricSpectrum:
             idx: {'meta_id': idx, **{k: v for k, v in meta.items() if k not in ('ra', 'dec')}}
             for idx, meta in self.metadata.items()
         }
+        
         # Copy all "*_idx{idx}" values from the matched row into each record
         # (This will include MAG*, MAGERR*, ZPERR*, and any other requested per-exposure columns.)
         for colname in row.colnames:
@@ -1013,16 +1086,6 @@ class PhotometricSpectrum:
                 continue
             if idx in records:
                 records[idx][base] = row[colname]
-
-        # For convenience, also add a unified 'zp_err' per exposure using the first available ZPERR among requested pairs
-        for idx, rec in records.items():
-            zperr_val = None
-            for ferr in fluxerr_keys:
-                zp_key = ferr.replace('MAGERR', 'ZPERR')
-                if zp_key in rec:
-                    zperr_val = rec[zp_key]
-                    break
-            rec['zp_err'] = zperr_val
 
         # Materialize table
         result_tbl = Table(rows=list(records.values()))
@@ -1077,7 +1140,7 @@ class PhotometricSpectrum:
 
         # Column ordering: metadata ? requested photometry ? remaining
         meta_order = ['filter', 'exptime', 'obsdate', 'mjd', 'jd',
-                    'seeing', 'depth', 'observatory', 'telname', 'zp_err']
+                    'seeing', 'observatory', 'telname']
         phot_cols = []
         for fk, fek in zip(flux_keys, fluxerr_keys):
             if fk in result_tbl.colnames:
@@ -1124,15 +1187,32 @@ class PhotometricSpectrum:
         print(f"Matched {len(self.merged_tbl[matched_catalog])} sources out of {len(input_coords)} input positions.")
         return self.merged_tbl[matched_catalog]
     
+    @property
+    def data(self):
+        return self._data
+    
+    @data.setter
+    def data(self, value):
+        self._data = value
+        try:
+            if self.catalogset is None:
+                self.helper.print('Loading catalogs from input table...', True)
+                catalog_pathlist = value['path']
+                catalog_list = [Catalog(path) for path in catalog_pathlist]
+                self.catalogset = CatalogSet(catalog_list)
+                self.source_catalogs = {i: catalog for i, catalog in enumerate(self.catalogset.catalogs)}
+        except:
+            pass
+    
     def _band_to_wavelength_nm(self, band: str) -> float:
         """Return effective wavelength (nm) for a band key."""
         # exact key
-        if band in self.EFFECTIVE_WAVELENGTHS_NM:
-            return self.EFFECTIVE_WAVELENGTHS_NM[band]
+        if band in self.FILTER_PIVOT_WAVELENGTH_NM:
+            return self.FILTER_PIVOT_WAVELENGTH_NM[band]
         # PS1 commonly comes as 'g','r','i','z','y' from services; map to *_ps1
         ps1_map = {'g':'g_ps1','r':'r_ps1','i':'i_ps1','z':'z_ps1','y':'y_ps1'}
-        if band in ps1_map and ps1_map[band] in self.EFFECTIVE_WAVELENGTHS_NM:
-            return self.EFFECTIVE_WAVELENGTHS_NM[ps1_map[band]]
+        if band in ps1_map and ps1_map[band] in self.FILTER_PIVOT_WAVELENGTH_NM:
+            return self.FILTER_PIVOT_WAVELENGTH_NM[ps1_map[band]]
         return np.nan
 
     def _combine_err(self, meas_err, zp_err):
@@ -1233,7 +1313,7 @@ class PhotometricSpectrum:
                 self.line_style = 'solid'
                 self.line_color = 'y'
                 self.line_width = 1.0
-                self.line_alpha = 0.2
+                self.line_alpha = 0.5
                 
                 # Detection parameters
                 self.detection_aperture_arcsec = 10.0
@@ -1420,6 +1500,28 @@ class PhotometricSpectrum:
                 return txt
         return PlotParams()
 
-        
-        
+
+# %%
+if __name__ == "__main__":
+    from ezphot.utils import DataBrowser
+    dbrowser = DataBrowser('scidata')
+    dbrowser.observatory = '7DT'
+    dbrowser.objname = 'T20307'
+    target_catalogset = dbrowser.search(pattern = '*com.fits.cat', return_type = 'catalog')
+    self = PhotometricSpectrum(catalogset = target_catalogset)
+    ra = 30.7663010688
+    dec = 4.243677
+    ra_key = 'X_WORLD'
+    dec_key = 'Y_WORLD'
+    flux_key = 'MAGSKY_AUTO'
+    fluxerr_key = 'MAGERR_AUTO'
+    zperr_key = 'ZPERR_AUTO'
+    depth_key = 'UL5SKY_AUTO'
+    matching_radius_arcsec = 5
+    overplot_stamp = False
+    result_ezphot = self.plot(ra = ra, dec = dec, ra_key = ra_key, dec_key = dec_key, flux_key = flux_key, fluxerr_key = fluxerr_key,  zperr_key = zperr_key, depth_key = depth_key, matching_radius_arcsec = matching_radius_arcsec, overplot_stamp = overplot_stamp)
+    target_catalogset = dbrowser.search(pattern = '*com.fits.cat', return_type = 'catalog')
+
     
+
+# %%

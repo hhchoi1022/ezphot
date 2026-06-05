@@ -1,5 +1,5 @@
-astroalign>=2.6.1
-astropy>=7.1.0
+astroalign
+astropy
 astroquery>=0.4.10
 astroscrappy>=1.2.0
 bottleneck>=1.5.0
@@ -25,3 +25,7 @@ scikit-learn>=1.7.0
 statsmodels>=0.14.5
 tqdm>=4.67.1
 scikit-image>=0.24.0
+pyphot==1.7.0
+specutils
+portalocker
+mocpy

@@ -73,7 +73,7 @@ from the FITS header to your catalog:
         target_img = sci,
         target_catalog = catalog,
         comparison_catalog = refcat,
-        max_distance_second = 1.0,
+        max_distance_second = 2.5,
         save = True
     )
 

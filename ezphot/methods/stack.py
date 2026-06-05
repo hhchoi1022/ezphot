@@ -290,6 +290,7 @@ def _reproject_worker(args):
      x_size, 
      y_size, 
      pixel_scale,
+     keep_header_keys,
      verbose) = args
 
     reprojected_img, reprojected_bkgrms, _ = projection_handler.reproject(
@@ -302,6 +303,7 @@ def _reproject_worker(args):
         x_size=x_size,
         y_size=y_size,
         pixelscale=pixel_scale,
+        keep_header_keys=keep_header_keys,
         verbose=verbose,
         overwrite=False,
         save=False,
@@ -459,6 +461,7 @@ def _prepare_image_worker(args):
      x_size,
      y_size,
      pixel_scale, 
+     keep_header_keys,
      verbose,
      save,
      clear
@@ -501,7 +504,7 @@ def _prepare_image_worker(args):
 
     # Reproject image
     if reproject:
-        args_reproject = (convolved_img, convolved_bkgrms, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, verbose)
+        args_reproject = (convolved_img, convolved_bkgrms, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, keep_header_keys, verbose)
         reprojected_img, reprojected_bkgrms = _reproject_worker(args_reproject)
     else:
         reprojected_img = convolved_img
@@ -586,6 +589,7 @@ class Stack:
                        pixel_scale: float = None,
                        x_size: int = None,
                        y_size: int = None,     
+                       keep_header_keys: Optional[List[str]] = ['GAIN'],
                        
                        # Other parameters
                        verbose: bool = True,
@@ -625,7 +629,7 @@ class Stack:
         
         input_list = []
         for target_img, target_bkg, target_bkgrms in zip(target_imglist, target_bkglist, target_bkgrmslist):
-            args = (target_img, target_bkg, target_bkgrms, scale, ref_zp, zp_key, convolve, ref_seeing, seeing_key, reproject, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, verbose, save, clear)
+            args = (target_img, target_bkg, target_bkgrms, scale, ref_zp, zp_key, convolve, ref_seeing, seeing_key, reproject, reproject_type, center_ra, center_dec, x_size, y_size, pixel_scale, keep_header_keys, verbose, save, clear)
             input_list.append(args)
         
         if n_proc == 1:
@@ -645,7 +649,7 @@ class Stack:
                            n_proc=4,
                            
                            # Clip parameters
-                           combine_type: str = 'median',
+                           combine_type: str = 'mean',
                            clip_type: str = None,
                            sigma: float = 3.0,
                            nlow: int = 1,
@@ -767,6 +771,22 @@ class Stack:
             except Exception:
                 pass
             
+        N = len(target_imglist)
+        if 'EGAIN' in combined_header:
+            egain_in = float(combined_header['EGAIN'])
+            if combine_type.lower() == 'mean':
+                combined_header['EGAIN'] = egain_in * N
+
+            elif combine_type.lower() == 'median':
+                combined_header['EGAIN'] = egain_in * (2.0 * N / np.pi)
+
+            elif combine_type.lower() == 'weighted':
+                combined_header['EGAIN'] = egain_in * N  # only valid for equal-weight case
+
+            elif combine_type.lower() == 'sum':
+                combined_header['EGAIN'] = egain_in
+        combined_header['NCOMBINE'] = N
+            
         # Remove unwanted header keywords
         update_header_keywords_remove = ['IMAGEID', 'NOTE', 'MAG_*', 'ZP*', 'UL*', 'EZP*', 'APER*', 'SKYSIG']
         for pattern in update_header_keywords_remove:
@@ -819,6 +839,7 @@ class Stack:
                     center_dec: float = None,
                     x_size: int = None,
                     y_size: int = None,
+                    keep_header_keys: Optional[List[str]] = ['GAIN'],
                     
                     # Scale parameters
                     scale: bool = False,
@@ -912,6 +933,7 @@ class Stack:
             center_dec = center_dec,
             x_size = x_size,
             y_size = y_size,
+            keep_header_keys = keep_header_keys,
             scale = scale,
             scale_type = scale_type,
             zp_key = zp_key,
@@ -935,7 +957,11 @@ class Stack:
                 remove_image.append(False)
             image_pathlist.append(target_img.path)
             image_hdrlist.append(target_img.header)
-            
+        keep_header_dict = {}
+        for key in keep_header_keys:
+            if key in image_hdrlist[0]:
+                keep_header_dict[key] = image_hdrlist[0][key]
+
         weight_pathlist = None
         remove_errormap = []
         if target_errormaplist is not None:
@@ -988,13 +1014,22 @@ class Stack:
                 keys_to_remove = [k for k in combined_header if k == pattern]
             for k in keys_to_remove:
                 del combined_header[k]
+                
+        N = len(target_imglist)
+        if 'EGAIN' in combined_header:
+            if combine_type.lower() in ['mean', 'median', 'weighted']:
+                combined_header['EGAIN'] = combined_header['EGAIN'] * N
+            elif combine_type.lower() == 'sum':
+                pass
+        combined_header['NCOMBINE'] = N
+        combined_header.update(keep_header_dict)
 
         # Image combine
         self.helper.print(f"Start image combining...", verbose)
         imagestack_path = None
         weightstack_path = None
         # Run swarp 
-        stack_pathlist = self.helper.run_swarp(
+        swarp_result, imagestack_pathlist, weightstack_pathlist = self.helper.run_swarp(
             target_path = image_pathlist,
             swarp_configfile = target_imglist[0].config['SWARP_CONFIG'],
             swarp_params = None,
@@ -1013,12 +1048,12 @@ class Stack:
             combine_type = combine_type,
             subbkg = False
         )
-        imagestack_path, weightstack_path = stack_pathlist
+        imagestack_path, weightstack_path = imagestack_pathlist[0], weightstack_pathlist[0]
             
         # If errormaplist is provided, run swarp for error maps (NEAREST resampling)
         if target_errormaplist is not None:
             self.helper.print(f"Start weight combining...", verbose)
-            stack_pathlist = self.helper.run_swarp(
+            swarp_result, imagestack_tmppathlist, weightstack_pathlist = self.helper.run_swarp(
                 target_path = image_pathlist,
                 swarp_configfile = target_imglist[0].config['SWARP_CONFIG'],
                 swarp_params = None,
@@ -1037,11 +1072,12 @@ class Stack:
                 combine_type = combine_type,
                 subbkg = False
             )
-            imagestack_tmppath, weightstack_path = stack_pathlist
-            os.remove(imagestack_tmppath)
+            for imgstack_tmppath in imagestack_tmppathlist:
+                os.remove(imgstack_tmppath)
+            weightstack_path = weightstack_pathlist[0]
         
         if type(target_imglist[0]) == CalibrationImage:
-            stack_instance = CalibrationImage(path = target_outpath, telinfo = target_imglist[0].telinfo, load = True)
+            stack_instance = CalibrationImage(path = imagestack_path, telinfo = target_imglist[0].telinfo, load = True)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
         else:
             stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, load = True)
@@ -1352,3 +1388,5 @@ class Stack:
         
         return selected_images
 
+
+# %%
