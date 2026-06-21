@@ -102,6 +102,7 @@ class Platesolve:
     def solve_scamp(self,
                     # Input parameters
                     target_img: Optional[Union[ScienceImage, ReferenceImage, List[ScienceImage], List[ReferenceImage]]],
+                    catalog_type: str = 'GAIA-DR2',
                     scamp_sexparams: dict = None,
                     scamp_params: dict = None,
                     # Other parameters
@@ -132,9 +133,10 @@ class Platesolve:
         target_imglist = target_img if isinstance(target_img, list) else [target_img]
         target_imglist_path = [target_img.path for target_img in target_imglist]        
         output_dir = target_imglist[0].savepath.savedir
-            
+        
         scamp_results, scamp_output_images = self.helper.run_scamp(
             target_path = target_imglist_path,
+            catalog_type = catalog_type,
             scamp_sexconfigfile = target_imglist[0].config['SCAMP_SEXCONFIG'],
             scamp_configfile = target_imglist[0].config['SCAMP_CONFIG'],
             scamp_sexparams = scamp_sexparams,
@@ -153,9 +155,3 @@ class Platesolve:
                 output_img.update_status('SCAMP')
                 output_imglist.append(output_img)
             return output_imglist
-# %%
-if __name__ == "__main__":
-    from ezphot.imageobjects import ScienceImage
-    from ezphot.methods.platesolve import Platesolve
-    target_img = ScienceImage('/lyman/data1/obsdata/7DT03/2026-03-02_gain2750_ToO/7DT03_20260303_031227_T01222_m700_1x1_100.0s_0000.fits')
-    platesolve = Platesolve()

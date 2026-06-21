@@ -1,4 +1,4 @@
-## TRACT7DT VERSION 0.6.1 Mar 23 2026
+## TRACT7DT VERSION 0.7.0 Jun 09 2026
 #%%
 from dataclasses import asdict
 from dataclasses import dataclass, field
@@ -7,9 +7,6 @@ from pathlib import Path
 import yaml
 
 
-# ============================================================
-# Section Configs
-# ============================================================
 
 @dataclass
 class InputsConfig:
@@ -57,7 +54,6 @@ class WcsToleranceConfig:
     cd: float = 1e-9
     cdelt: float = 1e-9
 
-
 @dataclass
 class ChecksConfig:
     require_wcs_alignment: bool = True
@@ -69,6 +65,21 @@ class SourceSaturationCutConfig:
     enabled: bool = True
     radius_pix: float = 20.0
     require_all_bands: bool = False
+    saturation_divisor: float = 1.3
+
+@dataclass
+class BrightMaskConfig:
+    enabled: bool = False
+    thresh_sigma: float = 10.0
+    minarea: int = 20
+    deblend_nthresh: int = 32
+    deblend_cont: float = 0.005
+    clean: bool = True
+    clean_param: float = 1.0
+    match_radius_pix: float = 3.0
+    ellipse_scale: float = 3.0
+    min_radius_pix: float = 6.0
+    dilate_pix: int = 1
 
 @dataclass
 class LoggingConfig:
@@ -102,16 +113,16 @@ class EPSFConfig:
     q_range: List[float] = field(default_factory=lambda: [0.7, 1.3])
     psfstar_mode: str = "sep+gaia"
 
-    gaia_mag_min: float = 10.0
-    gaia_mag_max: float = 30.0
+    gaia_mag_min: float = 11.0
+    gaia_mag_max: float = 20.0
     gaia_snap_to_sep: bool = True
     gaia_forced_k_fwhm: float = 1.5
     gaia_forced_rmin_pix: float = 3.0
     gaia_forced_rmax_pix: float = 15.0
     gaia_snr_min: float = 20.0
     gaia_match_r_pix: float = 5.0
-    gaia_seed_sat_r: int = 5
-    gaia_seed_sat_div: float = 1.3
+
+    star_sat_check_r: Union[str, int, float] = "auto"
 
     oversamp: int = 1
     maxiters: int = 30
@@ -142,7 +153,6 @@ class EPSFConfig:
     parallel_bands: bool = True
     max_workers: Union[str, int] = "auto"
     
-
 @dataclass
 class PatchesConfig:
     halo_pix_min: int = 20
@@ -163,11 +173,12 @@ class PatchRunConfig:
     resume: bool = False
     max_workers: int = 32
     threads_per_process: int = 1
+
     gal_model: str = "exp"
     n_opt_iters: int = 20
-    dlnp_stop: float = 1e-6
+    dlnp_stop: float = 1.0e-12
     r_ap: float = 5.0
-    eps_flux: float = 1e-4
+    eps_flux: float = 1.0e-4
     sersic_n_init: float = 3.0
     re_fallback_pix: float = 3.0
 
@@ -194,6 +205,10 @@ class PatchRunConfig:
     no_patch_overview: bool = False
     flag_maxiter_margin: int = 0
 
+    # New in updated configuration.
+    pos_max_shift_pix: Optional[float] = 5.0
+    enable_staged_fit: bool = True
+
 @dataclass
 class MoffatPSFConfig:
     fwhm_default_pix: float = 4.0
@@ -209,12 +224,20 @@ class MergeConfig:
 class ZPConfig:
     enabled: bool = True
     inject_gaia_sources: bool = False
-    gaia_mag_min: float = 8.0
-    gaia_mag_max: float = 18.0
+    gaia_mag_min: float = 11.0
+    gaia_mag_max: float = 20.0
     match_radius_arcsec: float = 3.0
-    min_box_size_pix: int = 3000
+    min_box_size_pix: int = 6000
     clip_sigma: float = 3.0
     clip_max_iters: int = 10
+
+    # New in updated configuration.
+    gaia_pos_err_pix: Optional[float] = 0.1
+    plot_mag_lo: float = 10.0
+    plot_mag_hi: float = 20.0
+    plot_zp_offset: float = 0.25
+    zp_err_method: str = "all_mad"
+    zp_err_snr_min: float = 100.0
 
 
 
@@ -227,11 +250,13 @@ class Configuration:
     inputs: InputsConfig = field(default_factory=InputsConfig)
     outputs: OutputsConfig = field(default_factory=OutputsConfig)
     image_scaling: ImageScalingConfig = field(default_factory=ImageScalingConfig)
-    overlay: OverlayConfig = field(default_factory=OverlayConfig)
     crop: CropConfig = field(default_factory=CropConfig)
+    overlay: OverlayConfig = field(default_factory=OverlayConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)
 
     source_saturation_cut: SourceSaturationCutConfig = field(default_factory=SourceSaturationCutConfig)
+    bright_mask: BrightMaskConfig = field(default_factory=BrightMaskConfig)
+
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     plotting: PlottingConfig = field(default_factory=PlottingConfig)
     performance: PerformanceConfig = field(default_factory=PerformanceConfig)
@@ -319,8 +344,10 @@ class Configuration:
         format_section("outputs", self.outputs)
         format_section("image_scaling", self.image_scaling)
         format_section("crop", self.crop)
+        format_section("overlay", self.overlay)
         format_section("checks", self.checks)
         format_section("source_saturation_cut", self.source_saturation_cut)
+        format_section("bright_mask", self.bright_mask)
         format_section("logging", self.logging)
         format_section("plotting", self.plotting)
         format_section("performance", self.performance)

@@ -15,6 +15,8 @@ import gc
 import warnings
 from astropy.wcs.wcs import FITSFixedWarning
 from multiprocessing.shared_memory import SharedMemory
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 
 
 warnings.filterwarnings("ignore", category=FITSFixedWarning, message=".*SIP.*")
@@ -1120,19 +1122,25 @@ class Stack:
     
     def select_quality_images(self, 
                               target_imglist: Union[List[ScienceImage], List[ReferenceImage]],
+                              mode: str = 'both',   # 'relative' or 'absolute' or 'both'
                               min_obsdate: Union[Time, str, float] = None,
                               max_obsdate: Union[Time, str, float] = None,
                               seeing_key: str = 'SEEING',
-                              depth_key: str = 'UL5SKY_APER_1',
+                              depth_key: str = 'UL5SKY_APER_3',
                               ellipticity_key: str = 'ELLIP',
                               obsdate_key: str = 'DATE-OBS',
-                              weight_ellipticity: float = 3.0,
-                              weight_seeing: float = 1.0,
-                              weight_depth: float = 2.0,
-                              max_numbers: int = None,
+                              # For absolute filtering
                               seeing_limit: float = 6.0,
-                              depth_limit: float = 18.0,
+                              depth_limit: float = 16.0,
                               ellipticity_limit: float = 0.3,
+                              rotang_abs_limit: float = 5,
+                              # For relative filtering
+                              ellipticity_percentile: float = 90.0,
+                              seeing_percentile: float = 75.0,
+                              depth_percentile: float = 75.0,
+                              rotang_percentile: float = 100.0,
+                              max_numbers: int = None,
+                              # Other parameters
                               visualize: bool = False,
                               verbose: bool = True):
         """
@@ -1178,18 +1186,44 @@ class Stack:
         (selected_imglist, selected_errormaplist) : Tuple[List[Union[ScienceImage, ReferenceImage]], Optional[List[Errormap]]]
             List of selected images and optionally their error maps
         """
+        def percentile_clip_mask(values, percentile, lower_is_better=True):
+            values = np.asarray(values, dtype=float)
+            mask = np.zeros_like(values, dtype=bool)
+
+            valid = np.isfinite(values)
+            if not np.any(valid):
+                return mask
+
+            if not (0 <= percentile <= 100):
+                raise ValueError("Percentile values must be between 0 and 100.")
+
+            if lower_is_better:
+                # Keep values below the percentile threshold
+                threshold = np.nanpercentile(values, percentile)    
+                mask = values <= threshold
+            else:
+                # Keep values above the percentile threshold
+                threshold = np.nanpercentile(values, 100 - percentile)
+                mask = values >= threshold
+
+            return mask & valid
+
+        mode = mode.lower()
+        if mode not in ['relative', 'absolute', 'both']:
+            raise ValueError("mode must be one of: 'relative', 'absolute', or 'both'.")
         
         seeinglist = []
         depthlist = []
         ellipticitylist = []
         obsdatelist = []
+        rotanglist = []
         iterator = tqdm(target_imglist, desc="Querying images...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_imglist
         for target_img in iterator:
             seeinglist.append(target_img.header.get(seeing_key, None))
             depthlist.append(target_img.header.get(depth_key, None))
             ellipticitylist.append(target_img.header.get(ellipticity_key, None))
             obsdatelist.append(target_img.header.get(obsdate_key, None))
-        
+            rotanglist.append(target_img.rotang)
         try:
             obsdate_time = Time(obsdatelist)
             min_obs_time = self.helper.flexible_time_parser(min_obsdate) if min_obsdate is not None else Time('1990-01-01')
@@ -1204,61 +1238,107 @@ class Stack:
         seeinglist = np.array([v if v is not None else np.nan for v in seeinglist], dtype=float)
         depthlist = np.array([v if v is not None else np.nan for v in depthlist], dtype=float)
         ellipticitylist = np.array([v if v is not None else np.nan for v in ellipticitylist], dtype=float)
-        valid_value_mask = (~np.isnan(seeinglist)) & (~np.isnan(depthlist)) & (~np.isnan(ellipticitylist))
+        rotanglist = np.array([v if v is not None else np.nan for v in rotanglist], dtype=float)
+        rotanglist = np.abs(rotanglist)
+        valid_value_mask = (~np.isnan(seeinglist)) & (~np.isnan(depthlist)) & (~np.isnan(ellipticitylist)) & (~np.isnan(rotanglist))
         if not np.any(valid_value_mask):
+            self.helper.print("No valid images found", verbose)
             return []
+
+        base_mask = (valid_obs_mask & valid_value_mask)
                     
         # Apply limits mask
         valid_seeing_mask = seeinglist < seeing_limit
         valid_ellipticity_mask = ellipticitylist < ellipticity_limit
         valid_depth_mask = depthlist > depth_limit
+        valid_rotang_mask = rotanglist < rotang_abs_limit
         
-        # Final combined mask (same length as target_imglist)
-        combined_mask = (
-            valid_obs_mask &
-            valid_value_mask &
+        limit_mask = (
             valid_seeing_mask &
             valid_ellipticity_mask &
-            valid_depth_mask
+            valid_depth_mask &
+            valid_rotang_mask
         )
+
+        relative_mask = (
+            percentile_clip_mask(ellipticitylist, percentile=ellipticity_percentile, lower_is_better=True) &
+            percentile_clip_mask(seeinglist, percentile=seeing_percentile, lower_is_better=True) &
+            percentile_clip_mask(depthlist, percentile=depth_percentile, lower_is_better=False) &
+            percentile_clip_mask(rotanglist, percentile=rotang_percentile, lower_is_better=True)
+        )
+
+        if mode == 'relative':
+            # Relative mode: rank all valid images by score
+            combined_mask = base_mask & relative_mask
+
+        elif mode == 'absolute':
+            # Absolute mode: only apply hard limits
+            combined_mask = base_mask & limit_mask
+
+        elif mode == 'both':
+            # Both mode: first apply hard limits, then rank by score
+            combined_mask = base_mask & limit_mask & relative_mask
+
         if not np.any(combined_mask):
             return []
         
-        # Apply final mask
+
         ell_all = np.array(ellipticitylist)[valid_value_mask]
         see_all = np.array(seeinglist)[valid_value_mask]
         dep_all = np.array(depthlist)[valid_value_mask]
         obsdate_all = np.array(obsdatelist)[valid_value_mask]
+        rotang_all = np.array(rotanglist)[valid_value_mask]
         
         ell_filtered = np.array(ellipticitylist)[combined_mask]
         see_filtered = np.array(seeinglist)[combined_mask]
         dep_filtered = np.array(depthlist)[combined_mask]
         imgs_filtered = np.array(target_imglist)[combined_mask]
         obsdate_filtered = np.array(obsdate_time)[combined_mask]
-        from sklearn.preprocessing import MinMaxScaler
-        from matplotlib.gridspec import GridSpec
+        rotang_filtered = np.array(rotanglist)[combined_mask]
 
         # Normalize
-        scaler = MinMaxScaler()
-        ell_norm = scaler.fit_transform(ell_filtered.reshape(-1, 1)).flatten()
-        see_norm = scaler.fit_transform(see_filtered.reshape(-1, 1)).flatten()
-        dep_norm = scaler.fit_transform(dep_filtered.reshape(-1, 1)).flatten()
+        if mode in ['relative', 'both']:
+            # Normalize
 
-        # Compute combined score
-        # You can adjust weights if needed
-        score = (1 - ell_norm) * weight_ellipticity + (1 - see_norm) * weight_seeing + dep_norm * weight_depth
+            scaler = MinMaxScaler()
+            ell_norm = scaler.fit_transform(ell_filtered.reshape(-1, 1)).flatten()
+            see_norm = scaler.fit_transform(see_filtered.reshape(-1, 1)).flatten()
+            dep_norm = scaler.fit_transform(dep_filtered.reshape(-1, 1)).flatten()
+            rotang_norm = scaler.fit_transform(rotang_filtered.reshape(-1, 1)).flatten()
 
-        # Rank and select best images
-        sorted_idx = np.argsort(score)[::-1]  # descending
-        best_images = imgs_filtered[sorted_idx]
-        if max_numbers is None:
-            num_select = max(1, int(len(sorted_idx)))  # select top 90%
+            # Compute combined score
+            # You can adjust weights if needed
+            score = (
+                (1 - ell_norm) +
+                (1 - see_norm) +
+                dep_norm +
+                (1 - rotang_norm)
+            )
+
+            # Rank and select best images
+            sorted_idx = np.argsort(score)[::-1]  # descending
         else:
-            num_select = max_numbers
+            # Absolute mode: no score; keep original order after limit filtering
+            score = None
+            sorted_idx = np.arange(len(imgs_filtered))
+            
+        if max_numbers is None:
+            num_select = len(sorted_idx)
+        else:
+            if mode == 'absolute':
+                num_select = len(sorted_idx) # max_numbers is ignored
+            else:
+                num_select = min(int(max_numbers), len(sorted_idx)) 
+
         selected_idx = sorted_idx[:num_select]
 
+        if len(selected_idx) == 0:
+            return []
+
+        selected_images = imgs_filtered[selected_idx]
+
         # Top N or just best
-        best_image = best_images[0]
+        best_image = selected_images[0]
         
         # Data for plotting
         x_all = np.array(see_all)
@@ -1295,6 +1375,7 @@ class Stack:
 
         # Create figure with GridSpec layout
         if visualize:
+            from matplotlib.gridspec import GridSpec
             fig = plt.figure(figsize=(6, 6), dpi=300)
             gs = GridSpec(4, 4, fig, wspace=1.5, hspace=0.5)
 
@@ -1388,5 +1469,3 @@ class Stack:
         
         return selected_images
 
-
-# %%

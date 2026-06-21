@@ -1860,6 +1860,7 @@ class PhotometryHelper(Configuration):
                   target_path: Union[str, List[str], Path, List[Path]], 
                   scamp_sexconfigfile: Union[str, Path], 
                   scamp_configfile: Union[str, Path],                   
+                  catalog_type: str = 'GAIA-DR2',
                   scamp_sexparams: Optional[dict] = None,
                   scamp_params: Optional[dict] = None,
                   output_dir: Optional[str] = None,
@@ -1951,6 +1952,9 @@ class PhotometryHelper(Configuration):
                    str(all_images_str), 
                    '-c', 
                    str(scamp_configfile)]
+        if catalog_type:
+            command.extend(['-ASTREF_CATALOG', catalog_type])
+
         for key, value in scamp_params.items():
             command.extend([f'-{key}', str(value)])
         command_str = ' '.join(command)
@@ -1993,7 +1997,19 @@ class PhotometryHelper(Configuration):
                         head_header = fits.Header.fromstring(head_content, sep='\n')
                         head_header = sanitize_header(head_header)
 
+                        # SCAMP writes a TPV (PV*) distortion solution. A previous
+                        # astrometry.net solve may have left SIP (A_*/B_*/AP_*/BP_*)
+                        # coefficients in the image header. fits.Header.update() does
+                        # not delete those, so astropy would apply SIP *and* TPV,
+                        # producing position errors that grow toward the corners.
+                        # Drop stale SIP unless the new .head itself provides SIP.
+                        sip_pattern = re.compile(r'^(A|B|AP|BP)_(ORDER|DMAX|\d+_\d+)$')
+                        head_has_sip = any(sip_pattern.match(k) for k in head_header.keys())
+
                         with fits.open(image_file, mode='update') as hdul:
+                            if not head_has_sip:
+                                for key in [k for k in hdul[0].header.keys() if sip_pattern.match(k)]:
+                                    del hdul[0].header[key]
                             hdul[0].header.update(head_header)
                             hdul.flush()
 
@@ -2367,4 +2383,6 @@ class PhotometryHelper(Configuration):
             return reg
         else:
             return reg
+        
+
         

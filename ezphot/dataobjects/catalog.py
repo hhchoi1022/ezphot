@@ -818,6 +818,7 @@ class Catalog:
     @data.setter
     def data(self, value):
         self._data = value
+        self._target_data = value
 
     @property
     def is_data_loaded(self):

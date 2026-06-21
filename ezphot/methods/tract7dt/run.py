@@ -7,11 +7,12 @@ import os
 import glob
 from typing import List, Optional, Union
 from pathlib import Path
+import numpy as np
 from astropy.io import ascii
 from astropy.table import Table
 from ezphot.methods.tract7dt import Formatter
 from ezphot.methods.tract7dt import Configuration
-from ezphot.utils.tiles import Tiles
+from ezphot.skycatalog import SkyCatalogUtility
 #%%
 
 class Tract7DTRunner:
@@ -34,6 +35,7 @@ class Tract7DTRunner:
                                    filter_list = filter_list,
                                    catalog_paths = catalog_paths)
         self.configuration = Configuration()
+        self.catalogutils = SkyCatalogUtility()
         if id is None:
             self.id = datetime.now().strftime("%Y%m%d_%H%M")
         else:
@@ -134,39 +136,81 @@ class Tract7DTRunner:
                                    objname: str = None,
                                    list_ra: List[float] = None,
                                    list_dec: List[float] = None,
-                                   gaiaxp_catalog_dir: Union[Path, str] = '/lyman/data1/factory/ref_cat'):
+                                   catalog_type: str = 'GAIAXP',
+                                   catalog_version: str = 'v1',
+                                   verbose: bool = True):
         reference_catalog_path = None
         if catalog_path is not None:
             if Path(catalog_path).exists():
                 reference_catalog_path = str(catalog_path)
-        if objname is not None:
-            catalog_path = glob.glob(os.path.join(gaiaxp_catalog_dir, f'*{objname}*'))[0]
-            if Path(catalog_path).exists():
-                reference_catalog_path = str(catalog_path)
-        if list_ra is not None and list_dec is not None:
-            catalog_path = self.find_gaiaxp_catalog(list_ra = list_ra, list_dec = list_dec, gaiaxp_catalog_dir = gaiaxp_catalog_dir)
-            if Path(catalog_path).exists():
-                reference_catalog_path = str(catalog_path)
+            else:
+                if verbose:
+                    print(f'Reference catalog path {catalog_path} does not exist. Searching catalog from objname/RA/Dec')
         
         if reference_catalog_path is None:
-            raise RuntimeError('No reference catalog provided. Please provide a catalog path or objname or list_ra and list_dec.')
+            ra_median = None
+            dec_median = None
+            fov_ra = None
+            fov_dec = None
+            if list_ra is not None and list_dec is not None:
+                list_ra  = np.array(list_ra)
+                list_dec = np.array(list_dec)
+
+                # ── RA wrap-around 처리 ───────────────────────────────
+                # 범위가 180도를 넘으면 wrap-around가 있다고 판단
+                ra_range = np.nanmax(list_ra) - np.nanmin(list_ra)
+                if ra_range > 180.0:
+                    # 180보다 작은 값들을 360 더해서 unwrap
+                    list_ra_unwrap = np.where(list_ra < 180.0, list_ra + 360.0, list_ra)
+                    ra_median = np.nanmedian(list_ra_unwrap) % 360.0
+                    fov_ra    = np.nanmax(list_ra_unwrap) - np.nanmin(list_ra_unwrap)
+                else:
+                    ra_median = np.nanmedian(list_ra)
+                    fov_ra    = ra_range
+
+                dec_median = np.nanmedian(list_dec)
+                fov_dec    = np.nanmax(list_dec) - np.nanmin(list_dec)
+
+                if fov_ra == 0:
+                    fov_ra = 1
+                if fov_dec == 0:
+                    fov_dec = 1
+
+            catalogs = self.catalogutils.get_catalogs(
+                ra = ra_median,
+                dec = dec_median,
+                fov_ra = fov_ra,
+                fov_dec = fov_dec,
+                objname = objname,
+                catalog_type = catalog_type,
+                catalog_version = catalog_version,
+                verbose = verbose
+            )
+
+            if len(catalogs) > 0:
+                reference_catalog_path = catalogs[0].filepath
+                if verbose:
+                    print(f'Reference catalog found at {reference_catalog_path}')
+            else:
+                raise RuntimeError(f'No reference catalog is found for Objname: {objname}, RA/Dec: {ra_median}, {dec_median}, {catalog_type} {catalog_version}')
+        
         self.configuration.inputs.gaiaxp_synphot_csv = reference_catalog_path                                   
         
-    def find_gaiaxp_catalog(self, 
-                            list_ra: List[float],
-                            list_dec: List[float],
-                            tileinfo_path: Union[Path, str] = f'{Path.home()}/ezphot/data/tileinfo/7-DT/final_tiles.txt',
-                            gaiaxp_catalog_dir: Union[Path, str] = '/lyman/data1/factory/ref_cat'):
-        tiles = Tiles(tileinfo_path)
-        matched_tile_tbl, matched_coords_dict, _ = tiles.find_overlapping_tiles(list_ra = list_ra, list_dec = list_dec, visualize = False)
+    # def find_gaiaxp_catalog(self, 
+    #                         list_ra: List[float],
+    #                         list_dec: List[float],
+    #                         tileinfo_path: Union[Path, str] = f'{Path.home()}/ezphot/data/tileinfo/7-DT/final_tiles.txt',
+    #                         gaiaxp_catalog_dir: Union[Path, str] = '/lyman/data1/factory/ref_cat'):
+    #     tiles = Tiles(tileinfo_path)
+    #     matched_tile_tbl, matched_coords_dict, _ = tiles.find_overlapping_tiles(list_ra = list_ra, list_dec = list_dec, visualize = False)
 
-        len_per_tile = dict()
-        for tile_id, matched_coords in matched_coords_dict.items():
-            len_per_tile[tile_id] = len(matched_coords)
-        most_probable_tile = max(len_per_tile, key=len_per_tile.get)
+    #     len_per_tile = dict()
+    #     for tile_id, matched_coords in matched_coords_dict.items():
+    #         len_per_tile[tile_id] = len(matched_coords)
+    #     most_probable_tile = max(len_per_tile, key=len_per_tile.get)
         
-        gaiaxp_catalog_path = glob.glob(os.path.join(gaiaxp_catalog_dir, f'*{most_probable_tile}*'))[0]
-        return gaiaxp_catalog_path
+    #     gaiaxp_catalog_path = glob.glob(os.path.join(gaiaxp_catalog_dir, f'*{most_probable_tile}*'))[0]
+    #     return gaiaxp_catalog_path
     
     def run(self, save_result_catalog: bool = True):
         original_dir = os.getcwd()
@@ -264,5 +308,6 @@ class Tract7DTRunner:
             catalog_tbl.write(catalogpath, format = 'ascii', overwrite = True)
             print(f'Catalog saved to {catalogpath}')        
 # %%
-
-# %%
+if __name__ == '__main__':
+    from pathlib import Path
+    runner = Tract7DTRunner(image_paths = [], filter_list = [], catalog_paths = [])

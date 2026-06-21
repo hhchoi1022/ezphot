@@ -1009,10 +1009,10 @@ class PhotometricSpectrum:
         """
         
         # Normalize keys to lists
-        flux_keys = ['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4']
-        fluxerr_keys = ['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4']
-        zperr_keys = ['ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_3', 'ZPERR_APER_4']
-        depth_keys = ['UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5SKY_APER_4']
+        flux_keys = ['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4', 'MAGSKY_APER_5', 'MAGSKY_APER_6', 'MAGSKY_APER_7', 'MAGSKY_APER_8']
+        fluxerr_keys = ['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4', 'MAGERR_APER_5', 'MAGERR_APER_6', 'MAGERR_APER_7', 'MAGERR_APER_8']
+        zperr_keys = ['ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_3', 'ZPERR_APER_4', 'ZPERR_APER_5', 'ZPERR_APER_6', 'ZPERR_APER_7', 'ZPERR_APER_8']
+        depth_keys = ['UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5SKY_APER_4', 'UL5SKY_APER_5', 'UL5SKY_APER_6', 'UL5SKY_APER_7', 'UL5SKY_APER_8']
 
         if flux_key is not None:
             flux_keys.extend(np.atleast_1d(flux_key))

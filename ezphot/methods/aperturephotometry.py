@@ -15,7 +15,7 @@ from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 from photutils.segmentation import detect_sources, deblend_sources, SourceCatalog
 from photutils.aperture import (
     CircularAperture, CircularAnnulus, aperture_photometry,
-    EllipticalAnnulus
+    EllipticalAnnulus, EllipticalAperture
 )
 from photutils.utils import calc_total_error
 from astropy.stats import SigmaClip
@@ -30,7 +30,6 @@ from ezphot.dataobjects import Catalog
 from ezphot.utils import *
 
 #%%
-
 class AperturePhotometry:
     """
     Method class for performing aperture photometry.
@@ -44,11 +43,7 @@ class AperturePhotometry:
     3. Circular aperture photometry.
     
     4. Elliptical aperture photometry.
-    
-    5. Kron aperture photometry.
-    
-    6. Circular aperture photometry.
-    
+
     """
     def __init__(self):
         """
@@ -92,7 +87,7 @@ class AperturePhotometry:
                        target_bkgrms: Optional[Errormap] = None, # It must be background error map
                        target_mask: Optional[Mask] = None, # For masking certain source (such as hot pixels)
                        sex_params: dict = None,
-                       detection_sigma: float = 5,
+                       detection_sigma: float = 1.5,
                        aperture_diameter_arcsec: Union[float, list] = [5, 7, 10],
                        aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
                        annulus_width_arcsec: float = None,
@@ -225,6 +220,7 @@ class AperturePhotometry:
                 raise RuntimeError('Source extractor is failed.')
             
             seeing_estimate = None
+            rough_flags = np.ones(len(catalog_first), dtype=bool)
             if 'FLAGS' in catalog_first.colnames:
                 rough_flags = (catalog_first['FLAGS'] == 0)
             if 'MAG_AUTO' in catalog_first.colnames:
@@ -435,8 +431,6 @@ class AperturePhotometry:
         # Step 2: Set error map
         if target_bkgrms is not None:
             bkgrms = self.helper.to_native(target_bkgrms.data)
-        elif bkgrms_map is not None:
-            bkgrms = self.helper.to_native(bkgrms_map.data)
         else:
             # Use sigma-clipped std if no error map available
             bkgrms_map, _, _ = self.errormap.calculate_errormap_from_image(
@@ -515,8 +509,6 @@ class AperturePhotometry:
             'kron_radius': 'KRON_RADIUS',
             'flux_radius': 'FLUX_RADIUS',
             'fwhm_pixel': 'FWHM_IMAGE',
-            'max_value': 'FLUX_MAX',
-            'fwhm_pixel': 'FWHM_IMAGE'
         }
         
         catalog = Table()#objects.copy()
@@ -584,7 +576,7 @@ class AperturePhotometry:
                             target_img: Union[ScienceImage, ReferenceImage],
                             x_arr: Union[float, list, np.ndarray],
                             y_arr: Union[float, list, np.ndarray],
-                            aperture_diameter_arcsec: Union[float, list] = [5,7,10],
+                            aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10],
                             aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
                             annulus_width_arcsec: Union[float, list] = None, # When local background is used
                             unit: str = 'coord',
@@ -681,7 +673,7 @@ class AperturePhotometry:
                     all_apertures.append(target_img.seeing * aperture_seeing_ratio)
             else:
                 print("[WARNING] target_img.seeing is not defined. Using aperture_diameter_seeing is ignored.")
-        all_apertures_pixel = all_apertures / pixelscale
+        all_apertures_pixel = np.array(all_apertures) / pixelscale
         
         annulus_inner_radius = None
         annulus_outer_radius = None
@@ -710,7 +702,7 @@ class AperturePhotometry:
                 skycoord = pixel_to_skycoord(x_arr, y_arr, wcs)
         elif unit == 'coord':
             skycoord = SkyCoord(ra=x_arr, dec=y_arr, unit='deg')
-            x_pix, y_pix = skycoord_to_pixel(skycoord, target_img.wcs)
+            x_pix, y_pix = skycoord_to_pixel(skycoord, target_img.wcs, origin = 0)
             positions = np.transpose((x_pix, y_pix))
         else:
             raise ValueError("unit must be either 'pixel' or 'coord'")
@@ -735,7 +727,6 @@ class AperturePhotometry:
             fluxerr_key = f'FLUXERR_APER{suffix_key}'
             mag_key = f'MAG_APER{suffix_key}'
             magerr_key = f'MAGERR_APER{suffix_key}'
-            magannul_key = f'MAG_ANNULUS{suffix_key}'
             npix_key = f'NPIX_APER{suffix_key}'
             skysig_key = f'SKYSIG_APER{suffix_key}'
             ul5_key = f'UL5_APER{suffix_key}'
@@ -744,39 +735,6 @@ class AperturePhotometry:
 
             # Aperture area
             results[npix_key] = np.full(len(results), aperture.area)
-
-            # When annulus is defined
-            # if annulus_width_arcsec is not None:
-            #     annulus_inner_radius_pixel = annulus_inner_radius / pixelscale
-            #     annulus_outer_radius_pixel = annulus_outer_radius / pixelscale
-            #     annulus = CircularAnnulus(positions, r_in=annulus_inner_radius_pixel, r_out=annulus_outer_radius_pixel)
-            #     bkg_table = aperture_photometry(data, annulus, mask=mask)
-            #     bkg_area_ratio = aperture.area / annulus.area
-            #     annulus_bkg_flux = bkg_table['aperture_sum'] * bkg_area_ratio
-
-            #     flux_net = phot_table['aperture_sum'] - annulus_bkg_flux
-            #     results[flux_key] = flux_net
-            #     results[bkg_key] = bkg_table['aperture_sum'] / annulus.area
-            #     results[mag_key] = -2.5 * np.log10(flux_net)
-            #     results[magannul_key] = -2.5 * np.log10(annulus_bkg_flux)
-            # # When only aperutre is defined
-            # else:
-            #     results[flux_key] = phot_table['aperture_sum']
-            #     results[mag_key] = -2.5 * np.log10(phot_table['aperture_sum'])
-
-            # # When error is defined
-            # if 'aperture_sum_err' in phot_table.colnames:
-            #     results[fluxerr_key] = phot_table['aperture_sum_err']
-            #     results[magerr_key] = 2.5 / np.log(10) * phot_table['aperture_sum_err'] / phot_table['aperture_sum']
-                
-            # # Calculation for threshold (when error is defined)
-            # if bkgrms is not None:
-            #     var_tbl = aperture_photometry(bkgrms**2, aperture, mask=mask)
-            #     results[skysig_key] = np.sqrt(var_tbl['aperture_sum'])
-            #     ul5_flux = 5 * results[skysig_key]
-            #     ul3_flux = 3 * results[skysig_key]
-            #     results[ul5_key] = -2.5 * np.log10(ul5_flux)
-            #     results[ul3_key] = -2.5 * np.log10(ul3_flux)
             
             # When annulus is defined
             if annulus_width_arcsec is not None:
@@ -819,13 +777,6 @@ class AperturePhotometry:
                 mag[valid_flux] = -2.5 * np.log10(flux_net[valid_flux])
                 results[mag_key] = mag
 
-                # Annulus magnitude (diagnostic only)
-                ann_flux = np.array(annulus_bkg_flux)
-                mag_ann = np.full(len(ann_flux), np.nan)
-                valid_ann = ann_flux > 0
-                mag_ann[valid_ann] = -2.5 * np.log10(ann_flux[valid_ann])
-                results[magannul_key] = mag_ann
-
                 # --- Flux error propagation ---
                 if 'aperture_sum_err' in phot_table.colnames:
 
@@ -833,10 +784,10 @@ class AperturePhotometry:
                     aper_err = np.array(phot_table['aperture_sum_err'])
 
                     # Background uncertainty from annulus
-                    # σ_bkg * sqrt(Npix_aperture)
-                    bkg_err = bkg_std * np.sqrt(aperture.area)
-
-                    total_flux_err = np.sqrt(aper_err**2 + bkg_err**2)
+                    n_annulus_eff = np.array(annulus_stats.sum_aper_area)
+                    bkg_level_err = bkg_std / np.sqrt(n_annulus_eff)
+                    bkg_flux_err = aperture.area * bkg_level_err
+                    total_flux_err = np.sqrt(aper_err**2 + bkg_flux_err**2)
 
                     results[fluxerr_key] = total_flux_err
 
@@ -1066,7 +1017,7 @@ class AperturePhotometry:
         fluxes, fluxerrs, areas = [], [], []
         apertures = []
         for xi, yi, smai, smii, thetai in zip(x, y, sma_image, smi_image, theta):
-            aperture = f ((xi, yi), a=smai, b=smii, theta=thetai)
+            aperture = EllipticalAperture((xi, yi), a=smai, b=smii, theta=thetai)
             apertures.append(aperture)
             tbl = aperture_photometry(data, aperture, error=error, mask=mask)
             fluxes.append(tbl['aperture_sum'][0])
@@ -1077,8 +1028,8 @@ class AperturePhotometry:
         bkgrms_all = []
         if bkgrms is not None:
             for aperture in apertures:
-                rms_tbl = aperture_photometry(bkgrms, aperture, mask=mask)
-                bkgrms_all.append(rms_tbl['aperture_sum'][0] / aperture.area)
+                var_tbl = aperture_photometry(bkgrms**2, aperture, mask=mask)
+                sky_sigma = np.sqrt(var_tbl['aperture_sum'][0])
             results['SKYSIG'] = bkgrms_all
             
         results['FLUX_ELIP'] = fluxes
@@ -1221,17 +1172,29 @@ class AperturePhotometry:
                             
                         if (annulus_inner_radius_arcsec is not None) and (annulus_outer_radius_arcsec is not None):
                             ann_in_pix = annulus_inner_radius_arcsec / target_img.pixelscale[0]
-                            ann_width_pix = (annulus_outer_radius_arcsec - annulus_inner_radius_arcsec)/ target_img.pixelscale[0]
+                            ann_out_pix = annulus_outer_radius_arcsec / target_img.pixelscale[0]
+                            ann_width_pix = (annulus_outer_radius_arcsec - annulus_inner_radius_arcsec) / target_img.pixelscale[0]
+
                             patch = Annulus(
                                 (dx_local, dy_local),
-                                r=ann_in_pix,
+                                r=ann_out_pix,
                                 width=ann_width_pix,
                                 edgecolor='yellow',
                                 facecolor='none',
                                 linewidth=1.2,
                                 alpha=0.8,
-                                label = 'Annulus'
+                                label='Annulus',
                             )
+                            # patch = Annulus(
+                            #     (dx_local, dy_local),
+                            #     r=ann_in_pix,
+                            #     width=ann_width_pix,
+                            #     edgecolor='yellow',
+                            #     facecolor='none',
+                            #     linewidth=1.2,
+                            #     alpha=0.8,
+                            #     label = 'Annulus'
+                            # )
                             patches.append(patch)
                                 
                     for patch in patches:
@@ -1297,9 +1260,7 @@ class AperturePhotometry:
 
             plt.tight_layout()
             ax.legend(loc='upper right')
-        
-            
-        
+
         if save_path is not None:
             plt.savefig(save_path, bbox_inches='tight', dpi=300)
             print(f"Figure saved to {save_path}")
@@ -1308,26 +1269,4 @@ class AperturePhotometry:
             plt.show()
             
         plt.close()
-    
-# %%
-if __name__ == "__main__":
-    target_img = ScienceImage('/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/T01222/7DT06/m512/7DT06_20260304_003121_T01222_m512_1x1_100.0s_0002.fits')
-    self = AperturePhotometry()
-    target_bkg = target_img.bkgmap
-    target_bkgrms = target_img.bkgrms
-    target_catalog = self.sex_photometry(
-        target_img = target_img,
-        target_bkg = target_bkg,
-        target_bkgrms = target_bkgrms,
-        target_mask = None,
-        save = True,
-        verbose = True,
-        visualize = True,
-        save_fig = True)
-# %%
-target_mask = None
-save = True
-verbose = True
-visualize = True
-save_fig = False
 # %%

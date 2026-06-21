@@ -65,6 +65,7 @@ class SkyCatalog:
         self.overlapped_fraction = overlapped_fraction
         
         self.filename = None
+        self.filepath = None
         self.summary_path = os.path.join(self.helper.config['CATALOG_DIR'], 'summary.ascii_fixed_width')
 
         self._register_objinfo(objname = objname, ra = ra, dec = dec, fov_ra = fov_ra, fov_dec = fov_dec, catalog_type = catalog_type, catalog_version = catalog_version, verbose = verbose)
@@ -700,6 +701,7 @@ class SkyCatalog:
                 self.fov_ra = catinfo['fov_ra'][0]
                 self.fov_dec = catinfo['fov_dec'][0]
                 self.filename = catinfo['file'][0]
+                self.filepath = os.path.join(self.helper.config['CATALOG_DIR'], self.filename)
             except:
                 try:
                     coord = self._query_coord_from_objname(objname = objname, verbose = verbose)
@@ -722,6 +724,7 @@ class SkyCatalog:
                     self.fov_ra = catinfo['fov_ra'][0]
                     self.fov_dec = catinfo['fov_dec'][0]
                     self.filename = catinfo['file'][0]
+                    self.filepath = os.path.join(self.helper.config['CATALOG_DIR'], self.filename)
                     self.is_registered = True
                 except:
                     ra_hms = coord.ra.hms

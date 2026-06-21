@@ -19,7 +19,6 @@ from ezphot.imageobjects import ScienceImage, ReferenceImage, CalibrationImage
 from ezphot.dataobjects import Catalog
 from ezphot.skycatalog import SkyCatalogUtility
 from ezphot.utils import *
-
 #%%
 
 class PhotometricCalibration:
@@ -213,7 +212,7 @@ class PhotometricCalibration:
         mag_key_ref = '%s_mag'%(target_img.filter)        
         zp_key_ref = magnitude_key.replace('MAG_', 'ZP_')
         all_catalog_data = target_catalog.data
-        catalog_coord = SkyCoord(all_catalog_data['X_WORLD'], all_catalog_data['Y_WORLD'], unit='deg')
+        catalog_coord = SkyCoord(all_catalog_data[ra_key], all_catalog_data[dec_key], unit='deg')
         reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
         obj_indices, ref_indices, unmatched_obj_indices = self.helper.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
         matched_obj_all = all_catalog_data[obj_indices]
@@ -223,8 +222,8 @@ class PhotometricCalibration:
         matched_obj_all['ZP_REF'] = zp_all
         matched_catalog = target_catalog.copy()
         matched_catalog.data = matched_obj_all
-        zp_median_all = np.ma.median(zp_all)
-        zp_err_all = np.ma.std(zp_all)
+        zp_median_all = np.nanmedian(zp_all)
+        zp_err_all = np.nanstd(zp_all)
 
         if dynamic_mag_range:
             # Configuration sets for retries
@@ -284,11 +283,11 @@ class PhotometricCalibration:
                 self.helper.print(f"[WARN] No valid result found from dynamic mag range. Using default mag range.", verbose)
                 mag_min = mag_lower
                 mag_max = mag_upper
-                zp_median_all = np.ma.median(zp_all)
-                zp_err_all = np.ma.std(zp_all)
+                zp_median_all = np.nanmedian(zp_all)
+                zp_err_all = np.nanstd(zp_all)
         else:
-            zp_median_all = np.ma.median(zp_all)
-            zp_err_all = np.ma.std(zp_all)
+            zp_median_all = np.nanmedian(zp_all)
+            zp_err_all = np.nanstd(zp_all)
             mag_min = mag_lower
             mag_max = mag_upper
         magnitude_sky_key = magnitude_key.replace('MAG_', 'MAGSKY_')
@@ -332,7 +331,7 @@ class PhotometricCalibration:
                 maskflag_key = maskflag_key,
                 )
             filtered_catalog_data = filtered_catalog.data
-            catalog_coord = SkyCoord(filtered_catalog_data['X_WORLD'], filtered_catalog_data['Y_WORLD'], unit='deg')
+            catalog_coord = SkyCoord(filtered_catalog_data[ra_key], filtered_catalog_data[dec_key], unit='deg')
             reference_coord = SkyCoord(all_references['ra'], all_references['dec'], unit='deg')
             obj_indices, ref_indices, unmatched_obj_indices = self.helper.cross_match(catalog_coord, reference_coord, max_distance_second = max_distance_second)
             matched_obj = filtered_catalog_data[obj_indices]
@@ -346,30 +345,27 @@ class PhotometricCalibration:
                 break
 
         # Update the target image header
-        update_kwargs['SEEING'] = (target_seeing, "Seeing FWHM in pixel")
-        update_kwargs['PEEING'] = (target_seeing / np.mean(target_img.pixelscale), "Seeing FWHM in arcsec")
+        if np.isfinite(target_seeing):
+            update_kwargs['SEEING'] = (target_seeing, "Seeing FWHM in pixel")
+            update_kwargs['PEEING'] = (target_seeing / np.nanmean(target_img.pixelscale), "Seeing FWHM in arcsec")
 
+        skyval = None
         if 'SKYVAL' in filtered_catalog_data.colnames:
             skyval = float(filtered_catalog_data['SKYVAL'][0])
         elif 'BACKGROUND' in filtered_catalog_data.colnames:
-            skyval= float(np.mean(filtered_catalog_data['BACKGROUND']))
-        else:
-            skyval = target_img.info.SKYVAL
-        update_kwargs['SKYVAL'] = (skyval, "Global Background level in ADU")
+            skyval= float(np.nanmean(filtered_catalog_data['BACKGROUND']))
+        if skyval is not None:
+            update_kwargs['SKYVAL'] = (skyval, "Global Background level in ADU")
         
         skysig = None
         if 'SKYSIG' in filtered_catalog_data.colnames:
             skysig = float(filtered_catalog_data['SKYSIG'][0])
-        else:
-            skysig = target_img.info.SKYSIG
-        update_kwargs['SKYSIG'] = (skysig, "Global background noise in ADU")
+            update_kwargs['SKYSIG'] = (skysig, "Global background noise in ADU")
         
         ellip = None
         if 'ELLIPTICITY' in filtered_catalog_data.colnames:
-            ellip = np.mean(filtered_catalog_data['ELLIPTICITY'])
-        else:
-            ellip = target_img.info.ELLIPTICITY
-        update_kwargs['ELLIP'] = (ellip, "Mean ellipticity of the sources in the catalog")
+            ellip = np.nanmean(filtered_catalog_data['ELLIPTICITY'])
+            update_kwargs['ELLIP'] = (ellip, "Mean ellipticity of the sources in the catalog")
 
         mag_key_ref = '%s_mag'%(target_img.filter)
         magerr_key_ref = 'e_%s_mag'%(target_img.filter)
@@ -401,8 +397,8 @@ class PhotometricCalibration:
             masked = sc(zp)
             zp_cleaned_indices = np.where(~masked.mask)[0]
             masked_zp = zp[~masked.mask]
-            zp_median = np.ma.median(masked_zp)
-            zp_err = np.ma.std(masked_zp)     
+            zp_median = np.nanmedian(masked_zp)
+            zp_err = np.nanstd(masked_zp)     
             target_catalog_data[mag_key_sky] = target_catalog_data[mag_key] + zp_median
             target_catalog_data[zp_key] = zp_median
             target_catalog_data[zperr_key] = zp_err    
@@ -635,7 +631,7 @@ class PhotometricCalibration:
             fig.tight_layout(rect=[0, 0.3, 1, 0.985])
 
             if save_fig:
-                fig.savefig(str(target_img.savepath.catalogpath) + '.zp_2d.png', dpi=300)
+                fig.savefig(target_catalog.path.with_suffix('.zp_2d.png'), dpi=300)
 
             if visualize:
                 plt.show()
@@ -699,7 +695,7 @@ class PhotometricCalibration:
             fig.tight_layout(rect=[0.03, 0, 0.97, 0.97])
 
             if save_fig:
-                fig_path = str(target_img.savepath.catalogpath) + '.zp_mag.png'
+                fig_path = target_catalog.path.with_suffix('.zp_mag.png')
                 fig.savefig(fig_path, dpi=300)
                 self.helper.print(f"[INFO] ZP vs mag plot saved to {fig_path}", verbose)
 
@@ -802,7 +798,7 @@ class PhotometricCalibration:
             fig.tight_layout(rect=[0.03, 0, 0.97, 0.97])
 
             if save_fig:
-                fig_path = str(target_img.savepath.catalogpath) + '.zp_color.png'
+                fig_path = target_catalog.path.with_suffix('.zp_color.png')
                 fig.savefig(fig_path, dpi=300)
                 self.helper.print(f"[INFO] ZP vs color plot saved to {fig_path}", verbose)
 
@@ -1046,6 +1042,11 @@ class PhotometricCalibration:
             comparison_catalog = self.find_comparison_catalog(
                 target_img, target_catalog, max_day_offset=1, verbose=verbose
             )
+        
+        if 'NUMBER' not in target_catalog.data.colnames:
+            target_catalog.data['NUMBER'] = np.arange(len(target_catalog.data))
+        if 'NUMBER' not in comparison_catalog.data.colnames:
+            comparison_catalog.data['NUMBER'] = np.arange(len(comparison_catalog.data))
             
         num_to_row = {
             int(n): i
@@ -1414,9 +1415,20 @@ class PhotometricCalibration:
         if target_catalog.data is None:
             raise ValueError("target_catalog.data is None. Please provide a valid Catalog object with data.")
         
-        if fwhm_key not in target_catalog_data.keys():
+        has_mag = magnitude_key in target_catalog_data.keys()
+        has_magerr = magnitudeerr_key in target_catalog_data.keys()
+        has_fwhm = fwhm_key in target_catalog_data.keys()
+        has_coords = ra_key in target_catalog_data.keys() and dec_key in target_catalog_data.keys()
+        has_classstar = classstar_key in target_catalog_data.keys()
+        has_elongation = elongation_key in target_catalog_data.keys()
+        has_flag = flag_key in target_catalog_data.keys()
+        has_maskflag = maskflag_key in target_catalog_data.keys()
+        can_plot = has_mag and has_fwhm
+
+        if not can_plot:
             visualize = False
-            self.helper.print(f"Warning: '{fwhm_key}' not found in target_catalog. Visualization disabled.", verbose)
+            save_fig = False
+            self.helper.print(f"Warning: '{magnitude_key}' or '{fwhm_key}' not found in target_catalog. Visualization disabled.", verbose)
         if visualize or save_fig:
             plt.figure(dpi=300)
             plt.xlabel(magnitude_key)
@@ -1424,15 +1436,16 @@ class PhotometricCalibration:
             plt.title("Star selection filtering")
             
         def _plot_if_visualize(x, y, color, label, alpha=0.4):
-            if visualize or save_fig:  # or pass `visualize` as a parameter
+            if visualize or save_fig:
                 plt.scatter(x, y, c=color, alpha=alpha, label=label)
-        _plot_if_visualize(target_catalog_data[magnitude_key], target_catalog_data[fwhm_key]*3600, 'k', label = 'All sources', alpha = 0.3)#, c = sources[x_key])
+        if can_plot:
+            _plot_if_visualize(target_catalog_data[magnitude_key], target_catalog_data[fwhm_key]*3600, 'k', label = 'All sources', alpha = 0.3)
         filtered_catalog_data = target_catalog_data.copy()
         self.helper.print(f'Initial sources: {len(filtered_catalog_data)}', verbose)
         filter_info = {'initial': len(filtered_catalog_data)}
 
         # Step 0: FWHM cut: remove too small sources
-        if fwhm_key not in filtered_catalog_data.keys():
+        if not has_fwhm:
             self.helper.print(f"Warning: '{fwhm_key}' not found in target_catalog.", verbose)
         else:
             abs_fwhm_mask = (filtered_catalog_data[fwhm_key] > fwhm_lower_arcsec/3600) & (filtered_catalog_data[fwhm_key] < fwhm_upper_arcsec/3600)
@@ -1441,10 +1454,11 @@ class PhotometricCalibration:
             filter_info['after_fwhm_abs'] = len(filtered_catalog_data)
             self.helper.print(f"[FWHM ABS CUT]: {len(filtered_catalog_data)} sources passed {fwhm_lower_arcsec} < FWHM < {fwhm_upper_arcsec} ", verbose)
         filter_info['after_fwhm_abs'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'm', label = 'FWHM(Asvolute) cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'm', label = 'FWHM(Asvolute) cut', alpha = 0.3)
 
         # Step 1: Inner region cut        
-        if ra_key not in filtered_catalog_data.keys() or dec_key not in filtered_catalog_data.keys():
+        if not has_coords:
             self.helper.print(f"Warning: '{ra_key}' or '{dec_key}' not found in sources.", verbose)
         elif ra_deg is not None and dec_deg is not None and radius_arcsec is not None:
             # If ra_deg, dec_deg, radius_arcsec is given, use them to select the nearby sources
@@ -1471,10 +1485,11 @@ class PhotometricCalibration:
             self.helper.print(f'[INNERREGION CUT] {len(filtered_catalog_data)} sources passed within {rmax} arcsec', verbose)
         
         filter_info['after_region'] = len(filtered_catalog_data)        
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'r', label = 'Region cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'r', label = 'Region cut', alpha = 0.3)
 
         # Step 2: Isolation
-        if ra_key not in filtered_catalog_data.keys() or dec_key not in filtered_catalog_data.keys():
+        if not has_coords:
             self.helper.print(f"Warning: '{ra_key}' or '{dec_key}' not found in sources.", verbose)
         else:
             coords = SkyCoord(ra = filtered_catalog_data[ra_key], dec = filtered_catalog_data[dec_key], unit = (u.deg, u.deg))
@@ -1487,27 +1502,33 @@ class PhotometricCalibration:
             self.helper.print(f'[ISOLATION CUT] {len(filtered_catalog_data)} sources passed with isolation radius {isolation_radius_arcsec} arcsec', verbose)
         filter_info['after_isolation'] = len(filtered_catalog_data)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'g', label = 'Isolation cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'g', label = 'Isolation cut', alpha = 0.3)
 
         # Step 3: MAG cut
-        if mag_lower is not None and mag_upper is not None:
+        if not has_mag:
+            self.helper.print(f"Warning: '{magnitude_key}' not found in sources. Skipping magnitude cut.", verbose)
+        elif mag_lower is not None and mag_upper is not None:
             if mag_lower is not None:
                 filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[magnitude_key] > mag_lower)]
             if mag_upper is not None:
                 filtered_catalog_data = filtered_catalog_data[(filtered_catalog_data[magnitude_key] < mag_upper)]                
             self.helper.print(f"[MAG CUT]: {len(filtered_catalog_data)} sources passed {mag_lower} < {magnitude_key} < {mag_upper}", verbose)
-        else:
+        elif has_magerr:
             snr = 1.085736/filtered_catalog_data[magnitudeerr_key]
             snr_mask = (snr > snr_lower) & (snr < snr_upper)
             filtered_catalog_data = filtered_catalog_data[snr_mask]
             self.helper.print(f"[SNR CUT]: {len(filtered_catalog_data)} sources passed {snr_lower} < SNR < {snr_upper}", verbose)
+        else:
+            self.helper.print(f"Warning: '{magnitudeerr_key}' not found. Skipping SNR cut.", verbose)
         
         filter_info['after_magcut'] = len(filtered_catalog_data)
             
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'b', label = 'MAG cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'b', label = 'MAG cut', alpha = 0.3)
 
         # Step 4: CLASS_STAR cut
-        if classstar_key not in filtered_catalog_data.keys():
+        if not has_classstar:
             self.helper.print(f"Warning: '{classstar_key}' not found in sources.", verbose)
         else:
             class_star_mask = filtered_catalog_data[classstar_key] > classstar_lower
@@ -1515,10 +1536,11 @@ class PhotometricCalibration:
             self.helper.print(f"[CLASSSTAR CUT]: {len(filtered_catalog_data)} sources passed CLASS_STAR > {classstar_lower}", verbose)
         filter_info['after_classstar'] = len(filtered_catalog_data)
  
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'cyan', label = 'ClassStar cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'cyan', label = 'ClassStar cut', alpha = 0.3)
 
         # Step 5: FWHM absolute and relative cut
-        if fwhm_key not in filtered_catalog_data.keys():
+        if not has_fwhm:
             self.helper.print(f"Warning: '{fwhm_key}' not found in sources.", verbose)
         else:
             # Step 5.1: Absolute cut: remove too small sources
@@ -1537,10 +1559,11 @@ class PhotometricCalibration:
                 verbose
             ) 
             
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'orange', label = 'FWHM(Relative) cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'orange', label = 'FWHM(Relative) cut', alpha = 0.3)
 
         # Step 6: Elongation cut
-        if elongation_key not in filtered_catalog_data.keys():
+        if not has_elongation:
             self.helper.print(f"Warning: '{elongation_key}' not found in sources.", verbose)
         else:
             # Step 6.1: Absolute limit
@@ -1558,31 +1581,38 @@ class PhotometricCalibration:
 
             self.helper.print(f"[ELONGATION CUT]: {len(filtered_catalog_data)} passed elongation < {elongation_upper} and within ±{elongation_sigma} sigma of median ({elong_median:.2f} ± {elong_std:.2f})", verbose)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'purple', label = 'Elongation cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'purple', label = 'Elongation cut', alpha = 0.3)
         
         # Step 7: Flag cut
-        if flag_key not in filtered_catalog_data.keys():
+        if not has_flag:
             self.helper.print(f"Warning: '{flag_key}' not found in sources.", verbose)
         else:
             flag_mask = filtered_catalog_data[flag_key] <= flag_upper
             filtered_catalog_data = filtered_catalog_data[flag_mask]
             self.helper.print(f"[FLAG CUT]: {len(filtered_catalog_data)} sources passed FLAGS <= {flag_upper}", verbose)
         filter_info['after_flag'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'magenta', label = 'Flag cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'magenta', label = 'Flag cut', alpha = 0.3)
         
         # Step 8: Mask flag cut
-        if maskflag_key not in filtered_catalog_data.keys():
+        if not has_maskflag:
             self.helper.print(f"Warning: '{maskflag_key}' not found in sources.", verbose)
         else:
             maskflag_mask = filtered_catalog_data[maskflag_key] <= maskflag_upper
             filtered_catalog_data = filtered_catalog_data[maskflag_mask]
             self.helper.print(f"[MASKFLAG CUT]: {len(filtered_catalog_data)} sources passed IMAFLAGS_ISO <= {maskflag_upper}", verbose)
         filter_info['after_maskflag'] = len(filtered_catalog_data)
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'brown', label = 'MaskFlag cut', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'brown', label = 'MaskFlag cut', alpha = 0.3)
 
-        _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'red', label = 'Final selected', alpha = 0.3)
+        if can_plot:
+            _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'red', label = 'Final selected', alpha = 0.3)
 
-        seeing = np.median(filtered_catalog_data[fwhm_key]) * 3600
+        if has_fwhm and len(filtered_catalog_data) > 0:
+            seeing = np.nanmedian(filtered_catalog_data[fwhm_key]) * 3600
+        else:
+            seeing = np.nan
         filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info.copy(), load = False)
         filtered_catalog.data = filtered_catalog_data
         filtered_catalog.info.path = str(target_catalog.savepath.refcatalogpath)

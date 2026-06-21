@@ -134,10 +134,23 @@ class ImageMethod:
         from ezphot.methods import Preprocess
         if bias_image is None:
             bias_image = self.get_masterframe(imagetyp = 'BIAS', max_days = 100)
+            if bias_image is None:
+                raise ValueError("Cannot correct bias, dark, and flat: Required bias frame is missing.")
+            else:
+                bias_image = bias_image[0]
         if dark_image is None:
             dark_image = self.get_masterframe(imagetyp = 'DARK', max_days = 100)
+            if dark_image is None:
+                raise ValueError("Cannot correct bias, dark, and flat: Required dark frame is missing.")
+            else:
+                dark_image = dark_image[0]
         if flat_image is None:
             flat_image = self.get_masterframe(imagetyp = 'FLAT', max_days = 100)
+            if flat_image is None:
+                raise ValueError("Cannot correct bias, dark, and flat: Required flat frame is missing.")
+            else:
+                flat_image = flat_image[0]
+
         preprocess = Preprocess()
         calib_image = preprocess.correct_bdf(
             target_img = self,
@@ -150,6 +163,7 @@ class ImageMethod:
         return calib_image
     
     def platesolve(self,
+                   catalog_type: str = 'GAIA-DR2',
                    overwrite: bool = True,
                    verbose: bool = True,
                    scamp_sexparams: dict = None,
@@ -182,6 +196,7 @@ class ImageMethod:
         
         self = platesolve.solve_scamp(
             target_img = self,
+            catalog_type = catalog_type,
             scamp_sexparams = scamp_sexparams,
             scamp_params = scamp_params,
             overwrite = True,

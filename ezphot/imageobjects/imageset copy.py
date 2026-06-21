@@ -2,7 +2,7 @@
 #%%
 import inspect
 from typing import Union, List
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,8 @@ def _extract_info_indexed(args):
     i, image = args
     info = image.info
     return dict(
-        image_id=i,
+        index=i,
+        image=image,
         path=info.SAVEPATH,
         filter=info.FILTER,
         exptime=info.EXPTIME,
@@ -73,17 +74,14 @@ class ImageSet:
     
     def __init__(self,
                  images: Union[List[ScienceImage], List[ReferenceImage]] = None):
-        self.images = list(images) if images is not None else []
-        self.image_ids = list(range(len(self.images)))
-        self.target_image_ids = list(self.image_ids)
-
-        self._df = None
+        self.images = images if images is not None else []
         self._bkgmap = None
         self._bkgrms = None
         self._sourcemask = None
         self._catalog = None
         self._refcatalog = None
-        
+        self.target_images = self.images
+        self._df = None
         self.helper = Helper()
 
         self._last_filter = dict(
@@ -208,16 +206,9 @@ class ImageSet:
             telname = np.atleast_1d(telname)
             df = df[df['telname'].isin(telname)]
         if df.empty:
-            self.target_image_ids = []
+            self.target_images = []
         else:
-            self.target_image_ids = df["image_id"].astype(int).tolist()
-
-        self._bkgmap = None
-        self._bkgrms = None
-        self._sourcemask = None
-        self._catalog = None
-        self._refcatalog = None
-
+            self.target_images = [self.images[i] for i in df.index]
         self._last_filter = {
             'file_key': file_key,
             'filter': filter,
@@ -321,16 +312,10 @@ class ImageSet:
 
         # Update target_images
         if df.empty:
-            self.target_image_ids = []
+            self.target_images = []
         else:
-            self.target_image_ids = df["image_id"].astype(int).tolist()
-        
-        self._bkgmap = None
-        self._bkgrms = None
-        self._sourcemask = None
-        self._catalog = None
-        self._refcatalog = None
-
+            self.target_images = [self.images[i] for i in df.index]
+            
         self._last_filter = {
             'file_key': file_key,
             'filter': filter,
@@ -383,32 +368,26 @@ class ImageSet:
         target_tbl_groups = target_tbl.group_by(group_keys_applied).groups
         all_imgsets = []
         for tbl in target_tbl_groups:
-            group_imglist = [self.images[int(row['image_id'])] for row in tbl]
+            group_imglist = [row['image'] for row in tbl]
             group_imgset = ImageSet(group_imglist)
             all_imgsets.append(group_imgset)
         return all_imgsets
     
     def select_quality_images(self, 
-                              mode: str = 'both',
                               min_obsdate: Union[Time, str, float] = None,
                               max_obsdate: Union[Time, str, float] = None,
                               seeing_key: str = 'SEEING',
-                              depth_key: str = 'UL5SKY_APER_3',
+                              depth_key: str = 'UL5SKY_APER_1',
                               ellipticity_key: str = 'ELLIP',
                               obsdate_key: str = 'DATE-OBS',
-                              # For absolute filtering
-                              seeing_limit: float = 6.0,
-                              depth_limit: float = 15.0,
-                              ellipticity_limit: float = 0.3,
-                              rotang_abs_limit: float = 5,
-                              # For relative filtering
-                              ellipticity_percentile: float = 90.0,
-                              seeing_percentile: float = 75.0,
-                              depth_percentile: float = 75.0,
-                              rotang_percentile: float = 100.0,
+                              weight_ellipticity: float = 3.0,
+                              weight_seeing: float = 1.0,
+                              weight_depth: float = 2.0,
                               max_numbers: int = None,
-                              # Other parameters
-                              visualize: bool = True,
+                              seeing_limit: float = 6.0,
+                              depth_limit: float = 18.0,
+                              ellipticity_limit: float = 0.3,
+                              visualize: bool = False,
                               verbose: bool = True):
         """Select the best images based on seeing, depth, and ellipticity.
         Parameters
@@ -421,27 +400,24 @@ class ImageSet:
         from ezphot.methods import Stack
         stacker = Stack()
         target_images = stacker.select_quality_images(
-            target_imglist = self.images,
-            mode = mode,
+            target_imglist = self.target_images,
             min_obsdate = min_obsdate,
             max_obsdate = max_obsdate,
             seeing_key = seeing_key,
             depth_key = depth_key,
             ellipticity_key = ellipticity_key,
             obsdate_key = obsdate_key,
+            weight_ellipticity = weight_ellipticity,
+            weight_seeing = weight_seeing,
+            weight_depth = weight_depth,
+            max_numbers = max_numbers,
             seeing_limit = seeing_limit,
             depth_limit = depth_limit,
             ellipticity_limit = ellipticity_limit,
-            rotang_abs_limit = rotang_abs_limit,
-            ellipticity_percentile = ellipticity_percentile,
-            seeing_percentile = seeing_percentile,
-            depth_percentile = depth_percentile,
-            rotang_percentile = rotang_percentile,
-            max_numbers = max_numbers,
             visualize = visualize,
             verbose = verbose
         )
-        self._set_target_images_from_existing(target_images)
+        self.target_images = target_images
         return target_images
     
     def prepare_stack(self,
@@ -499,8 +475,8 @@ class ImageSet:
             save = save,
             clear = clear,
         )
-        self._replace_images(prepared_imglist)
-        self._bkgrms = np.array(prepared_bkgrmslist)
+        self.target_images = prepared_imglist
+        self._bkgrms = None
         return prepared_imglist, prepared_bkgrmslist
     
     def stack(self, 
@@ -569,9 +545,9 @@ class ImageSet:
         if len(self.images) == 0:
             return pd.DataFrame()
 
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(tqdm(
-                executor.map(_extract_info_indexed, zip(self.image_ids, self.images)),
+                executor.map(_extract_info_indexed, enumerate(self.images)),
                 total=len(self.images),
                 desc='Extracting info'
             ))
@@ -580,24 +556,29 @@ class ImageSet:
         return self._df
     
     @property
-    def target_df(self) -> pd.DataFrame:
-        if not self.target_image_ids:
-            return self.df.iloc[0:0].copy()
+    def target_df(self):
+        """Target DataFrame of the image set.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        target_df : pd.DataFrame
+            Target DataFrame of the image set.
+        """
 
-        return (
-            self.df[
-                self.df["image_id"].isin(self.target_image_ids)
-            ]
-            .copy()
-            .reset_index(drop=True)
-        )
+        if len(self.target_images) == 0:
+            return pd.DataFrame()
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            results = list(tqdm(
+                executor.map(_extract_info_indexed, enumerate(self.target_images)),
+                total=len(self.target_images),
+                desc='Extracting info'
+            ))
+        return pd.DataFrame(results)
         
-    @property
-    def target_images(self):
-        return [
-            self.images[image_id]
-            for image_id in self.target_image_ids
-        ]
+        
         
     @property
     def bkgrms(self):
@@ -616,7 +597,7 @@ class ImageSet:
             return self._bkgrms
         if len(self.images) == 0:
             return None
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(_load_bkgrms, self.target_images))
         self._bkgrms = np.array(results)
         return self._bkgrms
@@ -638,7 +619,7 @@ class ImageSet:
             return self._bkgmap
         if len(self.images) == 0:
             return None
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(_load_bkgmap, self.target_images))
         self._bkgmap = np.array(results)
         return self._bkgmap
@@ -660,7 +641,7 @@ class ImageSet:
             return self._sourcemask
         if len(self.images) == 0:
             return None
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(_load_sourcemask, self.target_images))
         self._sourcemask = np.array(results)
         return self._sourcemask
@@ -682,7 +663,7 @@ class ImageSet:
             return self._catalog
         if len(self.images) == 0:
             return None
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(_load_catalog, self.target_images))
         self._catalog = np.array(results)
         return self._catalog
@@ -704,46 +685,7 @@ class ImageSet:
             return self._refcatalog
         if len(self.images) == 0:
             return None
-        with ProcessPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(_load_refcatalog, self.target_images))
         self._refcatalog = np.array(results)
         return self._refcatalog
-
-    def _reset_target_cache(self):
-        self._bkgmap = None
-        self._bkgrms = None
-        self._sourcemask = None
-        self._catalog = None
-        self._refcatalog = None
-
-
-    def _set_target_images_from_existing(self, target_images):
-        """Set target_image_ids from images already contained in self.images."""
-        if target_images is None:
-            self.target_image_ids = []
-            self._reset_target_cache()
-            return
-
-        id_to_index = {id(img): i for i, img in enumerate(self.images)}
-
-        target_ids = []
-        for img in target_images:
-            if id(img) not in id_to_index:
-                raise ValueError(
-                    "target_images must be a subset of self.images. "
-                    "Use _replace_images() if these are newly created images."
-                )
-            target_ids.append(id_to_index[id(img)])
-
-        self.target_image_ids = target_ids
-        self._reset_target_cache()
-
-
-    def _replace_images(self, images):
-        """Replace the whole image set."""
-        self.images = list(images) if images is not None else []
-        self.image_ids = list(range(len(self.images)))
-        self.target_image_ids = list(self.image_ids)
-
-        self._df = None
-        self._reset_target_cache()

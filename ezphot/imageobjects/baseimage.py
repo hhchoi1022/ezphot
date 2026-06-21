@@ -996,8 +996,32 @@ class BaseImage(Configuration):
             wcs = WCS(self.header)
             if self.imgtype.upper() in ['BIAS', 'DARK', 'FLAT']:
                 raise ValueError("WCS is not available for bias, dark, or flat images.")
+            # Drop stale SIP distortion left over from a previous (astrometry.net)
+            # solution when the current CTYPE declares a different distortion
+            # (e.g. TPV from SCAMP). Otherwise astropy applies SIP *and* TPV,
+            # producing position errors that grow toward the image corners.
+            if wcs.sip is not None and not any(str(c).endswith('-SIP') for c in wcs.wcs.ctype):
+                wcs.sip = None
             return wcs
         except:
+            return None
+
+    @property
+    def rotang(self):
+        """WCS rotation angle in degrees.
+
+        Returns the angle of the image +Y pixel axis relative to projected
+        sky north. Returns None if no valid celestial WCS is available.
+        """
+        try:
+            w = self.wcs
+            if w is None or not w.has_celestial:
+                return None
+
+            matrix = w.celestial.pixel_scale_matrix
+            angle_deg = np.degrees(np.arctan2(matrix[0, 1], matrix[1, 1]))
+            return float(angle_deg)
+        except Exception:
             return None
     
     @property

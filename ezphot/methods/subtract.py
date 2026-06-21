@@ -698,7 +698,8 @@ class Subtract:
             )
             tbl_first.apply_zp(
                 target_img = subframe_subtract_img,
-                save = True
+                save = True,
+                verbose = verbose
             )
         
             # Step 6: Filter the table for significant sources
@@ -879,7 +880,8 @@ class Subtract:
                     if len(transient_catalog.data) > 0:
                         transient_catalog = transient_catalog.apply_zp(
                             target_img = subframe_subtract_img,
-                            save = True)
+                            save = True,
+                            verbose = verbose)
                         
                 if save_transient_figure:
                     all_transients = transient_catalog.data[:show_transient_numbers]
@@ -909,7 +911,8 @@ class Subtract:
                 if len(candidate_catalog.data) > 0:
                     candidate_catalog = candidate_catalog.apply_zp(
                         target_img = subframe_subtract_img,
-                        save = True
+                        save = True,
+                        verbose = verbose
                     )   
                 if save_candidate_figure:
                     all_candidates = candidate_catalog.data[:show_candidate_numbers]
@@ -940,7 +943,8 @@ class Subtract:
                 if len(candidate_catalog.data) > 0:
                     candidate_catalog = candidate_catalog.apply_zp(
                         target_img = subframe_subtract_img,
-                        save = True
+                        save = True,
+                        verbose = verbose
                     )   
                 if save_candidate_figure:
                     all_candidates = candidate_catalog.data[:show_candidate_numbers]

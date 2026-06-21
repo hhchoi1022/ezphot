@@ -494,6 +494,12 @@ class DummyImage(Configuration):
         try:
             from astropy.wcs import WCS
             wcs = WCS(self._header)
+            # Drop stale SIP distortion left over from a previous (astrometry.net)
+            # solution when the current CTYPE declares a different distortion
+            # (e.g. TPV from SCAMP). Otherwise astropy applies SIP *and* TPV,
+            # producing position errors that grow toward the image corners.
+            if wcs.sip is not None and not any(str(c).endswith('-SIP') for c in wcs.wcs.ctype):
+                wcs.sip = None
             return wcs
         except:
             return None
