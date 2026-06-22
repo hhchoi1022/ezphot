@@ -18,6 +18,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
 from astropy.nddata import Cutout2D
 from astropy.coordinates import SkyCoord
+from astropy.coordinates import Angle
 import astropy.units as u
 
 from ezphot.configuration import Configuration
@@ -736,7 +737,12 @@ class BaseImage(Configuration):
         header = self.header
         for key in self._key_variants['RA']:
             if key in header:
-                return float(header[key])
+                value = header[key]
+                try:
+                    return float(value)
+                except:
+                    return Angle(value, unit=u.hourangle).degree
+
         return None
         
     @property
@@ -749,7 +755,12 @@ class BaseImage(Configuration):
         header = self.header
         for key in self._key_variants['DEC']:
             if key in header:
-                return float(header[key])
+                value = header[key]
+                try:
+                    return float(value)
+                except:
+                    return Angle(value, unit=u.deg).degree
+
         return None
     
     @property
@@ -1031,13 +1042,19 @@ class BaseImage(Configuration):
         y_center = (self.naxis2 - 1) / 2
         ra = dec = None
 
-        if self.wcs.has_celestial:
+        if self.wcs is None:
+            return {'x': x_center, 'y': y_center, 'ra': None, 'dec': None}
+            
+        elif self.wcs.has_celestial:
             try:
                 skycoord = self.wcs.pixel_to_world(x_center, y_center)
                 ra = skycoord.ra.deg
                 dec = skycoord.dec.deg
             except Exception as e:
                 print(f"WCS conversion failed: {e}")
+        
+        else:
+            return {'x': x_center, 'y': y_center, 'ra': None, 'dec': None}
         
         return {'x': x_center, 'y': y_center, 'ra': ra, 'dec': dec}
         

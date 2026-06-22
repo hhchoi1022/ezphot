@@ -194,7 +194,10 @@ class Combiner:
                     bkgrms_out[i0:i1, j0:j1] = patch_bkgrms
         else:
             dtype_image = image_list[0].dtype
-            dtype_bkgrms = bkgrms_list[0].dtype if bkgrms_list is not None else None
+            if bkgrms_list is not None:
+                dtype_bkgrms = bkgrms_list[0].dtype
+            else:
+                dtype_bkgrms = None
             for image in image_list:
                 total_size_image += image.nbytes
                 if image.shape[0] != H or image.shape[1] != W:
@@ -719,7 +722,6 @@ class Stack:
         for img in iterator:
             image_datalist.append(img.data)
             image_hdrlist.append(img.header)
-            img.clear()
 
         bkgrms_datalist = []
         if bkgrms_exists:
@@ -727,8 +729,9 @@ class Stack:
             iterator = tqdm(target_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_bkgrmslist
             for target_bkgrms in iterator:
                 bkgrms_datalist.append(target_bkgrms.data)
-                target_bkgrms.clear()
-                
+        if len(bkgrms_datalist) == 0:
+            bkgrms_datalist = None
+
         # Combine the image stack
         if clip_type == 'extrema':
             if len(image_datalist) - nlow - nhigh < 3:
