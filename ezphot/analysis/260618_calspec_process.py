@@ -165,37 +165,3 @@ ax_plot.legend()
 fig
 
 # %%
-
-
-
-#%%
-from ezphot.imageobjects import ScienceImage
-sci = ScienceImage('/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT02/m425/coadd_scaled_subbkg_7DT02_20240812_091017_HZ4_m425_1x1_30.0s_0003.com.fits')
-sci.show()
-# %%
-
-# %%
-target_srcmask = sci.calculate_sourcemask(save = True)
-# %%
-target_bkgmap = sci.calculate_bkg(target_srcmask, save = True)
-# %%
-target_catalog = sci.photometry_sex(
-    target_bkg = target_bkgmap,
-    target_bkgrms = None,
-    detection_sigma = 1.5,
-    aperture_diameter_arcsec = [3, 5, 7, 10],
-    aperture_diameter_seeing = [3.5, 4.5],
-    save = True
-)
-# %%
-sci.photometric_calibration(
-    target_catalog = target_catalog, 
-    magnitude_key = 'MAG_APER_3',
-    magnitudeerr_key = 'MAGERR_APER_3',
-    save = True,
-    mag_lower = 11.5,
-    mag_upper = 15
-)
-# %%
-sci.header['UL5SKY_APER_3']
-# %%
