@@ -449,7 +449,7 @@ class ImageSet:
 
                       # Scale parameters
                       scale: bool = True,
-                      zp_key: str = 'ZP_APER_2',
+                      zp_key: str = 'ZP_APER_3',
                     
                       # Convolution parameters
                       convolve: bool = False,

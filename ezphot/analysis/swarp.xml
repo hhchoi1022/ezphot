@@ -3,7 +3,7 @@
 <VOTABLE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.ivoa.net/xml/VOTable/v1.1">
 <DESCRIPTION>produced by SWarp</DESCRIPTION>
 <!-- VOTable description at http://www.ivoa.net/Documents/latest/VOT.html -->
-<RESOURCE ID="SWarp" name="coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.tmp">
+<RESOURCE ID="SWarp" name="coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.tmp">
  <DESCRIPTION>Data related to SWarp</DESCRIPTION>
  <INFO name="QUERY_STATUS" value="OK" />
  <COOSYS ID="J2000" equinox="J2000" epoch="J2000" system="ICRS"/>
@@ -17,15 +17,15 @@
   <PARAM name="Soft_Ref" datatype="char" arraysize="*" ucd="meta.bib.bibcode;meta.software" value="2002ASPC..281..228B"/>
   <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="128"/>
   <PARAM name="Date" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="2026-06-21"/>
-  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="13:18:21"/>
-  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="7.32" unit="s"/>
+  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="19:17:48"/>
+  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="8.30" unit="s"/>
   <PARAM name="User" datatype="char" arraysize="*" ucd="meta.curation" value="hhchoi1022"/>
   <PARAM name="Host" datatype="char" arraysize="*" ucd="meta.curation" value="(null)"/>
   <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/home/hhchoi1022"/>
-  <PARAM name="Image_Name" datatype="char" arraysize="*" ucd="obs.image;meta.fits" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.tmp"/>
-  <PARAM name="Weight_Name" datatype="char" arraysize="*" ucd="obs.image;meta.fits" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.bkgweight"/>
+  <PARAM name="Image_Name" datatype="char" arraysize="*" ucd="obs.image;meta.fits" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.tmp"/>
+  <PARAM name="Weight_Name" datatype="char" arraysize="*" ucd="obs.image;meta.fits" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.bkgweight"/>
   <PARAM name="NOverlap_Max" datatype="int" ucd="meta.number;stat.max;obs.image" value="1"/>
-  <PARAM name="ExpTime_Max" datatype="float" ucd="time.expo;stat.max;obs.image" value="10" unit="s"/>
+  <PARAM name="ExpTime_Max" datatype="float" ucd="time.expo;stat.max;obs.image" value="30" unit="s"/>
   <PARAM name="Gain_Max" datatype="float" ucd="instr.calib;stat.max;obs.image" value="0.25619" unit="photon/ADU"/>
   <TABLE ID="Input_Image_Data" name="Input_Image_Data">
    <DESCRIPTION>Data gathered by SWarp for every FITS input image</DESCRIPTION>
@@ -67,12 +67,12 @@
    <FIELD name="COOSYS" datatype="char" arraysize="*" ucd="meta.code;pos"/>
    <DATA><TABLEDATA>
     <TR>
-     <TD>1</TD><TD>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits</TD><TD>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.bkgweight</TD><TD>F</TD><TD>HZ4</TD>
-     <TD>0</TD><TD>2026-06-21</TD><TD>13:18:19</TD><TD>5.00</TD>
-     <TD>-1.28457</TD><TD>10.6194</TD><TD>F</TD><TD>AUTO</TD><TD>128</TD><TD>3</TD><TD>0</TD>
-     <TD>MAP_WEIGHT</TD><TD>T</TD><TD>0</TD><TD>1.00205</TD><TD>F</TD>
-     <TD>0.25619</TD><TD>50000</TD><TD>10</TD><TD>1</TD>
-     <TD>0.998336</TD><TD>58.8171695 9.7992401</TD><TD>0.505</TD><TD>2024.612868</TD><TD>2000</TD><TD>2000</TD>
+     <TD>1</TD><TD>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits</TD><TD>/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.bkgweight</TD><TD>F</TD><TD>GD71</TD>
+     <TD>0</TD><TD>2026-06-21</TD><TD>19:17:45</TD><TD>5.00</TD>
+     <TD>-1.26412</TD><TD>15.2439</TD><TD>F</TD><TD>AUTO</TD><TD>128</TD><TD>3</TD><TD>0</TD>
+     <TD>MAP_WEIGHT</TD><TD>T</TD><TD>0</TD><TD>1.0082</TD><TD>F</TD>
+     <TD>0.25619</TD><TD>50000</TD><TD>30</TD><TD>1</TD>
+     <TD>0.991331</TD><TD>88.1099792 15.86434508</TD><TD>0.505</TD><TD>2024.675968</TD><TD>2000</TD><TD>2000</TD>
      <TD>ICRS</TD>
     </TR>
    </TABLEDATA></DATA>
@@ -87,10 +87,10 @@
   </TABLE>
   <RESOURCE ID="Config" name="Config">
    <DESCRIPTION>SWarp configuration</DESCRIPTION>
-   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="SWarp /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits -c /home/hhchoi1022/ezphot/config/specific/7DT_C361K_HIGH_1x1/7DT_C361K_HIGH_1x1.swarpconfig -CENTER_TYPE MANUAL -CENTER 3:55:21.98,+9:47:18.13 -RESAMPLE Y -RESAMPLE_DIR /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g -RESAMPLING_TYPE NEAREST -IMAGEOUT_NAME /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.tmp -WEIGHTOUT_NAME /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.bkgweight -WEIGHT_IMAGE /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.bkgweight -WEIGHT_TYPE MAP_WEIGHT -COMBINE Y -COMBINE_TYPE MEDIAN -DELETE_TMPFILES Y"/>
+   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="SWarp /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits -c /home/hhchoi1022/ezphot/config/specific/7DT_C361K_HIGH_1x1/7DT_C361K_HIGH_1x1.swarpconfig -CENTER_TYPE MANUAL -CENTER 5:52:27.62,+15:53:13.2 -RESAMPLE Y -RESAMPLE_DIR /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z -RESAMPLING_TYPE NEAREST -IMAGEOUT_NAME /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.tmp -WEIGHTOUT_NAME /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.bkgweight -WEIGHT_IMAGE /home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.bkgweight -WEIGHT_TYPE MAP_WEIGHT -COMBINE Y -COMBINE_TYPE MEDIAN -DELETE_TMPFILES Y"/>
    <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="/home/hhchoi1022/ezphot/config/specific/7DT_C361K_HIGH_1x1/7DT_C361K_HIGH_1x1.swarpconfig"/>
-   <PARAM name="ImageOut_Name" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.tmp"/>
-   <PARAM name="WeightOut_Name" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g/coadd_scaled_subbkg_7DT10_20240812_082433_HZ4_g_1x1_10.0s_0012.fits.bkgweight"/>
+   <PARAM name="ImageOut_Name" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.tmp"/>
+   <PARAM name="WeightOut_Name" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z/coadd_scaled_subbkg_7DT11_20240904_093257_GD71_z_1x1_30.0s_0005.fits.bkgweight"/>
    <PARAM name="Header_Only" datatype="boolean" ucd="meta.code;obs.param" value="F"/>
    <PARAM name="Header_Suffix" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value=".head"/>
    <PARAM name="Weight_Suffix" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value=".weight.fits"/>
@@ -101,12 +101,12 @@
    <PARAM name="Projection_Type" datatype="char" arraysize="*" ucd="meta;pos;obs.param" value="TAN"/>
    <PARAM name="Projection_Err" datatype="float" arraysize="2" ucd="pos.angDistance;stat.max;obs.param" value="0.001 0" unit="pix"/>
    <PARAM name="Center_Type" datatype="char" arraysize="*" ucd="meta.code;pos;obs.param" value="MANUAL"/>
-   <PARAM name="Center" datatype="double" arraysize="2" ucd="pos;obs.param" value="    58.84158333     9.788369444" unit="pix"/>
+   <PARAM name="Center" datatype="double" arraysize="2" ucd="pos;obs.param" value="    88.11508333          15.887" unit="pix"/>
    <PARAM name="PixelScale_Type" datatype="char" arraysize="*" ucd="meta.code;pos;obs.param" value="MANUAL"/>
    <PARAM name="Pixel_Scale" datatype="float" arraysize="1" ucd="instr.scale;instr.pixel;obs.param" value="0.505"/>
    <PARAM name="Image_Size" datatype="int" arraysize="2" ucd="instr.scale;instr.pixel;obs.param" value="10200 6800"/>
    <PARAM name="Resample" datatype="boolean" ucd="meta.code" value="T"/>
-   <PARAM name="Resample_Dir" datatype="char" arraysize="*" ucd="meta.dataset" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/HZ4/7DT10/g"/>
+   <PARAM name="Resample_Dir" datatype="char" arraysize="*" ucd="meta.dataset" value="/home/hhchoi1022/ezphot/data/scidata/7DT/7DT_C361K_HIGH_1x1/GD71/7DT11/z"/>
    <PARAM name="Resample_Suffix" datatype="char" arraysize="*" ucd="meta.dataset;meta.file" value=".resamp.fits"/>
    <PARAM name="Resampling_Type" datatype="char" arraysize="*" ucd="meta.code;pos;obs.param" value="NEAREST"/>
    <PARAM name="Oversampling" datatype="int" arraysize="1" ucd="arith.factor;instr.pixel;obs.param" value="1"/>

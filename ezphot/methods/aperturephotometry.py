@@ -88,8 +88,8 @@ class AperturePhotometry:
                        target_mask: Optional[Mask] = None, # For masking certain source (such as hot pixels)
                        sex_params: dict = None,
                        detection_sigma: float = 1.5,
-                       aperture_diameter_arcsec: Union[float, list] = [5, 7, 10],
-                       aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
+                       aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10, 15],
+                       aperture_diameter_seeing: Union[float, list] = [2.5, 3.5], # If given, use seeing to calculate aperture size
                        annulus_width_arcsec: float = None,
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
@@ -576,8 +576,8 @@ class AperturePhotometry:
                             target_img: Union[ScienceImage, ReferenceImage],
                             x_arr: Union[float, list, np.ndarray],
                             y_arr: Union[float, list, np.ndarray],
-                            aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10],
-                            aperture_diameter_seeing: Union[float, list] = [3.5, 4.5], # If given, use seeing to calculate aperture size
+                            aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10, 15],
+                            aperture_diameter_seeing: Union[float, list] = [2.5, 3.5], # If given, use seeing to calculate aperture size
                             annulus_width_arcsec: Union[float, list] = None, # When local background is used
                             unit: str = 'coord',
                             target_bkg: Optional[Background] = None,

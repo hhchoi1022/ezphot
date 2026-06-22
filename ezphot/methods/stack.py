@@ -719,6 +719,7 @@ class Stack:
         for img in iterator:
             image_datalist.append(img.data)
             image_hdrlist.append(img.header)
+            img.clear()
 
         bkgrms_datalist = []
         if bkgrms_exists:
@@ -726,7 +727,8 @@ class Stack:
             iterator = tqdm(target_bkgrmslist, desc="Loading target bkgrms maps...", ncols=80, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") if verbose else target_bkgrmslist
             for target_bkgrms in iterator:
                 bkgrms_datalist.append(target_bkgrms.data)
-
+                target_bkgrms.clear()
+                
         # Combine the image stack
         if clip_type == 'extrema':
             if len(image_datalist) - nlow - nhigh < 3:

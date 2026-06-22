@@ -1128,9 +1128,9 @@ class BaseImage(Configuration):
             'ELONGATION': ['ELONGATION', 'ELONG'],
             'SKYSIG': ['SKYSIG', 'SKY_SIG'],
             'SKYVAL': ['SKYVAL', 'SKY_VAL'],
-            'ZP': ['ZP_AUTO', 'ZP_2'],
-            'ZPERR': ['ZPERR_AUTO', 'EZP_2'],
-            'DEPTH': ['UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5_4'],
+            'ZP': ['ZP_APER_3', 'ZP_2'],
+            'ZPERR': ['ZPERR_APER_3', 'EZP_2'],
+            'DEPTH': ['UL5SKY_APER_3', 'UL5_4'],
             # Path information
             'SAVEPATH': ['SAVEPATH'],
             'BIASPATH': ['BIASPATH'],

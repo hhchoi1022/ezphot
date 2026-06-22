@@ -91,8 +91,8 @@ class PhotometricCalibration:
                                 inner_fraction: float = 0.9, # Fraction of the images. If ra, dec, radius_arcsec is given, inner_fraction is ignored.
                                 isolation_radius_arcsec: float = 10.0,
                                 
-                                magnitude_key: str = 'MAG_AUTO',
-                                magnitudeerr_key: str = 'MAGERR_AUTO',
+                                magnitude_key: str = 'MAG_APER_3',
+                                magnitudeerr_key: str = 'MAGERR_APER_3',
                                 fwhm_key: str = 'FWHM_WORLD',
                                 ra_key: str = 'X_WORLD',
                                 dec_key: str = 'Y_WORLD',
@@ -1355,8 +1355,8 @@ class PhotometricCalibration:
                      visualize: bool = True,
                      save_fig: bool = False,
                      
-                     magnitude_key: str = 'MAG_AUTO',
-                     magnitudeerr_key: str = 'MAGERR_AUTO',
+                     magnitude_key: str = 'MAG_APER_3',
+                     magnitudeerr_key: str = 'MAGERR_APER_3',
                      fwhm_key: str = 'FWHM_WORLD',
                      ra_key: str = 'X_WORLD',
                      dec_key: str = 'Y_WORLD',
@@ -1648,8 +1648,8 @@ class PhotometricCalibration:
                                       target_catalog: Catalog,
                                       bin_width=0.5,
                                       sigma_clip=5,
-                                      magnitude_key='MAG_AUTO',
-                                      zp_key='ZP_AUTO',
+                                      magnitude_key='MAG_APER_3',
+                                      zp_key='ZP_APER_3',
                                       fwhm_key='FWHM_IMAGE',
                                       verbose=True,
                                       visualize=False,
