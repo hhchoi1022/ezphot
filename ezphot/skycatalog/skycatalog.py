@@ -365,8 +365,13 @@ class SkyCatalog:
     def _get_GAIAXP(self, verbose = False):
 
         def GAIAXP_format(GAIAXP_catalog) -> Table:
-            original = ('source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'phot_g_mean_mag', 'bp_rp', 'mag_u', 'mag_g', 'mag_r', 'mag_i', 'mag_z', 'mag_m375w', 'mag_m400', 'mag_m412', 'mag_m425', 'mag_m425w', 'mag_m437', 'mag_m450', 'mag_m462', 'mag_m475', 'mag_m487', 'mag_m500', 'mag_m512', 'mag_m525', 'mag_m537', 'mag_m550', 'mag_m562', 'mag_m575', 'mag_m587', 'mag_m600', 'mag_m612', 'mag_m625', 'mag_m637', 'mag_m650', 'mag_m662', 'mag_m675', 'mag_m687', 'mag_m700', 'mag_m712', 'mag_m725', 'mag_m737', 'mag_m750', 'mag_m762', 'mag_m775', 'mag_m787', 'mag_m800', 'mag_m812', 'mag_m825', 'mag_m837', 'mag_m850', 'mag_m862', 'mag_m875', 'mag_m887')
-            format_ = ('id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'g_mean', 'bp-rp', 'u_mag', 'g_mag', 'r_mag', 'i_mag', 'z_mag', 'm375w_mag', 'm400_mag', 'm412_mag', 'm425_mag', 'm425w_mag', 'm437_mag', 'm450_mag', 'm462_mag', 'm475_mag', 'm487_mag', 'm500_mag', 'm512_mag', 'm525_mag', 'm537_mag', 'm550_mag', 'm562_mag', 'm575_mag', 'm587_mag', 'm600_mag', 'm612_mag', 'm625_mag', 'm637_mag', 'm650_mag', 'm662_mag', 'm675_mag', 'm687_mag', 'm700_mag', 'm712_mag', 'm725_mag', 'm737_mag', 'm750_mag', 'm762_mag', 'm775_mag', 'm787_mag', 'm800_mag', 'm812_mag', 'm825_mag', 'm837_mag', 'm850_mag', 'm862_mag', 'm875_mag', 'm887_mag')
+            original = ['source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'phot_g_mean_mag', 'bp_rp']
+            format_ = ['id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'g_mean', 'bp-rp']
+            colnames = GAIAXP_catalog.colnames
+            for colname in colnames:
+                if colname.startswith('mag_'):
+                    original.append(colname)
+                    format_.append(colname.replace('mag_', '') + '_mag')
             GAIAXP_catalog.rename_columns(original, format_)
             formatted_catalog = self._match_digit_tbl(GAIAXP_catalog)
             return formatted_catalog
@@ -384,10 +389,15 @@ class SkyCatalog:
     def _get_GAIAXP_CORR_LAMOST(self, verbose = False):
 
         def GAIAXP_CORR_LAMOST_format(GAIAXP_catalog) -> Table:
-            # Already formatted
-            # original = ()
-            # format_ = ()
-            # GAIAXP_catalog.rename_columns(original, format_)
+            original = ['source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'phot_g_mean_mag', 'bp_rp']
+            format_ = ['id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'g_mean', 'bp-rp']
+            # Add for mag_? to original and ?_mag to format
+            colnames = GAIAXP_catalog.colnames
+            for colname in colnames:
+                if colname.startswith('mag_'):
+                    original.append(colname)
+                    format_.append(colname.replace('mag_', '') + '_mag')
+            GAIAXP_catalog.rename_columns(original, format_)
             formatted_catalog = self._match_digit_tbl(GAIAXP_catalog)
             return formatted_catalog
 

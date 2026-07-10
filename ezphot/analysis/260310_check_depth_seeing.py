@@ -5,7 +5,7 @@ gwconnector = GWPortalConnector('processed')
 # %%
 
 # tbl_recent = gwconnector.query(since_days = 550)
-# tbl_recent = gwconnector.query(obs_start_date = '2025-01-01', obs_end_date = '2026-06-20')
+tbl_recent = gwconnector.query(obs_start_date = '2025-01-01', obs_end_date = '2026-06-20')
 #%%
 tbl_recent = tbl_recent[tbl_recent['exptime'] == 100]
 #%%
@@ -191,6 +191,51 @@ ax.set_title("Seeing distribution", fontsize = 16)
 
 plt.xticks(rotation=45, fontsize = 12)
 plt.yticks(fontsize = 12)
+
+plt.tight_layout()
+plt.show()
+# %%
+
+df = tbl_recent.to_pandas()
+df_seeing = sigma_clip_by_filter(df, 'seeing', sigma=3)
+
+telescope_order = sorted(df_seeing['unit'].unique())
+
+sns.set_style("whitegrid")
+
+plt.figure(figsize=(14, 5))
+
+ax = sns.violinplot(
+    data=df_seeing,
+    x='unit',
+    y='seeing',
+    order=telescope_order,
+    palette='tab20',
+    inner=None,
+    cut=-2,
+    linewidth=1
+)
+
+medians = df_seeing.groupby('unit')['seeing'].median()
+
+for i, tel in enumerate(telescope_order):
+    vals = df_seeing[df_seeing['unit'] == tel]['seeing']
+    if len(vals) == 0:
+        continue
+    median = medians[tel]
+    ymax = vals.quantile(0.999)
+    ax.scatter(i, median, color='white', edgecolor='black', s=80, zorder=3)
+    if tel == '7DT04':
+        ymax = ymax + 1.1
+    ax.text(i, ymax + 0.7, f"{median:.2f}", ha='center', fontsize=10, rotation=90, color='k')
+
+ax.set_ylim(1.0, 7)
+ax.set_ylabel("Seeing [arcsec]", fontsize=14)
+ax.set_xlabel("")
+ax.set_title("Seeing distribution by telescope", fontsize=16)
+
+plt.xticks(rotation=0, ha='right', fontsize=10)
+plt.yticks(fontsize=12)
 
 plt.tight_layout()
 plt.show()

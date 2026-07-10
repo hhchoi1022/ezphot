@@ -274,13 +274,15 @@ class SpectrumFile:
         for key in ['BUNIT', 'FLUXUNIT', 'TUNIT1', 'TUNIT2']:
             if key in header:
                 val = str(header[key]).lower()
-                if 'erg' in val and ('/a' in val or 'angstrom' in val):
+                if 'w' in val and ('nm' in val or '/nm' in val) and ('m2' in val or 'm**2' in val):
+                    flux_unit = 'FLAMB_SI'
+                elif 'erg' in val and ('/a' in val or 'angstrom' in val):
                     flux_unit = 'FLAMB'
-                if 'erg' in val and '/hz' in val:
+                elif 'erg' in val and '/hz' in val:
                     flux_unit = 'FNU'
-                if 'mjy' in val:
+                elif 'mjy' in val:
                     flux_unit = 'MJY'
-                if 'jy' in val:
+                elif 'jy' in val:
                     flux_unit = 'JY'
 
         # 2. Value-scale heuristic (last resort)
@@ -433,7 +435,7 @@ class Spectrum:
              offset : float = 0,
              title : str = '',
              ):
-        if not show_flux_unit.upper() in ['FNU', 'FLAMB', 'JY', 'AB', 'MJY']:
+        if not show_flux_unit.upper() in ['FNU', 'FLAMB', 'FLAMB_SI', 'JY', 'AB', 'MJY']:
             raise ValueError('%s is not registered as spectral flux unit'%show_flux_unit)
             
         if show_flux_unit.upper() == 'FNU':
@@ -442,6 +444,9 @@ class Spectrum:
         elif show_flux_unit.upper() == 'FLAMB':
             spec = self.flamb
             flux_label = 'Flux Density (erg s-1 cm-2 Å-1)'
+        elif show_flux_unit.upper() == 'FLAMB_SI':
+            spec = self.flamb_si
+            flux_label = 'Flux Density (W m-2 nm-1)'
         elif show_flux_unit.upper() == 'JY':
             spec = self.fjy
             flux_label = 'Flux Density (Jy)'
@@ -752,12 +757,14 @@ class Spectrum:
             wavelength_unit = u.um
         wavelength = self._wavelength_data * wavelength_unit
         # Set the flux unit
-        if self._flux_unit.upper() not in ['FNU', 'FLAMB', 'JY', 'MJY']:
+        if self._flux_unit.upper() not in ['FNU', 'FLAMB', 'FLAMB_SI', 'JY', 'MJY']:
             raise ValueError(f"{self._flux_unit} is not a supported flux unit")
         if self._flux_unit.upper() == 'FNU':
             f_unit = 'erg cm-2 s-1 /Hz'
         elif self._flux_unit.upper() == 'FLAMB':
             f_unit = 'erg cm-2 s-1 /AA'
+        elif self._flux_unit.upper() == 'FLAMB_SI':
+            f_unit = 'W m-2 nm-1'
         elif self._flux_unit.upper() == 'JY':
             f_unit = 'Jy'
         elif self._flux_unit.upper() == 'MJY':
@@ -783,6 +790,11 @@ class Spectrum:
     @property
     def flamb(self):
         f_unit = 'erg cm-2 s-1 /AA'
+        return self.spectrum.with_flux_unit(u.Unit(f_unit))
+    
+    @property
+    def flamb_si(self):
+        f_unit = 'W m-2 nm-1'
         return self.spectrum.with_flux_unit(u.Unit(f_unit))
     
     @property

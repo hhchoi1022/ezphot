@@ -136,7 +136,7 @@ class Tract7DTRunner:
                                    objname: str = None,
                                    list_ra: List[float] = None,
                                    list_dec: List[float] = None,
-                                   catalog_type: str = 'GAIAXP',
+                                   catalog_type: str = 'GAIAXP_CORR_LAMOST',
                                    catalog_version: str = 'v1',
                                    verbose: bool = True):
         reference_catalog_path = None
