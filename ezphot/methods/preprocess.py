@@ -715,7 +715,7 @@ class Preprocess:
             # Separate the images by type
             key = (group['binning'][0], group['gain'][0])
             if not master_files[key]['BIAS']:
-                bias_key = ['BIAS', 'ZERO']
+                bias_key = ['BIAS', 'ZERO', 'Bias', 'bias', 'Zero', 'zero']
                 bias_mask  = np.isin(group['imgtype'], bias_key)
                 bias_fileinfo = group[bias_mask]
                 new_bias = None
@@ -724,9 +724,9 @@ class Preprocess:
                     bias_imagelist = bias_fileinfo['image']
                     new_bias, _ = combiner.stack_multiprocess(
                         target_imglist = bias_imagelist,
-                        target_errormaplist= None,
+                        target_bkgrmslist= None,
                         target_outpath = None,
-                        weight_outpath = None,
+                        bkgrms_outpath = None,
                         combine_type = combine_type,
                         n_proc = n_proc,
                         clip_type = clip_type,
@@ -748,7 +748,7 @@ class Preprocess:
                 if not master_files[key]['BIAS']:
                     raise ValueError("Master BIAS is not found.")
                 
-                dark_key = ['DARK']
+                dark_key = ['DARK', 'Dark', 'dark']
                 dark_mask  = np.isin(group['imgtype'], dark_key)
                 dark_fileinfo = group[dark_mask]
                 if dark_fileinfo:
@@ -772,9 +772,9 @@ class Preprocess:
                         
                         new_dark, _ = combiner.stack_multiprocess(
                             target_imglist = b_darkimagelist,
-                            target_errormaplist= None,
+                            target_bkgrmslist= None,
                             target_outpath = None,
-                            weight_outpath = None,
+                            bkgrms_outpath = None,
                             combine_type = combine_type,
                             n_proc = n_proc,
                             clip_type = clip_type,
@@ -792,17 +792,17 @@ class Preprocess:
                   
 
                 if '100.0' not in master_files[key]['DARK'].keys():
-                    new_dark = self.get_masterframe(target_img = group[0]['image'],
+                    new_dark = self.get_masterframe_from_image(target_img = group[0]['image'],
                                                     imagetyp = 'DARK',
                                                     exptime = 100)
                     master_files[key]['DARK']['100.0'] = new_dark
                 
             
             if not master_files[key]['FLAT']:    
-                if (not master_files[key]['DARK']['100.0']) or (not master_files[key]['BIAS']):
+                if (not master_files[key]['DARK']) or (not master_files[key]['BIAS']):
                     raise ValueError("Master BIAS or DARK frame not found.")
 
-                flat_key = ['FLAT']
+                flat_key = ['FLAT', 'Flat', 'flat']
                 flat_mask = np.isin(group['imgtype'], flat_key)
                 flat_fileinfo = group[flat_mask]
                 if flat_fileinfo:
@@ -834,9 +834,9 @@ class Preprocess:
                         
                         new_flat, _ = combiner.stack_multiprocess(
                             target_imglist = db_flatimagelist,
-                            target_errormaplist= None,
+                            target_bkgrmslist= None,
                             target_outpath = None,
-                            weight_outpath = None,
+                            bkgrms_outpath = None,
                             combine_type = combine_type,
                             n_proc = n_proc,
                             clip_type = clip_type,

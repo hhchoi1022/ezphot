@@ -32,7 +32,7 @@ class Status:
     """Manages image processing steps with dot-access and timestamp tracking."""
 
     PROCESS_STEPS = [
-        "BIASCOR", "DARKCOR"
+        "BIASCOR", "DARKCOR",  "STACK"
     ]
 
     def __init__(self, **kwargs):
@@ -185,7 +185,7 @@ class CalibrationImage(BaseImage):
             f"  data_load   = {self.is_data_loaded},\n"
             f"  header_load = {self.is_header_loaded},\n"
             f"  imgtype     = {self.imgtype},\n"
-            f"  exptime     = {self.exptime},\n"
+            f"  exptime     = {self.totexp},\n"
             f"  filter      = {self.filter},\n"
             f"  path        = {self.path},\n"
             f"  savedir     = {self.savedir}\n"

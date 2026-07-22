@@ -871,6 +871,15 @@ class BaseImage(Configuration):
             if key in header:
                 return float(header[key])
         return None
+
+    @property
+    def totexp(self):
+        """Exposure time of the image."""
+        header = self.header
+        for key in self._key_variants['TOTEXP']:
+            if key in header:
+                return float(header[key])
+        return None
     
     @property
     def binning(self):
@@ -1118,6 +1127,7 @@ class BaseImage(Configuration):
             'CCD-TEMP': ['CCDTEMP', 'CCD-TEMP'],
             'FILTER': ['FILTER', 'FILTNAME', 'BAND'],
             'IMGTYPE': ['IMGTYPE', 'IMAGETYP', 'IMGTYP'],
+            'TOTEXP': ['TOTEXP', 'EXPTIME', 'EXPOSURE'],
             'EXPTIME': ['EXPTIME', 'EXPOSURE'],
             'DATE-OBS': ['DATE-OBS', 'OBSDATE', 'UTCDATE'],
             'DATE-LOC': ['DATE-LOC', 'DATE-LTC', 'LOCDATE', 'LTCDATE'],

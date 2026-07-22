@@ -459,6 +459,14 @@ class DummyImage(Configuration):
             if key in self._header:
                 return self._header[key]
         return None
+    
+    @property
+    def totexp(self):
+        """Exposure time of the image."""
+        for key in self._key_variants['TOTEXP']:
+            if key in self._header:
+                return self._header[key]
+        return None
 
     @property
     def egain(self):
@@ -583,6 +591,7 @@ class DummyImage(Configuration):
             'NAXIS1': ['NAXIS1'],
             'NAXIS2': ['NAXIS2'],
             'EGAIN': ['EGAIN'],
+            'TOTEXP': ['TOTEXP', 'EXPTIME', 'EXPOSURE'],
             'EXPTIME': ['EXPTIME', 'EXPOSURE'],
             'BINNING': ['BINNING', 'XBINNING'],
             'RDNOISE': ['RDNOISE'],

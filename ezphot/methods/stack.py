@@ -769,16 +769,19 @@ class Stack:
         values = [Time(hdr.get('DATE-LOC')).jd for hdr in image_hdrlist if hdr.get('DATE-LOC') not in [None, '']]
         combined_header['DATE-LOC'] = Time(np.nanmean(values), format='jd').iso if values else None
 
-        update_header_keywords_sum = ['EXPTIME', 'EXPOSURE']
-        for key in update_header_keywords_sum:
-            values = [hdr.get(key) for hdr in image_hdrlist if hdr.get(key) not in [None, '']]
-            try:
-                if values:
-                    combined_header[key] = float(np.nansum(values))
-            except Exception:
-                pass
-            
+        # update_header_keywords_sum = ['EXPTIME']
+        # for key in update_header_keywords_sum:
+        #     values = [hdr.get(key) for hdr in image_hdrlist if hdr.get(key) not in [None, '']]
+        #     try:
+        #         if values:
+        #             combined_header[key] = float(np.nansum(values))
+        #     except Exception:
+        #         pass
+        
         N = len(target_imglist)
+        totexp = np.sum(img.totexp for img in target_imglist)
+        combined_header['TOTEXP'] = totexp
+
         if 'EGAIN' in combined_header:
             egain_in = float(combined_header['EGAIN'])
             if combine_type.lower() == 'mean':
