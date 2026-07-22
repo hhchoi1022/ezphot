@@ -2,45 +2,50 @@
 
 #%%
 from bridge.connector import GWPortalConnector
-#%%
-gwconnector = GWPortalConnector('processed')
-tbl_all = gwconnector.query(since_days=1000)
 # %%
 from astropy.table import Table
 tbl_target_path = '/home/hhchoi1022/RQ_tile_filter_availability_by_ID.csv'
 tbl_target = Table.read(tbl_target_path)
 # %%
+from bridge.objects import Alert
+tbl_row = tbl_target[4]
+gwconnector = GWPortalConnector('raw')
+failed_row = []
+failed_reason = []
 
-tbl_all.colnames
-# %%
-tbl_row = tbl_target[0]
+for tbl_row in tbl_target[5:]:
+    try:
+        target_ra = tbl_row['RA']
+        target_dec = tbl_row['DEC']
+        alert_instance = Alert(ra=target_ra, dec=target_dec, objname = tbl_row['ID'], trigger_time = '2000-01-01')
+        from bridge.alertmonitor import AlertProcessor
+        alert_processor = AlertProcessor()
+        alert_processor.load_images_db(alert_instance)
+        if len(alert_processor.target_images) == 0:
+            continue
+
+        alert_processor.config.single_process['do_forced_photometry'] = False
+        alert_processor.pipeline_before_stacking(alert_instance)
+        single_images = alert_processor.target_images
+
+        alert_processor.config.stack_prepare
+        alert_processor.config.stack
+        alert_processor.stacking(alert_instance)
+
+        alert_processor.config.stacked_process['do_DIA'] = False
+        alert_processor.pipeline_after_stacking(alert_instance)
+
+        from bridge.alertmonitor import AlertChecker
+        alertchecker = AlertChecker()
+
+        catalog_set = alertchecker.get_ezphot_photometry(alert_instance)
+
+        alertchecker.draw_photometricspectrum(alert_instance, catalog_set)
+
+        for single_img in single_images:
+            single_img.remove(remove_main = True, remove_connected_files = True, verbose = False)
+    except Exception as e:
+        failed_row.append(tbl_row['ID'])
+        failed_reason.append(e)
+        continue
 #%%
-ra = tbl_row['RA']
-dec = tbl_row['DEC']
-radius = tbl_row['Radius']
-#%%
-from shapely.geometry import Polygon
-from shapely.geometry import Point
-
-for tbl_row in tbl_target:
-    cols = ['g', 'r', 'i', 'z', 'm400', 'm425', 'm450', 'm475', 'm500', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875']
-    tot_images = sum([tbl_row[col] for col in cols])
-    ra = tbl_row['RA']
-    dec = tbl_row['DEC']
-    tbl_result = gwconnector.query(ra=ra, dec=dec, radius=0.6)
-    num_total = len(tbl_result)
-    num_images = 0
-    for row in tbl_result:
-        poly = Polygon(row['vertices']['coordinates'][0])
-        if poly.contains(Point(ra, dec)):
-            num_images += 1
-        filepath = row['filepath']
-        target_img = ScienceImage(filepath)
-    print(f"{ra} {dec} {num_images} / {num_total} [{tot_images}]")
-    id_ = tbl_row['id']
-    path = tbl_row['path']
-    
-# %%
-
-from ezphot.imageobjects import ScienceImage
-# %%
