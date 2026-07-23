@@ -86,6 +86,7 @@ class BaseImage(Configuration):
 
         self.helper = Helper()
         self.path = Path(path).resolve()
+        self.filename = self.path.name
         self._hdul = None
         self._data = None
         self._header = Header()

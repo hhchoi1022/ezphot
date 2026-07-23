@@ -482,7 +482,7 @@ class ScienceImage(BaseImage, ImageMethod):
     def savepath(self):
         """Dynamically builds save paths based on current header info"""
         savedir = self.savedir
-        filename = self.path.name
+        filename = self.filename
         return SimpleNamespace(
             savedir=savedir,
             savepath=savedir / filename,
