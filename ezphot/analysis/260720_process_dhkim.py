@@ -205,4 +205,94 @@ num_processed = len(processed_tbl)
 # num_coadded_hhlist.append(num_coadded_hh)
 # num_rawcoaddlist.append(num_rawcoadd)
     # if len(alert_processor.target_images) == 0
+# %% SEND IMAGES WITH RSYNC
+
+server_address = 'TARS@pnu.ac.kr'
+port = 2201
+destination_path = '/mnt/dataset/KS4/7DS/'
+
+for tbl_row in tbl_target[1:]:
+    target_ra = tbl_row['RA']
+    target_dec = tbl_row['DEC']
+    alert_instance = Alert(ra=target_ra, dec=target_dec, objname = tbl_row['ID'], trigger_time = '2000-01-01')
+    tile_id = alert_instance.tile_id[0]
+    dbrowser.objname = tile_id
+    coadded_pathlist_hh = dbrowser.search(pattern = 'coadd_scaled*com.fits')
+    destination_path = f'{alert_instance.objname}/{coadded_paththlist}'
+
+
+# %%
+from pathlib import Path
+import subprocess
+
+account = "hyeonho"
+server_address = "TARS.pnu.ac.kr"
+port = 2201
+
+remote_host = f"{account}@{server_address}"
+remote_base_path = "/mnt/dataset/KS4/7DS"
+
+for tbl_row in tbl_target[37:]:
+    target_ra = tbl_row["RA"]
+    target_dec = tbl_row["DEC"]
+
+    alert_instance = Alert(
+        ra=target_ra,
+        dec=target_dec,
+        objname=tbl_row["ID"],
+        trigger_time="2000-01-01",
+    )
+
+    tile_id = alert_instance.tile_id[0]
+
+    dbrowser.objname = tile_id
+    coadded_pathlist_hh = dbrowser.search(
+        pattern="coadd_scaled*com.fits"
+    )
+
+    if len(coadded_pathlist_hh) == 0:
+        print(f"No files found: {alert_instance.objname}")
+        continue
+
+    object_name = str(alert_instance.objname)
+    remote_object_dir = f"{remote_base_path}/{object_name}"
+
+    print(f"Creating remote directory: {remote_host}:{remote_object_dir}")
+
+    subprocess.run(
+        [
+            "ssh",
+            "-p", str(port),
+            remote_host,
+            "mkdir", "-p", remote_object_dir,
+        ],
+        check=True,
+    )
+
+    for path in coadded_pathlist_hh:
+        local_path = Path(path)
+
+        if not local_path.is_file():
+            print(f"Local file does not exist: {local_path}")
+            continue
+
+        remote_file_path = (
+            f"{remote_base_path}/{object_name}/{local_path.name}"
+        )
+
+        print(
+            f"Sending:\n"
+            f"  {local_path}\n"
+            f"  -> {remote_host}:{remote_file_path}"
+        )
+
+        subprocess.run(
+            [
+                "scp",
+                "-P", str(port),
+                str(local_path),
+                f"{remote_host}:{remote_file_path}",
+            ],
+            check=True,
+        )
 # %%
