@@ -296,3 +296,36 @@ for tbl_row in tbl_target[37:]:
             check=True,
         )
 # %%
+tbl_target_path_updated = '/home/hhchoi1022/RQ_tile_filter_availability_by_ID_updated.csv'
+
+tbl_target.write(tbl_target_path_updated)
+
+subprocess.run(
+    [
+        "scp",
+        "-P", str(port),
+        str(tbl_target_path_updated),
+        f"{account}@{server_address}:/mnt/dataset/KS4/7DS/RQ_tile_filter_availability_by_ID_updated.csv",
+    ],
+    check=True,
+)
+# %%
+tbl_target
+# %%
+
+from ezphot.skycatalog import SkyCatalog
+all_tiles = set(tbl_target[tbl_target['num_coadded_hh'] > 0]['tile_id'])
+tile = list(all_tiles)[0]
+for tile in all_tiles:
+    skycat = SkyCatalog(objname = tile)
+    catalog_path = skycat.filepath
+    subprocess.run(
+        [
+            "scp",
+            "-P", str(port),
+            str(catalog_path),
+            f"{account}@{server_address}:/mnt/dataset/KS4/7DS/{tile}.cat",
+        ],
+        check=True,
+    )
+# %%
