@@ -9,6 +9,7 @@ from astropy.table import vstack
 from bridge.connector import GWPortalConnector
 from bridge.objects import Alert
 from bridge.alertmonitor import AlertProcessor
+row = calspec_tbl_dec_lt20.loc[17]
 #%%
 for i, row in calspec_tbl_dec_lt20.iterrows():
     objname = row['star_name']
@@ -17,13 +18,37 @@ for i, row in calspec_tbl_dec_lt20.iterrows():
     alert_instance = Alert(objname = objname, ra=target_ra, dec=target_dec, trigger_time = '2000-01-01')
     
     gwconnector = GWPortalConnector('raw')
-    raw_tbl = gwconnector.query(tile_name = alert_instance.tile_id)
+    # raw_tbl = gwconnector.query(tile_name = alert_instance.tile_id[0]
+    raw_tbl = gwconnector.query(object_name = objname)
+    print(len(raw_tbl))
     path_all = raw_tbl['filepath']
     path_in_lyman = [path.replace('/lyman/', '/data/') for path in path_all]
     
     alertprocessor = AlertProcessor()
-
     alertprocessor.load_images_from_path(path_in_lyman)  
+    # Remove space if exists in the path
+    target_imglist = alertprocessor.target_images
+    all_paths = []
+    for img in target_imglist:
+        img_savepath = img.savepath.savepath
+        img_savepath = str(img_savepath).replace(' ', '')
+        img_savedir = img.savedir
+        img_savedir = str(img_savedir).replace(' ', '_')
+        img.savepath.savepath = img_savepath
+        img.savedir = img_savedir
+        img.write()
+        all_paths.append(img.path)
+    alertprocessor.load_images_from_path(all_paths)
+
+    # Change magnitude range for 10s exposure time 
+    alertprocessor.config.photcal['mag_range_default'][0] -= 2.5 # 1/10 of the original magnitude range
+    alertprocessor.config.photcal['mag_range_default'][1] -= 2.5 # 1/10 of the original magnitude range
+    for filt, val in alertprocessor.config.photcal['mag_range_dict'].items():
+        mag_range = val
+        mag_range[0] -= 2.5 # 1/10 of the original magnitude range
+        mag_range[1] -= 2.5 # 1/10 of the original magnitude range
+        alertprocessor.config.photcal['mag_range_dict'][filt] = mag_range
+
     alertprocessor.config.max_worders = 24
     alertprocessor.config.photcal['radius_arcsec'] = None
     alertprocessor.pipeline_before_stacking(alert_instance)
