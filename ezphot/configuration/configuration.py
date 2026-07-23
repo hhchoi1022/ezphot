@@ -8,79 +8,78 @@ import numpy as np
 class Configuration:
     def __init__(self,
                  telkey: str = None,
-                 configpath: Union[Path, str] = Path.home()/'ezphot/config'):#Path(__file__).resolve().parent):
-        if not Path(configpath).exists():
-            print(f"[CRITICAL] Configuration path {configpath} does not exist. Run initialization first.")
+                 configpath: Union[Path, str] = Path.home()/'ezphot/config',
+                 _silent: bool = False):
         self.telkey = telkey
         self.config = dict()
+        self._silent = _silent
 
         # Set up paths
         self.path_home = Path.home()
         self.path_base = Path(__file__).resolve().parent.parent
         self.path_config = Path(configpath)
-        self.path_ezphot =  self.path_config.parent
+        self.path_ezphot = self.path_config.parent
         self.path_log = self.path_ezphot / 'log'
         self.path_data = self.path_ezphot / 'data'
-        
-        # Gloabl configuration files
         self.path_config_global = self.path_config / 'common'
+        self.path_config_specific = self.path_config / 'specific'
+        
+        # Auto-initialize if config directory doesn't exist
+        if not self.path_config_global.exists():
+            if not self._silent:
+                print(f"[ezphot] First run detected. Initializing configuration at {self.path_config}...")
+            self.initialize()
+        
+        # Global configuration files
         self._configfiles_global = list(self.path_config_global.glob('*.config'))
         config_global = self._load_configuration(self._configfiles_global)
         self.config.update(config_global)
         
-        # Telescope specific configuration files
-        self.path_config_specific = self.path_config / 'specific'
+        # Telescope-specific configuration files
         if self.telkey is not None:
             self.telinfo = self._load_telinfo()
             self.path_config_specific_telescope = self.path_config_specific / self.telkey
             self._configfiles_telescopes = list(self.path_config_specific_telescope.glob('*.config'))
             if not self._configfiles_telescopes:
-                print('No configuration file is found.\n Do you want to make default configuration files? (y/n)')
-                answer = input()
-                if answer == 'y':
-                    self.register_telescope()
-                    self._configfiles_telescopes = list(self.path_config_specific_telescope.glob('*.config'))
-                    config_unit = self._load_configuration(self._configfiles_telescopes)
-                    self.config.update(config_unit)    
-                else:
-                    print("WARNING: Only common configuration files are loaded.")
-            else:
-                config_unit = self._load_configuration(self._configfiles_telescopes)
-                self.config.update(config_unit)           
+                if not self._silent:
+                    print(f"[ezphot] Registering new telescope: {self.telkey}")
+                self.register_telescope()
+                self._configfiles_telescopes = list(self.path_config_specific_telescope.glob('*.config'))
+            config_unit = self._load_configuration(self._configfiles_telescopes)
+            self.config.update(config_unit)
                 
     def initialize(self, copy_default: bool = True):
-        """Initialize the configuration by creating necessary config files."""
-        # Make sure base paths exist
+        """Initialize the configuration by creating directories and copying defaults.
+        
+        Automatically called on first use. Safe to call multiple times.
+        """
         self.path_config_global.mkdir(parents=True, exist_ok=True)
         self.path_config_specific.mkdir(parents=True, exist_ok=True)
         self.path_log.mkdir(parents=True, exist_ok=True)
         self.path_data.mkdir(parents=True, exist_ok=True)
-
-        print(f"Global configuration path created: {self.path_config_global}")
-        print(f"Specific configuration path created: {self.path_config_specific}")
         
-        default_global_config_path = self.path_base / 'configuration' /  'common'
+        default_global_config_path = self.path_base / 'configuration' / 'common'
         default_specific_config_path = self.path_base / 'configuration' / 'specific'
-        # Copy default config files to the folder
+        
         if copy_default:
             shutil.copytree(default_global_config_path, self.path_config_global, dirs_exist_ok=True)
-            print(f"Copied default global configs from {default_global_config_path}")
             shutil.copytree(default_specific_config_path, self.path_config_specific, dirs_exist_ok=True)
-            print(f"Copied default telescope configs from {default_specific_config_path}")
-            telescope_keys = ['\n' + p.name for p in default_specific_config_path.iterdir() if p.is_dir()]
-            telescope_keys_str = ' '.join(telescope_keys)
-            print(f'Current available telescope keys: {telescope_keys_str}')
-            
+        
+        # Register all telescopes with paths correct for this machine
         for tel_key in self.available_telescope_keys:
-            # Rsgister each telescope
-            instance = Configuration(telkey=tel_key)
+            instance = Configuration(telkey=tel_key, configpath=self.path_config, _silent=True)
             instance.path_config_specific_telescope.mkdir(parents=True, exist_ok=True)
             instance._register_telescope()
         
-        self = Configuration()
-        # After creating all config files, load them and make sure all directories exist
+        # Reload configuration and ensure all directories exist
+        self._configfiles_global = list(self.path_config_global.glob('*.config'))
+        self.config = self._load_configuration(self._configfiles_global)
         for path in list(self.config.values()):
             self._ensure_dirs_exist(path)
+        
+        if not self._silent:
+            print(f"[ezphot] Initialization complete. Config: {self.path_config}")
+            print(f"[ezphot] Available telescopes: {', '.join(self.available_telescope_keys)}")
             
     def register_telescope(self):
         if not self.telkey:
@@ -147,7 +146,8 @@ class Configuration:
         filepath = Path(savepath) / filename
         with open(filepath, 'w') as f:
             json.dump(dict_params, f, indent=4)
-        print(f'New configuration file made: {filepath}')
+        if not self._silent:
+            print(f'New configuration file made: {filepath}')
 
     def _ensure_dirs_exist(self, *paths):
         """Create all directories in the given paths if they don't exist."""
@@ -379,7 +379,8 @@ class Configuration:
         with open(output_path, 'w') as f:
             f.writelines(updated_lines)
         
-        print("New configuration file made: ", output_path)
+        if not self._silent:
+            print(f"New configuration file made: {output_path}")
 
 #%%
 if __name__ == '__main__':
