@@ -94,12 +94,15 @@ class BaseImage(Configuration):
             try:
                 telinfo = self.helper.estimate_telinfo(self.path, self.header)
             except:
-                raise NotImplementedError("WARNING: Telescope information is not found in the configuration (~/ezphot/config/common/CCD.dat). Please provide telinfo manually.")
+                print('WARNING: Failed to estimate/load telinfo. telinfo must be manually provided.\nTo load the telinfo, use ezphot.helper.get_telinfo()')
+
             
         self.telinfo = telinfo
         self.telkey = self._get_telkey()
-        # Initialize or load status
-        super().__init__(telkey = self.telkey)
+        try:
+            super().__init__(telkey = self.telkey)
+        except (ValueError, FileNotFoundError):
+            super().__init__(telkey = None)
 
     def rename(self, new_name: str, verbose: bool = True):
         """Rename the image file and update the internal path.
@@ -213,6 +216,9 @@ class BaseImage(Configuration):
 
         data = np.nan_to_num(self.data, nan=0.0, posinf=0.0, neginf=0.0)
         w = getattr(self, "wcs", None)
+        if not w.has_celestial:
+            print("WARNING: WCS is not calculated. coord_type will be set to 'pixel'")
+            coord_type = 'pixel'
 
         if downsample > 1:
             data = data[::downsample, ::downsample]
@@ -1179,3 +1185,5 @@ class BaseImage(Configuration):
         else:
             telkey = f"{telinfo['telescope']}_{telinfo['ccd']}_{telinfo['binning']}x{telinfo['binning']}"
         return telkey
+
+# %%

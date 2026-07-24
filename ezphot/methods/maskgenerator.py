@@ -420,8 +420,6 @@ class MaskGenerator():
                        # Input parameters
                        target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
                        target_mask: Optional[Mask] = None,
-                       gain: float = None,
-                       readnoise: float = None,
                        sigclip: float = 6,
                        sigfrac: float = 0.5,
                        objlim: float = 5.0,
@@ -482,30 +480,33 @@ class MaskGenerator():
         """
 
         # Perform cosmic ray detection and cleaning
+        kwargs = dict()
+        kwargs['indata'] = target_img.data
+
         if target_mask is None:
             target_mask = Mask(target_img.savepath.crmaskpath, masktype = 'cosmicray', load=False)
             if target_mask.is_exists:
                 target_mask.remove(remove_main = True, remove_connected_files = True, skip_patterns = [], verbose = False)
         else:
             self.helper.print("External mask is loaded.", verbose)
-        # Load information from target_img
-        if gain is None:
-            gain = target_img.egain
-        if readnoise is None:
-            readnoise = target_img.telinfo['readnoise']
-        if (gain is None) or (readnoise is None):
-            raise ValueError("Gain and readnoise are required for cosmic ray detection.")
-        if psffwhm is None:
-            psffwhm = 2 / target_img.telinfo['pixelscale']
         
+        if target_img.egain is not None:
+            kwargs['gain'] = target_img.egain
+        if target_img.readnoise is not None:
+            kwargs['readnoise'] = target_img.readnoise
+        if psffwhm is None:
+            if target_img.telinfo['pixelscale'] is not None:
+                kwargs['psffwhm'] = 2 / target_img.telinfo['pixelscale']
+                
+        kwargs['sigclip'] = sigclip
+        kwargs['sigfrac'] = sigfrac
+        kwargs['objlim'] = objlim
+        kwargs['niter'] = niter
+        kwargs['cleantype'] = cleantype
+        kwargs['fsmode'] = fsmode
+        kwargs['satlevel'] = saturation_level
         self.helper.print(f'Detecting cosmic ray... [sigma = {sigclip}, n_iter = {niter}, mode = {fsmode}]', verbose)
-        new_mask, clean_image = cr.detect_cosmics(
-            target_img.data, gain=gain, readnoise=readnoise, 
-            sigclip=sigclip, sigfrac=sigfrac, 
-            objlim=objlim, niter=niter, 
-            cleantype=cleantype, fsmode=fsmode, 
-            psffwhm = psffwhm, verbose=verbose,
-            satlevel = saturation_level)
+        new_mask, clean_image = cr.detect_cosmics(**kwargs)
         
         mask_previous = target_mask.data
         target_mask.combine_mask(new_mask, 'or')

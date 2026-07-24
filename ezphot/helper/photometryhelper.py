@@ -386,7 +386,7 @@ class PhotometryHelper(Configuration):
 
     def estimate_telinfo(self, 
                          path: Union[str, Path],
-                         header: Header):
+                         header: Optional[Header] = None):
         """
         Estimate telescope information from file path and header using YAML configuration.
         
@@ -406,6 +406,11 @@ class PhotometryHelper(Configuration):
         
         path = Path(path)
         path_str = str(path)
+        if path.exists():
+            if header is None:
+                header = fits.getheader(path)
+        else:
+            raise FileNotFoundError(f"File not found: {path}")
         
         # Load YAML configuration
         yaml_path = self.configpath / 'common' / 'observatory_info_hint.yaml'
@@ -415,15 +420,47 @@ class PhotometryHelper(Configuration):
         with open(yaml_path, 'r') as f:
             config = yaml.safe_load(f)
         
-        # Find matching telescope
+        # Find matching telescope by path or header keywords
         telescope = None
         for tel_name, tel_config in config.items():
-            # Check if path matches telescope criteria
             match_config = tel_config.get('match', {})
+            matched = False
+
             if 'path_contains' in match_config:
                 if any(keyword in path_str for keyword in match_config['path_contains']):
-                    telescope = tel_name
-                    break
+                    matched = True
+
+            if not matched and 'header' in match_config:
+                header_match = True
+                for hdr_key, expected in match_config['header'].items():
+                    if hdr_key not in header:
+                        header_match = False
+                        break
+                    actual = str(header[hdr_key]).strip()
+                    if isinstance(expected, list):
+                        try:
+                            actual_float = float(actual)
+                            if len(expected) == 2:
+                                if not (float(expected[0]) <= actual_float <= float(expected[1])):
+                                    header_match = False
+                                    break
+                            else:
+                                if actual not in [str(v) for v in expected]:
+                                    header_match = False
+                                    break
+                        except (ValueError, TypeError):
+                            header_match = False
+                            break
+                    else:
+                        if actual != str(expected).strip():
+                            header_match = False
+                            break
+                if header_match:
+                    matched = True
+
+            if matched:
+                telescope = tel_name
+                break
         
         if telescope is None:
             raise NotImplementedError(f"WARNING: Telescope information is not found in the configuration. "
@@ -671,8 +708,6 @@ class PhotometryHelper(Configuration):
         obs_info = filter_by_column(all_obsinfo, 'telescope', telescope)
         if len(obs_info) == 0:
             raise AttributeError(f"No data found for telescope: {telescope}")
-        elif len(obs_info) == 1:
-            return obs_info[0]
 
         # Select CCD if not provided and multiple options exist
         if ccd is None and len(obs_info['ccd']) > 1:
@@ -680,11 +715,9 @@ class PhotometryHelper(Configuration):
         obs_info = filter_by_column(obs_info, 'ccd', ccd)
 
         # Select readout mode if not provided and multiple options exist
-        if readoutmode is None and len(obs_info['readoutmode']) > 1: # Check readoutmode, len, maskedcolumn
+        if readoutmode is None and len(obs_info['readoutmode']) > 1:
             readoutmode = prompt_choice(obs_info['readoutmode'], "Multiple modes found. Choose one")
         obs_info = filter_by_column(obs_info, 'readoutmode', readoutmode)
-        if len(obs_info) == 1:
-            return obs_info[0]
 
         # Select binning if not provided and multiple options exist
         if 'binning' in obs_info.colnames and binning is None and len(set(obs_info['binning'])) > 1:
@@ -692,11 +725,190 @@ class PhotometryHelper(Configuration):
         if binning is not None:
             obs_info = filter_by_column(obs_info, 'binning', int(binning))
 
-        # Ensure only one row remains
         if len(obs_info) == 1:
             return obs_info[0]
+        elif len(obs_info) == 0:
+            raise AttributeError(
+                f"No matching info for telescope={telescope}, ccd={ccd}, "
+                f"readoutmode={readoutmode}, binning={binning} in {obsinfo_file}."
+                f"\nRun helper.register_telinfo() to register the telescope information."
+            )
 
-        raise AttributeError(f"No matching CCD info for {telescope}. Available CCDs: {list(set(all_obsinfo['ccd']))}")
+        raise AttributeError(f"Multiple matches for {telescope}/{ccd}. Available: {obs_info}")
+        
+    def register_telinfo(self):
+        """Interactively register a new telescope."""
+
+        class RegistrationCancelled(Exception):
+            pass
+
+        print("================ Current registered telinfos ================")
+        telinfo_all = ascii.read(
+            self.config["OBSERVATORY_TELESCOPEINFO"],
+            format="fixed_width",
+        )
+
+        from IPython.display import display
+        display(telinfo_all.to_pandas())
+
+        print("============================================================\n\n")
+        print("Press Enter to use the default value.")
+        print("Enter 'esc', 'q', or 'quit' to cancel registration.\n")
+
+        def prompt_field(name, default, required, dtype):
+            req = "*" if required else " "
+
+            if default is not None:
+                prompt_str = f"  {req} {name:<14s} [default: {default}]: "
+            else:
+                prompt_str = f"  {req} {name:<14s}: "
+
+            while True:
+                try:
+                    raw = input(prompt_str).strip()
+                except (KeyboardInterrupt, EOFError):
+                    raise RegistrationCancelled
+
+                if raw.lower() in {"", "esc", "escape", "q", "quit", "cancel"}:
+                    raise RegistrationCancelled
+
+                try:
+                    return dtype(raw)
+                except (ValueError, TypeError):
+                    print(f"    → Invalid input. Expected {dtype.__name__}.")
+
+        try:
+            telescope = prompt_field(
+                "telescope", None, required=True, dtype=str
+            )
+            ccd = prompt_field(
+                "ccd", None, required=True, dtype=str
+            )
+            readoutmode = prompt_field(
+                "readoutmode", None, required=False, dtype=str
+            )
+            binning = prompt_field(
+                "binning", None, required=True, dtype=int
+            )
+            pixelscale = prompt_field(
+                "pixelscale", None, required=True, dtype=float
+            )
+            gain = prompt_field(
+                "gain", None, required=True, dtype=float
+            )
+            readnoise = prompt_field(
+                "readnoise", None, required=True, dtype=float
+            )
+            darkcurrent = prompt_field(
+                "darkcurrent", None, required=False, dtype=float
+            )
+
+            # Sanitize names for telkey/directory safety
+            telescope = re.sub(r"[^A-Za-z0-9]", "", telescope) or "UNKNOWN"
+            ccd = re.sub(r"[^A-Za-z0-9]", "", ccd) or "UNKNOWN"
+
+            if readoutmode:
+                telkey = (
+                    f"{telescope}_{ccd}_{readoutmode}_"
+                    f"{binning}x{binning}"
+                )
+            else:
+                telkey = f"{telescope}_{ccd}_{binning}x{binning}"
+
+            print(f"\n  {'─' * 45}")
+            print(f"  Telescope Key : {telkey}")
+            print(f"  telescope     : {telescope}")
+            print(f"  ccd           : {ccd}")
+            print(f"  readoutmode   : {readoutmode or '(none)'}")
+            print(f"  binning       : {binning}")
+            print(f"  pixelscale    : {pixelscale} arcsec/px")
+            print(f"  gain          : {gain} e-/ADU")
+            print(f"  readnoise     : {readnoise} e-")
+            print(f"  darkcurrent   : {darkcurrent if darkcurrent is not None else '(none)'}")
+            print(f"  {'─' * 45}")
+
+            try:
+                confirm = input(
+                    "\n  Register? (Y/n, q to cancel): "
+                ).strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                raise RegistrationCancelled
+
+            if confirm in {"esc", "escape", "q", "quit", "cancel"}:
+                raise RegistrationCancelled
+
+            if confirm not in {"", "y", "yes"}:
+                print("Registration was not confirmed.")
+                return None
+
+            telinfo = {
+                "telescope": telescope,
+                "readoutmode": readoutmode,
+                "ccd": ccd,
+                "binning": binning,
+                "pixelscale": pixelscale,
+                "gain": gain,
+                "readnoise": readnoise,
+            }
+
+            self._write_telinfo(
+                telinfo,
+                darkcurrent=darkcurrent,
+            )
+
+            return telinfo
+
+        except RegistrationCancelled:
+            print("\nRegistration cancelled.")
+            return None
+
+    def _write_telinfo(self, telinfo, darkcurrent=None):
+        """Register telescope to observatory_info.dat and observatory_info_hint.yaml.
+        
+        Skips if the telescope/ccd/binning/readoutmode combination already exists.
+        x, y are read from the FITS header (NAXIS1, NAXIS2) automatically.
+        """
+        if telinfo['telescope'] == 'UNKNOWN' and telinfo['ccd'] == 'UNKNOWN':
+            return
+
+        from astropy.io import ascii as astropy_ascii
+
+        dat_path = self.config['OBSERVATORY_TELESCOPEINFO']
+
+        if not Path(dat_path).exists():
+            return
+
+        # Check if already registered (must match all four key fields)
+        tbl = astropy_ascii.read(dat_path, format='fixed_width')
+        rm = telinfo.get('readoutmode') or ''
+        mask = ((tbl['telescope'] == telinfo['telescope']) &
+                (tbl['ccd'] == telinfo['ccd']) &
+                (tbl['binning'] == telinfo['binning']) &
+                (tbl['readoutmode'] == rm))
+        if mask.any():
+            return
+
+        # --- Append to observatory_info.dat ---
+
+        from astropy.table import Table, vstack
+        new_row = {
+            'telescope': telinfo['telescope'],
+            'ccd': telinfo['ccd'],
+            'readoutmode': telinfo.get('readoutmode') or '',
+            'binning': telinfo['binning'],
+            'pixelscale': round(telinfo['pixelscale'], 4),
+            'gain': round(telinfo['gain'], 4),
+            'readnoise': round(telinfo['readnoise'], 2),
+            'darkcurrent': darkcurrent if darkcurrent is not None else 0.0,
+        }
+        new_tbl = Table({col: [new_row[col]] for col in tbl.colnames})
+        combined = vstack([tbl, new_tbl], join_type='exact')
+        astropy_ascii.write(combined, dat_path, format='fixed_width', overwrite=True)
+
+
+        print(f"Telescope information is registered to {dat_path} "
+              f"Please use helper.get_telinfo(telescope={telinfo['telescope']}, ccd={telinfo['ccd']}, readoutmode={telinfo['readoutmode']}, binning={telinfo['binning']}) to get the telinfo"
+              f"\nor you can update observatory_info_hint.yaml for automatic telinfo estimation from path")
 
     def load_config(self, 
                     config_path: Union[str, Path]) -> dict:

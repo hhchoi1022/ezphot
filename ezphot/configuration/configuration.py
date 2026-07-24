@@ -4,7 +4,7 @@ import json
 from typing import Union
 import shutil
 import numpy as np
-
+#%%
 class Configuration:
     def __init__(self,
                  telkey: str = None,
@@ -47,6 +47,14 @@ class Configuration:
                 self._configfiles_telescopes = list(self.path_config_specific_telescope.glob('*.config'))
             config_unit = self._load_configuration(self._configfiles_telescopes)
             self.config.update(config_unit)
+
+    def __repr__(self):
+        string = f"Configuration(telkey={self.telkey}) \nCONFIGURATION======================================"
+        for key, value in self.config.items():
+            string += f"\n{key}: {value}"
+        string += "\n==================================================="
+
+        return string
                 
     def initialize(self, copy_default: bool = True):
         """Initialize the configuration by creating directories and copying defaults.
@@ -283,12 +291,27 @@ class Configuration:
         update_dict = {}
         if telinfo is not None:
             # Update based on telescope properties
-            update_dict['GAIN'] = telinfo['gain']
-            update_dict['READNOISE'] = telinfo['readnoise']
-            update_dict['PIXEL_SCALE'] = telinfo['pixelscale']
-            update_dict['DETECT_MINAREA'] = int(np.pi* (2/telinfo['pixelscale']/2)**2) if telinfo['pixelscale'] < 1 else int(np.pi* (4/telinfo['pixelscale']/2)**2)
-            update_dict['SEEING_FWHM'] = 2.5 if telinfo['pixelscale'] < 1 else 4
-            update_dict['PHOT_APERTURES'] = f'{round(5 / telinfo["pixelscale"],2)},{round(7 / telinfo["pixelscale"],2)},{round(10 / telinfo["pixelscale"],2)}'
+            if telinfo['gain'] is not None:
+                gain = telinfo['gain']
+            else:
+                gain = 1
+                print(f"WARNING: Gain is not found in the telinfo. Using default value 1. Update {output_path} with the proper gain")
+            if telinfo['readnoise'] is not None:
+                readnoise = telinfo['readnoise']
+            else:
+                readnoise = 6
+                print(f"WARNING: Readnoise is not found in the telinfo. Using default value 6. Update {output_path} with the proper readnoise")
+            if telinfo['pixelscale'] is not None:
+                pixelscale = telinfo['pixelscale']
+            else:
+                pixelscale = 1
+                print(f"WARNING: Pixel scale is not found in the telinfo. Using default value 1. Update {output_path} with the proper pixel scale")
+            update_dict['GAIN'] = gain
+            update_dict['READNOISE'] = readnoise
+            update_dict['PIXEL_SCALE'] = pixelscale
+            update_dict['DETECT_MINAREA'] = int(np.pi* (2/pixelscale/2)**2) if pixelscale < 1 else int(np.pi* (4/pixelscale/2)**2)
+            update_dict['SEEING_FWHM'] = 2.5 if pixelscale < 1 else 4
+            update_dict['PHOT_APERTURES'] = f'{round(5 / pixelscale,2)},{round(7 / pixelscale,2)},{round(10 / pixelscale,2)}'
             if update_dict['DETECT_MINAREA'] < 3:
                 update_dict['DETECT_MINAREA'] = 3
 
@@ -305,9 +328,18 @@ class Configuration:
         update_dict = {}
         if telinfo is not None:
             # Update based on telescope properties
-            update_dict['GAIN_DEFAULT'] = telinfo['gain']
-            update_dict['PIXEL_SCALE'] = telinfo['pixelscale']
-            # update_dict['IMAGE_SIZE'] = f'{round(1.1*telinfo["x"],-2)},{round(1.1*telinfo["y"],-2)}'
+            if telinfo['gain'] is not None:
+                gain = telinfo['gain']
+            else:
+                gain = 1
+                print(f"WARNING: Gain is not found in the telinfo. Using default value 1. Update {output_path} with the proper gain")
+            if telinfo['pixelscale'] is not None:
+                pixelscale = telinfo['pixelscale']
+            else:
+                pixelscale = 1
+                print(f"WARNING: Pixel scale is not found in the telinfo. Using default value 1. Update {output_path} with the proper pixel scale")
+            update_dict['GAIN_DEFAULT'] = gain
+            update_dict['PIXEL_SCALE'] = pixelscale
 
         self._update_defulatconfig(update_dict, default_path, output_path)
 
