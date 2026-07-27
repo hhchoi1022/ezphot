@@ -606,7 +606,7 @@ class PhotometryHelper(Configuration):
                             match_found = False
                             break
                         
-                        actual_value = float(header[key])
+                        actual_value =  str(header[key]).strip()
                         # Evaluate condition
                         if isinstance(expected_value, list):
                             # Range check: [min, max]
@@ -627,8 +627,8 @@ class PhotometryHelper(Configuration):
                                 break
                         else:
                             # Direct equality comparison
-                            expected_value_float = float(expected_value)
-                            if actual_value != expected_value_float:
+                            expected_value_str = str(expected_value).strip()
+                            if actual_value != expected_value_str:
                                 match_found = False
                                 break
                 
@@ -741,6 +741,9 @@ class PhotometryHelper(Configuration):
 
         class RegistrationCancelled(Exception):
             pass
+        proceed = input('Press y/n to resiter telescope information ')
+        if proceed.lower() not in ['y', 'yes']:
+            return None
 
         print("================ Current registered telinfos ================")
         telinfo_all = ascii.read(
@@ -769,8 +772,11 @@ class PhotometryHelper(Configuration):
                 except (KeyboardInterrupt, EOFError):
                     raise RegistrationCancelled
 
-                if raw.lower() in {"", "esc", "escape", "q", "quit", "cancel"}:
+                if raw.lower() in {"esc", "escape", "q", "quit", "cancel"}:
                     raise RegistrationCancelled
+                
+                if (required is False) and (raw.lower() == ""):
+                    return None
 
                 try:
                     return dtype(raw)
@@ -874,6 +880,7 @@ class PhotometryHelper(Configuration):
         from astropy.io import ascii as astropy_ascii
 
         dat_path = self.config['OBSERVATORY_TELESCOPEINFO']
+        hint_path = self.config['OBSERVATORY_TELESCOPEHINT']
 
         if not Path(dat_path).exists():
             return
@@ -906,9 +913,9 @@ class PhotometryHelper(Configuration):
         astropy_ascii.write(combined, dat_path, format='fixed_width', overwrite=True)
 
 
-        print(f"Telescope information is registered to {dat_path} "
-              f"Please use helper.get_telinfo(telescope={telinfo['telescope']}, ccd={telinfo['ccd']}, readoutmode={telinfo['readoutmode']}, binning={telinfo['binning']}) to get the telinfo"
-              f"\nor you can update observatory_info_hint.yaml for automatic telinfo estimation from path")
+        print(f"Telescope information is registered to {dat_path}"
+              f"\nPlease use helper.get_telinfo(telescope={telinfo['telescope']}, ccd={telinfo['ccd']}, readoutmode={telinfo['readoutmode']}, binning={telinfo['binning']}) to get the telinfo"
+              f"\nor you can update {hint_path} for automatic telinfo estimation from path")
 
     def load_config(self, 
                     config_path: Union[str, Path]) -> dict:

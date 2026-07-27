@@ -20,40 +20,6 @@ class LazyFileHandler(logging.FileHandler):
         # `delay=True` avoids creating the file immediately
         super().__init__(filename, mode, encoding, delay=delay)
     
-# class Logger:
-#     def __init__(self, logger_name):
-#         self.path = logger_name
-#         self._log = self.createlogger(logger_name)
-
-#     def log(self):
-#         return self._log
-
-#     def createlogger(self, logger_name, logger_level='INFO'):
-#         logger = logging.getLogger(logger_name)
-#         if len(logger.handlers) > 0:
-#             return logger  # Logger already exists
-
-#         logger.setLevel(logger_level)
-#         formatter = logging.Formatter(
-#             datefmt='%Y-%m-%d %H:%M:%S',
-#             fmt='[%(levelname)s] %(asctime)-15s | %(message)s'
-#         )
-
-#         # Stream Handler
-#         streamHandler = logging.StreamHandler()
-#         streamHandler.setLevel(logger_level)
-#         streamHandler.setFormatter(formatter)
-#         logger.addHandler(streamHandler)
-
-#         # Lazy File Handler
-#         fileHandler = LazyFileHandler(filename=logger_name, delay=True)
-#         fileHandler.setLevel(logger_level)
-#         fileHandler.setFormatter(formatter)
-#         logger.addHandler(fileHandler)
-
-#         return logger
-    
-#%%
 class DummyImage(Configuration):
     """Base class for loading, managing, and inspecting genFITS images.
 

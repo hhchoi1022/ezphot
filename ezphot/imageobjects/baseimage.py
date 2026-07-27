@@ -12,7 +12,7 @@ from typing import Union
 
 import numpy as np
 from astropy.io import fits
-from astropy.io.fits import Header
+from astropy.io.fits import Header 
 from astropy.time import Time
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
@@ -95,8 +95,10 @@ class BaseImage(Configuration):
                 telinfo = self.helper.estimate_telinfo(self.path, self.header)
             except:
                 print('WARNING: Failed to estimate/load telinfo. telinfo must be manually provided.\nTo load the telinfo, use ezphot.helper.get_telinfo()')
+                telinfo = self.helper.register_telinfo()
+                if telinfo is None:
+                    raise AttributeError('Telescope information is not inputted. Please input the telescope information.')
 
-            
         self.telinfo = telinfo
         self.telkey = self._get_telkey()
         try:

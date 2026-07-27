@@ -635,15 +635,3 @@ class ScienceImage(BaseImage, ImageMethod):
                 #self.status.update('ZPCALC')
 
 # %%
-if __name__ == '__main__':
-    from ezphot.configuration import Configuration
-    from ezphot.helper import Helper
-    helper = Helper()
-    config = Configuration()
-    
-    path = '/lyman/data1/obsdata/7DT01/2026-07-12_gain2750_ToO/7DT01_20260713_045933_T21659_m650_1x1_100.0s_0000.fits'
-    telinfo = helper.estimate_telinfo(path)
-    target_img = ScienceImage(path)
-
-
-# %%
