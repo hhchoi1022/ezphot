@@ -346,8 +346,8 @@ class PhotometricCalibration:
 
         # Update the target image header
         if np.isfinite(target_seeing):
-            update_kwargs['SEEING'] = (target_seeing, "Seeing FWHM in pixel")
-            update_kwargs['PEEING'] = (target_seeing / np.nanmean(target_img.pixelscale), "Seeing FWHM in arcsec")
+            update_kwargs['SEEING'] = (target_seeing, "Seeing FWHM in arcsec")
+            update_kwargs['PEEING'] = (target_seeing / np.nanmean(target_img.pixelscale), "Seeing FWHM in pixels")
 
         skyval = None
         if 'SKYVAL' in filtered_catalog_data.colnames:

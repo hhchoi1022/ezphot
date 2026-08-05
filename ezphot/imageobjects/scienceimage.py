@@ -633,5 +633,4 @@ class ScienceImage(BaseImage, ImageMethod):
                 self.status.update('ASTROMETRY')
                 self.status.update('SCAMP')
                 #self.status.update('ZPCALC')
-
 # %%

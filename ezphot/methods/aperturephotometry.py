@@ -345,7 +345,6 @@ class AperturePhotometry:
             [target_img_sub, target_bkgrms, target_mask]):
             if remove_trigger:
                 remove_object.remove(verbose = verbose)
-        
         return target_catalog
     
     def photutils_photometry(self,
