@@ -3,9 +3,16 @@
 This document is a maintainer-oriented map of the repository. It records how the
 current code fits together, where state is stored, which workflows are intended,
 and which parts need extra caution. It describes the repository at commit
-`fd390a2` on 2026-08-05, including uncommitted source changes present during the
-review. It is a guide to the current implementation, not a promise that every
-path is production-ready.
+`d19ff5e` on 2026-08-06, including three untracked analysis scripts present in
+the working tree. It is a guide to the current implementation, not a promise
+that every path is production-ready.
+
+Changes since the previous review (`fd390a2`, 2026-08-05) are almost entirely in
+`ezphot/analysis`: a new twelve-script LOAO SN2026kid pipeline family (described
+below). Library changes were limited to a header-comment fix in
+`PhotometricCalibration` — `SEEING` is documented as arcsec and `PEEING` as
+pixels, matching the actual values — plus whitespace and an unused `Path` import
+in `methods/stack.py`.
 
 ## What was reviewed
 
@@ -469,10 +476,12 @@ runner.
 
 ## Analysis workspace
 
-The 55 Python files in `ezphot/analysis` are notebook-style or executable research
-scripts, commonly divided with `#%%` cells. They are excluded from distribution
-by `MANIFEST.in`, are not imported by the package, and frequently contain absolute
-paths, target names, observation dates, and machine-specific assumptions.
+The 67 Python files in `ezphot/analysis` are research scripts in two styles: the
+older files are notebook-style, commonly divided with `#%%` cells, while the
+newer LOAO SN2026kid family (260805/260806) consists of argparse CLI scripts with
+`__main__` guards. They are excluded from distribution by `MANIFEST.in`, are not
+imported by the package, and frequently contain absolute paths, target names,
+observation dates, and machine-specific assumptions.
 
 The main families are:
 
@@ -483,7 +492,74 @@ The main families are:
   experiments;
 - Tract7DT version/test programs;
 - catalog aggregation, variability/depth/seeing checks, target selection,
-  visualizations, PNG/video generation, and calibration-frame diagnostics.
+  visualizations, PNG/video generation, and calibration-frame diagnostics;
+- the LOAO SN2026kid batch pipeline (see next subsection).
+
+### LOAO SN2026kid pipeline (260805/260806 family)
+
+Twelve scripts form a resumable batch pipeline for LOAO observations of
+SN2026kid in NGC 5907. Unlike the older analysis files, all are argparse CLIs
+(two small ones use module constants instead of argparse). The intended stage
+order and its deliberate method choices are:
+
+0. `260805_make_loao_masterframes.py` — nightly master bias/dark/flat for every
+   observing night. Deliberately pure NumPy/Astropy (not the ezphot combiner);
+   writes `loao_master_manifest.csv`, optionally registers into the
+   `MasterImage` summary table under a portalocker lock.
+1. `260805_process_loao_sn2026kid.py` — one-night preprocessing worker: resolves
+   exact-night masters from the manifest, applies `Preprocess.correct_bdf`,
+   writes science FITS plus `.bpmask` sidecars, renames `NGC5907`→`SN2026kid`
+   while preserving provenance headers.
+   `260805_preprocess_all_loao_sn2026kid.py` fans this out over all nights via
+   subprocess; `260805_validate_loao_preprocess.py` is the QC gate.
+2. `260805_astrometry_all_loao_sn2026kid.py` — plate-solves every image with
+   Astrometry.net via `Helper.run_astrometry`. SCAMP and astroalign are
+   deliberately NOT used for this dataset.
+   `260805_validate_loao_astrometry.py` is the QC gate;
+   `260805_scamp_recover_loao_astrometry.py` re-solved failures with SCAMP, and
+   `260806_replace_scamp_with_astrometry_net.py` then rolled those back to
+   astrometry.net so the astrometric method is homogeneous — read the pair as
+   "SCAMP was tried, then reverted".
+3. `260805_photometry_loao_sn2026kid.py` (~1900 lines) — the shared library of
+   the family and its heaviest ezphot user. Per night: source and invalid
+   masks plus an NGC 5907 host-galaxy ellipse mask (SIMBAD size × 1.25), SEP
+   background and RMS maps computed per science image, SExtractor aperture
+   photometry with annulus (apertures 3/5/7/10″, 7″ primary), photometric
+   calibration against APASS or Pan-STARRS1 via `SkyCatalog` (GaiaXP
+   deliberately not used; `save_fig=True`), per-filter stacks centered on fixed
+   WCS CRVAL1/CRVAL2 via `Stack.prepare_images`/`stack_multiprocess`, then
+   photometry and calibration on the stacks, and QC PNGs.
+4. `260805_run_all_loao_sn2026kid.py` — end-to-end orchestrator fusing
+   preprocess + photometry per night, resumable via report inspection and
+   version-string constants; designed to be sharded into early/late date ranges
+   which `260805_merge_loao_batch_reports.py` joins (it polls forever with no
+   timeout).
+5. `260805_plot_loao_sn2026kid_lightcurve.py` — final product: `LightCurve`
+   over a `CatalogSet` found through `DataBrowser`, 10″ aperture, filter
+   offsets disabled, and an `ascii.fixed_width` magnitude table with obsdate
+   rows × filter columns.
+
+Cross-cutting facts a maintainer needs:
+
+- Every script hardcodes `/qso/data6/obsdata/LOAO` (raw, read-only) and
+  `/home/hhchoi1022/ezphot/{data,log}` (products); the two validators pin a
+  one-off timestamped log directory. These are host-specific, unrelated to the
+  repo checkout.
+- Three scripts (`astrometry_all`, `scamp_recover`, `replace_scamp`)
+  `importlib`-load the photometry script by filename because a digit-leading
+  name cannot be imported normally. Renaming or editing its module-level
+  constants changes all three consumers, and `run_all` duplicates its
+  `BACKGROUND_MASK_VERSION`/`STACK_CENTER_VERSION` constants — bumping one copy
+  without the other silently disables resume-reuse.
+- Shared idioms: atomic JSON report writes (tmp + `os.replace` — except
+  `replace_scamp`, which writes non-atomically), FITS `CHECKSUM`/`DATASUM` on
+  every product, raw files never mutated, resumability via header-provenance
+  version strings.
+- Workarounds encoding real upstream issues (see the risk section): the iKon
+  pixel-scale registry patch, `/tmp` staging around spaces in `1.0-m KASI`,
+  `solve_astrometry_safe` protecting inputs from an in-place solve-field
+  failure path, and inline APASS→Cousins transforms duplicated from
+  `skycatalog/conversion.py`.
 
 Use these scripts as provenance and worked examples. Before reusing one, replace
 absolute paths, inspect its current cell ordering, and run a syntax check. Several
@@ -607,6 +683,23 @@ of writing this guide.
   constructing `FilterRegister`; do not import it as a passive utility until the
   example is protected by a main guard.
 
+### Upstream issues surfaced by the LOAO SN2026kid scripts
+
+The 260805 pipeline contains workarounds whose proper fixes live in the library
+or configuration:
+
+- `observatory_info.dat` reports the E2V 2x2 pixel scale (0.794″) for the LOAO
+  iKon detector; the correct value is 0.356″. The photometry script patches the
+  `Helper.get_telinfo` result at runtime. The real fix belongs in the registry.
+- Telescope names containing spaces (`1.0-m KASI`) are truncated by SExtractor
+  2.25, SWarp, and solve-field path handling. The scripts stage work into `/tmp`
+  and copy products back; any library path that passes such directories to
+  external tools is affected.
+- The Astrometry.net wrapper has an in-place failure path that can remove the
+  input image when solve-field fails. `solve_astrometry_safe` in the photometry
+  script solves in a temp directory and `os.replace`s as protection; treat
+  in-place `Helper.run_astrometry` calls on irreplaceable files with caution.
+
 ### Mutation and deletion hazards
 
 - `PhotometryHelper.run_swarp(fill_zero_tonan=True)` opens every input FITS in
@@ -643,8 +736,9 @@ There is no dedicated first-party unit-test suite or CI configuration in the
 repository. The notebooks, Sphinx examples, PanStitch sample, and files with
 `test` in `ezphot/analysis` are examples/experiments rather than regression tests.
 
-A read-only AST parse of 128 Python files found nine invalid analysis scripts in
-the reviewed working tree:
+A read-only AST parse (re-run 2026-08-06 over the 137 package Python files,
+including analysis) found the same nine invalid analysis scripts as the previous
+review:
 
 ```text
 ezphot/analysis/250911_S250830bp_DIA.py
@@ -679,6 +773,7 @@ real astronomical data.
 | Add a survey catalog | `utils/catalogquerier.py` or `imagequerier.py` | `SkyCatalog`, normalization and coverage |
 | Add a filter curve | `configuration/common/transmission` | `FilterRegister`, `Spectrum.synphot()` |
 | Change Tract7DT YAML | `methods/tract7dt/configuration.py` | `Formatter`, runner, external version |
+| Change the LOAO SN2026kid pipeline | `analysis/260805_photometry_loao_sn2026kid.py` | its `importlib` consumers, duplicated version constants in `260805_run_all_*` |
 
 ## Suggested verification strategy
 

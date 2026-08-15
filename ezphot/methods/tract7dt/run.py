@@ -235,9 +235,11 @@ class Tract7DTRunner:
             str(self.configuration_path),
         ]
 
+        child_env = os.environ.copy()
+        child_env["MPLBACKEND"] = "Agg"
         print('Running tract7dt...')
         try:
-            subprocess.run(command, check=True)
+            subprocess.run(command, check=True, env = child_env)
             if save_result_catalog:
                 self.save_result_catalog()
         except subprocess.CalledProcessError as e:

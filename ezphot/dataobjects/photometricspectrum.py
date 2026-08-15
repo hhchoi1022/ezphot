@@ -362,7 +362,7 @@ class PhotometricSpectrum:
             cmap_name = getattr(self.plt_params, 'cmap', None)
             if cmap_name is None:
                 cmap_name = 'jet'
-            cmap = cm.get_cmap(cmap_name)
+            cmap = plt.get_cmap(cmap_name)
 
             figures = []  # <-- NEW (used only when plot_with_offset=False)
             figures_detection = []
@@ -1388,10 +1388,8 @@ class PhotometricSpectrum:
                         raise AttributeError(f"'PlotParams' has no rcParam '{rc_name}'")
                     
             def set_palette(self, n: int = 40):
-                base = cm.get_cmap(self.cmap, n)
+                base = plt.get_cmap(self.cmap).resampled(n)
                 colors = [base(i) for i in range(base.N)]
-                from matplotlib import cycler as _cycler
-                self._rcparams['axes.prop_cycle'] = _cycler(color=colors)
                 
             def get_scatter_kwargs(self, color: str = None, shape: str = None):
                 if color is None:

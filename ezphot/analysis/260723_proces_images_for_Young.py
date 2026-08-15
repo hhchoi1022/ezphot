@@ -20,7 +20,7 @@ from bridge.objects import Alert
 from bridge.alertmonitor import AlertProcessor
 #%%
 calspec_tbl_dec_lt20 = pd.read_csv('./calspec_info.csv')
-row = calspec_tbl_dec_lt20.iloc[2]
+row = calspec_tbl_dec_lt20.iloc[22]
 
 #%%
 
@@ -124,22 +124,22 @@ for i, row in calspec_tbl_dec_lt20.iloc[25:].iterrows():
     for target_img in target_imglist:
         target_img.clear()
 #%%
+
+objname = row['star_name_1']
+target_ra = row['ra_2026_deg']
+target_dec = row['dec_2026_deg']
+alert_instance = Alert(objname = objname, ra=target_ra, dec=target_dec, trigger_time = '2000-01-01')
+
+
+dbrowser = DataBrowser('scidata')
+dbrowser.objname = alert_instance.tile_id[0]
 target_catalogset = dbrowser.search(pattern = '*com.fits.cat', return_type = 'catalog')
 from ezphot.dataobjects import PhotometricSpectrum
 photspec = PhotometricSpectrum(catalogset = target_catalogset)
-#%%
-target_ra = row['ra_j2000_deg'] + 26 * row['pmra_masyr'] / 3600 / 1000
-target_dec = row['dec_j2000_deg'] + 26 * row['pmdec_masyr'] / 3600 / 1000
-#%%
 
 #%%
-target_ra = row['ra_j2000_deg']
-target_dec = row['dec_j2000_deg']
-#%%
-target_imgset.target_images[0].show_position(x = target_ra, y = target_dec)
-#%%
 %matplotlib inline
-fig, _, ax, tbl = photspec.plot(ra = target_ra, dec = target_dec, flux_key = 'MAGSKY_AUTO', fluxerr_key = 'MAGERR_APER_6', matching_radius_arcsec = 3.0)
+fig, _, ax, tbl = photspec.plot(ra = target_ra, dec = target_dec, flux_key = 'MAGSKY_APER_1', fluxerr_key = 'MAGERR_APER_2', matching_radius_arcsec = 3.0)
 fig = list(fig.values())[0]
 ax = list(ax.values())[0]
 #%%
@@ -163,13 +163,13 @@ calspec_spec = Spectrum(
     wavelength_unit='AA',
     flux_unit='flamb'
 )
-synphot_result = calspec_spec.synphot(filterset = ['g', 'r', 'm400', 'm425', 'm450', 'm475', 'm500', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875'])[0]
+synphot_result = calspec_spec.synphot(filterset = ['g', 'r', 'medium'])[0]# 'm400', 'm425', 'm450', 'm475', 'm500', 'm525', 'm550', 'm575', 'm600', 'm625', 'm650', 'm675', 'm700', 'm725', 'm750', 'm775', 'm800', 'm825', 'm850', 'm875'])[0]
 
 calspec_ab = calspec_spec.ab
 wl_nm = calspec_ab.wavelength.value / 10
 mag_ab = calspec_ab.flux.value
 
-bin_size = 5
+bin_size = 500
 n_bins = len(wl_nm) // bin_size
 wl_binned = np.array([np.mean(wl_nm[i*bin_size:(i+1)*bin_size]) for i in range(n_bins)])
 mag_binned = np.array([np.mean(mag_ab[i*bin_size:(i+1)*bin_size]) for i in range(n_bins)])
@@ -183,7 +183,131 @@ fig
 
 
 # %%
+import numpy as np
+import matplotlib.pyplot as plt
 
+old_filters = [
+    'g', 'r',
+    'm400', 'm425', 'm450', 'm475', 'm500', 'm525',
+    'm550', 'm575', 'm600', 'm625', 'm650', 'm675',
+    'm700', 'm725', 'm750', 'm775', 'm800', 'm825',
+    'm850', 'm875'
+]
 
+mag_key = 'MAGSKY_APER'
+magerr_key = 'MAGERR_APER'
+zperr_key = 'ZPERR_APER'
 
-objname
+fig, ax = plt.subplots(figsize=(16, 7))
+
+old_label_used = False
+new_label_used = False
+
+for filt, val in synphot_result.items():
+
+    if filt not in tbl['filter']:
+        continue
+
+    tbl_filt = tbl[tbl['filter'] == filt]
+
+    # observed magnitude
+    mag = tbl_filt[mag_key][0]
+
+    # photometric error
+    mag_err = tbl_filt[magerr_key][0]
+
+    # zero-point error
+    zp_err = tbl_filt[zperr_key][0]   # <- 실제 저장된 key 이름에 맞게 수정
+
+    # total error
+    total_err = np.sqrt(
+        mag_err**2 + zp_err**2
+    )
+
+    # residual
+    mag_diff = mag - val['mag']
+
+    # central wavelength
+    cent_wl = val['wl_pivot'].value
+
+    # color / legend
+    if filt in old_filters:
+        color = 'tab:blue'
+
+        if not old_label_used:
+            plot_label = 'Existing medium-band'
+            old_label_used = True
+        else:
+            plot_label = None
+
+    else:
+        color = 'tab:orange'
+
+        if not new_label_used:
+            plot_label = 'New medium-band'
+            new_label_used = True
+        else:
+            plot_label = None
+
+    # point + total error
+    ax.errorbar(
+        cent_wl,
+        mag_diff,
+        yerr=total_err,
+        fmt='o',
+        color=color,
+        markersize=10,
+        capsize=4,
+        elinewidth=2,
+        label=plot_label,
+        zorder=3
+    )
+
+    # filter label
+    ax.text(
+        cent_wl,
+        mag_diff + 0.012,
+        filt,
+        color='k',
+        fontsize=10,
+        ha='center'
+    )
+
+# zero residual line
+ax.axhline(
+    0,
+    color='gray',
+    linestyle='--',
+    linewidth=1.5
+)
+
+ax.set_xlabel(
+    'Transmission-weighted central wavelength [nm]',
+    fontsize=14
+)
+
+ax.set_ylabel(
+    r'$m_{\mathrm{TD,cal}} - m_{\mathrm{CALSPEC,syn}}$ [mag]',
+    fontsize=14
+)
+
+ax.set_title(
+    'SF1615+001A | MAG_AUTO | CALSPEC residual',
+    fontsize=16
+)
+
+ax.set_xlim(380, 870)
+ax.set_ylim(-0.175, 0.44)
+
+ax.set_xticks([400, 500, 600, 700, 800])
+
+ax.grid(True, alpha=0.3)
+
+ax.legend(
+    loc='upper left',
+    fontsize=12
+)
+
+plt.tight_layout()
+plt.show()
+# %%
