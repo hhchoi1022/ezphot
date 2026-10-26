@@ -217,7 +217,10 @@ class MaskGenerator():
             # Mask non-saturated sources (scaled by area)
             for row in non_sat_rows:
                 area = row['area'].value
-                y, x = row['ycentroid'], row['xcentroid']
+                try:
+                    y, x = row['y_centroid'], row['x_centroid'] # DEPENDING ON THE VERSION OF PHOTUTILS
+                except:
+                    y, x = row['ycentroid'], row['xcentroid'] # DEPENDING ON THE VERSION OF PHOTUTILS
                 radius = mask_radius_factor * np.sqrt(area / np.pi)
                 rr, cc = disk((y, x), radius, shape=image_data.shape)
                 new_mask[rr, cc] = True
@@ -225,7 +228,10 @@ class MaskGenerator():
             # Mask saturated sources (fixed large radius)
             for row in sat_rows:
                 area = row['area'].value
-                y, x = row['ycentroid'], row['xcentroid']
+                try:
+                    y, x = row['y_centroid'], row['x_centroid'] # DEPENDING ON THE VERSION OF PHOTUTILS
+                except:
+                    y, x = row['ycentroid'], row['xcentroid']
                 saturated_radius = mask_radius_factor * 2 * np.sqrt(area / np.pi)
                 rr, cc = disk((y, x), saturated_radius, shape=image_data.shape)
                 new_mask[rr, cc] = True
