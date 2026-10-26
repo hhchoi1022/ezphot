@@ -1984,7 +1984,13 @@ class PhotometryHelper(Configuration):
             Create a process-safe temporary SExtractor parameter file
             """
             base_param_file = Path(base_param_file)
-            with portalocker.Lock(base_param_file, mode='r', timeout=30):
+            try:
+                with portalocker.Lock(base_param_file, mode='r', timeout=30):
+                    with open(base_param_file, 'r') as f:
+                        lines = f.readlines()
+            except (portalocker.exceptions.LockException, OSError):
+                # NFS mounts without flock support (e.g. host wfm) raise EBADF here.
+                # The base param file is only read, so an unlocked read is safe.
                 with open(base_param_file, 'r') as f:
                     lines = f.readlines()
 
