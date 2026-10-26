@@ -90,6 +90,7 @@ class PhotometricCalibration:
                                 radius_arcsec: float = 1500,    
                                 inner_fraction: float = 0.9, # Fraction of the images. If ra, dec, radius_arcsec is given, inner_fraction is ignored.
                                 isolation_radius_arcsec: float = 10.0,
+                                satdist_lower: float = 1.2,
                                 
                                 magnitude_key: str = 'MAG_APER_3',
                                 magnitudeerr_key: str = 'MAGERR_APER_3',
@@ -150,6 +151,9 @@ class PhotometricCalibration:
             The inner fraction of the image to use for the reference star selection.
         isolation_radius : float, optional
             The isolation radius for the reference star selection.
+        satdist_lower : float, optional
+            Reference stars need SATDIST >= this (distance to the nearest saturated source / its mask radius);
+            None disables the bright-star halo cut. The SATDIST column is written to the catalog either way.
         magnitude_key : str, optional
             The key of the magnitude column in the catalog.
         fwhm_key : str, optional
@@ -293,6 +297,11 @@ class PhotometricCalibration:
         magnitude_sky_key = magnitude_key.replace('MAG_', 'MAGSKY_')
         target_catalog.data[magnitude_sky_key] = target_catalog.data[magnitude_key] + zp_median_all
 
+        # Bright-star halo zone (stars there are kept out of the ZP; the column stays in the catalog)
+        satdist = self._calculate_satdist(target_catalog.data)
+        if satdist is not None:
+            target_catalog.data['SATDIST'] = satdist
+
         # Filter out reference sources
         for i in range(5):
             filtered_catalog, _, target_seeing = self.select_stars(
@@ -314,6 +323,7 @@ class PhotometricCalibration:
                 radius_arcsec = radius_arcsec,
                 inner_fraction = inner_fraction,
                 isolation_radius_arcsec = isolation_radius_arcsec,
+                satdist_lower = satdist_lower,
 
                 save = False,
                 verbose = verbose,
@@ -1330,6 +1340,30 @@ class PhotometricCalibration:
             
     #     return target_catalog
 
+    def _calculate_satdist(self,
+                           catalog_data: Table,
+                           saturation_level: float = 50000,
+                           radius_factor: float = 6.0):
+        """
+        Distance of each source to the nearest saturated source, in units of that source's mask radius.
+
+        Saturated = FLAGS bit 4 or FLUX_MAX >= saturation_level (the source-mask criterion). The radius,
+        radius_factor * sqrt(ISOAREA_IMAGE / pi), is the saturated-source mask radius of
+        MaskGenerator.mask_sources (mask_radius_factor 3 x 2), about 1.1x larger because ISOAREA is measured at the
+        lower SExtractor threshold. Returns 999 when there is no saturated source, None if a column is missing.
+        """
+        keys = ('X_IMAGE', 'Y_IMAGE', 'FLAGS', 'FLUX_MAX', 'ISOAREA_IMAGE')
+        if any(key not in catalog_data.colnames for key in keys):
+            return None
+        x = np.asarray(catalog_data['X_IMAGE'], dtype=float)
+        y = np.asarray(catalog_data['Y_IMAGE'], dtype=float)
+        is_sat = ((np.asarray(catalog_data['FLAGS']) & 4) > 0) | (np.asarray(catalog_data['FLUX_MAX']) >= saturation_level)
+        satdist = np.full(len(catalog_data), 999.0)
+        for xs, ys, area in zip(x[is_sat], y[is_sat], np.asarray(catalog_data['ISOAREA_IMAGE'], dtype=float)[is_sat]):
+            radius = radius_factor * np.sqrt(max(area, 1.0) / np.pi)
+            satdist = np.minimum(satdist, np.hypot(x - xs, y - ys) / radius)
+        return satdist
+
     def select_stars(self,
                      target_catalog: Catalog,
                      mag_lower: float = 12,
@@ -1349,6 +1383,7 @@ class PhotometricCalibration:
                      radius_arcsec: float = None,
                      inner_fraction: float = 0.7, # Fraction of the images
                      isolation_radius_arcsec: float = 10.0,
+                     satdist_lower: float = 1.2,
                      
                      save: bool = False,
                      verbose: bool = True,
@@ -1364,6 +1399,7 @@ class PhotometricCalibration:
                      elongation_key: str = 'ELONGATION',
                      flag_key: str = 'FLAGS',
                      maskflag_key: str = 'IMAFLAGS_ISO',
+                     satdist_key: str = 'SATDIST',
                      ) -> Table:
         """
         Filter stars by selecting the top N non-saturated, isolated, round, appropriately bright
@@ -1393,6 +1429,9 @@ class PhotometricCalibration:
             Maximum flag to select stars from.
         maskflag_upper : int, optional
             Maximum mask flag to select stars from.
+        satdist_lower : float, optional
+            Minimum distance to the nearest saturated source, in units of its mask radius (SATDIST column).
+            Inside ~1.2 the halo is masked out of the background map, so the sky there is under-subtracted.
         inner_fraction : float, optional
             Fraction of the image to select stars from.
         isolation_radius : float, optional
@@ -1605,6 +1644,13 @@ class PhotometricCalibration:
         filter_info['after_maskflag'] = len(filtered_catalog_data)
         if can_plot:
             _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'brown', label = 'MaskFlag cut', alpha = 0.3)
+
+        # Step 9: Bright-star halo cut
+        if satdist_key in filtered_catalog_data.keys() and satdist_lower is not None:
+            satdist_mask = filtered_catalog_data[satdist_key] >= satdist_lower
+            filtered_catalog_data = filtered_catalog_data[satdist_mask]
+            self.helper.print(f"[SATDIST CUT]: {len(filtered_catalog_data)} sources passed {satdist_key} >= {satdist_lower}", verbose)
+        filter_info['after_satdist'] = len(filtered_catalog_data)
 
         if can_plot:
             _plot_if_visualize(filtered_catalog_data[magnitude_key], filtered_catalog_data[fwhm_key]*3600, 'red', label = 'Final selected', alpha = 0.3)

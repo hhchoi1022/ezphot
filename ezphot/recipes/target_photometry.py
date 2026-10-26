@@ -4,6 +4,9 @@ target_photometry: pull one target's photometry out of calibrated ezphot catalog
 
 Uses CatalogSet + LightCurve.extract_source_info: one row per catalog (epoch/filter/unit)
 with the matched source's MAGSKY_*/MAGERR_*/ZPERR_*/UL5SKY_* columns. 10" aperture = *_APER_3.
+Adds SATDIST (distance to the nearest saturated star / its mask radius) and warns for rows with
+SATDIST < 1.2: there the bright-star halo is masked out of the background map, so the sky is under-subtracted
+(about +0.8 ADU/pix at 0.6) and the target too bright; use DIA or a local-annulus measurement for those rows.
 
 Python:
     from ezphot.recipes import target_photometry
@@ -20,10 +23,24 @@ import time
 from pathlib import Path
 from typing import List, Union
 
+import numpy as np
+
 from ezphot.dataobjects import Catalog, CatalogSet, LightCurve
 from ezphot.recipes import defaults as D
 
 DERIVED_PREFIXES = ('align_', 'com_', 'coadd_', 'scale_', 'conv_', 'sub_', 'inv_', 'subbkg_')
+SATDIST_WARN = 1.2
+
+
+def _target_satdist(catalog: Catalog, ra: float, dec: float, matching_radius_arcsec: float) -> float:
+    """SATDIST of the source nearest (ra, dec) in this catalog; NaN if no column or no source in the radius."""
+    d = catalog.data
+    if d is None or 'SATDIST' not in d.colnames or len(d) == 0:
+        return np.nan
+    cosd = np.cos(np.deg2rad(dec))
+    sep = np.hypot((np.asarray(d['X_WORLD']) - ra) * cosd, np.asarray(d['Y_WORLD']) - dec) * 3600
+    i = int(np.argmin(sep))
+    return float(d['SATDIST'][i]) if sep[i] < matching_radius_arcsec else np.nan
 
 
 def target_photometry(catalogs: Union[CatalogSet, List[Catalog]],
@@ -43,6 +60,15 @@ def target_photometry(catalogs: Union[CatalogSet, List[Catalog]],
         if verbose:
             print(f"[target_photometry] no source within {matching_radius_arcsec}\" of ({ra}, {dec})")
         return None
+
+    if 'path' in tbl.colnames:
+        satdist = {str(c.path): _target_satdist(c, ra, dec, matching_radius_arcsec) for c in catset.catalogs}
+        tbl['SATDIST'] = [satdist.get(str(p), np.nan) for p in tbl['path']]
+        near = tbl[tbl['SATDIST'] < SATDIST_WARN]
+        if len(near) and verbose:
+            print(f"[target_photometry] WARNING: {len(near)}/{len(tbl)} rows have the target inside a bright-star halo "
+                  f"(SATDIST < {SATDIST_WARN}); background under-subtracted there, magnitudes too bright -> use DIA "
+                  f"or a local annulus for: " + ', '.join(Path(str(p)).name for p in near['path'][:10]))
 
     if out is None:
         objname = catset.catalogs[0].info.objname or 'unknown'
