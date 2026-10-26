@@ -1779,7 +1779,9 @@ class PhotometryHelper(Configuration):
 
         self.print(f'Starting image subtraction with hotpants on {target_path.name}...', verbose)
 
-        command = ['hotpants']
+        # Prefer the hotpants of this Python environment: the snap build on PATH cannot read NFS paths.
+        env_hotpants = Path(sys.executable).parent / 'hotpants'
+        command = [str(env_hotpants) if env_hotpants.exists() else 'hotpants']
 
         # Required base options
         command.extend([
