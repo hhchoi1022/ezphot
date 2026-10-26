@@ -873,6 +873,7 @@ class ImageMethod:
                        detection_sigma: float = 1.5,
                        aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10, 15],
                        aperture_diameter_seeing: Union[float, list] = [2.5, 3.5],
+                       seeing_arcsec: float = None,
                        annulus_width_arcsec: Union[float, list] = None,
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
@@ -899,6 +900,8 @@ class ImageMethod:
             The aperture diameter in arcseconds.
         aperture_diameter_seeing : Union[float, list]
             The aperture diameter in seeing units.
+        seeing_arcsec : float
+            Seeing FWHM in arcsec. If None, estimated from the image (header SEEING is not used).
         saturation_level : float
             The saturation level for the photometry.
         kron_factor : float
@@ -929,6 +932,7 @@ class ImageMethod:
             detection_sigma = detection_sigma,
             aperture_diameter_arcsec = aperture_diameter_arcsec,
             aperture_diameter_seeing = aperture_diameter_seeing,
+            seeing_arcsec = seeing_arcsec,
             annulus_width_arcsec = annulus_width_arcsec,
             saturation_level = saturation_level,
             kron_factor = kron_factor,

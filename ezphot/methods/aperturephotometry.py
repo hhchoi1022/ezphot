@@ -90,6 +90,7 @@ class AperturePhotometry:
                        detection_sigma: float = 1.5,
                        aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10, 15],
                        aperture_diameter_seeing: Union[float, list] = [2.5, 3.5], # If given, use seeing to calculate aperture size
+                       seeing_arcsec: float = None, # If None, estimated from the image (header SEEING is not used)
                        annulus_width_arcsec: float = None,
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
@@ -118,6 +119,10 @@ class AperturePhotometry:
             The aperture diameter in arcseconds. Defaults to [5, 7, 10].
         aperture_diameter_seeing : Union[float, list], optional
             The aperture diameter in seeing units. Defaults to [3.5, 4.5].
+        seeing_arcsec : float, optional
+            Seeing FWHM [arcsec] for SEEING_FWHM and the seeing-scaled apertures. If None, it is estimated
+            from a first SExtractor run; the header SEEING is never read, so the result depends only on the
+            pixels and not on earlier calibrations that rewrote the header. Defaults to None.
         saturation_level : float, optional
             The saturation level for the aperture photometry. Defaults to 60000.
         kron_factor : float, optional
@@ -204,7 +209,7 @@ class AperturePhotometry:
             mask_path = None
                     
         # First Sextractor run to estimate seeing if not provided
-        if target_img.seeing is None:
+        if seeing_arcsec is None:
             result, catalog_first, global_bkgval, global_bkgrms = self.helper.run_sextractor(
                 target_path = img_path,
                 sex_configfile = sexconfig_path,
@@ -232,13 +237,13 @@ class AperturePhotometry:
                 rough_flags &= (catalog_first['ELONGATION'] < 1.3)
             if 'CLASS_STAR' in catalog_first.colnames:
                 rough_flags &= (catalog_first['CLASS_STAR'] > 0.2)
-            seeing_arcsec = catalog_first['FWHM_WORLD'] * 3600
-            rough_flags &= (seeing_arcsec < 10)
-            rough_flags &= (seeing_arcsec > 0.5)
+            fwhm_arcsec = catalog_first['FWHM_WORLD'] * 3600
+            rough_flags &= (fwhm_arcsec < 10)
+            rough_flags &= (fwhm_arcsec > 0.5)
             catalog_filtered = catalog_first[rough_flags]
             seeing_estimate = max(1.2, np.mean(catalog_filtered['FWHM_WORLD']) * 3600)
         else:
-            seeing_estimate = target_img.seeing
+            seeing_estimate = seeing_arcsec
         
         if "SEEING_FWHM" not in sex_params.keys():
             sex_params['SEEING_FWHM'] = '%.2f' %seeing_estimate   

@@ -386,6 +386,7 @@ class Subtract:
             target_mask = None,
             detection_sigma = detection_sigma,
             aperture_diameter_arcsec = aperture_diameter_arcsec,
+            seeing_arcsec = reprojected_target_img.seeing, # header seeing from the image's own calibration
             aperture_diameter_seeing = aperture_diameter_seeing,
             saturation_level = 60000,
             kron_factor = kron_factor,
@@ -505,6 +506,7 @@ class Subtract:
                 target_mask = None,
                 detection_sigma = detection_sigma,
                 aperture_diameter_arcsec = aperture_diameter_arcsec,
+                seeing_arcsec = reprojected_reference_img.seeing, # header seeing from the image's own calibration
                 aperture_diameter_seeing = aperture_diameter_seeing,
                 saturation_level = 60000,
                 kron_factor = kron_factor,
@@ -689,6 +691,7 @@ class Subtract:
                 sex_params = dict(SEEING_FWHM = subtract_fwhm, DETECT_MINAREA = convolved_source_minarea),
                 detection_sigma = detection_sigma,
                 aperture_diameter_arcsec = aperture_diameter_arcsec,
+                seeing_arcsec = subframe_subtract_img.seeing, # header seeing from the image's own calibration
                 aperture_diameter_seeing = aperture_diameter_seeing,  
                 saturation_level = 60000,
                 save = save,
@@ -745,6 +748,7 @@ class Subtract:
                     sex_params = dict(SEEING_FWHM = subtract_fwhm, DETECT_MINAREA = convolved_source_minarea),
                     detection_sigma = detection_sigma,
                     aperture_diameter_arcsec = aperture_diameter_arcsec,
+                    seeing_arcsec = negative_subframe_subtract_img.seeing, # header seeing from the image's own calibration
                     aperture_diameter_seeing = aperture_diameter_seeing,    
                     saturation_level = 60000,
                     kron_factor = kron_factor,
@@ -815,6 +819,7 @@ class Subtract:
                     sex_params = dict(SEEING_FWHM = subtract_fwhm),
                     detection_sigma = detection_sigma,
                     aperture_diameter_arcsec = [6,9,12],
+                    seeing_arcsec = reverse_subframe_subtract_img.seeing, # header seeing from the image's own calibration
                     saturation_level = 60000,
                     save = save,
                     verbose = verbose,
