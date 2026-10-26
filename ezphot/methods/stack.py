@@ -777,7 +777,7 @@ class Stack:
         #         pass
         
         N = len(target_imglist)
-        totexp = np.sum(img.totexp for img in target_imglist)
+        totexp = np.sum([img.totexp for img in target_imglist])
         combined_header['TOTEXP'] = totexp
 
         if 'EGAIN' in combined_header:

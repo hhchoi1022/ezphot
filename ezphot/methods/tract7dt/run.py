@@ -20,7 +20,7 @@ class Tract7DTRunner:
                  image_paths: List[Path],
                  filter_list: List[str],
                  catalog_paths: Optional[List[Path]] = None,
-                 conda_exe = f"{Path.home()}/anaconda3/condabin/conda",
+                 conda_exe = f"{Path.home()}/miniconda3/condabin/conda",
                  conda_env: str = 'tractor',
                  python_exe: str = 'python',
                  id: str = None,
