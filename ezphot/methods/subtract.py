@@ -215,6 +215,7 @@ class Subtract:
         subframe_convolve_img = type(subframe_target_img)(subframe_target_img.savepath.convolvepath, telinfo = subframe_target_img.telinfo, load = True)
         #subframe_convolve_img.remove()
         subframe_subtract_img = type(target_img)(subtracted_path, telinfo = target_img.telinfo, load = True)
+        subframe_subtract_img.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         subframe_subtract_mask.path = subframe_subtract_img.savepath.invalidmaskpath
         
         if save:
@@ -870,7 +871,7 @@ class Subtract:
             transient_catalog = None
             if reject_variable_sources:
                 # Match the first photometry results with the reference catalog to reject variable sources
-                transient_catalog = Catalog(path = candidate_catalog.savepath.transientcatalogpath, catalog_type = 'transient', load = False)
+                transient_catalog = Catalog(path = candidate_catalog.savepath.transientcatalogpath, catalog_type = 'transient', load = False, target_img = candidate_catalog.target_img)
                 transient_catalog.data = candidate_catalog.data
                 if len(transient_catalog.data) > 0:
                     coord_first = SkyCoord(ra=transient_catalog.data['X_WORLD'],
@@ -1075,7 +1076,7 @@ class Subtract:
         target_catalog_data['FLAG_Transient'] = all_idx
         # Update the flags
         
-        candidate_catalog = Catalog(path = target_catalog.savepath.candidatecatalogpath, catalog_type = 'candidate', load = False)
+        candidate_catalog = Catalog(path = target_catalog.savepath.candidatecatalogpath, catalog_type = 'candidate', load = False, target_img = target_catalog.target_img)
         candidate_catalog.data = target_catalog_data[all_idx]
         target_catalog.data = target_catalog_data
         

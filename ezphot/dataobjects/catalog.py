@@ -83,7 +83,8 @@ class Catalog:
 
     """
     
-    def __init__(self, path: Union[Path, str], catalog_type: str = 'all', info: Info = None, load: bool = True):
+    def __init__(self, path: Union[Path, str], catalog_type: str = 'all', info: Info = None, load: bool = True,
+                 target_img: Union[ScienceImage, ReferenceImage] = None):
         """
         Initialize the Catalog instance.
 
@@ -97,6 +98,9 @@ class Catalog:
             Info object. Default is None.
         load : bool, optional
             Whether to load the catalog data. Default is True.
+        target_img : ScienceImage or ReferenceImage, optional
+            Image the catalog belongs to. If None, it is looked up from the catalog path (its telinfo is then
+            estimated from the path, which fails outside the archive layout).
         """
         path = Path(path)
         
@@ -118,11 +122,13 @@ class Catalog:
             self.info = info
             self.info.path = str(self.path)
             self.info.catalog_type = catalog_type
-            if self.info.target_img is not None:
+            if self.info.target_img is not None and target_img is None:
                 if Path(self.info.target_img).exists():
                     self.target_img = ScienceImage(self.info.target_img, load = True)
         
-        if self.target_img is None:
+        if target_img is not None:
+            self._load_target_img(target_img)
+        elif self.target_img is None:
             self._load_target_img()
 
     def __repr__(self):
@@ -345,12 +351,15 @@ class Catalog:
             path=self.path,
             catalog_type=self.catalog_type,
             info=Info.from_dict(self.info.to_dict()),
-            load=False
+            load=False,
+            target_img=self.target_img
         )
 
         # Manually copy loaded data and header
         new_instance.data = None if self.data is None else self.data.copy()
         new_instance.target_img = None if self.target_img is None else ScienceImage(self.target_img.path, telinfo=self.target_img.telinfo, load=True)
+        if new_instance.target_img is not None:
+            new_instance.target_img.savedir = getattr(self.target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
 
         return new_instance
     

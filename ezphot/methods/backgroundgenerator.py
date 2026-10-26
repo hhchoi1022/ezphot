@@ -392,7 +392,9 @@ class BackgroundGenerator:
         # Step 2: Subtract the background
         if not overwrite:
             new_path = target_img.savepath.savepath.parent / Path('subbkg_' + target_img.savepath.savepath.name)
+            src_img = target_img
             target_img = type(target_img)(path = new_path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+            target_img.savedir = getattr(src_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
             target_img.header = image_header
         target_img.data = image_data - bkg_data
         bkg_value = np.mean(bkg_data)

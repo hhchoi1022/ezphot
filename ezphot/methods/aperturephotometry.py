@@ -323,7 +323,7 @@ class AperturePhotometry:
             pixsize_colname = 'PIXSIZE_APER' if i == 0 else f'PIXSIZE_APER_{i}'
             catalog[pixsize_colname] = np.full(len(catalog), ap_size_arcsec / pixelscale)
 
-        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
+        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 
         target_catalog.data = catalog
         
         if save:
@@ -550,7 +550,7 @@ class AperturePhotometry:
             catalog[f'NPIX_APER{suffix_key}'] = np.full(len(catalog), area_pixel)
 
         cat_path = target_img.savepath.catalogpath  
-        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
+        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 
         target_catalog.data = catalog
         
         if save:
@@ -865,7 +865,7 @@ class AperturePhotometry:
                     results[ul3_key] = ul3
 
         cat_path = target_img.savepath.catalogpath.with_suffix('.circ.cat')
-        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
+        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 
         target_catalog.data = results
         
         if save:
@@ -1062,7 +1062,7 @@ class AperturePhotometry:
             results['MAG_EANNULUS'] = -2.5 * np.log10(results['FLUX_EANNULUS'])
         
         cat_path = target_img.savepath.catalogpath.with_suffix('.ellip.cat')
-        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False) 
+        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 
         target_catalog.data = results
         
         if save:

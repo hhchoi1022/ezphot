@@ -150,7 +150,9 @@ class Reproject:
             
         if not overwrite:      
             aligned_path = target_img.savepath.alignpath
+            src_img = target_img
             target_img = type(target_img)(path = aligned_path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+            target_img.savedir = getattr(src_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         
         target_img.data = aligned_data
         target_img.header = aligned_header

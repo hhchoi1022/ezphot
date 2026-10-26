@@ -340,6 +340,7 @@ def _scale_worker(args) -> Tuple:
 
     # Scale image
     scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status=target_img.status.copy(), load=False)
+    scaled_img.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
     scaled_img.data = target_img.data * scale_factor
     scaled_img.header = target_img.header.copy()
     scaled_img.header[zp_key] = ref_zp
@@ -813,6 +814,7 @@ class Stack:
         # If CalibrationImage is input, Save it as CalibrationImage. This will be saved in the master_frame directory.
         # Else, save it in the target_outpath.
         stack_instance =  type(target_imglist[0])(path = target_outpath, telinfo = target_imglist[0].telinfo, load = False)
+        stack_instance.savedir = getattr(target_imglist[0], '_savedir', None)  # keep a custom savedir (None = archive layout)
         stack_instance.data = combined_data
         stack_instance.header = combined_header
         stack_instance.update_status(process_name = 'STACK')
@@ -1092,6 +1094,7 @@ class Stack:
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
         else:
             stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, load = True)
+            stack_instance.savedir = getattr(target_imglist[0], '_savedir', None)  # keep a custom savedir (None = archive layout)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
             stack_instance.update_status(process_name = 'STACK')
 

@@ -7,6 +7,7 @@ import logging
 logging.getLogger('astropy').setLevel(logging.ERROR)
 
 import re
+import sys
 from pathlib import Path
 from typing import Union
 
@@ -95,6 +96,10 @@ class BaseImage(Configuration):
                 telinfo = self.helper.estimate_telinfo(self.path, self.header)
             except:
                 print('WARNING: Failed to estimate/load telinfo. telinfo must be manually provided.\nTo load the telinfo, use ezphot.helper.get_telinfo()')
+                # Non-interactive runs (bridge, recipes, agents; not a terminal or Jupyter) would block on input(): fail instead.
+                if not (sys.stdin is not None and sys.stdin.isatty()) and 'ipykernel' not in sys.modules:
+                    raise AttributeError(f'Telescope information could not be estimated for {self.path} '
+                                         '(non-interactive session); pass telinfo=ezphot.helper.get_telinfo(...).')
                 telinfo = self.helper.register_telinfo()
                 if telinfo is None:
                     raise AttributeError('Telescope information is not inputted. Please input the telescope information.')

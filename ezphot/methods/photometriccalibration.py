@@ -1613,7 +1613,7 @@ class PhotometricCalibration:
             seeing = np.nanmedian(filtered_catalog_data[fwhm_key]) * 3600
         else:
             seeing = np.nan
-        filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info.copy(), load = False)
+        filtered_catalog = Catalog(target_catalog.savepath.refcatalogpath, catalog_type = 'reference', info = target_catalog.info.copy(), load = False, target_img = target_catalog.target_img)
         filtered_catalog.data = filtered_catalog_data
         filtered_catalog.info.path = str(target_catalog.savepath.refcatalogpath)
         

@@ -318,6 +318,7 @@ class Preprocess:
 
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
@@ -405,6 +406,7 @@ class Preprocess:
 
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
@@ -480,6 +482,7 @@ class Preprocess:
         
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'BIASCOR')
@@ -548,6 +551,7 @@ class Preprocess:
         
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'DARKCOR')
@@ -614,6 +618,7 @@ class Preprocess:
         
         # Create new image object
         calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
         calib_image.update_status(process_name= 'FLATCOR')

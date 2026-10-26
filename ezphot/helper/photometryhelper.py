@@ -692,6 +692,8 @@ class PhotometryHelper(Configuration):
                     raise AttributeError(f"No available options for {message}.")
                 options = set(options)
                 print(f"{message}: {options}")
+                if not (sys.stdin is not None and sys.stdin.isatty()) and 'ipykernel' not in sys.modules:
+                    return None   # non-interactive (not a terminal or Jupyter): do not block on input()
                 return input("Enter choice: ").strip()
             except Exception as e:
                 return None
