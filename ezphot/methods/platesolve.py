@@ -95,9 +95,8 @@ class Platesolve:
             verbose = verbose,
         )
         if result:
-            output_img = type(target_img)(path = astrometry_output_images, telinfo = target_img.telinfo, status = target_img.status.copy(), load = True)
+            output_img = type(target_img)(path = astrometry_output_images, telinfo = target_img.telinfo, load = True)
             output_img.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
-            output_img.update_status('ASTROMETRY')
             return output_img
         
     def solve_scamp(self,
@@ -152,8 +151,7 @@ class Platesolve:
         else:    
             output_imglist = []
             for target_img, output_path in zip(target_imglist, scamp_output_images):
-                output_img = type(target_imglist[0])(path = output_path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = True)
+                output_img = type(target_imglist[0])(path = output_path, telinfo = target_img.telinfo, load = True)
                 output_img.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
-                output_img.update_status('SCAMP')
                 output_imglist.append(output_img)
             return output_imglist

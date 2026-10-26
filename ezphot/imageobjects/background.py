@@ -14,44 +14,6 @@ from astropy.time import Time
 from ezphot.imageobjects import DummyImage
 
 #%%
-class Status:
-    """Tracks multiple mask processing steps, including multiple source masks."""
-
-    def __init__(self, status=None):
-        # Initialize status dictionary directly from input if provided, else empty
-        self.status = status if status is not None else {}
-        
-    def add_event(self, event_name, **event_details):
-        dict_event = dict(update_time=Time.now().isot, **event_details)
-
-        original_event_name = event_name
-        counter = 1
-        while event_name in self.status:
-            event_name = f"{original_event_name}_{counter}"
-            counter += 1
-        self.status[event_name] = dict_event
-    
-    def remove_event(self, event_name):
-        if event_name in self.status:
-            del self.status[event_name]
-        else:
-            print(f'WARNING: Event not found: {event_name}')
-    
-    def copy(self):
-        return Status.from_dict(self.to_dict())
-    
-    def to_dict(self):
-        return self.status
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(status = data)
-    
-    def __repr__(self):
-        """ Represent process status as a readable string """
-        status_list = [f"{key} = {value['update_time']}" for key, value in self.status.items()]
-        return "Status ============================================\n  " + "\n  ".join(status_list) + "\n==================================================="
-
 class Info:
     """Stores metadata for the mask."""
 
@@ -106,31 +68,22 @@ class Background(DummyImage):
     ----------
     path : Union[str, Path]
         Path to the background FITS image.
-    status : Status, optional
-        Initial status object. If not provided, status is loaded from file or initialized.
     load : bool, optional
-        Whether to load status and header upon initialization.
+        Whether to load the header upon initialization.
     """
 
-    def __init__(self, path: Union[str, Path], status: Status = None, load: bool = False):
+    def __init__(self, path: Union[str, Path], load: bool = False):
 
         path = Path(path)
         super().__init__(path=path)
     
-        # Initialize Status and Info
-        self.status = Status()
+        # Initialize Info
         self.loaded = False
         # self._logger = None
         self._target_img = None
 
         if load:
-            # Load status and info if paths exist
             self.header
-            if self.savepath.statuspath.exists():
-                self.status = self.load_status()
-        
-        if status is not None:
-            self.status = status
 
     def __repr__(self):
         return (
@@ -180,7 +133,6 @@ class Background(DummyImage):
         """
         new_instance = Background(
             path=self.path,
-            status=Status.from_dict(self.status.to_dict()),
             load=False
         )
 
@@ -211,7 +163,6 @@ class Background(DummyImage):
         hdu = fits.PrimaryHDU(data=self.data.astype(np.float32), header=self.header)
         hdu.writeto(self.savepath.savepath, overwrite=True)
         self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
-        self.save_status()
         self.save_info()
         self.path = self.savepath.savepath
         self.loaded = True
@@ -260,51 +211,6 @@ class Background(DummyImage):
                 removed[str(f)] = try_remove(f)
 
         return removed
-
-    def load_status(self):
-        """ Load processing status from a JSON file.
-        
-        Parameters
-        ----------
-        None
-        
-        Returns
-        -------
-        None
-        """
-        if self.savepath.statuspath is None:
-            raise ValueError("Cannot load Background status: save path is not defined.")
-        with open(self.savepath.statuspath, 'r') as f:
-            status_data = json.load(f)
-        return Status.from_dict(status_data)
-
-    def save_status(self):
-        """ Save processing status to a JSON file.
-        
-        Parameters
-        ----------
-        None
-        
-        Returns
-        -------
-        None
-        """
-        if self.savepath.statuspath is None:    
-            raise ValueError("Cannot save Background status: save path is not defined.")    
-        with open(self.savepath.statuspath, 'w') as f:
-            json.dump(self.status.to_dict(), f, indent=4)
-
-    def add_status(self, event_name, **event_details):
-        """ Add a status event to the background.
-        
-        Parameters
-        ----------
-        event_name : str
-            Name of the event to add.
-        event_details : dict
-            Details of the event to add.
-        """
-        self.status.add_event(event_name, **event_details)
 
     def save_info(self):
         """Save processing info to JSON file.
@@ -391,7 +297,6 @@ class Background(DummyImage):
             savedir=savedir,
             savepath=savedir / filename,
             targetpath=(savedir / filename).with_suffix(''),
-            statuspath=savedir / (filename + '.status'),
             infopath=savedir / (filename + '.info'),
             maskpath= savedir / (filename + '.mask'),
             # loggerpath=savedir / (filename + '.log')

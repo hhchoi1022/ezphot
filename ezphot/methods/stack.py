@@ -339,7 +339,7 @@ def _scale_worker(args) -> Tuple:
         target_errormap_path = target_errormap.savepath.savepath if target_errormap else None
 
     # Scale image
-    scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, status=target_img.status.copy(), load=False)
+    scaled_img = type(target_img)(path=target_img_path, telinfo=target_img.telinfo, load=False)
     scaled_img.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
     scaled_img.data = target_img.data * scale_factor
     scaled_img.header = target_img.header.copy()
@@ -353,8 +353,6 @@ def _scale_worker(args) -> Tuple:
     for key in target_img.header.keys():
         if key.startswith('ZP_'):
             scaled_img.header[key] = target_img.header[key] + delta_zp
-    scaled_img.update_status('ZPSCALE')
-
     # Scale error map
     scaled_errormap = None
     if target_errormap:
@@ -366,7 +364,7 @@ def _scale_worker(args) -> Tuple:
         else:
             raise ValueError(f"Unsupported emaptype '{emaptype}'")
 
-        scaled_errormap = Errormap(path=target_errormap_path, emaptype=target_errormap.emaptype, status=target_errormap.status.copy(), load=False)
+        scaled_errormap = Errormap(path=target_errormap_path, emaptype=target_errormap.emaptype, load=False)
         scaled_errormap.data = target_errormap.data * factor
         scaled_errormap.header.update({
             'SCLEKEY': zp_key,
@@ -374,7 +372,6 @@ def _scale_worker(args) -> Tuple:
             'SCLEZP': delta_zp,
             'SCLEFACT': scale_factor,
         })
-        scaled_errormap.add_status('zpscale', key=zp_key, ref_zp=ref_zp, scale_zp=delta_zp, scale_factor=scale_factor)
     target_img.clear(verbose = False)
     if target_errormap:
         target_errormap.clear(verbose = False)
@@ -817,8 +814,6 @@ class Stack:
         stack_instance.savedir = getattr(target_imglist[0], '_savedir', None)  # keep a custom savedir (None = archive layout)
         stack_instance.data = combined_data
         stack_instance.header = combined_header
-        stack_instance.update_status(process_name = 'STACK')
-        
         stack_bkgrms_instance = None
         if target_bkgrmslist is not None:
             stack_bkgrms_instance = Errormap(path=bkgrms_outpath, emaptype = 'bkgrms', load=False)
@@ -1096,19 +1091,9 @@ class Stack:
             stack_instance = type(target_imglist[0])(path = imagestack_path, telinfo = target_imglist[0].telinfo, load = True)
             stack_instance.savedir = getattr(target_imglist[0], '_savedir', None)  # keep a custom savedir (None = archive layout)
             stack_instance.header = self.helper.merge_header(stack_instance.header, combined_header, exclude_keys = ['PV*'])
-            stack_instance.update_status(process_name = 'STACK')
-
         stack_weight_instance = None
-        stack_weight_instance = Errormap(path = weightstack_path, emaptype = 'bkgweight', status = None, load = True)
+        stack_weight_instance = Errormap(path = weightstack_path, emaptype = 'bkgweight', load = True)
         stack_weight_instance.header = self.helper.merge_header(stack_weight_instance.header, combined_header, exclude_keys = ['PV*'])
-        event_details_kwargs = dict(
-            stack_type = 'SWARP',
-            combine_type = combine_type,
-            resample = resample,
-            resample_type = resample_type,
-            ncombine = len(target_imglist)
-        )
-        stack_weight_instance.add_status('stack_swarp', **event_details_kwargs)
         
         if save:
             stack_instance.write(verbose = verbose)

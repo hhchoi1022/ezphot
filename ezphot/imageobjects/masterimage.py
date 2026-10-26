@@ -5,7 +5,6 @@ import json
 import os
 from typing import Union, Dict
 from types import SimpleNamespace
-from dataclasses import dataclass, asdict
 import fnmatch
 
 
@@ -15,78 +14,6 @@ from astropy.io import fits
 from ezphot.imageobjects import BaseImage
 #%%
 
-
-@dataclass
-class StepStatus:
-    status: bool = False
-    update_time: str = None
-
-    def update(self, status=True):
-        self.status = status
-        self.update_time = Time.now().isot
-
-    def to_dict(self):
-        return asdict(self)
-    
-class Status:
-    """Manages image processing steps with dot-access and timestamp tracking."""
-
-    PROCESS_STEPS = [
-        "BIASCOR", "DARKCOR", "STACK"
-    ]
-
-    def __init__(self, **kwargs):
-        # Initialize all process steps
-        self._steps = {}
-        for step in self.PROCESS_STEPS:
-            value = kwargs.get(step, None)
-            if isinstance(value, dict):
-                self._steps[step] = {
-                    "status": value.get("status", False),
-                    "update_time": value.get("update_time", None)
-                }
-            else:
-                self._steps[step] = {
-                    "status": False,
-                    "update_time": None
-                }
-
-    def __getattr__(self, name):
-        if '_steps' in self.__dict__ and name in self.__dict__['_steps']:
-            return self.__dict__['_steps'][name]
-        raise AttributeError(f"'Status' object has no attribute '{name}'")
-    
-    def __setattr__(self, name, value):
-        if name == "_steps":
-            super().__setattr__(name, value)
-        elif '_steps' in self.__dict__ and name in self.__dict__['_steps']:
-            if isinstance(value, dict) and "status" in value:
-                self.__dict__['_steps'][name] = value
-            else:
-                raise ValueError(f"Status for '{name}' must be a dict with 'status' and 'update_time'")
-        else:
-            super().__setattr__(name, value)
-            
-    def update(self, process_name, status: bool = True):
-        if process_name in self._steps:
-            self._steps[process_name]["status"] = status
-            self._steps[process_name]["update_time"] = Time.now().isot
-        else:
-            raise ValueError(f"Invalid process name: {process_name}")
-
-    def copy(self):
-        return Status.from_dict(self.to_dict())
-
-    def to_dict(self):
-        return self._steps
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(**data)
-
-    def __repr__(self):
-        lines = [f"{k}: {v}" for k, v in self._steps.items()]
-        return "Status ============================================\n  " + "\n  ".join(lines) + "\n==================================================="
 
 class Info:
     INFO_FIELDS = [
@@ -137,7 +64,7 @@ class MasterImage(BaseImage):
     Class representing a master calibration FITS image (e.g., master bias or master dark frame).
 
     Inherits from `BaseImage` and provides methods for managing master calibration image metadata,
-    processing status tracking, and handling associated products like logs, masks, and status files.
+    handling associated products like logs, masks.
     This class is used to manage master bias or master dark frames and is typically used in preprocessing steps
     like bias correction or dark subtraction.
 
@@ -147,35 +74,20 @@ class MasterImage(BaseImage):
         Path to the master calibration FITS image.
     telinfo : dict, optional
         Telescope metadata dictionary (e.g., observatory name, CCD ID, pixel scale).
-    status : Status, optional
-        Status object tracking processing completion for each calibration step.
-        If not provided, status is initialized or loaded from disk.
     load : bool, optional
-        Whether to automatically load header and status from the file at initialization.
+        Whether to load the header upon initialization.
     """
 
-    def __init__(self, path: Union[Path, str], telinfo : dict = None, status: Status = None, load: bool = True):
+    def __init__(self, path: Union[Path, str], telinfo : dict = None, load: bool = True):
         
         path = Path(path)  
         super().__init__(path = path, telinfo = telinfo)
         
-        # Initialize Status and Info
-        self.status = Status()
+        # Initialize Info
         # self._logger = None
         
-        # Initialize or load status
         if load:
-            # Load status and info if paths exist
             self.header
-            if self.savepath.statuspath is not None:
-                if self.savepath.statuspath.exists():
-                    self.status = self.load_status()
-            else:
-                raise ValueError("WARNING: Status path is not defined. Check the required header keys: OBSERVATORY, TELKEY, IMGTYPE, TELNAME")
-            self._check_status()
-        
-        if status is not None:
-            self.status = status
 
     def __repr__(self):
         return (
@@ -230,7 +142,6 @@ class MasterImage(BaseImage):
         new_instance = MasterImage(
             path=self.path,
             telinfo=deepcopy(self.telinfo),
-            status=Status.from_dict(self.status.to_dict()),
             load=False
         )
 
@@ -262,7 +173,6 @@ class MasterImage(BaseImage):
         os.makedirs(self.savepath.savedir, exist_ok=True)
         fits.writeto(self.savepath.savepath, self.data, self.header, overwrite=True)
         self.helper.print(f'Saved: {self.savepath.savepath}', verbose)
-        self.save_status()
         self.save_info()
         self.path = self.savepath.savepath  # Update path to saved file
         self.loaded = True
@@ -449,50 +359,6 @@ class MasterImage(BaseImage):
         else:
             self.helper.print(f"Summary file {summary_path} does not exist.", verbose)
     
-    def load_status(self):
-        """ Load processing status from a JSON file.
-        
-        Parameters
-        ----------
-        None
-        
-        Returns
-        -------
-        status : Status
-            Status object loaded from the JSON file.
-        """
-        if self.savepath.statuspath is None:
-            raise ValueError("Cannot load MasterImage status: save path is not defined.")
-        with open(self.savepath.statuspath, 'r') as f:
-            status_data = json.load(f)
-        return Status.from_dict(status_data)
-
-    def save_status(self):
-        """ Save processing status to a JSON file.
-        
-        Parameters
-        ----------
-        None
-        
-        Returns
-        -------
-        None
-        """
-        if self.savepath.statuspath is None:    
-            raise ValueError("Cannot save MasterImage status: save path is not defined.")    
-        with open(self.savepath.statuspath, 'w') as f:
-            json.dump(self.status.to_dict(), f, indent=4)
-
-    def update_status(self, process_name):
-        """ Mark a process as completed and update time.
-        
-        Parameters
-        ----------
-        process_name : str
-            Name of the process to update.
-        """
-        self.status.update(process_name)
-    
     def save_info(self):
         """ Save processing info to a JSON file.
         
@@ -577,7 +443,6 @@ class MasterImage(BaseImage):
         return SimpleNamespace(
             savedir=savedir,
             savepath=savedir / filename,
-            statuspath=savedir / (filename + '.status'),
             infopath=savedir / (filename + '.info'),
             bpmaskpath= savedir / (filename + '.bpmask'),
             loggerpath=savedir / (filename + '.log')
@@ -617,7 +482,4 @@ class MasterImage(BaseImage):
                 connected.add(p)
 
         return connected
-
-    def _check_status(self):
-        pass
 

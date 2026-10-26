@@ -193,12 +193,6 @@ class BackgroundGenerator:
         )
         target_img.header.update(update_header_kwargs_image)
 
-        ## Update status          
-        event_details_kwargs = dict(
-            type = 'SEP', 
-            box_size = box_size, 
-            filter_size = filter_size)
-        target_bkg.add_status("background_sep", **event_details_kwargs)
 
         if save:
             target_bkg.write(verbose = verbose)
@@ -348,12 +342,6 @@ class BackgroundGenerator:
         )
         target_img.header.update(update_header_kwargs_image)
 
-        ## Update status          
-        event_details_kwargs = dict(
-            type = 'Photutils', 
-            box_size = box_size, 
-            filter_size = filter_size)
-        target_bkg.add_status("background_sep", **event_details_kwargs)
 
         if save:
             target_bkg.write(verbose = verbose)
@@ -417,7 +405,7 @@ class BackgroundGenerator:
         if not overwrite:
             new_path = target_img.savepath.savepath.parent / Path('subbkg_' + target_img.savepath.savepath.name)
             src_img = target_img
-            target_img = type(target_img)(path = new_path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+            target_img = type(target_img)(path = new_path, telinfo = target_img.telinfo, load = False)
             target_img.savedir = getattr(src_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
             target_img.header = image_header
         target_img.data = image_data - bkg_data
@@ -430,9 +418,6 @@ class BackgroundGenerator:
         )
         # Update subbkg info
         target_img.header.update(update_header_kwargs)
-        # Update target_img status
-        target_img.update_status('BKGSUB')
-        
         # Step 4: Save the image
         if save:
             target_img.write(verbose = verbose)

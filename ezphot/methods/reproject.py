@@ -151,7 +151,7 @@ class Reproject:
         if not overwrite:      
             aligned_path = target_img.savepath.alignpath
             src_img = target_img
-            target_img = type(target_img)(path = aligned_path, telinfo = target_img.telinfo, status = target_img.status, load = False)
+            target_img = type(target_img)(path = aligned_path, telinfo = target_img.telinfo, load = False)
             target_img.savedir = getattr(src_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         
         target_img.data = aligned_data
@@ -162,9 +162,6 @@ class Reproject:
         )
             
         target_img.header.update(update_header_kwargs)
-            
-        target_img.update_status(process_name = 'ASTROALIGN')
-        
         if platesolve:
             target_img = self.platesolve.solve_scamp(
                 target_img = target_img,
@@ -314,15 +311,14 @@ class Reproject:
                 ) 
             os.remove(target_outpath_tmp)
 
-        reprojected_img = type(target_img)(path = target_outpath, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        reprojected_img = type(target_img)(path = target_outpath, telinfo = target_img.telinfo, load = False)
         reprojected_img.savedir = target_img.savedir
         reprojected_img.header = self.helper.merge_header(reprojected_img.header, original_header, exclude_keys = ['PV*', '*SEC'])
-        reprojected_img.update_status(process_name = 'REPROJECT')
         reprojected_img.header.update(keep_header_dict)
 
         reprojected_errormap = None
         if target_errormap is not None:
-            reprojected_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', status = target_errormap.status, load = True)
+            reprojected_errormap = Errormap(path = errormap_outpath, emaptype = 'bkgweight', load = True)
             reprojected_errormap.header = self.helper.merge_header(reprojected_errormap.header, original_header, exclude_keys = ['PV*', '*SEC'])
             reprojected_errormap.data
             reprojected_errormap.header.update(keep_header_dict)

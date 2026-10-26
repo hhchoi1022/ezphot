@@ -152,9 +152,6 @@ class ErrormapGenerator:
             )
         target_errormap.header.update(update_header_kwargs)
         
-        ## Update status          
-        event_details = dict(type = 'sourcerms', mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = str(mflaterr_path))
-        target_errormap.add_status("error_propagation", **event_details)
         
         if save:
             target_errormap.write(verbose = verbose)
@@ -290,9 +287,6 @@ class ErrormapGenerator:
             )
         target_errormap.header.update(update_header_kwargs)
         
-        ## Update status          
-        event_details = dict(type = 'bkgrms', mbias = str(mbias_img.path), mdark = str(mdark_img.path), mflat =str(mflat_img.path), mflaterr = str(mflaterr_path))
-        target_errormap.add_status("error_propagation", **event_details)
         
         if save:
             target_errormap.write(verbose = verbose)
@@ -405,13 +399,6 @@ class ErrormapGenerator:
             )
         target_errormap.header.update(update_header_kwargs)
         
-        ## Update status          
-        if errormap_type.lower() == 'sourcerms':
-            event_details = dict(type = 'sourcerms', bkg_path = str(target_bkg.path), box_size = box_size, filter_size = filter_size)
-        else:
-            event_details = dict(type = 'bkgrms', bkg_path = str(target_bkg.path), box_size = box_size, filter_size = filter_size)
-
-        target_errormap.add_status("sourcemask", **event_details)
         
         if save:
             target_errormap.write(verbose = verbose)

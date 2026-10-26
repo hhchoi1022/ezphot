@@ -265,13 +265,10 @@ class Preprocess:
         calib_image : ScienceImage
             The corrected image.
         """
-        # if target_img.status.BIASCOR['status']:
         #     target_img.logger.warning(f"BIAS correction already applied to {target_img.path}. BIAS correction is not applied.")
         #     raise RuntimeError(f"BIAS correction already applied to {target_img.path}")
-        # if target_img.status.DARKCOR['status']:
         #     target_img.logger.warning(f"DARK correction already applied to {target_img.path}. BIAS correction is not applied.")
         #     raise RuntimeError(f"DARK correction already applied to {target_img.path}")
-        # if target_img.status.FLATCOR['status']:
         #     target_img.logger.warning(f"FLAT correction already applied to {target_img.path}. BIAS correction is not applied.")
         #     raise RuntimeError(f"FLAT correction already applied to {target_img.path}")
 
@@ -317,14 +314,11 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
 
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, load = False)
         calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
-        calib_image.update_status(process_name= 'BIASCOR')
-        calib_image.update_status(process_name = 'DARKCOR')
-        calib_image.update_status(process_name = 'FLATCOR')
         # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
         # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
         # calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
@@ -405,12 +399,10 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
 
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, load = False)
         calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
-        calib_image.update_status(process_name= 'BIASCOR')
-        calib_image.update_status(process_name = 'DARKCOR')
         # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
         # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
         # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
@@ -450,7 +442,6 @@ class Preprocess:
         calib_image : ScienceImage
             The corrected image.
         """
-        # if target_img.status.BIASCOR['status']:
         #     target_img.logger.warning(f"BIAS correction already applied to {target_img.path}. BIAS correction is not applied.")
         #     raise RuntimeError(f"BIAS correction already applied to {target_img.path}")
         
@@ -481,11 +472,10 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, load = False)
         calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
-        calib_image.update_status(process_name= 'BIASCOR')
         # calib_image.logger.info(f"BIAS correction applied with {bias_image.savepath.savepath}")
         # bias_image.logger.info(f"Used for BIAS correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
@@ -550,11 +540,10 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, load = False)
         calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
-        calib_image.update_status(process_name= 'DARKCOR')
         # calib_image.logger.info(f"DARK correction applied with {dark_image.savepath.savepath}")
         # dark_image.logger.info(f"Used for DARK correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:
@@ -617,11 +606,10 @@ class Preprocess:
         calib_data.header.update(update_header_kwargs)
         
         # Create new image object
-        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, status = target_img.status.copy(), load = False)
+        calib_image = type(target_img)(path  = target_img.path, telinfo = target_img.telinfo, load = False)
         calib_image.savedir = getattr(target_img, '_savedir', None)  # keep a custom savedir (None = archive layout)
         calib_image.data = calib_data.data
         calib_image.header = calib_data.header
-        calib_image.update_status(process_name= 'FLATCOR')
         # calib_image.logger.info(f"FLAT correction applied with {flat_image.savepath.savepath}")
         # flat_image.logger.info(f"Used for FLAT correction: FILEPATH = {calib_image.savepath.savepath}")
         if save:

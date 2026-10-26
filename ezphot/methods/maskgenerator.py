@@ -128,13 +128,6 @@ class MaskGenerator():
         )
         target_mask.header.update(update_header_kwargs)
 
-        event_details = dict(
-            nan_masked=str(np.sum(nan_mask)),
-            num_zero_regions=str(num_features),
-            threshold_invalid_connection=str(threshold_invalid_connection),
-            zero_masked=str(np.sum(large_zero_mask))
-        )
-        target_mask.add_status("invalid_mask", **event_details)
 
         if save:
             target_mask.write(verbose = verbose)
@@ -260,9 +253,6 @@ class MaskGenerator():
                 update_header_kwargs['MASKATMP'] = int(target_mask.info.MASKATMP) + 1
             target_mask.header.update(update_header_kwargs)
                 
-            ## Update status          
-            event_details = dict(sigma = sigma, mask_radius_factor = mask_radius_factor, num_mask = segment_img.nlabels)
-            target_mask.add_status("source_mask", **event_details)
             self.helper.print(f"{segment_img.nlabels} sources masked.", verbose)
             
             # Save mask
@@ -392,9 +382,6 @@ class MaskGenerator():
             update_header_kwargs['MASKATMP'] = int(target_mask.info.MASKATMP) + 1
         target_mask.header.update(update_header_kwargs)
                     
-        ## Update status
-        event_details = dict(x=x_position, y=y_position, radius_arcsec=radius_arcsec, unit=unit)
-        target_mask.add_status("circular_mask", **event_details)
         self.helper.print(f"Added circular mask at ({x_position:.2f}, {y_position:.2f}) with radius {radius_arcsec}arcsec", verbose)
         
         # Save mask
@@ -531,9 +518,6 @@ class MaskGenerator():
             update_header_kwargs['MASKATMP'] = int(target_mask.info.MASKATMP) + 1
         target_mask.header.update(update_header_kwargs)
         
-        ## Update status
-        event_details = dict(gain = gain, readnoise = readnoise, sigclip = sigclip, sigfrac = sigfrac, objlim = objlim, niter = niter, cleantype = cleantype, fsmode = fsmode)
-        target_mask.add_status("cr_mask", **event_details)
         self.helper.print(f"{new_mask.sum()} cosmic rays masked.", verbose)
         
         # Save mask

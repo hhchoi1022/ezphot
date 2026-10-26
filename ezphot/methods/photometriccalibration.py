@@ -834,7 +834,6 @@ class PhotometricCalibration:
                     target_img.header[key] = (value, "")
         
         # Update the target image
-        target_img.update_status('ZPCALC')
         target_img.write(verbose = verbose) 
 
         if save:
