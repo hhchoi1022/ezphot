@@ -384,7 +384,7 @@ class ErrormapGenerator:
         # Calculate error map
         bkg_rms_map = bkg.background_rms.astype(np.float32)
         if target_ivpmask is not None:
-            bkg_rms_map[target_ivpmask.data] = np.nan
+            bkg_rms_map[target_ivpmask.data.astype(bool)] = np.nan
             
         if errormap_type.lower() == 'sourcerms':
             egain = target_img.egain

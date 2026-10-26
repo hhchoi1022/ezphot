@@ -475,7 +475,7 @@ class ImageMethod:
             target_ivpmask = target_ivpmask,
             box_size = box_size,
             filter_size = filter_size,
-            erormap_type = 'bkgrms',
+            errormap_type = 'bkgrms',
             save = save,
             verbose = verbose,
             visualize = visualize,
@@ -601,13 +601,13 @@ class ImageMethod:
         """
         from ezphot.methods import ErrormapGenerator
         errormapgenerator = ErrormapGenerator()
-        target_sourcerms = errormapgenerator.calculate_errormap_from_image(
+        target_sourcerms, _, _ = errormapgenerator.calculate_errormap_from_image(
             target_img = self,  
             target_srcmask = target_srcmask,
             target_ivpmask = target_ivpmask,
             box_size = box_size,
             filter_size = filter_size,
-            erormap_type = 'sourcerms',
+            errormap_type = 'sourcerms',
             save = save,
             verbose = verbose,
             visualize = visualize,

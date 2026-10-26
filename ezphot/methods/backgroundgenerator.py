@@ -140,7 +140,7 @@ class BackgroundGenerator:
 
         if target_ivpmask is not None:
             image_data = image_data.copy()  # do not write NaN into target_img.data
-            image_data[target_ivpmask.data] = np.nan
+            image_data[target_ivpmask.data.astype(bool)] = np.nan
 
         # Step 2: Background estimation
         image_data = self.helper.to_native(image_data)
@@ -159,7 +159,7 @@ class BackgroundGenerator:
             bkg_map = np.full_like(image_data, bkg_val, dtype=image_data.dtype)
         
         if target_ivpmask is not None:
-            bkg_map[target_ivpmask.data] = np.nan
+            bkg_map[target_ivpmask.data.astype(bool)] = np.nan
             
             
         if correct_global_offset:
