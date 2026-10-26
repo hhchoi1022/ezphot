@@ -26,7 +26,6 @@ from ezphot.helper import Helper
 from ezphot.imageobjects import ScienceImage, CalibrationImage, ReferenceImage, Errormap, Background 
 from ezphot.methods import Reproject
 from ezphot.methods import BackgroundGenerator
-from ezphot.methods import PSFPhotometry
 #%%
 helper = Helper()
 def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma=3.0, nlow=1, nhigh=1):
@@ -546,7 +545,7 @@ class Stack:
         self.helper = Helper()
         self.combiner = Combiner()
         self.background = BackgroundGenerator()
-        self.psfphot    = PSFPhotometry()
+
 
     def __repr__(self):
         return f"Method class: {self.__class__.__name__}\n For help, use 'help(self)' or `self.help()`."
