@@ -2,3 +2,6 @@
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
