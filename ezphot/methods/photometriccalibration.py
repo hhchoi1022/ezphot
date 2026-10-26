@@ -816,15 +816,6 @@ class PhotometricCalibration:
                 plt.show()
             plt.close(fig)
 
-        
-        # update_kwargs = {
-        #     'depth': target_img.depth,
-        #     'seeing': target_img.seeing}
-        
-        # for key, value in update_kwargs.items():
-        #     target_catalog.info.update(key, value)
-        #     filtered_catalog.info.update(key, value)
-
         # Final: Update the header
         if update_header:
             for key, value in update_kwargs.items():
@@ -832,7 +823,12 @@ class PhotometricCalibration:
                     target_img.header[key] = value
                 else:
                     target_img.header[key] = (value, "")
-        
+
+        # Propagate the (updated) header seeing/depth to the catalog info
+        for key, value in {'depth': target_img.depth, 'seeing': target_img.seeing}.items():
+            target_catalog.info.update(key, value)
+            filtered_catalog.info.update(key, value)
+
         # Update the target image
         target_img.write(verbose = verbose) 
 
@@ -870,7 +866,7 @@ class PhotometricCalibration:
         header = target_img.header
         target_catalog_data = target_catalog.data
         skysig = None
-        if 'SKYSIG' in target_catalog_data.colnames:
+        if 'SKYSIG' in target_catalog_data.colnames and len(target_catalog_data) > 0:
             skysig = float(target_catalog_data['SKYSIG'][0])
         else:
             skysig = target_img.info.SKYSIG
