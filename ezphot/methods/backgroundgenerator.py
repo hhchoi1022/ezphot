@@ -139,6 +139,7 @@ class BackgroundGenerator:
         #     image_data = cv2.inpaint(image_filled, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
         if target_ivpmask is not None:
+            image_data = image_data.copy()  # do not write NaN into target_img.data
             image_data[target_ivpmask.data] = np.nan
 
         # Step 2: Background estimation
@@ -162,13 +163,9 @@ class BackgroundGenerator:
             
             
         if correct_global_offset:
-            if mask_to_use is not None:
-                sigma_clip = False
-            else:
-                sigma_clip = True
             global_offset, global_offset_std = self._estimate_global_offset(image_data - bkg_map,
                                                                             mask = mask_to_use, 
-                                                                            sigma_clip = sigma_clip,
+                                                                            sigma_clip = True,
                                                                             sigma = 5.0, 
                                                                             maxiters = 5,
                                                                             use = "mean")
@@ -226,6 +223,9 @@ class BackgroundGenerator:
                                 box_size: int = 128,
                                 filter_size: int = 3,
                                 bkg_estimator: str = 'sextractor', # 'mean', 'median', 'sextractor'
+                                sigma: float = 5.0,
+                                target_ivpmask: Optional[Mask] = None,
+                                correct_global_offset: bool = False,
                                 
                                 # Others
                                 save: bool = False,
@@ -234,7 +234,8 @@ class BackgroundGenerator:
                                 save_fig: bool = False):     
         """
         Estimate the background of an astronomical image using photutils.
-        OBSOLETE: Use scienceimage.calculate_background() instead.
+        scienceimage.calculate_bkg() uses this with bkg_estimator='mean', sigma=5: flat-fielded counts sit on a
+        ~1 ADU comb, so mode/median estimators step by ~1 ADU along the flat contours; the clipped mean does not.
         
         Parameters
         ----------
@@ -250,6 +251,13 @@ class BackgroundGenerator:
             The size of the filter for the background estimation.
         bkg_estimator : str, optional
             The background estimator to use.
+        sigma : float, optional
+            Sigma-clipping threshold per box. 5 keeps the positive photon-noise tail of low-count sky, so 'mean'
+            gives the sky mean that aperture sums need; 3 cuts that tail and biases 'mean' low.
+        target_ivpmask : Mask, optional
+            The invalid pixel mask; excluded from the estimation and set to NaN in the map.
+        correct_global_offset : bool, optional
+            Whether to add the sigma-clipped mean of the residual (image - map) over unmasked pixels.
         save : bool, optional
             Whether to save the background image.
         verbose : bool, optional
@@ -277,6 +285,10 @@ class BackgroundGenerator:
             self.helper.print("External mask is loaded.", verbose)
             
         image_data = target_img.data.astype(np.float32).copy()
+        invalid = ~np.isfinite(image_data)
+        if target_ivpmask is not None:
+            invalid |= target_ivpmask.data.astype(bool)
+        mask_to_use = invalid if mask_to_use is None else (mask_to_use | invalid)
 
         # Step 2: Background estimation
         # Set the background estimation methods
@@ -294,13 +306,25 @@ class BackgroundGenerator:
                            box_size = (box_size, box_size), 
                            mask=mask_to_use,
                            filter_size=(filter_size, filter_size),
-                           sigma_clip=SigmaClip(sigma=3, maxiters = 10),
+                           sigma_clip=SigmaClip(sigma=sigma, maxiters = 10),
                            bkg_estimator=bkgestimator)
         if is_2D_bkg:
-            bkg_map = bkg.background
+            bkg_map = bkg.background.astype(np.float32)
         else:
             bkg_val = np.mean(bkg.background)
             bkg_map = np.full_like(image_data, bkg_val, dtype=image_data.dtype)
+
+        if correct_global_offset:
+            global_offset, global_offset_std = self._estimate_global_offset(image_data - bkg_map,
+                                                                            mask = mask_to_use,
+                                                                            sigma_clip = True,
+                                                                            sigma = sigma,
+                                                                            maxiters = 5,
+                                                                            use = "mean")
+            bkg_map += global_offset
+
+        if target_ivpmask is not None:
+            bkg_map[target_ivpmask.data.astype(bool)] = np.nan
 
         target_bkg = Background(target_img.savepath.bkgpath, load=False)
         target_bkg.data = bkg_map
@@ -311,8 +335,8 @@ class BackgroundGenerator:
             TGTPATH = str(target_img.path),
             BKGTYPE = 'Photutils',
             BKGIS2D = True,
-            BKGVALU = float(np.mean(bkg_map)),
-            BKGSIG = float(np.std(bkg_map)),
+            BKGVALU = float(np.nanmean(bkg_map)),
+            BKGSIG = float(np.nanstd(bkg_map)),
             BKGBOX = int(box_size),
             BKGFILT = int(filter_size),
         )

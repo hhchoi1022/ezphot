@@ -378,7 +378,8 @@ class ImageMethod:
                       save_fig: bool = False):
         """
         Calculate the background map for this ScienceImage.
-        The background map is a map of the background level of the image.
+        The background map is a map of the background level of the image: per-mesh 5-sigma-clipped mean
+        (photutils), not the SExtractor mode.
         If save is True, the background map is saved. Then, you can load the background map with `self.bkgmap`.
         
         Parameters
@@ -411,13 +412,15 @@ class ImageMethod:
         """
         from ezphot.methods import BackgroundGenerator
         bkggenerator = BackgroundGenerator()
-        target_bkg, _ = bkggenerator.estimate_with_sep(
+        target_bkg, _ = bkggenerator.estimate_with_photutils(
             target_img = self,
-            target_srcmask = target_srcmask,
+            target_mask = target_srcmask,
             target_ivpmask = target_ivpmask,
             is_2D_bkg = is_2D_bkg,
             box_size = box_size,
             filter_size = filter_size,
+            bkg_estimator = 'mean',
+            sigma = 5.0,
             correct_global_offset = correct_global_offset,
             save = save,
             verbose = verbose,

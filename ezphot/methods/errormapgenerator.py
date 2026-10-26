@@ -361,15 +361,19 @@ class ErrormapGenerator:
             The error map instance from ezphot.
         target_bkg : ezphot.imageobjects.Background
             The background image instance from ezphot.
-        bkg : sep.Background or photutils.background.Background2D
-            The background image instance from SEP or photutils.
+        bkg : photutils.background.Background2D
+            The background image instance from photutils.
         """
-        target_bkg, bkg = self.backgroundgenerator.estimate_with_sep(
+        # 5-sigma-clipped per-mesh std (the 3-sigma clip of sep.rms() is ~4-5% low)
+        target_bkg, bkg = self.backgroundgenerator.estimate_with_photutils(
             target_img = target_img,
-            target_srcmask = target_srcmask,
+            target_mask = target_srcmask,
             target_ivpmask = target_ivpmask,
             box_size = box_size,
             filter_size = filter_size,
+            bkg_estimator = 'mean',
+            sigma = 5.0,
+            correct_global_offset = True,
             save = False,
             verbose = verbose,
             visualize = False,
@@ -378,7 +382,7 @@ class ErrormapGenerator:
 
         import numpy as np
         # Calculate error map
-        bkg_rms_map = bkg.rms()
+        bkg_rms_map = bkg.background_rms.astype(np.float32)
         if target_ivpmask is not None:
             bkg_rms_map[target_ivpmask.data] = np.nan
             
