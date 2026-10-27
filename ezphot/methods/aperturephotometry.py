@@ -794,8 +794,10 @@ class AperturePhotometry:
                     r_out=annulus_outer_radius_pixel
                 )
 
-                # --- Sigma-clipped statistics ---
-                sigma_clip = SigmaClip(sigma=3.0, maxiters=5)
+                # --- Sigma-clipped MEAN statistics (not median/mode): on the photon-skewed low-count
+                # sky the median sits ~1/6 e-/pix below the mean and biases faint sources bright
+                # (2026-10-21). 5 sigma rejects sources without trimming the skewed sky tail.
+                sigma_clip = SigmaClip(sigma=5.0, maxiters=5)
 
                 annulus_stats = ApertureStats(
                     data,
@@ -805,16 +807,16 @@ class AperturePhotometry:
                 )
 
                 # Per-source values (arrays)
-                bkg_median = np.array(annulus_stats.median)
+                bkg_mean = np.array(annulus_stats.mean)
                 bkg_std = np.array(annulus_stats.std)
 
                 # --- Background subtraction ---
-                annulus_bkg_flux = bkg_median * aperture.area
+                annulus_bkg_flux = bkg_mean * aperture.area
                 aperture_flux = np.array(phot_table['aperture_sum'])
                 flux_net = aperture_flux - annulus_bkg_flux
 
                 results[flux_key] = flux_net
-                results[bkg_key] = bkg_median
+                results[bkg_key] = bkg_mean
 
                 # --- Safe magnitude calculation ---
                 mag = np.full(len(flux_net), np.nan)
