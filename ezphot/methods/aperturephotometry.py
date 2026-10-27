@@ -80,6 +80,17 @@ class AperturePhotometry:
         help_text = ""
         print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines))
       
+    @staticmethod
+    def _sky_residual_stats(data, mask=None, stride: int = 4, sigma: float = 3.0, maxiters: int = 5) -> dict:
+        """Sigma-clipped mean/median/SExtractor-mode/std of (subsampled) sky pixels of a background-subtracted frame."""
+        from astropy.stats import sigma_clipped_stats
+        sub = np.asarray(data)[::stride, ::stride]
+        if mask is not None:
+            sub = sub[~np.asarray(mask)[::stride, ::stride].astype(bool)]
+        sub = sub[np.isfinite(sub)]
+        mean, median, std = sigma_clipped_stats(sub, sigma=sigma, maxiters=maxiters)
+        return dict(mean=float(mean), median=float(median), mode=float(2.5 * median - 1.5 * mean), std=float(std))
+
     def sex_photometry(self,  
                        # Input parameters
                        target_img: Union[ScienceImage, ReferenceImage, CalibrationImage], 
@@ -92,6 +103,7 @@ class AperturePhotometry:
                        aperture_diameter_seeing: Union[float, list] = [2.5, 3.5], # If given, use seeing to calculate aperture size
                        seeing_arcsec: float = None, # If None, estimated from the image (header SEEING is not used)
                        annulus_width_arcsec: float = None,
+                       local_bkg_bias_limit: float = 0.02, # [mag] warn if SExtractor LOCAL background would bias a SNR=10 source more than this
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
                        
@@ -274,10 +286,33 @@ class AperturePhotometry:
         else:
             sex_params['DETECT_THRESH'] = detection_sigma
             
+        # Residual-sky statistics of the background-subtracted frame (sigma-clipped, subsampled; ~0.3 s).
+        # On a photon-skewed (low-count) sky mode < median < mean even for a perfect bkgmap, so any
+        # mode-type estimator applied afterwards (SExtractor LOCAL/AUTO) under-subtracts by (mean - mode).
+        sky_stats = None
+        if target_bkg is not None and not isinstance(target_bkg, (float, int)):
+            sky_stats = self._sky_residual_stats(target_img_sub.data,
+                                                 mask=target_mask.data if target_mask is not None else None)
+            self.helper.print("[BKG] residual after bkgmap (ADU/pix): mean=%+.3f median=%+.3f SEx-mode=%+.3f sigma=%.2f"
+                              % (sky_stats['mean'], sky_stats['median'], sky_stats['mode'], sky_stats['std']), verbose)
+
         if annulus_width_arcsec is not None:
             annulus_width_pixel = annulus_width_arcsec / pixelscale
             sex_params['BACKPHOTO_TYPE'] = 'LOCAL'
             sex_params['BACKPHOTO_THICK'] = annulus_width_pixel
+            if sky_stats is not None:
+                # expected brightening of a SNR=10 source in the largest aperture by the LOCAL (mode) background.
+                # ZP-independent: pedestal flux (pedestal*A) over the flux of a sky-noise-limited SNR=10 source
+                # (10*sigma*sqrt(A)), both in ADU.
+                pedestal = sky_stats['mean'] - sky_stats['mode']
+                area_max = np.pi * (max(all_apertures) / 2 / pixelscale) ** 2
+                flux_ratio = pedestal * np.sqrt(area_max) / (10 * sky_stats['std'])
+                bias_mag = 2.5 * np.log10(1 + flux_ratio) if flux_ratio > -1 else np.inf
+                if bias_mag > local_bkg_bias_limit:
+                    self.helper.print("[WARNING] SExtractor LOCAL background is a mode estimate: residual sky mean-mode = %+.2f ADU/pix "
+                                      "-> a SNR=10 source in the %.1f\" aperture is biased ~%.3f mag bright (limit %.3f). "
+                                      "Use annulus_width_arcsec=None (bkgmap only) or circular_photometry (clipped-mean annulus)."
+                                      % (pedestal, max(all_apertures), bias_mag, local_bkg_bias_limit), True)
         else:
             sex_params['BACKPHOTO_TYPE'] = 'GLOBAL'
             
@@ -693,6 +728,11 @@ class AperturePhotometry:
 
             annulus_inner_radius = annulus_inner_diameter / 2
             annulus_outer_radius = annulus_outer_diameter / 2
+            if target_img.seeing is not None:
+                gap = annulus_inner_radius - max_aperture / 2
+                if gap < 0.5 * target_img.seeing:   # default geometry gives 0.75 seeing (wing < 0.4% of flux)
+                    print("[WARNING] sky annulus starts only %.1f\" (%.1f FWHM) beyond the largest aperture; "
+                          "PSF wings of the source itself will be subtracted as sky." % (gap, gap / target_img.seeing))
 
         # Step 5: Source positions
         x_arr = np.atleast_1d(x_arr)
@@ -1093,10 +1133,12 @@ class AperturePhotometry:
                            plot_entire_image: bool = False,
                            save_path: str = None,
                            show: bool = False):
-        import matplotlib.cm as cm
+        # import matplotlib.cm as cm
+        import matplotlib
         
         radius_arcsec_list = np.atleast_1d(radius_arcsec)
-        cmap = cm.get_cmap('jet', len(radius_arcsec_list)) 
+        # cmap = cm.get_cmap('jet', len(radius_arcsec_list)) 
+        cmap = matplotlib.colormaps['viridis'].resampled(len(radius_arcsec_list))
         colors = [cmap(i) for i in range(len(radius_arcsec_list))]
 
         data = target_img.data
