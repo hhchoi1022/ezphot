@@ -834,24 +834,27 @@ class LightCurve:
         """
         
         # Normalize keys to lists
-        flux_keys = ['MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_3', 'MAGSKY_APER_4']
-        fluxerr_keys = ['MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_3', 'MAGERR_APER_4']
-        zperr_keys = ['ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_3', 'ZPERR_APER_4']
-        depth_keys = ['UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_3', 'UL5SKY_APER_4']
-        
+        # 10" aperture (APER_3) first, so that 'zp_err' defaults to it
+        flux_keys = ['MAGSKY_APER_3', 'MAGSKY_AUTO', 'MAGSKY_APER', 'MAGSKY_APER_1', 'MAGSKY_APER_2', 'MAGSKY_APER_4']
+        fluxerr_keys = ['MAGERR_APER_3', 'MAGERR_AUTO', 'MAGERR_APER', 'MAGERR_APER_1', 'MAGERR_APER_2', 'MAGERR_APER_4']
+        zperr_keys = ['ZPERR_APER_3', 'ZPERR_AUTO', 'ZPERR_APER', 'ZPERR_APER_1', 'ZPERR_APER_2', 'ZPERR_APER_4']
+        depth_keys = ['UL5SKY_APER_3', 'UL5SKY_AUTO', 'UL5SKY_APER', 'UL5SKY_APER_1', 'UL5SKY_APER_2', 'UL5SKY_APER_4']
+
+        # Requested keys go before the defaults
         if flux_key is not None:
-            flux_keys.extend(np.atleast_1d(flux_key))
+            flux_keys = list(np.atleast_1d(flux_key)) + flux_keys
         if fluxerr_key is not None:
-            fluxerr_keys.extend(np.atleast_1d(fluxerr_key))
+            fluxerr_keys = list(np.atleast_1d(fluxerr_key)) + fluxerr_keys
         if zperr_key is not None:
-            zperr_keys.extend(np.atleast_1d(zperr_key))
+            zperr_keys = list(np.atleast_1d(zperr_key)) + zperr_keys
         if depth_key is not None:
-            depth_keys.extend(np.atleast_1d(depth_key))
-        
-        flux_keys = list(set(flux_keys))
-        fluxerr_keys = list(set(fluxerr_keys))
-        zperr_keys = list(set(zperr_keys))
-        depth_keys = list(set(depth_keys))
+            depth_keys = list(np.atleast_1d(depth_key)) + depth_keys
+
+        # Deduplicate keeping order (set() reshuffled the order on every run)
+        flux_keys = list(dict.fromkeys(flux_keys))
+        fluxerr_keys = list(dict.fromkeys(fluxerr_keys))
+        zperr_keys = list(dict.fromkeys(zperr_keys))
+        depth_keys = list(dict.fromkeys(depth_keys))
         
         # Ensure merged table exists (pulling at least the requested keys + their ZPERR counterparts)
         needed_data_keys = set()
