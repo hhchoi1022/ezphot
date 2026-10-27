@@ -599,8 +599,11 @@ class Subtract:
                 if convim == 'auto':
                     convim = 'i'   # convolve image
 
-            # HOTPANTS ng expects Gaussian sigma in pixel units
-            sigma_match_pix = match_fwhm_arcsec / 2.355 / pixscale
+            # HOTPANTS ng expects Gaussian sigma in pixel units.
+            # Near-identical seeing gives a sub-pixel sigma, which leaves the Gaussian
+            # basis unsamplable on the pixel grid and makes hotpants return an empty
+            # convolution. Floor it so the narrowest basis stays >= 0.60 px.
+            sigma_match_pix = max(match_fwhm_arcsec / 2.355 / pixscale, 1.2)
             if ng == 'auto':
                 ng = f"3 6 {0.5*sigma_match_pix:.2f} 4 {sigma_match_pix:.2f} 2 {2.0*sigma_match_pix:.2f}" # larger_3
 
