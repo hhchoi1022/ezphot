@@ -508,8 +508,10 @@ class AperturePhotometry:
         # FWHM calculation
         if calc_accurate_fwhm:
             all_fwhm = []
+            # DEPENDING ON THE VERSION OF PHOTUTILS (x_centroid in newer releases, xcentroid in 2.2.0)
+            xkey, ykey = ('x_centroid', 'y_centroid') if 'x_centroid' in cat_tbl.colnames else ('xcentroid', 'ycentroid')
             for source in tqdm(cat_tbl, desc = 'Calculating FWHM...'):
-                x0, y0 = source['xcentroid'], source['ycentroid']
+                x0, y0 = source[xkey], source[ykey]
                 stamp = self.helper.img_extract_stamp(target_data, x0, y0, size=25)  # make your own stamp function
                 y, x = np.indices(stamp.shape)
                 
