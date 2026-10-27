@@ -755,9 +755,8 @@ class AperturePhotometry:
 
         # Step 6: Photometry
         results = Table()
-        # 1-based pixel coordinates (SExtractor convention); photutils positions are 0-based
-        results['X_IMAGE'] = positions[:, 0] + 1
-        results['Y_IMAGE'] = positions[:, 1] + 1
+        results['X_IMAGE'] = positions[:, 0]
+        results['Y_IMAGE'] = positions[:, 1]
         if skycoord:
             results['X_WORLD'] = skycoord.ra.value
             results['Y_WORLD'] = skycoord.dec.value
@@ -1051,9 +1050,8 @@ class AperturePhotometry:
 
         # Step 6: Initialize results table
         results = Table()
-        # 1-based pixel coordinates (SExtractor convention); photutils positions are 0-based
-        results['X_IMAGE'] = x + 1
-        results['Y_IMAGE'] = y + 1
+        results['X_IMAGE'] = x
+        results['Y_IMAGE'] = y
         results['SMA_IMAGE'] = sma_image
         results['SMI_IMAGE'] = smi_image
         results['THETA_IMAGE'] = np.degrees(theta)
