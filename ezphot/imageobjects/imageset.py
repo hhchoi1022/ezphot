@@ -528,7 +528,7 @@ class ImageSet:
         if len(self.target_images) == 0:
             return None
         if len(self.target_images) == 1:
-            return self.target_images[0]
+            return self.target_images[0], self.bkgrms[0]
         
         from ezphot.methods import Stack
         stacker = Stack()
