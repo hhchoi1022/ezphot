@@ -391,7 +391,7 @@ class Catalog:
     def remove(self, 
             remove_main: bool = True, 
             remove_connected_files: bool = True,
-            skip_patterns: list = [['*.png', '*.cat']],
+            skip_patterns: list = ['*.png', '*.cat'],
             verbose: bool = True) -> dict:
 
         removed = {}
