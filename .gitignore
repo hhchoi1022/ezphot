@@ -5,3 +5,9 @@ __pycache__/
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
+
+# macOS metadata, build metadata, SWarp XML output
+.DS_Store
+._*
+*.egg-info/
+/swarp.xml
