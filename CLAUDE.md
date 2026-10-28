@@ -21,6 +21,15 @@
 - `update_pypl.sh`(PyPI 업로드), `scan_dependency.py`(requirements 덮어쓰기)를 실행하지 않는다. `helper/queryhelper.py`의 자격증명을 쓰거나 출력하지 않는다.
 - 커밋은 요청이 있을 때만. 작업 트리의 기존 미커밋 변경을 `git stash`·`checkout --`·`restore`·`reset`으로 되돌리지 않는다.
 
+## 프로젝트 간 소통
+- 다른 프로젝트(BRIDGE · ezphot · NGSF-7DT · pixelagents)에 보내는 요청·질문·통보는 그 프로젝트 세션(`<project>/lead-*`, `claude-HC_*` 등)에
+  직접 SendMessage하지 않고 **superagent**에게 보낸다. superagent가 전달해 온 요청에 대한 답도 superagent에게 보낸다.
+- superagent = pixel-agents 오피스가 `~/code/superagent`에서 띄운 `superagent-<id4>` 세션. 예전 7DT_SN_ToO 설정
+  (지금은 `superagent/_archive/2026-10-28/7DT_SN_ToO_project`, `ports.md` 포함)과는 다르다.
+- 보내기 전에 사용자에게 내용을 확인받는다. 길면 이 저장소의 `_workspace/upstream/<대상>_<slug>.md`에 쓰고 메시지에는 경로만 넣는다.
+- `ListAgents`에 `superagent-*`가 없으면 보내지 않고, 사용자에게 superagent를 띄워 달라고 한다.
+- 다른 저장소의 코드는 읽어도 되지만 고치지 않는다.
+
 ## 요청이 모호할 때
 
 해석에 따라 바뀌는 코드나 결과가 달라지는 요청이면, 추측해서 진행하지 말고 먼저 구체적으로 묻는다.
@@ -115,4 +124,5 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | 2026-10-28 | 코드 변경 오케스트레이터 이름 `ezphot-change` → `ezphot-develop` | ezphot-develop, ezphot-photometry, CLAUDE.md | 사용자 요청 |
 | 2026-10-28 | 이름을 다시 `ezphot-develop` → `ezphot-change`로 되돌림 | ezphot-change, ezphot-photometry, CLAUDE.md | 사용자 요청 (`ezphot-dev`와 이름이 헷갈림) |
 | 2026-10-28 | 「요청이 모호할 때」 규칙, 오케스트레이터 요청 명확화 단계, 엔지니어 질문 규칙 추가 | CLAUDE.md, ezphot-change, ezphot-photometry, ezphot-engineer | 사용자 요청: 모호한 질문은 구체적으로 되묻게 |
-| 2026-10-28 | 샌드박스(harness-lab)에서 운영 저장소로 이식. superagent 체계(7DT_SN_ToO) 폐지에 따라 「에이전트 경계」·`ports.md` 등록 규칙 제거, 코딩 원칙 유지, 「환경」을 운영값(`too`, `scratch/ezphot-iso`, 8760–8780)으로. 예전 에이전트·스킬·CLAUDE.md는 `.claude/_archive/2026-10-28/` | 측광 실제 아카이브 모드(타일별 승인) 추가 | 사용자 결정: 샌드박스 폐지, 하네스를 운영으로, 승인 시 실제 아카이브 |
+| 2026-10-28 | 「프로젝트 간 소통」 추가: 다른 프로젝트로 가는 메시지는 모두 superagent(pixel-agents의 `superagent-<id4>`) 경유. BRIDGE·ezphot·NGSF-7DT·pixelagents CLAUDE.md에 같은 절 | CLAUDE.md | 사용자 결정: 프로젝트 간 요청은 superagent로 일원화 |
+| 2026-10-28 | 샌드박스(harness-lab)에서 운영 저장소로 이식. 「에이전트 경계」·`ports.md` 등록 규칙 제거, 코딩 원칙 유지, 「환경」을 운영값(`too`, `scratch/ezphot-iso`, 8760–8780)으로. 예전 에이전트·스킬·CLAUDE.md는 `.claude/_archive/2026-10-28/` | 측광 실제 아카이브 모드(타일별 승인) 추가 | 사용자 결정: 샌드박스 폐지, 하네스를 운영으로, 승인 시 실제 아카이브 |
