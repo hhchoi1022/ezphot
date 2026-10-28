@@ -1,82 +1,127 @@
-# requirements.py
 """
-Scan the tippy package for third-party imports
-(excluding standard library, local package imports, and selected folders),
-and write them with pinned versions to requirements.txt.
-
-Run:
-    python requirements.py
+Scan the current project for third-party imports and write installed
+versions to requirements.txt.
 """
 
 from pathlib import Path
+from importlib.metadata import (
+    PackageNotFoundError,
+    packages_distributions,
+    version,
+)
 import ast
-import pkg_resources
-from stdlib_list import stdlib_list
+import sys
 
-# Python version for stdlib detection
-PYTHON_VERSION = "3.11"
 
-# Folders to skip in scanning
-exclude_dirs = {"docs", "analysis", "__pycache__"}
+PROJECT_DIR = Path(__file__).resolve().parent
+THIS_FILE = Path(__file__).resolve()
 
-# Local package name to exclude
-local_package_name = "tippy"
+EXCLUDE_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    "build",
+    "dist",
+    "docs",
+    "analysis",
+}
 
-# Where to scan
-PACKAGE_DIR = Path(local_package_name)
+# ??? Python ?? ??
+python_files = [
+    path
+    for path in PROJECT_DIR.rglob("*.py")
+    if path.resolve() != THIS_FILE
+    and not any(part in EXCLUDE_DIRS for part in path.parts)
+]
 
-stdlib_mods = set(stdlib_list(PYTHON_VERSION))
+# ???? ?? ???? ?? ?? ??
+local_modules = set()
+
+for path in python_files:
+    relative = path.relative_to(PROJECT_DIR)
+
+    # ?? ???? ??
+    local_modules.update(relative.parts[:-1])
+
+    # ?? Python ?? ??
+    if path.name != "__init__.py":
+        local_modules.add(path.stem)
+
+# import ? ??
 imports = set()
 
-for path in PACKAGE_DIR.rglob("*.py"):
-    # Skip files inside excluded directories
-    if any(part in exclude_dirs for part in path.parts):
+for path in python_files:
+    try:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+    except (SyntaxError, UnicodeDecodeError):
         continue
 
-    with open(path, "r", encoding="utf-8") as f:
-        try:
-            tree = ast.parse(f.read(), filename=str(path))
-        except SyntaxError:
-            continue
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.add(alias.name.split(".")[0])
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    imports.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imports.add(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            # from .module import ... ??? ?? import??? ??
+            if node.level > 0:
+                continue
 
-# Filter out stdlib and local package imports
+            if node.module:
+                imports.add(node.module.split(".")[0])
+
+# ?? ?????? ?? ?? ??
 third_party = sorted(
-    m for m in imports
-    if m not in stdlib_mods and m != local_package_name
+    module
+    for module in imports
+    if module not in sys.stdlib_module_names
+    and module not in local_modules
 )
 
-# Map import names to PyPI package names if needed
+# import ??? ?? ??? ??? ?? ??
 mapping = {
     "cv2": "opencv-python",
     "PIL": "Pillow",
     "sklearn": "scikit-learn",
     "yaml": "PyYAML",
 }
-pypi_packages = [mapping.get(pkg, pkg) for pkg in third_party]
 
-# Attach versions from current environment
-installed_pkgs = {dist.project_name.lower(): dist.version for dist in pkg_resources.working_set}
+# ??? import ?? ? PyPI ?? ??? ??
+distribution_map = packages_distributions()
 
-requirements_with_versions = []
-for pkg in pypi_packages:
-    ver = installed_pkgs.get(pkg.lower())
-    if ver:
-        requirements_with_versions.append(f"{pkg}=={ver}")
+pypi_packages = set()
+
+for module in third_party:
+    if module in mapping:
+        pypi_packages.add(mapping[module])
+    elif distribution_map.get(module):
+        pypi_packages.add(distribution_map[module][0])
     else:
-        requirements_with_versions.append(pkg)  # fallback without version
+        # ???? ?? ?? ??? ??? ? ?? ??
+        pypi_packages.add(module)
 
-# Write to requirements.txt
-req_file = Path("requirements.txt")
-req_file.write_text("\n".join(requirements_with_versions) + "\n", encoding="utf-8")
+# ?? ??? ??? ?? ??
+requirements = []
 
-print(f"Detected {len(pypi_packages)} external packages.")
-print(f"Saved to {req_file.resolve()}")
+for package in sorted(pypi_packages, key=str.lower):
+    try:
+        requirements.append(f"{package}=={version(package)}")
+    except PackageNotFoundError:
+        requirements.append(package)
 
+# requirements.txt ??
+req_file = PROJECT_DIR / "requirements.txt"
+req_file.write_text(
+    "\n".join(requirements) + ("\n" if requirements else ""),
+    encoding="utf-8",
+)
+
+print(f"Scanned {len(python_files)} Python files.")
+print(f"Detected {len(requirements)} external packages.")
+
+for requirement in requirements:
+    print(f"  {requirement}")
+
+print(f"Saved to {req_file}")
