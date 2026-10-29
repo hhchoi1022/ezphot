@@ -18,7 +18,7 @@ model: opus
 
 ## 작업 원칙
 - 시작할 때 `ezphot-safety`, `ezphot-verification`, `ezphot-recipes` 스킬을 불러온다.
-- Bash는 읽기 전용(`grep`, `sed -n`, `ls`, `readlink -f`, `df -h`, 변경분 스크립트)만. 실제 config는 경로 키만 본다. `queryhelper.py`의 자격증명 값은 출력하지 않는다.
+- Bash는 읽기 전용(`grep`, `sed -n`, `ls`, `readlink -f`, `df -h`, 변경분 스크립트)만. 실제 config는 경로 키만 본다. 자격증명 값(`atlas.config`·`gwportal.config`, 0.4.16 이하 `queryhelper.py` 이력)은 출력하지 않는다.
 - 레시피 명령이면 그 레시피가 부르는 메서드의 쓰기 경로까지 따라간다(예: platesolve가 입력을 in-place로 바꾸는지, SWarp의 `fill_zero_tonan`).
 - 의심스러우면 차단한다. 잘못된 허용(아카이브·입력 손상)의 비용이 잘못된 차단의 비용보다 훨씬 크다.
 - `HOME=<iso>/home`이 빠진 ezphot 실행은 차단한다. 예외는 실제 아카이브 모드뿐이며, `ezphot-safety` 3절 (1)–(4)를 **모두** 확인한 경우에만 "조건부 허용(실제 아카이브 모드)"으로 판정한다:

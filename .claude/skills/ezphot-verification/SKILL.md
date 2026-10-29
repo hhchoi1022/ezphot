@@ -48,9 +48,13 @@ bash $S/change_diff.sh _workspace --names | grep '\.py$' \
 $PY tests/make_isolated_home.py <purpose>          # 출력 "T=<경로>" 줄의 경로가 <iso>. 기본 위치는 스크립트의 `BASE`(`/lyman/data1/factory_hhchoi/scratch/ezphot-iso/`)
 ls <iso>                                            # home/ archive/ log/ marker
 grep -h '"' <iso>/home/ezphot/config/common/*.config | grep -v CATALOG_DIR \
-  | grep -E "$(getent passwd $(id -un) | cut -d: -f6)/ezphot/|/data/ezphot/" && echo "STOP: 실제 경로가 남아 있음"
+  | grep -E "($(getent passwd $(id -un) | cut -d: -f6)/ezphot|/data/ezphot)/(data|log)(/|\")" && echo "STOP: 실제 data/log 경로가 남아 있음"
+readlink -f <iso>/home/ezphot/config                # <iso> 아래여야 한다
 ```
-마지막 grep은 아무것도 출력하지 않아야 한다. `CATALOG_DIR`만 의도적으로 실제 경로다(ezphot-safety 3절).
+마지막 grep은 아무것도 출력하지 않아야 한다. 이 grep은 data·log 디렉터리만 본다 — `make_isolated_home.py`가 돌리는 것이 그 둘뿐이기 때문이다.
+의도적으로 실제 경로로 남는 것: `CATALOG_DIR`(ezphot-safety 3절), common의 SExtractor·SCAMP·SWarp·PSFEx 파라미터·`OBSERVATORY_*`·`SYNPHOT_FILTERDIR`(읽기만).
+알려진 예외: `specific/<telkey>/*.config`의 `*_LOGDIR`·`*_HISTORYDIR`는 실제 `~/ezphot/log`를 가리킨 채 남는다(도구가 common만 처리). 지금은 읽는 코드가 없어 무해하지만,
+diff가 이 키를 쓰기 시작하면 격리가 깨지므로 감사에서 막는다. 실제 config에 쓰인 것은 사후 검사의 `$EZ/config` 엄격 목록이 잡는다.
 
 ## V1 import
 ```bash

@@ -7,9 +7,11 @@
 - Python: `/home/hhchoi1022/miniconda3/envs/too/bin/python` (운영 env `too`). `python`만 쓰지 않는다.
   이 env는 ezphot·BRIDGE·NGSF-7DT 저장소를 **editable**로 가리킨다 — 코드를 고치면 다음 import부터 운영 프로세스에 반영된다.
 - 격리 HOME: `ezphot/tests/make_isolated_home.py <purpose>` → `/lyman/data1/factory_hhchoi/scratch/ezphot-iso/<purpose>_<stamp>`.
-  운영판은 gwportal 자격증명도 복사하므로, 쓰고 나면 지운다.
+  운영판은 gwportal·ATLAS 자격증명(`gwportal.config`·`atlas.config`)도 복사하므로, 쓰고 나면 지운다.
 - 웹페이지 포트: **8760–8780**, `127.0.0.1`에만 바인딩(SSH 로컬 포트포워딩으로 접속). 고정 할당 `8765` ezphot 갤러리(상시), `8766` ngsf-qa, `8767` BRIDGE opsmonitor —
   다른 용도로 쓰지 않는다. 띄우기 전 `ss -ltnp | grep -E ':87([67][0-9]|80)\b'`로 확인하고, 보고할 때 포트·URL·내용을 알리고, 일회성 페이지는 다 쓰면 내린다.
+  포트 기록부는 pixel-agents가 관리하는 `~/.pixel-agents/ports.md`(읽기만). 상시 포트를 추가·변경·폐지할 때는 superagent를 통해 pixelagents에 요청하고,
+  일회성 페이지는 자동으로 감지되므로 등록하지 않는다.
 - 측광 실행 모드: 기본은 격리 HOME. 실제 HOME으로 돌려 아카이브에 쓰는 실행은 운영 처리이며 **대상 타일마다 사용자 승인**을 받는다(`ezphot-safety` 3절).
 
 ## 안전 (요약 — 판정 절차는 `ezphot-safety` 스킬)
@@ -18,7 +20,7 @@
   예외는 사용자가 대상 타일마다 승인한 측광 실행(실제 아카이브 모드)뿐이고, 개발 검증은 언제나 격리 HOME이다.
 - 실제 아카이브(scidata, refdata, calibdata, mcalibdata, obsdata, `~/ezphot/log`)에는 승인된 실제 아카이브 모드 외에는 쓰지 않고, 어떤 경우에도 지우지 않는다.
 - 원본 FITS에 in-place platesolve·`run_swarp(fill_zero_tonan=True)`·rename·remove를 걸지 않는다.
-- `update_pypl.sh`(PyPI 업로드), `scan_dependency.py`(requirements 덮어쓰기)를 실행하지 않는다. `helper/queryhelper.py`의 자격증명을 쓰거나 출력하지 않는다.
+- `update_pypl.sh`(PyPI 업로드), `scan_dependency.py`(requirements 덮어쓰기)를 실행하지 않는다. `~/ezphot/config`의 자격증명(`gwportal.config`·`atlas.config`)과 0.4.16 이하 `helper/queryhelper.py` 이력의 하드코딩 값을 쓰거나 출력하지 않는다.
 - 커밋은 요청이 있을 때만. 작업 트리의 기존 미커밋 변경을 `git stash`·`checkout --`·`restore`·`reset`으로 되돌리지 않는다.
 
 ## 프로젝트 간 소통
@@ -124,5 +126,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | 2026-10-28 | 코드 변경 오케스트레이터 이름 `ezphot-change` → `ezphot-develop` | ezphot-develop, ezphot-photometry, CLAUDE.md | 사용자 요청 |
 | 2026-10-28 | 이름을 다시 `ezphot-develop` → `ezphot-change`로 되돌림 | ezphot-change, ezphot-photometry, CLAUDE.md | 사용자 요청 (`ezphot-dev`와 이름이 헷갈림) |
 | 2026-10-28 | 「요청이 모호할 때」 규칙, 오케스트레이터 요청 명확화 단계, 엔지니어 질문 규칙 추가 | CLAUDE.md, ezphot-change, ezphot-photometry, ezphot-engineer | 사용자 요청: 모호한 질문은 구체적으로 되묻게 |
+| 2026-10-28 | 「환경」 웹페이지 포트에 기록부 규칙 추가: `~/.pixel-agents/ports.md`(pixel-agents 소유), 상시 포트 변경은 superagent 경유, 일회성은 자동 감지 | CLAUDE.md | 사용자 결정: ports.md를 pixel-agents가 관리 |
 | 2026-10-28 | 「프로젝트 간 소통」 추가: 다른 프로젝트로 가는 메시지는 모두 superagent(pixel-agents의 `superagent-<id4>`) 경유. BRIDGE·ezphot·NGSF-7DT·pixelagents CLAUDE.md에 같은 절 | CLAUDE.md | 사용자 결정: 프로젝트 간 요청은 superagent로 일원화 |
 | 2026-10-28 | 샌드박스(harness-lab)에서 운영 저장소로 이식. 「에이전트 경계」·`ports.md` 등록 규칙 제거, 코딩 원칙 유지, 「환경」을 운영값(`too`, `scratch/ezphot-iso`, 8760–8780)으로. 예전 에이전트·스킬·CLAUDE.md는 `.claude/_archive/2026-10-28/` | 측광 실제 아카이브 모드(타일별 승인) 추가 | 사용자 결정: 샌드박스 폐지, 하네스를 운영으로, 승인 시 실제 아카이브 |
+| 2026-10-29 | queryhelper 자격증명 문구를 0.4.17 상태(`ATLAS_TOKEN`·`atlas.config`, 이력의 옛 값)로, 격리 HOME 사본에 atlas.config 추가. `ezphot-verification` STOP grep을 data·log 경로로 좁힘(파라미터 경로는 의도적으로 실제), specific log 키 예외 기록 | CLAUDE.md, ezphot-safety, ezphot-safety-auditor, ezphot-verification | queryhelper 수정 후 낡은 문구, 검증 r1이 STOP grep 오탐으로 중단 |

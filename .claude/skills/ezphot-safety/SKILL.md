@@ -23,7 +23,7 @@ ezphot의 기본 설정은 실제 데이터 아카이브를 가리킨다. 처리
 | `remove()` | 본체와 연결된 sidecar까지 지운다 |
 | Astrometry.net 래퍼 | solve-field 실패 시 입력을 지우는 in-place 경로가 있다(CODEBASE_GUIDE "Upstream issues") |
 | reference·master 등록 | 공유 summary 파일 갱신(동시 쓰기 주의) |
-| `helper/queryhelper.py` | 제3자 계정 자격증명이 소스에 들어 있다 |
+| `helper/queryhelper.py` | ATLAS 조회. 토큰을 `ATLAS_TOKEN`·`~/ezphot/config/atlas.config`에서 읽어 외부에 연결한다(0.4.16 이하 소스의 하드코딩 값은 공개 이력에 남아 있다) |
 | `utils/dbrowser.py` | GW portal(자격증명) 조회 |
 | `update_pypl.sh` / `scan_dependency.py` | 버전 bump + PyPI 업로드 / `requirements.txt` 덮어쓰기 |
 
@@ -33,7 +33,7 @@ ezphot의 기본 설정은 실제 데이터 아카이브를 가리킨다. 처리
   개발 검증(테스트·드라이버·baseline)은 어떤 경우에도 실제 아카이브 모드로 돌리지 않는다.
 - 실제 아카이브(scidata, refdata, calibdata, mcalibdata, obsdata, 실제 `~/ezphot/log`)에 쓰거나 지우는 것 — 승인된 실제 아카이브 모드의 대상 타일 산출물은 예외. 어떤 모드에서도 지우지는 않는다.
 - 원본 FITS에 in-place로 platesolve·SWarp(`fill_zero_tonan=True`)·rename·remove를 거는 것.
-- `queryhelper` 자격증명, GW portal(`dbrowser`)을 쓰는 경로 실행. 자격증명 값을 출력·복사하는 것.
+- `queryhelper`(ATLAS), GW portal(`dbrowser`)을 쓰는 경로 실행. 자격증명 값(`atlas.config`·`gwportal.config`, 0.4.16 이하 `queryhelper.py` 이력)을 출력·복사하는 것.
 - `update_pypl.sh`, `scan_dependency.py` 실행. PyPI 등 외부로 무언가 올리는 것.
 - 공유 Python env에 `pip install/uninstall`.
 - `git push`, remote 추가, 커밋(사용자가 요청할 때만), `git stash push/pop/apply`·`checkout -- <file>`·`restore`·`reset`·브랜치 전환
@@ -53,7 +53,7 @@ ezphot의 기본 설정은 실제 데이터 아카이브를 가리킨다. 처리
   (1) 사용자가 **대상 타일(관측소·telkey·타일/objname·필터·날짜 범위)마다** 실제 아카이브 쓰기를 명시 승인했고 그 기록이 `_workspace/00_input/request.md`의 "## 승인"에 있다.
   (2) 실행은 레시피 CLI뿐(드라이버·임의 코드 금지), `HOME`을 바꾸지 않는다. (3) 실행 전 `post_run_check.sh --real-pre`로 입력 FITS 목록을 남기고, 실행 후 `--real`로 사라진 파일이 없는지 확인한다.
   (4) 같은 타일에 기존 산출물이 있으면 무엇이 덮어써지는지 계획서에 적는다. 이 모드에서는 산출물이 실제 아카이브·`~/ezphot/log/recipes`·`~/viz`에 남고, 8765 갤러리에 바로 보인다.
-- **운영 격리 HOME의 자격증명**: `make_isolated_home.py`는 gwportal 자격증명도 복사한다. 그래서 격리 실행에서도 `dbrowser`(GW portal) 경로는 실제로 외부에 연결된다 — 계획에 넣지 않는다.
+- **운영 격리 HOME의 자격증명**: `make_isolated_home.py`는 gwportal·ATLAS 자격증명(`gwportal.config`·`atlas.config`)도 복사한다. 그래서 격리 실행에서도 `dbrowser`(GW portal)·`queryhelper`(ATLAS) 경로는 실제로 외부에 연결된다 — 계획에 넣지 않는다.
 - **갤러리 웹 서버**(`visualize`·`status`의 `~/viz`): CLAUDE.md 「환경」의 포트 규칙(8760–8780, 고정 포트 제외, `127.0.0.1`)로만. 실제 HOME의 `~/viz`는 8765 상시 갤러리가 이미 서빙한다.
   격리 모드 결과를 볼 때만 별도 서버를 띄운다,
   예: `python -m http.server <port> --bind 127.0.0.1 --directory <iso>/home/viz`. 띄우기 전 `ss -ltnp`, 다 쓰면 내린다.
