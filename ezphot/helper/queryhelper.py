@@ -4,6 +4,8 @@ import requests
 import os
 import re
 import io
+import json
+from pathlib import Path
 from astropy.table import Table
 import pandas as pd
 
@@ -39,27 +41,21 @@ class Queryhelper():
             print(f"Error: {response.status_code}")
             return
         
-    def _request_atlas_token(self, username = 'hhchoi1022', password = 'lksdf1020!'):
-
-        
-        BASEURL = "https://fallingstar-data.com/forcedphot"
-        resp = requests.post(url=f"{BASEURL}/api-token-auth/", data={'username': f"{username}", 'password': f"{password}"})
-
-        if resp.status_code == 200:
-            token = resp.json()['token']
-            print(f'Your token is {token}')
-            headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
-        else:
-            print(f'ERROR {resp.status_code}')
-            print(resp.json())
-    
     def query_atlas_lightcurve(self, ra, dec, radius, 
                                tname = None, 
                                mjd_min : float = None,
                                mjd_max : float = None,
                                return_output = False, 
-                               token = '810625b718b73b9ebac070be6c61a353d6d9eaa7'):
+                               token = None):
 
+        # token: argument > ATLAS_TOKEN environment variable > ~/ezphot/config/atlas.config
+        if token is None:
+            configfile = Path.home() / 'ezphot' / 'config' / 'atlas.config'
+            token = os.getenv('ATLAS_TOKEN')
+            if not token and configfile.exists():
+                token = json.loads(configfile.read_text()).get('ATLAS_TOKEN')
+            if not token:
+                raise ValueError(f"ATLAS token not found. Set ATLAS_TOKEN in {configfile} or in the environment.")
         BASEURL = "https://fallingstar-data.com/forcedphot"
         headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
         task_url = None

@@ -88,7 +88,7 @@ The dominant execution flow is:
 | `docs` | Sphinx API and usage documentation | `docs/index.rst` |
 | `examples` | Notebook examples | Interactive use |
 
-The package version is `0.4.16`, requires Python 3.9 or newer, and has no
+The package version is `0.4.17`, requires Python 3.9 or newer, and has no
 installed command-line entry point. `setup.py` reads dependencies directly from
 `requirements.txt`; `MANIFEST.in` includes configuration and utility resources,
 and excludes `ezphot/analysis` and generated documentation.
@@ -651,10 +651,12 @@ of writing this guide.
 
 ### Security
 
-- `helper/queryhelper.py` contains default third-party account credentials and an
-  API token in source. Remove them, rotate the exposed secrets, and load credentials
-  from environment variables or a secret store before using or publishing that
-  integration.
+- `helper/queryhelper.py` no longer carries default ATLAS credentials (see
+  `CHANGELOG.md`, Unreleased). `Queryhelper.query_atlas_lightcurve()` takes the token from
+  the `token` argument, else the `ATLAS_TOKEN` environment variable, else
+  `~/ezphot/config/atlas.config` (JSON: `{"ATLAS_TOKEN": "..."}`), and raises
+  `ValueError` if none is set. The previously hard-coded username, password and
+  token remain in the public git history and must be rotated on the service side.
 
 ### Known broken or stale paths
 
