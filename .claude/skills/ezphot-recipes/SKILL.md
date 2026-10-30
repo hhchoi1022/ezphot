@@ -55,7 +55,7 @@ bash .claude/skills/ezphot-verification/scripts/post_run_check.sh <iso> <입력 
 
 ## 자원
 
-- `--n-proc` 기본 4. 머신 부하(`uptime`, 다른 사용자 프로세스)를 보고 정한다.
+- `--n-proc` 기본 4(visualize는 8). 머신 부하(`uptime`, 다른 사용자 프로세스)를 보고 정한다.
 - 7DT 타일 하나 전체 = 수십 GB(`<iso>/archive`), 수십 분~수 시간. 시작 전에 `df -h <iso>`를 계획서에 적는다.
 - 오래 걸리는 단계는 백그라운드로 돌리고 로그를 본다. 같은 `<iso>`에 레시피를 동시에 두 개 돌리지 않는다(summary 등록 동시 쓰기).
 
