@@ -2097,6 +2097,7 @@ class PhotometryHelper(Configuration):
                   # Other parameters
                   overwrite: bool = True, 
                   verbose: bool = True,
+                  local_reference: bool = True,
                   ):
 
         """
@@ -2110,6 +2111,9 @@ class PhotometryHelper(Configuration):
                   update_files: bool = True
                   verbose: bool = True
                   remove : bool = True
+                  local_reference: bool = True. Use a reference catalog built from the local GAIAXP_CORR_LAMOST
+                      tiles (Gaia DR3 propagated to the observation time) when they cover >= 50% of every image;
+                      otherwise (or if False) SCAMP queries catalog_type (None: ASTREF_CATALOG of the config).
         
         Run SCAMP for astrometric calibration on a set of images.
         """
@@ -2176,25 +2180,42 @@ class PhotometryHelper(Configuration):
         # Load and apply SCAMP parameters
         scamp_params = scamp_params or {}
 
-        # SCAMP command
-        command = ['scamp', 
-                   str(all_images_str), 
-                   '-c', 
-                   str(scamp_configfile)]
-        if catalog_type:
-            command.extend(['-ASTREF_CATALOG', catalog_type])
-
-        for key, value in scamp_params.items():
-            command.extend([f'-{key}', str(value)])
-        command_str = ' '.join(command)
-
         tmpdir_path = Path.home() / '.scamp' /'tmp'
         tmpdir_path.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir = tmpdir_path) as tmpdir:
             tmpdir = Path(tmpdir)
             try:
+                # Reference catalog: local tiles (written in tmpdir) if they cover the images, else catalog_type
+                is_local, refcat_message = False, 'local_reference=False'
+                if local_reference:
+                    refcat_path = tmpdir / 'astrefcat_local.cat'
+                    is_local, refcat_message = self._write_local_scamp_refcat(list(sex_output_images.keys()), refcat_path)
+                if not is_local:
+                    refcat_message += f": SCAMP queries {catalog_type or 'ASTREF_CATALOG of the config'}"
+                if 'ASTREF_CATALOG' in scamp_params:
+                    refcat_message += f" (scamp_params ASTREF_CATALOG={scamp_params['ASTREF_CATALOG']} takes precedence)"
+                self.print(refcat_message, verbose)
+
+                # SCAMP command
+                command = ['scamp',
+                           str(all_images_str),
+                           '-c',
+                           str(scamp_configfile)]
+                if is_local:
+                    command.extend(['-ASTREF_CATALOG', 'FILE', '-ASTREFCAT_NAME', str(refcat_path)])
+                elif catalog_type:
+                    command.extend(['-ASTREF_CATALOG', catalog_type])
+
+                for key, value in scamp_params.items():
+                    command.extend([f'-{key}', str(value)])
+                command_str = ' '.join(command)
+
                 self.print(f'RUN COMMAND: {command_str}', verbose)
-                result = self.run_command(command, cwd = tmpdir, timeout = 900)
+                try:
+                    result = self.run_command(command, cwd = tmpdir, timeout = 900)
+                except ExternalToolError as e:
+                    # Say which reference catalog was used (and why) with the SCAMP error
+                    raise ExternalToolError(f"{refcat_message}\n{e}") from e
                 
                 is_succeeded = [Path(scamp_output).is_file() for scamp_output in scamp_output_images.values()]
                 
@@ -2202,7 +2223,7 @@ class PhotometryHelper(Configuration):
                     self.print("SCAMP process finished=====================", verbose)
                 else:
                     self.print("SCAMP process failed. Some output files are missing.", verbose)
-                    raise ExternalToolError(f"SCAMP process failed: {result.stderr}")
+                    raise ExternalToolError(f"SCAMP process failed ({refcat_message}): {result.stderr}")
                 
                 if overwrite:
                     def sanitize_header(header: fits.Header) -> fits.Header:
@@ -2257,6 +2278,108 @@ class PhotometryHelper(Configuration):
             finally:
                 for cat in sex_output_images.values():
                     os.remove(cat)
+
+    def _write_local_scamp_refcat(self, image_paths: List[str], refcat_path: Path) -> Tuple[bool, str]:
+        """
+        Write a SCAMP reference catalog (FITS_LDAC) from the local GAIAXP_CORR_LAMOST tiles.
+
+        Gaia DR3 positions (J2016.0) are propagated with pmra/pmdec to the mean observation time of the images
+        (stars without proper motion are kept as they are); the catalog carries PM = 0 and OBSDATE = that epoch.
+        Returns (False, reason) without writing when there is no tile cache, the tiles cover < 50% of an
+        image footprint, or the observation time is missing; (True, summary) otherwise.
+        """
+        from astropy.wcs import WCS
+        from astropy.table import vstack, unique
+        from shapely.geometry import Polygon, box
+        from shapely.ops import unary_union
+        from ezphot.skycatalog import SkyCatalogUtility  # local import: ezphot.skycatalog imports ezphot.helper
+
+        skycatalogutility = SkyCatalogUtility()
+        if not skycatalogutility.catalog_archive_path.is_file():
+            return False, f'No sky catalog summary ({skycatalogutility.catalog_archive_path})'
+        tile_data = {}
+        obstimes = []
+        for image in image_paths:
+            hdr = fits.getheader(image)
+            if 'DATE-OBS' in hdr:
+                obstimes.append(self.flexible_time_parser(hdr['DATE-OBS']).jyear)
+            elif 'MJD-OBS' in hdr:
+                obstimes.append(Time(hdr['MJD-OBS'], format='mjd').jyear)
+            else:
+                return False, f'No DATE-OBS/MJD-OBS in {Path(image).name}'
+
+            # Image footprint in (ra, dec), RA unwrapped around the image centre
+            wcs = WCS(hdr)
+            nx, ny = hdr['NAXIS1'], hdr['NAXIS2']
+            ra0, dec0 = (float(v) for v in wcs.all_pix2world((nx - 1) / 2, (ny - 1) / 2, 0))
+            corners = wcs.calc_footprint(axes=(nx, ny))
+            corner_ra = ra0 + (corners[:, 0] - ra0 + 180) % 360 - 180
+            footprint = Polygon(zip(corner_ra, corners[:, 1]))
+            fov_ra = np.ptp(corner_ra) * np.cos(np.radians(dec0))
+            fov_dec = np.ptp(corners[:, 1])
+
+            tiles = skycatalogutility.get_catalogs(ra=ra0, dec=dec0, objname=None, fov_ra=fov_ra, fov_dec=fov_dec,
+                                                   catalog_type='GAIAXP_CORR_LAMOST', query_when_not_archived=False)
+            tiles = [tile for tile in tiles if tile.data is not None]
+            # Tile rectangles as in SkyCatalogUtility.get_catalogs (fov_ra is an on-sky width)
+            tile_boxes = []
+            for tile in tiles:
+                tile_ra = ra0 + (tile.ra - ra0 + 180) % 360 - 180
+                half_ra = tile.fov_ra / 2 / np.cos(np.radians(tile.dec))
+                tile_boxes.append(box(tile_ra - half_ra, tile.dec - tile.fov_dec / 2, tile_ra + half_ra, tile.dec + tile.fov_dec / 2))
+            coverage = unary_union(tile_boxes).intersection(footprint).area / footprint.area if tile_boxes else 0.0
+            if coverage < 0.5:
+                return False, f'Local GAIAXP_CORR_LAMOST tiles cover {coverage:.0%} (< 50%) of {Path(image).name}'
+            for tile in tiles:
+                tile_data[tile.objname] = tile.data
+
+        # Merge tiles (they overlap) and drop duplicated stars
+        refcat = unique(vstack([data['id', 'ra', 'dec', 'pmra', 'pmdec', 'g_mean'] for data in tile_data.values()],
+                               metadata_conflicts='silent'), keys='id')
+        def column(name):
+            return np.asarray(np.ma.filled(refcat[name], np.nan), dtype=float)
+        epoch = np.mean(obstimes)
+        dt = epoch - 2016.0  # Gaia DR3 reference epoch
+        dec_2016 = column('dec')
+        ra = (column('ra') + np.nan_to_num(column('pmra')) * dt / 3.6e6 / np.cos(np.radians(dec_2016))) % 360
+        dec = dec_2016 + np.nan_to_num(column('pmdec')) * dt / 3.6e6
+        mag = column('g_mean')
+        good = np.isfinite(ra) & np.isfinite(dec) & np.isfinite(mag)
+        n_star = int(good.sum())
+        if n_star == 0:
+            return False, 'No usable star in the local GAIAXP_CORR_LAMOST tiles'
+
+        # Position errors (not in the tile cache), in mas: 2 mas ~ Gaia DR3 position+PM error propagated ~10 yr
+        # at G~17.5, in quadrature with the float32 quantization of the cached ra/dec (rms = spacing/sqrt(12);
+        # RA spacing is 27 mas at 64-128 deg). Ellipse axis A is the larger of the RA/Dec components
+        # (ERRTHETA_WORLD 0 = along RA, 90 = along Dec).
+        err_ra = np.hypot(2.0, np.abs(np.spacing(column('ra').astype(np.float32))) * 3.6e6 / np.sqrt(12) * np.cos(np.radians(dec_2016)))
+        err_dec = np.hypot(2.0, np.abs(np.spacing(dec_2016.astype(np.float32))) * 3.6e6 / np.sqrt(12))
+        # PM = 0 and OBSDATE = epoch (Julian year) fill the ASTREFPROP_KEYS/ASTREFPROPERR_KEYS/ASTREFOBSDATE_KEY
+        # columns: positions are already at the epoch, so any SCAMP-side propagation leaves them unchanged.
+        objects = fits.BinTableHDU.from_columns([
+            fits.Column(name='X_WORLD', format='1D', unit='deg', array=ra[good]),
+            fits.Column(name='Y_WORLD', format='1D', unit='deg', array=dec[good]),
+            fits.Column(name='ERRA_WORLD', format='1E', unit='deg', array=np.maximum(err_ra, err_dec)[good] / 3.6e6),
+            fits.Column(name='ERRB_WORLD', format='1E', unit='deg', array=np.minimum(err_ra, err_dec)[good] / 3.6e6),
+            fits.Column(name='ERRTHETA_WORLD', format='1E', unit='deg', array=np.where(err_ra >= err_dec, 0.0, 90.0)[good]),
+            fits.Column(name='PMALPHA_J2000', format='1E', unit='mas/yr', array=np.zeros(n_star)),
+            fits.Column(name='PMDELTA_J2000', format='1E', unit='mas/yr', array=np.zeros(n_star)),
+            fits.Column(name='PMALPHAERR_J2000', format='1E', unit='mas/yr', array=np.zeros(n_star)),
+            fits.Column(name='PMDELTAERR_J2000', format='1E', unit='mas/yr', array=np.zeros(n_star)),
+            fits.Column(name='OBSDATE', format='1D', unit='yr', array=np.full(n_star, epoch)),
+            fits.Column(name='MAG', format='1E', unit='mag', array=mag[good]),
+            fits.Column(name='MAGERR', format='1E', unit='mag', array=np.full(n_star, 0.01)),
+        ], name='LDAC_OBJECTS')
+        # Minimal LDAC_IMHEAD: one 'Field Header Card' row holding the 80-char cards of an empty header.
+        # Written as one string with TDIM1 set afterwards: with dim=, astropy strips each card's trailing blanks (NUL-padded cards).
+        imhead_str = fits.PrimaryHDU().header.tostring()
+        imhead = fits.BinTableHDU.from_columns([
+            fits.Column(name='Field Header Card', format=f'{len(imhead_str)}A', array=np.array([imhead_str]))
+        ], name='LDAC_IMHEAD')
+        imhead.header['TDIM1'] = f'(80, {len(imhead_str) // 80})'
+        fits.HDUList([fits.PrimaryHDU(), imhead, objects]).writeto(refcat_path, overwrite=True)
+        return True, f'Local reference catalog: {n_star} stars from GAIAXP_CORR_LAMOST {sorted(tile_data)} at epoch {epoch:.3f} -> {refcat_path}'
 
     def run_swarp(self,
                   # Input parameters

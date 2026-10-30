@@ -108,6 +108,7 @@ class Platesolve:
                     # Other parameters
                     overwrite: bool = True,
                     verbose: bool = True,
+                    local_reference: bool = True,
                     ):
         """
         Solve astrometry using SCAMP.
@@ -116,6 +117,8 @@ class Platesolve:
         ----------
         target_img : Union[ScienceImage, ReferenceImage, List[ScienceImage], List[ReferenceImage]]
             The target image(s) to solve astrometry for.
+        catalog_type : str, optional
+            The SCAMP remote reference catalog, used when the local tiles are not used.
         scamp_sexparams : dict, optional
             The SExtractor parameters for SCAMP.
         scamp_params : dict, optional
@@ -124,6 +127,9 @@ class Platesolve:
             Whether to overwrite the existing astrometry solution.
         verbose : bool, optional
             Whether to print verbose output.
+        local_reference : bool, optional
+            Use a reference catalog from the local GAIAXP_CORR_LAMOST tiles (Gaia DR3 propagated to the
+            observation time) when they cover >= 50% of every image; otherwise SCAMP queries catalog_type.
             
         Returns 
         -------
@@ -144,6 +150,7 @@ class Platesolve:
             output_dir = output_dir,
             overwrite = overwrite,
             verbose = verbose,            
+            local_reference = local_reference,
         )
         
         if not all(scamp_results):

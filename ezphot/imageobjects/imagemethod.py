@@ -167,7 +167,8 @@ class ImageMethod:
                    overwrite: bool = True,
                    verbose: bool = True,
                    scamp_sexparams: dict = None,
-                   scamp_params: dict = None
+                   scamp_params: dict = None,
+                   local_reference: bool = True
                    ):
         """
         Solve astrometry using Astrometry.net.
@@ -180,6 +181,9 @@ class ImageMethod:
             Whether to overwrite the existing astrometry solution.
         verbose : bool, optional
             Whether to print verbose output.
+        local_reference : bool, optional
+            SCAMP uses a reference catalog from the local GAIAXP_CORR_LAMOST tiles (Gaia DR3 propagated to the
+            observation time) when they cover >= 50% of the image; otherwise it queries catalog_type.
             
         Returns
         -------
@@ -200,7 +204,8 @@ class ImageMethod:
             scamp_sexparams = scamp_sexparams,
             scamp_params = scamp_params,
             overwrite = True,
-            verbose = verbose
+            verbose = verbose,
+            local_reference = local_reference
         )[0]
         
         return self

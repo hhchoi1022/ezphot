@@ -88,7 +88,7 @@ The dominant execution flow is:
 | `docs` | Sphinx API and usage documentation | `docs/index.rst` |
 | `examples` | Notebook examples | Interactive use |
 
-The package version is `0.4.17`, requires Python 3.9 or newer, and has no
+The package version is `0.5.0`, requires Python 3.9 or newer, and has no
 installed command-line entry point. `setup.py` reads dependencies directly from
 `requirements.txt`; `MANIFEST.in` includes configuration and utility resources,
 and excludes `ezphot/analysis` and generated documentation.
