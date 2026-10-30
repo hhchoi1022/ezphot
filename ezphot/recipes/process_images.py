@@ -8,6 +8,8 @@ process_images: single-image chain on ezphot ScienceImage objects.
 
 Products are written next to each image by ezphot itself (.cat/.refcat/.bkgmap/...).
 This recipe adds one summary row per image (status + QA header values) and saves it as CSV.
+Summary `path` is the image the chain last held (the correct_bdf / platesolve / photcal output, whose sidecars
+the later recipes read); `raw_path` is the input path.
 
 Python:
     from ezphot.recipes import process_images
@@ -69,7 +71,7 @@ def process_image(target_img: ScienceImage,
     bkgrms : use this error map instead of calculating one (stacks keep the propagated bkgrms).
     """
     cfg = _config(config)
-    row = dict(path=str(target_img.path), telname=target_img.telname, filter=target_img.filter,
+    row = dict(path=str(target_img.path), raw_path=str(target_img.path), telname=target_img.telname, filter=target_img.filter,
                obsdate=target_img.obsdate, exptime=target_img.exptime,
                success=False, step=None, error=None, n_ref=None)
     for k in D.SUMMARY_HEADER_KEYS:
@@ -79,9 +81,11 @@ def process_image(target_img: ScienceImage,
         if do_preprocess:
             row['step'] = 'correct_bdf'
             target_img = target_img.correct_bdf(save=True, verbose=False)
+            row['path'] = str(target_img.path)
         if do_platesolve and _needs_platesolve(target_img):
             row['step'] = 'platesolve'
             target_img = target_img.platesolve(verbose=False)
+            row['path'] = str(target_img.path)
         row['step'] = 'invalidmask'
         ivpmask = target_img.calculate_invalidmask(**cfg['invalidmask'])
         if ra is not None and dec is not None:
@@ -106,6 +110,7 @@ def process_image(target_img: ScienceImage,
         photcal['mag_upper'] += mag_faint_shift
         photcal['ra_deg'], photcal['dec_deg'] = ra, dec
         target_img, catalog, refcat, photcal_update = target_img.photometric_calibration(target_catalog=catalog, **photcal)
+        row['path'] = str(target_img.path)
         # photometry_sex never reads the header SEEING (it would depend on earlier runs), so feed it the
         # ZP-star seeing of this run: SEEING_FWHM (-> CLASS_STAR star selection) and seeing-scaled apertures.
         if 'SEEING' in photcal_update:
@@ -114,6 +119,7 @@ def process_image(target_img: ScienceImage,
                                                 **dict(cfg['photometry'], seeing_arcsec=photcal_update['SEEING'][0]))
             row['step'] = 'photometric_calibration_pass2'
             target_img, catalog, refcat, _ = target_img.photometric_calibration(target_catalog=catalog, **photcal)
+            row['path'] = str(target_img.path)
         row['n_ref'] = refcat.nsources if refcat is not None else None
         header = target_img.header
         for k in D.SUMMARY_HEADER_KEYS:
