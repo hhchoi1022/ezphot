@@ -17,7 +17,11 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 curve in SYNPHOT_FILTERDIR (<observatory>_<filter>.csv, then <filter>.csv)
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
-        [--stages platesolve photometry] [--max-images N] [--root DIR]
+        [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8]
+
+Images are drawn in --n-proc processes (default 8; 1 = one after the other): the first image of a gallery
+alone, so that its platesolve figure fills the sky-catalog cache, then the rest in parallel. Only the
+preprocess figure reads the whole science image; the other figures read its shape and cutouts.
 
 Gallery: <root>/ezphot/<objname>/viz/index.html (root default ~/viz); a later run of the same
 objname replaces the page. Serve with
@@ -31,6 +35,7 @@ import html
 import json
 import os
 import re
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Optional
 
@@ -108,11 +113,24 @@ def _read_cat(path: Path) -> Table:
     return Table.read(str(path), format='ascii.basic')
 
 
+class _Cutouts:
+    """Stands in for data.astype(np.float32) in the stage figures: slices are converted on access, so of a
+    memory-mapped fits.getdata array only the rows a cutout spans are read (in mmap pages); fig_preprocess takes
+    the whole image with [:, :] once its masters exist.
+    (Compressed or BZERO/BSCALE/BLANK-scaled images are decoded in full by fits.getdata, as before.)"""
+    def __init__(self, data: np.ndarray):
+        self.shape, self._data = data.shape, data
+
+    def __getitem__(self, key) -> np.ndarray:
+        return self._data[key].astype(np.float32)
+
+
 # ---------------------------------------------------------------- stage figures
 def fig_preprocess(path: Path, data, header, info, outdir: Path) -> List[str]:
     paths = [info.get(k) for k in ('BIASPATH', 'DARKPATH', 'FLATPATH')]
     if not all(p and Path(p).exists() for p in paths):
         return []
+    data = data[:, :]                               # whole image: float32 from _Cutouts, a view of an ndarray
     bias, dark, flat = (fits.getdata(p).astype(np.float32) for p in paths)
     dark_scale = header['EXPTIME'] / fits.getheader(paths[1])['EXPTIME']
     flat_norm = flat / np.nanmean(flat)            # ccdproc.flat_correct divides by flat / mean(flat)
@@ -608,42 +626,61 @@ def _objname(path: Path) -> str:
     return _info(path).get('OBJNAME') or path.parents[2].name
 
 
+def _frame(args):
+    """Stage figures of one summary row under out/<stem>/; return its gallery entry and manifest item
+    ({} when the file is missing)."""
+    row, out, stages, ra, dec = args
+    path = Path(row['path'])
+    status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
+    short = path.name.split('_')[2] + '_' + path.stem.split('_')[-1] if path.name.count('_') > 3 else path.stem
+    entry = dict(id=path.stem, name=path.name, short=short, ok=bool(row['success']), status=status, stages={},
+                 row={c: _fmt(row.get(c), c) for c, _ in SUMMARY_COLS})
+    if not path.exists():
+        entry['status'] += ' (file missing)'
+        entry['ok'] = False
+        return entry, {}
+    imgdir = out / path.stem
+    imgdir.mkdir(exist_ok=True)
+    data, header = fits.getdata(path, header=True)
+    info = _info(path)
+    data = _Cutouts(data)                           # cutouts converted on access; whole image only in fig_preprocess
+    for stage in (stages or _auto_stages(path, header, info)):
+        try:
+            if stage == 'photometry':
+                names = fig_photometry(path, data, header, info, imgdir, ra=ra, dec=dec)
+            else:
+                names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
+        except Exception as e:
+            names = []
+            entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
+            entry['ok'] = False
+        entry['stages'][stage] = [_figure(imgdir, n, f'{path.stem}/') for n in names]
+    return entry, {str(path): {k: [f['src'] for f in v] for k, v in entry['stages'].items()}}
+
+
+def _frames(tasks: list, n_proc: int):
+    """_frame results in task order. In parallel the first frame runs here alone, so that its platesolve figure
+    fills the sky-catalog cache that the workers then read (frames of other fields may still query at once);
+    frames sharing an output directory (same file stem) are drawn one after the other."""
+    stems = [Path(t[0]['path']).stem for t in tasks]
+    if n_proc > 1 and len(tasks) > 1 and len(set(stems)) == len(stems):
+        yield _frame(tasks[0])
+        with ProcessPoolExecutor(max_workers=min(n_proc, len(tasks) - 1)) as ex:
+            yield from ex.map(_frame, tasks[1:])
+    else:
+        yield from map(_frame, tasks)
+
+
 def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title: str, source: str,
-             ra=None, dec=None, stages=None, verbose=True) -> Path:
+             ra=None, dec=None, stages=None, verbose=True, n_proc=8) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     images, manifest, seen = [], {}, []
-    for _, row in rows.iterrows():
-        path = Path(row['path'])
-        status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
-        short = path.name.split('_')[2] + '_' + path.stem.split('_')[-1] if path.name.count('_') > 3 else path.stem
-        entry = dict(id=path.stem, name=path.name, short=short, ok=bool(row['success']), status=status, stages={},
-                     row={c: _fmt(row.get(c), c) for c, _ in SUMMARY_COLS})
+    for entry, item in _frames([(row, out, stages, ra, dec) for _, row in rows.iterrows()], n_proc):
         images.append(entry)
-        if not path.exists():
-            entry['status'] += ' (file missing)'
-            entry['ok'] = False
-            continue
-        imgdir = out / path.stem
-        imgdir.mkdir(exist_ok=True)
-        data, header = fits.getdata(path, header=True)
-        data = data.astype(np.float32)
-        info = _info(path)
-        for stage in (stages or _auto_stages(path, header, info)):
-            try:
-                if stage == 'photometry':
-                    names = fig_photometry(path, data, header, info, imgdir, ra=ra, dec=dec)
-                else:
-                    names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
-            except Exception as e:
-                names = []
-                entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
-                entry['ok'] = False
-            entry['stages'][stage] = [_figure(imgdir, n, f'{path.stem}/') for n in names]
-            if stage not in seen:
-                seen.append(stage)
-        if verbose:
-            print(f"[visualize] {path.name}: " + ', '.join(f'{k}({len(v)})' for k, v in entry['stages'].items()))
-        manifest[str(path)] = {k: [f['src'] for f in v] for k, v in entry['stages'].items()}
+        seen += [s for s in entry['stages'] if s not in seen]
+        if verbose and item:
+            print(f"[visualize] {entry['name']}: " + ', '.join(f'{k}({len(v)})' for k, v in entry['stages'].items()))
+        manifest.update(item)
 
     run = [_figure(out, n) for n in fig_run(rows, out)]
     lc = [_figure(out, n) for n in fig_lightcurve(lc_df, out, rows['path'])] if lc_df is not None else []
@@ -678,9 +715,11 @@ def visualize(summary: pd.DataFrame | str,
               stages: List[str] = None,
               max_images: int = None,
               root: str | Path = None,
-              verbose: bool = True) -> List[Path]:
+              verbose: bool = True,
+              n_proc: int = 8) -> List[Path]:
     """Write per-stage figures and index.html for a process_images summary, one gallery per objname
-    at <root>/ezphot/<objname>/viz/ (a later run of the same objname replaces the page); return the index paths."""
+    at <root>/ezphot/<objname>/viz/ (a later run of the same objname replaces the page); return the index paths.
+    The images of a gallery are drawn in n_proc processes (1 = one after the other)."""
     source = 'summary (DataFrame)'
     if isinstance(summary, (str, Path)):
         source = Path(summary).expanduser()
@@ -699,7 +738,7 @@ def visualize(summary: pd.DataFrame | str,
         if lc_all is not None and 'objname' in lc_all:
             lc_df = lc_all[lc_all['objname'] == obj]
         indices.append(_gallery(g, lc_df, root / 'ezphot' / obj / 'viz', obj, source,
-                                ra=ra, dec=dec, stages=stages, verbose=verbose))
+                                ra=ra, dec=dec, stages=stages, verbose=verbose, n_proc=n_proc))
     return indices
 
 
@@ -711,9 +750,10 @@ def main(argv=None):
     ap.add_argument('--stages', nargs='+', choices=STAGES, help='override the stages found on disk')
     ap.add_argument('--max-images', type=int)
     ap.add_argument('--root', help=f'gallery root served over http (default {VIZ_ROOT})')
+    ap.add_argument('--n-proc', type=int, default=8)
     a = ap.parse_args(argv)
     visualize(a.summary, ra=a.ra, dec=a.dec, lightcurve=a.lightcurve, stages=a.stages,
-              max_images=a.max_images, root=a.root)
+              max_images=a.max_images, root=a.root, n_proc=a.n_proc)
     return 0
 
 
