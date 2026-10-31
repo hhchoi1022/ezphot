@@ -24,7 +24,9 @@ alone, so that its platesolve figure fills the sky-catalog cache, then the rest 
 preprocess figure reads the whole science image; the other figures read its shape and cutouts.
 
 Gallery: <root>/ezphot/<objname>/viz/index.html (root default ~/viz); a later run of the same
-objname replaces the page. Serve with
+objname replaces the page. Frames are listed as "filter|telname|obsdate: raw file name", medium-band filters
+(m###, m###w) before broad band, each by filter wavelength, then telname, obsdate (--max-images takes the first
+N summary rows before sorting). Serve with
     python -m http.server 8765 --bind 127.0.0.1 --directory ~/viz
     -> http://127.0.0.1:8765/ezphot/<objname>/viz/
 """
@@ -447,6 +449,7 @@ td:nth-child(-n+2),th:nth-child(-n+2){text-align:left}tbody tr{cursor:pointer}tb
 .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .bar select{flex:1;min-width:0;max-width:640px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .bar button{padding:6px 12px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.fbar{position:sticky;top:var(--hh,100px);z-index:4;background:var(--bg);padding:8px 0;margin-top:-8px}.fbar select{max-width:960px}
 .meta{color:var(--mute);font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:14px}
 figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:100%;height:auto;display:block;border-radius:4px;cursor:zoom-in;background:#fff}
@@ -481,17 +484,19 @@ function overview(){
   return h}
 function stage(){
   const im=D.images[idx],figs=(im.stages[tab]||[]);
-  const opts=D.images.map((x,i)=>`<option value="${i}"${i===idx?' selected':''}>${i+1}. ${esc(x.short)} · ${esc(x.row.filter)} · ${esc(x.row.obsdate)}</option>`).join('');
-  return `<div class="bar"><button id="pv">←</button><select id="sel">${opts}</select><button id="nx">→</button><span class="meta">${idx+1} / ${D.images.length}</span></div>
+  const opts=D.images.map((x,i)=>`<option value="${i}"${i===idx?' selected':''}>${i+1}. ${esc(x.short)}</option>`).join('');
+  return `<div class="bar fbar"><button id="pv">←</button><select id="sel">${opts}</select><button id="nx">→</button><span class="meta">${idx+1} / ${D.images.length}</span></div>
   <div class="meta" style="margin-bottom:10px">${esc(im.name)} — seeing ${esc(im.row.SEEING)}″, ZP ${esc(im.row[D.cols[5][0]])} ± ${esc(im.row[D.cols[6][0]])}, UL5 ${esc(im.row[D.cols[7][0]])} <span class="${im.ok?'':'bad'}">· ${esc(im.status)}</span></div>
   ${figs.length?`<div class="grid">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
 function render(){
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" class="${k===tab?'on':''}">${esc(l)}</button>`).join('');
   const lcv=tab==='lc'||tab==='sed';
   $('#m').innerHTML=tab==='overview'?overview():lcv?lcView():stage();
-  if(lcv)draw();
+  if(lcv)draw();hh();
   history.replaceState(null,'',tab==='overview'?'#':lcv?`#${tab}`:`#${tab}/${idx+1}`)}
 function go(i){idx=(i+D.images.length)%D.images.length;render()}
+function hh(){document.documentElement.style.setProperty('--hh',$('header').offsetHeight+'px')}   // frame bar sticks below the header
+addEventListener('resize',hh);
 document.addEventListener('click',e=>{
   const b=e.target.closest('nav button');if(b){tab=b.dataset.k;render();return}
   const r=e.target.closest('tbody tr');if(r){idx=+r.dataset.i;tab=D.stages.includes('photometry')?'photometry':D.stages[0];render();scrollTo(0,0);return}
@@ -632,7 +637,9 @@ def _frame(args):
     row, out, stages, ra, dec = args
     path = Path(row['path'])
     status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
-    short = path.name.split('_')[2] + '_' + path.stem.split('_')[-1] if path.name.count('_') > 3 else path.stem
+    raw = row.get('raw_path')                      # raw input file name (summary raw_path), else the summary path
+    raw = path.name if raw is None or pd.isna(raw) or str(raw).strip() in ('', 'nan') else Path(str(raw)).name
+    short = '|'.join(_fmt(row.get(c), c) for c in ('filter', 'telname', 'obsdate')) + f': {raw}'
     entry = dict(id=path.stem, name=path.name, short=short, ok=bool(row['success']), status=status, stages={},
                  row={c: _fmt(row.get(c), c) for c, _ in SUMMARY_COLS})
     if not path.exists():
@@ -671,9 +678,32 @@ def _frames(tasks: list, n_proc: int):
         yield from map(_frame, tasks)
 
 
+def _frame_order(rows: pd.DataFrame) -> pd.DataFrame:
+    """Rows in gallery order: medium-band filters (m###, m###w) first, then the others (broad band), each by filter
+    wavelength (<filter>.csv in SYNPHOT_FILTERDIR as in _lc_payload, else the m### name; unknown wavelengths last,
+    by name), then telname, then obsdate. Stable: ties keep the summary order."""
+    from ezphot.configuration import Configuration
+    filterdir = Path(Configuration(_silent=True).config['SYNPHOT_FILTERDIR'])
+    filt = rows['filter'].fillna('').astype(str)
+    wls = {}
+    for f in filt.unique():
+        try:
+            wl = _filter_wavelength(filterdir, '', f)[0]
+        except Exception as e:
+            wl = None
+            print(f"[visualize] transmission curve of {f} unreadable: {type(e).__name__}: {e}")
+        m = re.fullmatch(r'm(\d{3})w?', f)
+        wls[f] = wl if wl is not None else float(m.group(1)) if m else np.inf
+    medium = filt.str.fullmatch(r'm\d{3}w?')
+    key = pd.DataFrame(dict(b=(~medium).to_numpy(), w=filt.map(wls).to_numpy(float), f=filt.to_numpy(),
+                            u=rows['telname'].to_numpy(), t=pd.to_datetime(rows['obsdate'], errors='coerce').to_numpy()))
+    return rows.iloc[key.sort_values(list(key), kind='stable', na_position='last').index]
+
+
 def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title: str, source: str,
              ra=None, dec=None, stages=None, verbose=True, n_proc=8) -> Path:
     out.mkdir(parents=True, exist_ok=True)
+    rows = _frame_order(rows)
     images, manifest, seen = [], {}, []
     for entry, item in _frames([(row, out, stages, ra, dec) for _, row in rows.iterrows()], n_proc):
         images.append(entry)
@@ -691,8 +721,8 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
         except Exception as e:                     # shown in the light-curve / SED tabs
             lcdata = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'))   # no paths in the page
             print(f"[visualize] interactive light curve failed: {lcdata['error']}")
-    filters = ', '.join(sorted(rows['filter'].astype(str).unique()))
-    tels = ', '.join(sorted(rows['telname'].astype(str).unique()))
+    filters = ', '.join(sorted(rows['filter'].dropna().astype(str).unique()))
+    tels = ', '.join(sorted(rows['telname'].dropna().astype(str).unique()))
     n_ok = int(rows['success'].astype(bool).sum())
     data = dict(title=title, sub=f'{source} · {n_ok}/{len(rows)} 성공 · 필터 {filters} · {tels}',
                 stages=[s for s in STAGES if s in seen], labels=STAGE_LABELS, cols=SUMMARY_COLS,

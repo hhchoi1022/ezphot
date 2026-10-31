@@ -1,5 +1,5 @@
 # ezphot/__init__.py
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 def initialize(configpath=None):
     """Initialize ezphot configuration.

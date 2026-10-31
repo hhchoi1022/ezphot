@@ -301,13 +301,13 @@ class Preprocess:
         update_header_kwargs = dict(
             BIASCOR = True,
             BCORTIME = Time.now().isot,
-            BIASPATH = str(bias_image.savepath.savepath),
+            BIASPATH = str(bias_image.path),
             DARKCOR = True, 
             DCORTIME = Time.now().isot,
-            DARKPATH = str(dark_image.savepath.savepath),
+            DARKPATH = str(dark_image.path),
             FLATCOR = True,
             FCORTIME = Time.now().isot,
-            FLATPATH = str(flat_image.savepath.savepath),
+            FLATPATH = str(flat_image.path),
         )
         
         
@@ -390,10 +390,10 @@ class Preprocess:
         update_header_kwargs = dict(
             BIASCOR = True,
             BCORTIME = Time.now().isot,
-            BIASPATH = str(bias_image.savepath.savepath),
+            BIASPATH = str(bias_image.path),
             DARKCOR = True, 
             DCORTIME = Time.now().isot,
-            DARKPATH = str(dark_image.savepath.savepath),
+            DARKPATH = str(dark_image.path),
         )
         
         calib_data.header.update(update_header_kwargs)
@@ -466,7 +466,7 @@ class Preprocess:
         update_header_kwargs = dict(
             BIASCOR = True,
             BCORTIME = Time.now().isot,
-            BIASPATH = str(bias_image.savepath.savepath),
+            BIASPATH = str(bias_image.path),
         )
         
         calib_data.header.update(update_header_kwargs)
@@ -534,7 +534,7 @@ class Preprocess:
         update_header_kwargs = dict(
             DARKCOR = True,
             DCORTIME = Time.now().isot,
-            DARKPATH = str(dark_image.savepath.savepath),
+            DARKPATH = str(dark_image.path),
         )
         
         calib_data.header.update(update_header_kwargs)
@@ -600,7 +600,7 @@ class Preprocess:
         update_header_kwargs = dict(
             FLATCOR = True,
             FCORTIME = Time.now().isot,
-            FLATPATH = str(flat_image.savepath.savepath),
+            FLATPATH = str(flat_image.path),
         )
         
         calib_data.header.update(update_header_kwargs)
