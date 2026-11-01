@@ -15,6 +15,10 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 row gives the tabs with a note): frames are combined in the page per time bin and filter
                 (default 1 day, width changeable); filter wavelength = response-weighted mean of the transmission
                 curve in SYNPHOT_FILTERDIR (<observatory>_<filter>.csv, then <filter>.csv)
+    sources     .cat with MAGSKY_APER_3 -> detections with SNR > 3 (MAGERR_APER_3 < 1.0857/3: X_WORLD, Y_WORLD,
+                MAGSKY_APER_3, MAGERR_APER_3, SATDIST) of all frames in sources.json next to index.html; the light-curve /
+                SED tabs then take a coordinate (default --ra/--dec; with --lightcurve the table is shown first) and use
+                the nearest detection within a radius (default 5") in each frame, fetched from sources.json over http
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
         [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8]
@@ -50,6 +54,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 from astropy.visualization import AsinhStretch, ImageNormalize, PercentileInterval, ZScaleInterval
 from astropy.wcs import WCS
 
@@ -61,6 +66,9 @@ APER10_DIAMETER_ARCSEC = 10
 ZP_KEY = f'ZP_{D.APER10_KEY}'
 MAG_KEY, MAGERR_KEY, MAGSKY_KEY = f'MAG_{D.APER10_KEY}', f'MAGERR_{D.APER10_KEY}', f'MAGSKY_{D.APER10_KEY}'
 LC_BIN_DAYS = 1                                    # default time bin of the interactive light-curve / SED tabs
+SOURCES_FILE = 'sources.json'                      # per-frame detections for the coordinate input of those tabs
+SOURCES_SNR = 3                                    # detections kept: MAGERR_APER_3 < 1.0857 / SOURCES_SNR
+SOURCES_RADIUS_ARCSEC = 5.0                        # default matching radius in the page (= target_photometry --radius)
 
 
 # ---------------------------------------------------------------- helpers
@@ -323,16 +331,8 @@ def _filter_wavelength(filterdir: Path, observatory: str, filt: str):
     return None, None
 
 
-def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
-    """Points and filter wavelengths for the interactive light-curve / SED tabs; binning and combining
-    are done in the page. Rows with a non-finite magnitude, error or mjd, or MAGERR >= 99, are dropped (counted);
-    the bin origin t0 is the earliest finite mjd of all rows, dropped ones included."""
-    from ezphot.configuration import Configuration
-    filterdir = Path(Configuration(_silent=True).config['SYNPHOT_FILTERDIR'])
-    mag, err, mjd = (pd.to_numeric(lc[k], errors='coerce').to_numpy(float) for k in (MAGSKY_KEY, MAGERR_KEY, 'mjd'))
-    ok = np.isfinite(mag) & np.isfinite(err) & np.isfinite(mjd) & (err < 99)
-    col = lambda k: (lc[k].fillna('').astype(str) if k in lc else pd.Series('', index=lc.index))[ok].tolist()
-    obs, filt, tel, img = col('observatory'), col('filter'), col('telname'), col('target_img')
+def _filters(obs: list, filt: list, filterdir: Path):
+    """(observatory, filter) keys sorted by wavelength and their page entries (name, wavelength, source, note, broad)."""
     multi_obs = len(set(obs)) > 1                  # same filter name from two observatories = two filters
     filters = {}
     for o, f in set(zip(obs, filt)):
@@ -348,6 +348,20 @@ def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
         filters[(o, f)] = dict(n=f'{o} {f}' if multi_obs else f, wl=wl, src=src, note=note,
                                broad=not re.fullmatch(r'm\d{3}', f))
     keys = sorted(filters, key=lambda k: (filters[k]['wl'] is None, filters[k]['wl'] or 0, k))
+    return keys, filters
+
+
+def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
+    """Points and filter wavelengths for the interactive light-curve / SED tabs; binning and combining
+    are done in the page. Rows with a non-finite magnitude, error or mjd, or MAGERR >= 99, are dropped (counted);
+    the bin origin t0 is the earliest finite mjd of all rows, dropped ones included."""
+    from ezphot.configuration import Configuration
+    filterdir = Path(Configuration(_silent=True).config['SYNPHOT_FILTERDIR'])
+    mag, err, mjd = (pd.to_numeric(lc[k], errors='coerce').to_numpy(float) for k in (MAGSKY_KEY, MAGERR_KEY, 'mjd'))
+    ok = np.isfinite(mag) & np.isfinite(err) & np.isfinite(mjd) & (err < 99)
+    col = lambda k: (lc[k].fillna('').astype(str) if k in lc else pd.Series('', index=lc.index))[ok].tolist()
+    obs, filt, tel, img = col('observatory'), col('filter'), col('telname'), col('target_img')
+    keys, filters = _filters(obs, filt, filterdir)
     index = {k: i for i, k in enumerate(keys)}
     run = set(map(str, run_paths))
     pts = [[round(float(t), 6), index[(o, f)], round(float(m), 4), round(float(e), 4), Path(p).stem if p else '', u,
@@ -358,6 +372,46 @@ def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
               f"filter curves from {filterdir}")
     return dict(key=MAGSKY_KEY, bin=LC_BIN_DAYS, t0=round(float(np.nanmin(mjd)), 6) if np.isfinite(mjd).any() else None,
                 n_bad=int((~ok).sum()), filters=[filters[k] for k in keys], pts=pts)
+
+
+def _sources(path: Path, row, info) -> Optional[dict]:
+    """Detections of one frame for the coordinate input of the light-curve / SED tabs: rows of the .cat with finite
+    X_WORLD, Y_WORLD, MAGSKY_APER_3 and MAGERR_APER_3 < 1.0857 / SOURCES_SNR (SATDIST None when missing);
+    None without a .cat with MAGSKY_APER_3. mjd of the summary obsdate, as target_photometry takes it."""
+    cat_path = _product(path, '.cat')
+    if not cat_path.exists():
+        return None
+    cat = _read_cat(cat_path).to_pandas()
+    if MAGSKY_KEY not in cat:
+        return None
+    col = lambda k: (pd.to_numeric(cat[k], errors='coerce').to_numpy(float, na_value=np.nan) if k in cat
+                     else np.full(len(cat), np.nan))
+    ra, dec, mag, err, sat = (col(k) for k in ('X_WORLD', 'Y_WORLD', MAGSKY_KEY, MAGERR_KEY, 'SATDIST'))
+    ok = np.isfinite(ra) & np.isfinite(dec) & np.isfinite(mag) & (err < 1.0857 / SOURCES_SNR)
+    filt = row.get('filter')
+    return dict(t=round(float(Time(str(row['obsdate'])).mjd), 6), obs=str(info.get('OBSERVATORY') or ''),
+                f='' if filt is None or pd.isna(filt) else str(filt),
+                ra=np.round(ra[ok], 6).tolist(), dec=np.round(dec[ok], 6).tolist(),
+                mag=np.round(mag[ok], 4).tolist(), err=np.round(err[ok], 4).tolist(),
+                sat=[round(float(s), 3) if np.isfinite(s) else None for s in sat[ok]])
+
+
+def _sources_payload(srcs: list, verbose=True) -> dict:
+    """Content of SOURCES_FILE: frames [index in the page's image list, mjd, filter index, number of rows] and the
+    rows of those frames one after the other in column lists (ra, dec, mag, err, sat); filters as in _lc_payload,
+    t0 = earliest frame mjd. No paths."""
+    from ezphot.configuration import Configuration
+    filterdir = Path(Configuration(_silent=True).config['SYNPHOT_FILTERDIR'])
+    have = [(i, s) for i, s in enumerate(srcs) if s is not None]
+    keys, filters = _filters([s['obs'] for _, s in have], [s['f'] for _, s in have], filterdir)
+    index = {k: i for i, k in enumerate(keys)}
+    frames = [[i, s['t'], index[(s['obs'], s['f'])], len(s['ra'])] for i, s in have]
+    cols = {k: [v for _, s in have for v in s[k]] for k in ('ra', 'dec', 'mag', 'err', 'sat')}
+    if verbose:
+        print(f"[visualize] coordinate input: {len(cols['ra'])} detections with SNR > {SOURCES_SNR} "
+              f"in {len(have)} frames -> {SOURCES_FILE}")
+    return dict(key=MAGSKY_KEY, snr=SOURCES_SNR, t0=min(s['t'] for _, s in have),
+                filters=[filters[k] for k in keys], frames=frames, **cols)
 
 
 # ---------------------------------------------------------------- driver
@@ -459,6 +513,7 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .pl{width:100%;height:auto;display:block;user-select:none}.pl text{fill:var(--mute);font-size:11px}.pl .gr{stroke:var(--line)}.pl .ax{fill:none;stroke:var(--line)}.pl .zr{fill:var(--acc);opacity:.15;pointer-events:none}
 .bar button.on{border-color:var(--acc);color:var(--acc);font-weight:600}
 .bar input[type=number]{width:80px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+.bar input[data-crd=ra],.bar input[data-crd=dec]{width:150px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;font:inherit;font-size:12px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .chip.off{opacity:.35}.chip i{width:10px;height:10px;border-radius:50%}.chip i.sq{border-radius:1px}
@@ -470,7 +525,7 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 <main id="m"></main><div id="lb"><img alt=""></div><div id="tip"></div>
 <script>
 const D=__DATA__;
-const TABS=[['overview','개요'],...(D.lcdata?[['lc','광도곡선'],['sed','SED']]:[]),...D.stages.map(s=>[s,D.labels[s]])];
+const TABS=[['overview','개요'],...(D.lcdata||D.srcs?[['lc','광도곡선'],['sed','SED']]:[]),...D.stages.map(s=>[s,D.labels[s]])];
 let tab='overview',idx=0;
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function fig(f){return `<figure${f.wide?' class="wide"':''}><img loading="lazy" src="${f.thumb}" data-full="${f.src}" alt="">${f.caption?`<p class="cap">${esc(f.caption)}</p>`:''}</figure>`}
@@ -506,17 +561,20 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{if(e.target.id==='sel')go(+e.target.value)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').style.display='none';
   if(tab==='overview'||tab==='lc'||tab==='sed'||e.target.tagName==='SELECT')return;if(e.key==='ArrowLeft')go(idx-1);if(e.key==='ArrowRight')go(idx+1)});
-// interactive light curve / SED (D.lcdata, only with --lightcurve); time binning and combining happen here
-const L=D.lcdata||{},FL=L.filters||[],PT=(L.pts||[]).map(p=>({t:p[0],f:p[1],m:p[2],e:p[3],fr:p[4],tel:p[5],run:p[6]}));
-const S={bin:L.bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1},DARK=matchMedia('(prefers-color-scheme:dark)').matches;
-const WLS=FL.map(f=>f.wl).filter(w=>w!=null),WL0=Math.min(...WLS),WL1=Math.max(...WLS);
+// interactive light curve / SED: L = D.lcdata (--lightcurve table) or detections in D.srcs.file matched to a coordinate;
+// time binning and combining happen here
+let L,FL,PT,FM,WL0,WL1;
+const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1},DARK=matchMedia('(prefers-color-scheme:dark)').matches;
 let TIPS=[],ZD=null;
 const utc=t=>new Date((t-40587)*864e5).toISOString().slice(0,19).replace('T',' ');
 const fwl=f=>f.wl==null?'파장 없음':f.src==='name'?`≈${f.wl} nm (이름 추정)`:`${f.wl} nm`;
 const wt=p=>1/Math.max(p.e,1e-4)**2;                 // inverse variance; floor keeps MAGERR=0 finite
 function fcol(i){const w=FL[i].wl;if(w==null)return 'var(--mute)';const k=WL1>WL0?(w-WL0)/(WL1-WL0):.5;
   return `hsl(${Math.round(270*(1-k))},${DARK?80:70}%,${DARK?62:42}%)`}   // violet (blue end) -> red
-const FM=FL.map((_,i)=>{let sw=0,sm=0;for(const p of PT)if(p.f===i){sw+=wt(p);sm+=wt(p)*p.m}return sm/sw});  // per-filter mean for dmag
+function setL(l){L=l;FL=L.filters||[];PT=(L.pts||[]).map(p=>({t:p[0],f:p[1],m:p[2],e:p[3],fr:p[4],tel:p[5],run:p[6],sep:p[7],sat:p[8]}));
+  const wls=FL.map(f=>f.wl).filter(w=>w!=null);WL0=Math.min(...wls);WL1=Math.max(...wls);
+  FM=FL.map((_,i)=>{let sw=0,sm=0;for(const p of PT)if(p.f===i){sw+=wt(p);sm+=wt(p)*p.m}return sm/sw});  // per-filter mean for dmag
+  S.off=new Set();S.zoom=null;S.sed=-1}
 function bins(){ // bin = floor((mjd - t0) / width); same bin and filter (any unit) -> inverse-variance mean in magnitudes
   const w=S.bin,g=new Map();
   for(const p of PT){const k=Math.floor((p.t-L.t0)/w)+'|'+p.f;if(!g.has(k))g.set(k,[]);g.get(k).push(p)}
@@ -527,12 +585,14 @@ function bins(){ // bin = floor((mjd - t0) / width); same bin and filter (any un
             b:Math.floor((a[0].t-L.t0)/w),run:a.some(p=>p.run)}})}
 function mark(p,x,y,op,tip,c){return {x,y,e:p.e,c:c||fcol(p.f),sq:FL[p.f].broad,open:!p.run,op,tip}}
 const dtxt=d=>d==null?'':` (Δ ${d>=0?'+':''}${d.toFixed(3)})`;
+function stxt(a){if(a[0].sep==null)return '';const s=a.map(p=>p.sat).filter(v=>v!=null),n=a.length>1;  // catalog matching only
+  return `\n매칭 거리${n?' 최대':''} ${Math.max(...a.map(p=>p.sep)).toFixed(2)}″ · SATDIST${n?' 최소':''} ${s.length?Math.min(...s).toFixed(2):'–'}`}
 function ptip(p,d){const f=FL[p.f];
-  return `${f.n} · ${fwl(f)}\n${p.m.toFixed(3)} ± ${p.e.toFixed(3)}${dtxt(d)}\n${p.fr}\n${p.tel} · ${utc(p.t)} UTC${p.run?'':'\n(다른 카탈로그)'}`}
+  return `${f.n} · ${fwl(f)}\n${p.m.toFixed(3)} ± ${p.e.toFixed(3)}${dtxt(d)}\n${p.fr}\n${p.tel} · ${utc(p.t)} UTC${p.run?'':'\n(다른 카탈로그)'}${stxt([p])}`}
 function ctip(c,d){const f=FL[c.f],w=S.bin;
   return `${f.n} · ${fwl(f)}\n${c.m.toFixed(3)} ± ${c.e.toFixed(3)}${dtxt(d)} · n=${c.n}\n`+
     (c.n>1?`√(1/Σw) ${c.ew.toFixed(3)} · std/√n ${c.es.toFixed(3)}`:`${c.a[0].fr} (프레임 오차)`)+
-    `\n${[...new Set(c.a.map(p=>p.tel))].join(', ')}\nbin ${c.b}: ${utc(L.t0+c.b*w)} – ${utc(L.t0+(c.b+1)*w)} UTC`}
+    `\n${[...new Set(c.a.map(p=>p.tel))].join(', ')}\nbin ${c.b}: ${utc(L.t0+c.b*w)} – ${utc(L.t0+(c.b+1)*w)} UTC${stxt(c.a)}`}
 function ext(a,pad){let lo=Math.min(...a),hi=Math.max(...a);if(!(hi>lo)){lo-=.5;hi+=.5}const d=(hi-lo)*pad;return [lo-d,hi+d]}
 function ticks(a,b,n){const raw=(b-a)/Math.max(n,2),p=10**Math.floor(Math.log10(raw)),st=[1,2,5,10].map(k=>k*p).find(k=>k>=raw),r=[];
   for(let i=Math.ceil(a/st);i*st<=b;i++)r.push(i*st);r.d=Math.max(0,-Math.floor(Math.log10(st)));return r}
@@ -593,15 +653,68 @@ function notes(sed){
   let h=`<p class="cap">${esc(L.key)} (10″) · 점 ${PT.length}개${L.n_bad?`, 제외 ${L.n_bad}개 (MAGERR ≥ 99 또는 NaN)`:''} · bin = floor((MJD − ${L.t0==null?'–':L.t0.toFixed(5)}) / 폭) · `+
     `합친 점 = 같은 bin·필터(유닛 무관)의 등급 역분산 가중 평균, 오차 max(√(1/Σw), std/√n) · 채운 기호: 이번 summary의 이미지, 빈 기호: 다른 카탈로그 · ○ 중대역, □ 광대역`+
     `${sed?'':' · 그림을 가로로 끌면 시간 범위를 확대합니다'}</p>`;
+  if(L.cat){const c=L.cat;h+=`<p class="cap">검출 카탈로그 매칭: RA ${c.ra.toFixed(6)}°, Dec ${c.dec.toFixed(6)}° 반경 ${c.r}″ 안에서 프레임마다 가장 가까운 검출 (SNR > ${c.snr}) · `+
+    `카탈로그 있는 프레임 ${c.nf}장 중 ${c.nm}장에서 찾음${D.images.length>c.nf?`, 카탈로그 없는 프레임 ${D.images.length-c.nf}장`:''} · `+
+    `<span class="${c.n2?'bad':''}">반경 안 검출 2개 이상 ${c.n2}장</span> · SNR ≤ ${c.snr}인 프레임은 빠짐 · target_photometry(카탈로그 사이 군집 선택)와 혼잡한 곳에서 다를 수 있음</p>`}
   if(est.length)h+=`<p class="cap">투과곡선이 없어 이름에서 파장을 추정: ${esc(est.join(', '))}</p>`;
   if(no.length)h+=`<p class="cap bad">파장 없음${sed?' (SED에서 제외)':''}: ${esc(no.join(', '))}</p>`;
   if(bad.length)h+=`<p class="cap bad">투과곡선 읽기 실패: ${esc(bad.join('; '))}</p>`;
   return h}
-function lcView(){return L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>'}
+function lcView(){return coordBar()+(L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>')}
 function draw(){
   const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
+  if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
+  if(C.msg){c.innerHTML=`<div class="empty${C.bad?' bad':''}">${esc(C.msg)}</div>`;return}
   c.innerHTML=controls(sed)+chips()+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
+// coordinate input (D.srcs): C keeps the typed text across re-renders; C.mode 'table' = D.lcdata, 'cat' = catalog matching
+const T=D.srcs&&D.srcs.target,C={mode:D.lcdata?'table':'cat',ra:T?String(T[0]):'',dec:T?String(T[1]):'',
+  r:String((D.srcs&&D.srcs.radius)||5),bad:false,
+  msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.',auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
+let SRC=null;                                         // fetch of D.srcs.file, once (again after a failure)
+function coordBar(){if(!D.srcs)return '';
+  if(D.srcs.error)return `<div class="card"><p class="cap bad">좌표 입력 없음 — 검출 카탈로그 파일을 만들지 못했습니다: ${esc(D.srcs.error)}</p></div>`;
+  const t=C.mode==='table';
+  return `<div class="card"><div class="bar" style="margin-bottom:0"><label class="meta">RA <input data-crd="ra" value="${esc(C.ra)}" placeholder="도 또는 hh:mm:ss"></label>`+
+    `<label class="meta">Dec <input data-crd="dec" value="${esc(C.dec)}" placeholder="도 또는 ±dd:mm:ss"></label>`+
+    `<label class="meta">반경 <input type="number" min="0" step="any" data-crd="r" value="${esc(C.r)}"> ″</label>`+
+    `<button data-act="crd">${t?'카탈로그 매칭으로 보기':'좌표 적용'}</button>${D.lcdata&&!t?'<button data-act="tbl">표로 돌아가기</button>':''}`+
+    `<span class="bad" id="cmsg" style="font-size:12px"></span></div>`+
+    `<p class="cap">${t?'지금은 target_photometry 표의 광도곡선·SED입니다. ':''}좌표를 넣으면 프레임마다 검출 카탈로그(SNR > 3)에서 반경 안 가장 가까운 광원으로 그립니다. `+
+    `RA·Dec는 도(십진수) 또는 hh:mm:ss / ±dd:mm:ss, RA 칸에 "RA Dec"를 한꺼번에 붙여넣어도 됩니다.</p></div>`}
+function deg(s,h){ // decimal degrees, or h:m:s (RA, h) / ±d:m:s (Dec), ':' or blanks between the fields
+  s=s.trim();if(/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s))return +s;
+  const m=s.match(/^([+-]?)(\d+)[:\s]+(\d+)(?:[:\s]+(\d+\.?\d*))?$/);if(!m||+m[3]>=60||+(m[4]||0)>=60)return NaN;
+  const v=(+m[2]+m[3]/60+(m[4]||0)/3600)*(h?15:1);return m[1]==='-'?-v:v}
+function radec(){ // [ra, dec] in degrees or null; an RA field not readable as one RA but in 2 or 6 fields is "RA Dec": both fields are rewritten
+  const t=C.ra.trim().split(/[\s,]+/),one=deg(C.ra,1);
+  if(!(one>=0&&one<360)&&(t.length===2||t.length===6)){C.ra=t.slice(0,t.length/2).join(' ');C.dec=t.slice(t.length/2).join(' ');
+    for(const k of ['ra','dec']){const el=$(`[data-crd=${k}]`);if(el)el.value=C[k]}}
+  const ra=deg(C.ra,1),dec=deg(C.dec,0);return ra>=0&&ra<360&&Math.abs(dec)<=90?[ra,dec]:null}
+const sep=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((d-b)*r/2),y=Math.sin((c-a)*r/2);   // arcsec, haversine
+  return 2*Math.asin(Math.min(1,Math.sqrt(x*x+Math.cos(b*r)*Math.cos(d*r)*y*y)))/r*3600};
+function match(F,ra,dec,r){ // per frame the nearest detection within r arcsec -> L in the D.lcdata form (+ sep, SATDIST)
+  const pts=[];let o=0,n2=0;
+  for(const [i,t,f,n] of F.frames){let b=-1,bs=Infinity,k=0;
+    for(let j=o;j<o+n;j++){if(Math.abs(F.dec[j]-dec)*3600>=r)continue;const s=sep(F.ra[j],F.dec[j],ra,dec);if(s<r){k++;if(s<bs){bs=s;b=j}}}
+    o+=n;if(k>1)n2++;
+    if(b>=0){const im=D.images[i];pts.push([t,f,F.mag[b],F.err[b],im.id,im.row.telname,1,bs,F.sat[b]])}}
+  const used=[...new Set(pts.map(p=>p[1]))].sort((a,c)=>a-c),ix=new Map(used.map((f,j)=>[f,j]));   // filters with points only
+  for(const p of pts)p[1]=ix.get(p[1]);
+  return {key:F.key,t0:F.t0,n_bad:0,filters:used.map(f=>F.filters[f]),pts,cat:{ra,dec,r,snr:F.snr,nf:F.frames.length,nm:pts.length,n2}}}
+function apply(){
+  const p=radec(),r=parseFloat(C.r),m=$('#cmsg');
+  if(!p||!(r>0)){if(m)m.textContent='좌표를 읽을 수 없습니다: RA는 도 또는 hh:mm:ss, Dec는 도 또는 ±dd:mm:ss, 반경 > 0″';return}
+  const re=C.mode!=='cat';C.mode='cat';C.msg='검출 카탈로그를 읽는 중…';C.bad=false;if(re){setL({});render()}else draw();
+  if(!SRC)SRC=fetch(D.srcs.file,{cache:'no-cache'}).then(x=>{if(!x.ok)throw new Error(`HTTP ${x.status}`);return x.json()});
+  SRC.then(F=>{if(C.mode!=='cat')return;
+    if(F.token!==D.srcs.token)throw new Error('이 페이지와 다른 visualize 실행에서 만든 파일입니다 — 갤러리를 다시 만든 뒤 페이지를 새로고침하세요');
+    setL(match(F,p[0],p[1],r));C.msg='';draw()})
+  .catch(e=>{SRC=null;if(C.mode!=='cat')return;setL({});C.bad=true;   // fetch, stale file or matching failed: shown, not stuck at loading
+    C.msg=`검출 카탈로그(${D.srcs.file})를 쓸 수 없습니다: ${e.message}`+(location.protocol==='file:'?' — file://로 연 페이지는 데이터 파일을 읽을 수 없습니다. http 서버로 여세요.':'');draw()})}
+document.addEventListener('input',e=>{const k=e.target.dataset&&e.target.dataset.crd;if(k)C[k]=e.target.value});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.crd)apply()});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;
+  if(k==='crd')return apply();if(k==='tbl'){C.mode='table';C.msg='';setL(D.lcdata);return render()}
   if(k==='mode')S.mode=a.dataset.v;else if(k==='unzoom')S.zoom=null;else if(k==='all')S.off.clear();
   else if(k==='none')S.off=new Set(FL.map((_,i)=>i));else if(k==='flt'){const i=+a.dataset.v;S.off.has(i)?S.off.delete(i):S.off.add(i)}
   draw()});
@@ -621,8 +734,8 @@ document.addEventListener('mouseup',e=>{if(!ZD)return;const {s,r,a}=ZD,[x0,x1,l,
   if(Math.abs(e.clientX-a)>5){S.zoom=[px(Math.min(a,e.clientX)),px(Math.max(a,e.clientX))];draw()}else s.querySelector('.zr').setAttribute('width',0)});
 $('#t').textContent=D.title;$('#s').textContent=D.sub;
 const m=location.hash.match(/^#(\w+)\/(\d+)/);if(m&&D.stages.includes(m[1])){tab=m[1];idx=Math.min(+m[2]-1,D.images.length-1)}
-if(D.lcdata&&/^#(lc|sed)$/.test(location.hash))tab=location.hash.slice(1);
-render();
+if((D.lcdata||D.srcs)&&/^#(lc|sed)$/.test(location.hash))tab=location.hash.slice(1);
+setL(D.lcdata||{});render();
 </script></body></html>'''
 
 
@@ -632,8 +745,8 @@ def _objname(path: Path) -> str:
 
 
 def _frame(args):
-    """Stage figures of one summary row under out/<stem>/; return its gallery entry and manifest item
-    ({} when the file is missing)."""
+    """Stage figures of one summary row under out/<stem>/; return its gallery entry, manifest item
+    ({} when the file is missing) and detections (_sources, None without them)."""
     row, out, stages, ra, dec = args
     path = Path(row['path'])
     status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
@@ -645,7 +758,7 @@ def _frame(args):
     if not path.exists():
         entry['status'] += ' (file missing)'
         entry['ok'] = False
-        return entry, {}
+        return entry, {}, None
     imgdir = out / path.stem
     imgdir.mkdir(exist_ok=True)
     data, header = fits.getdata(path, header=True)
@@ -662,7 +775,13 @@ def _frame(args):
             entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
             entry['ok'] = False
         entry['stages'][stage] = [_figure(imgdir, n, f'{path.stem}/') for n in names]
-    return entry, {str(path): {k: [f['src'] for f in v] for k, v in entry['stages'].items()}}
+    try:
+        src = _sources(path, row, info)
+    except Exception as e:
+        src = None
+        entry['status'] += f' | detections for coordinate input failed: {type(e).__name__}: {e}'
+        entry['ok'] = False
+    return entry, {str(path): {k: [f['src'] for f in v] for k, v in entry['stages'].items()}}, src
 
 
 def _frames(tasks: list, n_proc: int):
@@ -704,9 +823,10 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
              ra=None, dec=None, stages=None, verbose=True, n_proc=8) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     rows = _frame_order(rows)
-    images, manifest, seen = [], {}, []
-    for entry, item in _frames([(row, out, stages, ra, dec) for _, row in rows.iterrows()], n_proc):
+    images, manifest, seen, srcs = [], {}, [], []
+    for entry, item, src in _frames([(row, out, stages, ra, dec) for _, row in rows.iterrows()], n_proc):
         images.append(entry)
+        srcs.append(src)
         seen += [s for s in entry['stages'] if s not in seen]
         if verbose and item:
             print(f"[visualize] {entry['name']}: " + ', '.join(f'{k}({len(v)})' for k, v in entry['stages'].items()))
@@ -729,6 +849,16 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
                 images=images, run=run, lc=lc)
     if lcdata is not None:
         data['lcdata'] = lcdata
+    if any(s is not None for s in srcs):           # coordinate input in the light-curve / SED tabs
+        try:
+            token = f'{len(images)} {pd.Timestamp.now().isoformat()}'   # in both files: the page detects a stale sources.json
+            (out / SOURCES_FILE).write_text(json.dumps(dict(_sources_payload(srcs, verbose), token=token),
+                                                       separators=(',', ':'), allow_nan=False))
+            data['srcs'] = dict(file=SOURCES_FILE, token=token, bin=LC_BIN_DAYS, radius=SOURCES_RADIUS_ARCSEC,
+                                target=[float(ra), float(dec)] if ra is not None and dec is not None else None)
+        except Exception as e:                     # shown in the light-curve / SED tabs
+            data['srcs'] = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'))
+            print(f"[visualize] detections for coordinate input failed: {data['srcs']['error']}")
     (out / 'manifest.json').write_text(json.dumps(dict(run=[f['src'] for f in run], lightcurve=[f['src'] for f in lc],
                                                        images=manifest), indent=1))
     index = out / 'index.html'

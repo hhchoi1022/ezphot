@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.5 (2026-11-01)
+### 추가
+- `recipes.visualize`: 광도곡선·SED 탭에 좌표 입력(RA, Dec, 매칭 반경 기본 5″ = `target_photometry --radius` 기본값)을 넣었다.
+  visualize가 각 프레임의 `.cat`(summary `path`의 `.cat`, `MAGSKY_APER_3` 열이 있는 것. stack summary는 `coadd_` 카탈로그, dia summary는 `path`(차감 대상 이미지)의 카탈로그를 쓴다. 차영상(`subtracted`, `sub_`) 카탈로그는 쓰지 않는다)에서
+  **SNR > 3**(`MAGERR_APER_3 < 1.0857/3`) 이고 좌표·등급이 유한한 검출의 `X_WORLD`·`Y_WORLD`·`MAGSKY_APER_3`·`MAGERR_APER_3`·`SATDIST`(열이 없으면 null)를 모아
+  갤러리 폴더에 `sources.json` 하나(열 지향 JSON, 경로 없음, 프레임은 페이지 이미지 목록 순서 번호로 연결, 프레임 시각 = summary `obsdate`의 MJD)로 쓴다.
+  페이지는 탭을 처음 열 때(`--ra`/`--dec`가 있고 `--lightcurve`가 없을 때) 또는 좌표를 적용할 때 이 파일을 받아, **프레임마다 반경 안 가장 가까운 검출 하나**로 점을 만들고
+  기존 시간 bin·합치기·SED·툴팁을 그대로 쓴다(툴팁에 매칭 거리·SATDIST 추가). 반경 안 검출이 2개 이상인 프레임 수를 페이지에 적는다.
+  좌표는 도(십진수, 지수 표기 포함) 또는 `hh:mm:ss` / `±dd:mm:ss`. RA 칸 값이 RA 하나로 읽히지 않고 2개 또는 6개 값으로 나뉘면 "RA Dec"로 보고 두 칸을 그 값으로 바꾼다(Dec 칸이 차 있어도).
+- 기본 상태: `--lightcurve`가 있으면 이전처럼 표 기반 광도곡선·SED로 시작하고(좌표 칸에는 `--ra`/`--dec`), "카탈로그 매칭으로 보기"·"표로 돌아가기"로 전환한다.
+  `--lightcurve` 없이 `--ra`/`--dec`가 있으면 그 좌표의 카탈로그 매칭으로, 둘 다 없으면 좌표 입력을 기다린다.
+- 이 모드의 값은 `target_photometry` 표와 다를 수 있다: `target_photometry`는 여러 카탈로그의 반경 안 검출을 군집으로 묶어 고르고, 여기서는 프레임마다 따로 최근접을 고른다(혼잡한 곳에서 다른 광원이 잡힐 수 있음).
+  SNR ≤ 3인 프레임의 측정은 들어 있지 않아 어두운 대상은 일부 프레임(또는 전부)이 빠진다. `ZPERR`는 오차에 합성하지 않는다(표 모드와 같음).
+  `sources.json`은 `file://`로 연 페이지에서는 읽을 수 없어(브라우저가 막음) 안내 문구가 나온다 — http 서버로 연다.
+  페이지는 `sources.json`을 캐시 검증(`no-cache`)으로 받고, `index.html`과 같은 실행에서 쓴 파일인지 토큰으로 확인한다. 다르면(갤러리를 다시 만든 뒤 새로고침하지 않은 경우 등) 다시 만들고 새로고침하라는 문구를 띄운다.
+- 0.5.1 항목의 "`lightcurve`를 주지 않으면 페이지 표시는 이전과 같다"는 이제 맞지 않는다: `MAGSKY_APER_3`가 있는 `.cat`이 하나라도 있으면 `lightcurve` 없이도 광도곡선·SED 탭이 생긴다.
+  `.cat`이 없는 갤러리는 이전과 같다. `index.html`의 페이지 데이터에 `srcs` 키가 추가되고, `lcdata`(표 모드)는 바뀌지 않는다.
+- 크기·시간: `sources.json`은 프레임당 SNR > 3 검출 수에 비례한다(예: FEIGE110 576장, 303,045행에서 12.7 MB, 압축 안 함). 각 프레임의 `.cat`을 그 장을 그리는 프로세스에서 한 번 더 읽는다.
+  `.cat`을 읽다 실패하면 그 프레임 상태에 `detections for coordinate input failed: …`가 붙고 개요 표에서 그 프레임이 실패(빨강)로 표시된다. 갤러리는 계속된다.
+- `visualize()` 시그니처·반환, CLI, `manifest.json` 키, 기존 그림 파일, 측광 수치는 바뀌지 않는다. 같은 objname을 다시 그렸는데 이번에는 `.cat`이 없으면 이전 `sources.json`이 폴더에 남지만 페이지는 읽지 않는다.
+
 ## 0.5.4 (2026-10-31)
 ### 수정
 - `Preprocess.correct_bdf`·`correct_bd`·`correct_bias`·`correct_dark`·`correct_flat`(그리고 이를 부르는 `ImageMethod.correct_bdf` 등, `recipes.process_images --preprocess`):
