@@ -8,7 +8,7 @@ A stage is shown when its products are on disk (or when it is named in --stages)
     platesolve  SCAMP PV1_* in header -> detected-vs-reference offsets over the field, 3x3 cutouts
     mask        .srcmask / .invalidmask -> image, background source mask (.srcmask), invalid object mask (.invalidmask)
     background  .bkgmap / .bkgrms
-    photometry  .cat + ZP_APER_3 -> ZP figures written by ezphot, target cutout with the 10" aperture
+    photometry  .cat + ZP_APER_3 -> ZP figures written by ezphot (tab "ZP Calibration")
     run         summary-level ZP / seeing / depth vs time (always, >1 image)
     lightcurve  only with --lightcurve (target_photometry table): lightcurve.png when >1 epoch, and
                 interactive light-curve / SED tabs of MAGSKY_APER_3 (10") from 1 row on (a table with no usable
@@ -58,14 +58,13 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
-from astropy.visualization import AsinhStretch, ImageNormalize, PercentileInterval, ZScaleInterval
+from astropy.visualization import ZScaleInterval
 from astropy.wcs import WCS
 
 from ezphot.recipes import defaults as D
 
 STAGES = ('preprocess', 'platesolve', 'mask', 'background', 'photometry')
 VIZ_ROOT = Path.home() / 'viz'
-APER10_DIAMETER_ARCSEC = 10
 ZP_KEY = f'ZP_{D.APER10_KEY}'
 MAG_KEY, MAGERR_KEY, MAGSKY_KEY = f'MAG_{D.APER10_KEY}', f'MAGERR_{D.APER10_KEY}', f'MAGSKY_{D.APER10_KEY}'
 LC_BIN_DAYS = 1                                    # default time bin of the interactive light-curve / SED tabs
@@ -204,14 +203,16 @@ def fig_platesolve(path: Path, data, header, info, outdir: Path) -> List[str]:
     r = np.hypot(x - nx / 2, y - ny / 2) * info.get('PIXELSCALE', 0.505) / 60
     names = []
 
-    fig, axes = plt.subplots(3, 1, figsize=(5, 10), gridspec_kw=dict(hspace=0.5))   # page: left of wcs_cutouts
+    fig = plt.figure(figsize=(9.5, 5))              # width / height < 1.8: not a full-row strip; page: left of wcs_cutouts
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.8, 1], hspace=0.5, wspace=0.25, top=0.85)   # top: room for the 2-line suptitle
+    axes = [fig.add_subplot(gs[:, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, 1])]   # field | distance / histogram
     ax = axes[0]
     q = ax.quiver(x, y, dra, ddec, np.hypot(dra, ddec), cmap='viridis', angles='xy',
                   scale_units='xy', scale=1 / 2000, width=0.003)
-    ax.quiverkey(q, 0.05, -0.25, 0.5, '0.5"', labelpos='E')     # below the tick labels of the short panel
+    ax.quiverkey(q, 0.02, -0.14, 0.5, '0.5"', labelpos='E')     # below the tick labels, above the colour bar
     ax.set_xlim(0, nx); ax.set_ylim(0, ny); ax.set_aspect('equal')
-    ax.set_title(f'detected -> reference offset (x2000), N={ok.sum()}', fontsize=9)
-    fig.colorbar(q, ax=ax, label='|offset| [arcsec]')
+    ax.set_title(f'detected -> reference (x2000), N={ok.sum()}', fontsize=9)
+    fig.colorbar(q, ax=ax, label='|offset| [arcsec]', orientation='horizontal', fraction=0.06, pad=0.16)   # below: the field fills its column
     ax = axes[1]
     ax.scatter(r, np.hypot(dra, ddec), s=4, alpha=0.6)
     ax.set_xlabel('distance from centre [arcmin]'); ax.set_ylabel('|offset| [arcsec]')
@@ -269,35 +270,9 @@ def fig_background(path: Path, data, header, info, outdir: Path) -> List[str]:
     return [n for n in (_link(_product(path, s), outdir) for s in ('.bkgmap.png', '.bkgrms.png')) if n]
 
 
-def fig_photometry(path: Path, data, header, info, outdir: Path, ra=None, dec=None) -> List[str]:
-    names = [n for n in (_link(_product(path, s), outdir)
-                         for s in ('.refcat.png', '.zp_mag.png', '.zp_color.png', '.zp_2d.png')) if n]
-    if ra is None or dec is None:
-        return names
-    w = _wcs(header)
-    tx, ty = w.world_to_pixel(SkyCoord(ra, dec, unit='deg'))
-    scale = info.get('PIXELSCALE', 0.505)
-    half = int(30 / scale)
-    x0, y0 = int(tx) - half, int(ty) - half
-    if x0 < 0 or y0 < 0 or x0 + 2 * half > data.shape[1] or y0 + 2 * half > data.shape[0]:
-        return names
-    cat = _read_cat(_product(path, '.cat'))
-    sep = SkyCoord(cat['X_WORLD'], cat['Y_WORLD'], unit='deg').separation(SkyCoord(ra, dec, unit='deg'))
-    k = int(np.argmin(sep))
-    fig, ax = plt.subplots(figsize=(6, 6))
-    cut = data[y0:y0 + 2 * half, x0:x0 + 2 * half]
-    ax.imshow(cut, origin='lower', cmap='gray',
-              norm=ImageNormalize(cut, interval=PercentileInterval(99.9), stretch=AsinhStretch(0.02)))
-    rad =APER10_DIAMETER_ARCSEC / 2 / scale
-    ax.add_patch(plt.Circle((cat['X_IMAGE'][k] - 1 - x0, cat['Y_IMAGE'][k] - 1 - y0), rad, fill=False, color='lime', lw=1))
-    ax.plot(tx - x0, ty - y0, '+', color='r', ms=14)
-    msky = cat[MAGSKY_KEY][k] if MAGSKY_KEY in cat.colnames else np.nan
-    ax.set_title(f'target (+) / nearest source sep {sep[k].arcsec:.1f}"  10" aperture (green)\n'
-                 f'{MAGSKY_KEY}={msky:.3f}  {ZP_KEY}={header.get(ZP_KEY, np.nan):.3f}  SEEING={header.get("SEEING", np.nan):.2f}"',
-                 fontsize=9)
-    ax.set_xticks([]); ax.set_yticks([])
-    names.insert(0, _save(fig, outdir / 'target_cutout.png'))
-    return names
+def fig_photometry(path: Path, data, header, info, outdir: Path) -> List[str]:
+    return [n for n in (_link(_product(path, s), outdir)
+                        for s in ('.refcat.png', '.zp_mag.png', '.zp_color.png', '.zp_2d.png')) if n]
 
 
 def fig_run(summary: pd.DataFrame, outdir: Path) -> List[str]:
@@ -478,7 +453,7 @@ def _auto_stages(path: Path, header, info) -> List[str]:
     return found
 
 
-STAGE_LABELS = dict(preprocess='전처리', platesolve='WCS', mask='마스크', background='배경', photometry='측광')
+STAGE_LABELS = dict(preprocess='전처리', platesolve='WCS', mask='마스크', background='배경', photometry='ZP Calibration')
 CAPTIONS = {
     'preprocess.png': '보정 전(master로 재구성) / 보정 후, 픽셀 히스토그램, 사용된 master bias·dark·flat',
     'wcs_offsets.png': '검출 위치 → 기준성 위치 오프셋: 시야 분포, 중심 거리 의존성, 히스토그램',
@@ -490,7 +465,6 @@ CAPTIONS = {
     '.zp_mag.png': 'ZP vs 기준성 등급',
     '.zp_color.png': 'ZP vs 색',
     '.zp_2d.png': 'ZP 공간 분포',
-    'target_cutout.png': '타깃 주변 60″, 10″ aperture(초록)',
     'run_trends.png': f'{ZP_KEY}, SEEING, UL5SKY (10″) 시간 추이',
     'lightcurve.png': f'{MAGSKY_KEY} 광도곡선 — 채운 원: 이번 summary의 이미지, 빈 원: 디스크의 다른 카탈로그',
 }
@@ -569,7 +543,14 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .fit{gap:14px}.fit figure.wide{grid-column:auto;max-width:none}   /* stage figures: --rows rows within --av (hh()) */
 .fit .cap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* one line each; whole caption in title */
 .fit figure img{max-height:calc((var(--av,80vh) - var(--rows,1)*2.6em - (var(--rows,1) - 1)*14px) / var(--rows,1));object-fit:contain;background:none}
-@media (max-width:760px){.fit{grid-template-columns:minmax(0,1fr)!important}.fit figure img{max-height:none}}
+.mid figure:nth-child(odd) img{object-position:100% 50%}.mid figure:nth-child(even) img{object-position:0 50%}   /* 2 columns: figures meet in the middle */
+.mid figure:nth-child(odd) .cap{text-align:right}
+.lcgrid{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,1fr);gap:14px;align-items:start}   /* LC / SED: coordinate + image | plot */
+.lcl .cap:not(.bad),.lcl #cmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lcl #cmsg{flex:1 1 100%;min-width:0}   /* one line each; whole text in title */
+.lcl #cmsg:empty{display:none}
+.lcl .bar input[data-crd=ra],.lcl .bar input[data-crd=dec]{width:110px}   /* RA and Dec on one row in a 320 px column */
+@media (max-width:760px){.fit{grid-template-columns:minmax(0,1fr)!important}.fit figure img{max-height:none}.mid figure:nth-child(n) .cap{text-align:left}
+  .lcgrid{grid-template-columns:minmax(0,1fr)}}
 .fov{width:100%;height:auto;display:block;margin:0 auto;background:#000;border-radius:4px;cursor:crosshair;user-select:none}
 .fov .fd circle{fill:none;stroke:#4ade80;opacity:.8;vector-effect:non-scaling-stroke}.fov .pk{fill:none;stroke:#ff4d4f;stroke-width:2;vector-effect:non-scaling-stroke}
 #tip{position:fixed;display:none;z-index:9;pointer-events:none;white-space:pre;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -590,14 +571,14 @@ function overview(){
   if(D.run.length)h+=card('실행 추이',D.run);
   if(D.lc.length)h+=card('광도곡선',D.lc);
   return h}
-function stage(){ // figures in c columns sized to the window height (.fit); WCS: stacked offsets left of the 3x3 cutouts
+function stage(){ // figures in c columns sized to the window height (.fit); WCS: offsets (~1.6:1) left of the 3x3 cutouts; background: 2 rows
   const im=D.images[idx],figs=(im.stages[tab]||[]),n=figs.length,
-    c=tab==='photometry'?(n<3?n:Math.ceil(n/2)):tab==='background'||tab==='platesolve'&&n===2?n:1,
-    cols=tab==='platesolve'&&n===2?'minmax(0,.5fr) minmax(0,1fr)':`repeat(${c},minmax(0,1fr))`;
+    c=tab==='photometry'?(n<3?n:Math.ceil(n/2)):tab==='platesolve'&&n===2?n:1,
+    cols=tab==='platesolve'&&n===2?'minmax(0,1.6fr) minmax(0,1fr)':`repeat(${c},minmax(0,1fr))`;
   const opts=D.images.map((x,i)=>`<option value="${i}"${i===idx?' selected':''}>${i+1}. ${esc(x.short)}</option>`).join('');
   return `<div class="bar fbar"><button id="pv">←</button><select id="sel">${opts}</select><button id="nx">→</button><span class="meta">${idx+1} / ${D.images.length}</span></div>
   <div class="meta" style="margin-bottom:10px">${esc(im.name)} — seeing ${esc(im.row.SEEING)}″, ZP ${esc(im.row[D.cols[5][0]])} ± ${esc(im.row[D.cols[6][0]])}, UL5 ${esc(im.row[D.cols[7][0]])} <span class="${im.ok?'':'bad'}">· ${esc(im.status)}</span></div>
-  ${n?`<div class="grid fit" style="grid-template-columns:${cols};--rows:${Math.ceil(n/c)}">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
+  ${n?`<div class="grid fit${c===2?' mid':''}" style="grid-template-columns:${cols};--rows:${Math.ceil(n/c)}">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
 function render(){
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" class="${k===tab?'on':''}">${esc(l)}</button>`).join('');
   const lcv=tab==='lc'||tab==='sed';
@@ -606,7 +587,10 @@ function render(){
   history.replaceState(null,'',tab==='overview'?'#':lcv?`#${tab}`:`#${tab}/${idx+1}`)}
 function go(i){idx=(i+D.images.length)%D.images.length;render()}
 function hh(){document.documentElement.style.setProperty('--hh',$('header').offsetHeight+'px');   // frame bar sticks below the header
-  const g=$('.fit');if(g)document.documentElement.style.setProperty('--av',Math.max(240,innerHeight-g.getBoundingClientRect().top-scrollY-parseFloat(getComputedStyle($('main')).paddingBottom)-12)+'px')}   // window height below header, frame bar, name line, main padding
+  const g=$('.fit'),pb=parseFloat(getComputedStyle($('main')).paddingBottom);
+  if(g)document.documentElement.style.setProperty('--av',Math.max(240,innerHeight-g.getBoundingClientRect().top-scrollY-pb-12)+'px');   // window height below header, frame bar, name line, main padding
+  const l=$('.lcl'),s=l&&$('svg[data-fov]');   // LC / SED: --av = height left for the image when the rest of the left column is in the window
+  if(s){document.documentElement.style.setProperty('--av',Math.max(160,innerHeight-l.getBoundingClientRect().top-scrollY-(l.offsetHeight-s.getBoundingClientRect().height)-pb-12)+'px');fovView()}}
 addEventListener('resize',hh);
 document.addEventListener('click',e=>{
   const b=e.target.closest('nav button');if(b){tab=b.dataset.k;render();return}
@@ -716,7 +700,8 @@ function notes(sed){
   if(no.length)h+=`<p class="cap bad">파장 없음${sed?' (SED에서 제외)':''}: ${esc(no.join(', '))}</p>`;
   if(bad.length)h+=`<p class="cap bad">투과곡선 읽기 실패: ${esc(bad.join('; '))}</p>`;
   return h}
-function lcView(){return coordBar()+fovCard()+(L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>')}
+function lcView(){const l=coordBar()+fovCard(),r=L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>';
+  return l?`<div class="lcgrid"><div class="lcl">${l}</div><div>${r}</div></div>`:r}   // left: coordinate input + whole-field image, right: plot
 function draw(){
   fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
   if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
@@ -725,18 +710,18 @@ function draw(){
 // coordinate input (D.srcs): C keeps the typed text across re-renders; C.mode 'table' = D.lcdata, 'cat' = catalog matching
 const T=D.srcs&&D.srcs.target,C={mode:D.lcdata?'table':'cat',ra:T?String(T[0]):'',dec:T?String(T[1]):'',
   r:String((D.srcs&&D.srcs.radius)||5),bad:false,
-  msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.'+(D.fov&&!D.fov.error?' 위 시야 이미지에서 광원을 클릭해도 됩니다.':''),auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
+  msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.'+(D.fov&&!D.fov.error?' 시야 이미지에서 광원을 클릭해도 됩니다.':''),auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
 let SRC=null;                                         // fetch of D.srcs.file, once (again after a failure)
 function coordBar(){if(!D.srcs)return '';
   if(D.srcs.error)return `<div class="card"><p class="cap bad">좌표 입력 없음 — 검출 카탈로그 파일을 만들지 못했습니다: ${esc(D.srcs.error)}</p></div>`;
-  const t=C.mode==='table';
+  const t=C.mode==='table',ct=`${t?'지금은 target_photometry 표의 광도곡선·SED입니다. ':''}좌표를 넣으면 프레임마다 검출 카탈로그(SNR > 3)에서 반경 안 가장 가까운 광원으로 그립니다. `+
+    `RA·Dec는 도(십진수) 또는 hh:mm:ss / ±dd:mm:ss, RA 칸에 "RA Dec"를 한꺼번에 붙여넣어도 됩니다.`;
   return `<div class="card"><div class="bar" style="margin-bottom:0"><label class="meta">RA <input data-crd="ra" value="${esc(C.ra)}" placeholder="도 또는 hh:mm:ss"></label>`+
     `<label class="meta">Dec <input data-crd="dec" value="${esc(C.dec)}" placeholder="도 또는 ±dd:mm:ss"></label>`+
     `<label class="meta">반경 <input type="number" min="0" step="any" data-crd="r" value="${esc(C.r)}"> ″</label>`+
     `<button data-act="crd">${t?'카탈로그 매칭으로 보기':'좌표 적용'}</button>${D.lcdata&&!t?'<button data-act="tbl">표로 돌아가기</button>':''}`+
     `<span class="bad" id="cmsg" style="font-size:12px"></span></div>`+
-    `<p class="cap">${t?'지금은 target_photometry 표의 광도곡선·SED입니다. ':''}좌표를 넣으면 프레임마다 검출 카탈로그(SNR > 3)에서 반경 안 가장 가까운 광원으로 그립니다. `+
-    `RA·Dec는 도(십진수) 또는 hh:mm:ss / ±dd:mm:ss, RA 칸에 "RA Dec"를 한꺼번에 붙여넣어도 됩니다.</p></div>`}
+    `<p class="cap" title="${esc(ct)}">${esc(ct)}</p></div>`}
 function deg(s,h){ // decimal degrees, or h:m:s (RA, h) / ±d:m:s (Dec), ':' or blanks between the fields
   s=s.trim();if(/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s))return +s;
   const m=s.match(/^([+-]?)(\d+)[:\s]+(\d+)(?:[:\s]+(\d+\.?\d*))?$/);if(!m||+m[3]>=60||+(m[4]||0)>=60)return NaN;
@@ -759,7 +744,7 @@ function match(F,ra,dec,r){ // per frame the nearest detection within r arcsec -
   return {key:F.key,t0:F.t0,n_bad:0,filters:used.map(f=>F.filters[f]),pts,cat:{ra,dec,r,snr:F.snr,nf:F.frames.length,nm:pts.length,n2}}}
 function apply(){
   const p=radec(),r=parseFloat(C.r),m=$('#cmsg');
-  if(!p||!(r>0)){if(m)m.textContent='좌표를 읽을 수 없습니다: RA는 도 또는 hh:mm:ss, Dec는 도 또는 ±dd:mm:ss, 반경 > 0″';return}
+  if(!p||!(r>0)){if(m)m.textContent=m.title='좌표를 읽을 수 없습니다: RA는 도 또는 hh:mm:ss, Dec는 도 또는 ±dd:mm:ss, 반경 > 0″';hh();return}   // a wrapped message: left column refitted
   const re=C.mode!=='cat';C.mode='cat';C.msg='검출 카탈로그를 읽는 중…';C.bad=false;if(re){setL({});render()}else draw();
   if(!SRC)SRC=fetch(D.srcs.file,{cache:'no-cache'}).then(x=>{if(!x.ok)throw new Error(`HTTP ${x.status}`);return x.json()});
   SRC.then(F=>{if(C.mode!=='cat')return;
@@ -793,19 +778,19 @@ document.addEventListener('mouseup',e=>{if(!ZD)return;const {s,r,a}=ZD,[x0,x1,l,
 const V={on:true,box:null,pick:-1};let VD=null;
 function fovCard(){const F=D.fov;if(!F)return '';const nm=`${F.frame+1}. ${esc(D.images[F.frame].short)}`;
   if(F.error)return `<div class="card"><p class="cap bad">시야 이미지 없음 (대표 프레임 ${nm}): ${esc(F.error)}</p></div>`;
-  const b=V.box||[0,0,F.w,F.h],p=V.pick;
+  const b=V.box||[0,0,F.w,F.h],p=V.pick,ft=`대표 프레임 ${F.frame+1}. ${D.images[F.frame].short} — SNR > 3 검출이 가장 많은 프레임 (${F.u.length}개, 초록 원) · `+
+    `휠: 확대·축소 · 끌기: 이동 · 클릭: 화면에서 20 px 안의 가장 가까운 검출의 RA·Dec로 좌표 적용 (빨간 원) · 다른 유닛·필터의 프레임과 시야가 다를 수 있습니다`;
   return `<div class="card"><div class="bar"><label class="meta"><input type="checkbox" data-fov="on"${V.on?' checked':''}> 검출 원</label>`+
     `<button data-fov="reset">전체 시야</button><span class="bad" id="fmsg" style="font-size:12px"></span></div>`+
-    `<svg class="fov" data-fov="img" viewBox="${b.join(' ')}" style="width:min(100%,calc(60vh*${(F.w/F.h).toFixed(4)}))"><image href="${esc(F.file)}?${encodeURIComponent(D.srcs.token)}" width="${F.w}" height="${F.h}"/>`+
+    `<svg class="fov" data-fov="img" viewBox="${b.join(' ')}" style="width:min(100%,calc(var(--av,60vh)*${(F.w/F.h).toFixed(4)}))"><image href="${esc(F.file)}?${encodeURIComponent(D.srcs.token)}" width="${F.w}" height="${F.h}"/>`+
     `<g class="fd"${V.on?'':' style="display:none"'}>${F.u.map((u,j)=>`<circle cx="${u}" cy="${F.v[j]}" r="1"/>`).join('')}</g>`+
     `<circle class="pk" cx="${p<0?0:F.u[p]}" cy="${p<0?0:F.v[p]}" r="1"${p<0?' style="display:none"':''}/></svg>`+
-    `<p class="cap">대표 프레임 ${nm} — SNR > 3 검출이 가장 많은 프레임 (${F.u.length}개, 초록 원) · 휠: 확대·축소 · 끌기: 이동 · `+
-    `클릭: 화면에서 20 px 안의 가장 가까운 검출의 RA·Dec로 좌표 적용 (빨간 원) · 다른 유닛·필터의 프레임과 시야가 다를 수 있습니다</p></div>`}
+    `<p class="cap" title="${esc(ft)}">대표 프레임 ${F.frame+1}. ${esc(D.images[F.frame].short.split(': ')[0])} · 검출 ${F.u.length}개 · 휠 확대 · 끌기 이동 · 클릭 선택</p></div>`}
 function fovView(){const s=$('svg[data-fov]');if(!s)return;const F=D.fov,b=V.box||[0,0,F.w,F.h],k=b[2]/(s.getBoundingClientRect().width||F.w);
   s.setAttribute('viewBox',b.join(' '));for(const c of s.querySelectorAll('circle'))c.setAttribute('r',((c.classList.contains('pk')?9:5)*k).toFixed(2))}  // radius in screen px
 function fovSet(x,y,w){const F=D.fov,h=w*F.h/F.w;V.box=[Math.min(Math.max(x,0),F.w-w),Math.min(Math.max(y,0),F.h-h),w,h];fovView()}
 document.addEventListener('wheel',e=>{const s=e.target.closest&&e.target.closest('svg[data-fov]');if(!s)return;if(!e.deltaY)return;e.preventDefault();
-  const F=D.fov,r=s.getBoundingClientRect(),b=V.box||[0,0,F.w,F.h],w=Math.min(Math.max(b[2]*(e.deltaY>0?1.25:.8),F.w/40),F.w),
+  const F=D.fov,r=s.getBoundingClientRect(),b=V.box||[0,0,F.w,F.h],w=Math.min(Math.max(b[2]*(e.deltaY>0?1.1:1/1.1),F.w/40),F.w),
     ox=e.clientX-r.left,oy=e.clientY-r.top;
   fovSet(b[0]+ox*(b[2]-w)/r.width,b[1]+oy*(b[2]-w)/r.width,w)},{passive:false});   // the image point under the cursor stays
 document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.closest('svg[data-fov]');if(!s||e.button)return;
@@ -815,8 +800,8 @@ document.addEventListener('mousemove',e=>{if(!VD)return;const dx=e.clientX-VD.x,
 document.addEventListener('mouseup',e=>{if(!VD)return;const {r,b,x,y,moved}=VD;VD=null;if(moved||Math.hypot(e.clientX-x,e.clientY-y)>5)return;
   const F=D.fov,k=b[2]/r.width,ix=b[0]+(e.clientX-r.left)*k,iy=b[1]+(e.clientY-r.top)*k,m=$('#fmsg');let j=-1,d=Infinity;
   for(let i=0;i<F.u.length;i++){const q=(F.u[i]-ix)**2+(F.v[i]-iy)**2;if(q<d){d=q;j=i}}
-  if(j<0||Math.sqrt(d)/k>20){if(m)m.textContent='근처에 검출 없음';return}
-  if(m)m.textContent='';V.pick=j;C.ra=String(F.ra[j]);C.dec=String(F.dec[j]);
+  if(j<0||Math.sqrt(d)/k>20){if(m)m.textContent='근처에 검출 없음';hh();return}
+  if(m)m.textContent='';hh();V.pick=j;C.ra=String(F.ra[j]);C.dec=String(F.dec[j]);
   for(const c of ['ra','dec']){const el=$(`[data-crd=${c}]`);if(el)el.value=C[c]}
   const pk=$('svg[data-fov] .pk');if(pk){pk.setAttribute('cx',F.u[j]);pk.setAttribute('cy',F.v[j]);pk.style.display=''}
   apply()});   // table mode: apply() switches to catalog matching, as the "카탈로그 매칭으로 보기" button
@@ -841,7 +826,7 @@ def _objname(path: Path) -> str:
 def _frame(args):
     """Stage figures of one summary row under out/<stem>/; return its gallery entry, manifest item
     ({} when the file is missing) and detections (_sources, None without them)."""
-    row, out, stages, ra, dec = args
+    row, out, stages = args
     path = Path(row['path'])
     status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
     raw = row.get('raw_path')                      # raw input file name (summary raw_path), else the summary path
@@ -860,10 +845,7 @@ def _frame(args):
     data = _Cutouts(data)                           # cutouts converted on access; whole image in fig_preprocess, fig_mask
     for stage in (stages or _auto_stages(path, header, info)):
         try:
-            if stage == 'photometry':
-                names = fig_photometry(path, data, header, info, imgdir, ra=ra, dec=dec)
-            else:
-                names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
+            names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
         except Exception as e:
             names = []
             entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
@@ -918,7 +900,7 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
     out.mkdir(parents=True, exist_ok=True)
     rows = _frame_order(rows)
     images, manifest, seen, srcs = [], {}, [], []
-    for entry, item, src in _frames([(row, out, stages, ra, dec) for _, row in rows.iterrows()], n_proc):
+    for entry, item, src in _frames([(row, out, stages) for _, row in rows.iterrows()], n_proc):
         images.append(entry)
         srcs.append(src)
         seen += [s for s in entry['stages'] if s not in seen]
