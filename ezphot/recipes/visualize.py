@@ -6,7 +6,7 @@ for looking at the products by eye. Read-only on the products; writes only under
 A stage is shown when its products are on disk (or when it is named in --stages):
     preprocess  header BIASCOR/DARKCOR/FLATCOR + master paths in .info -> raw (rebuilt) vs corrected, masters
     platesolve  SCAMP PV1_* in header -> detected-vs-reference offsets over the field, 3x3 cutouts
-    mask        .invalidmask / .srcmask
+    mask        .srcmask / .invalidmask -> image, background source mask (.srcmask), invalid object mask (.invalidmask)
     background  .bkgmap / .bkgrms
     photometry  .cat + ZP_APER_3 -> ZP figures written by ezphot, target cutout with the 10" aperture
     run         summary-level ZP / seeing / depth vs time (always, >1 image)
@@ -18,14 +18,17 @@ A stage is shown when its products are on disk (or when it is named in --stages)
     sources     .cat with MAGSKY_APER_3 -> detections with SNR > 3 (MAGERR_APER_3 < 1.0857/3: X_WORLD, Y_WORLD,
                 MAGSKY_APER_3, MAGERR_APER_3, SATDIST) of all frames in sources.json next to index.html; the light-curve /
                 SED tabs then take a coordinate (default --ra/--dec; with --lightcurve the table is shown first) and use
-                the nearest detection within a radius (default 5") in each frame, fetched from sources.json over http
+                the nearest detection within a radius (default 5") in each frame, fetched from sources.json over http;
+                fov.jpg (about 1200 px wide) shows the whole field of the frame with the most of them in those tabs, and a
+                click on it takes the RA/Dec of the nearest detection of that frame
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
         [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8]
 
 Images are drawn in --n-proc processes (default 8; 1 = one after the other): the first image of a gallery
-alone, so that its platesolve figure fills the sky-catalog cache, then the rest in parallel. Only the
-preprocess figure reads the whole science image; the other figures read its shape and cutouts.
+alone, so that its platesolve figure fills the sky-catalog cache, then the rest in parallel. The
+preprocess figure reads the whole science image, the mask figure all of it in bands of 8 rows; the other figures
+read its shape and cutouts. In the page the figures of a stage are sized to fit the window height.
 
 Gallery: <root>/ezphot/<objname>/viz/index.html (root default ~/viz); a later run of the same
 objname replaces the page. Frames are listed as "filter|telname|obsdate: raw file name", medium-band filters
@@ -69,12 +72,20 @@ LC_BIN_DAYS = 1                                    # default time bin of the int
 SOURCES_FILE = 'sources.json'                      # per-frame detections for the coordinate input of those tabs
 SOURCES_SNR = 3                                    # detections kept: MAGERR_APER_3 < 1.0857 / SOURCES_SNR
 SOURCES_RADIUS_ARCSEC = 5.0                        # default matching radius in the page (= target_photometry --radius)
+FOV_FILE = 'fov.jpg'                               # whole field of one frame for the click input of those tabs
+FOV_WIDTH = 1200                                   # its width is NAXIS1 / ceil(NAXIS1 / FOV_WIDTH) px
 
 
 # ---------------------------------------------------------------- helpers
 def _bin(data: np.ndarray, f: int, func=np.nanmean) -> np.ndarray:
     ny, nx = (data.shape[0] // f) * f, (data.shape[1] // f) * f
     return func(data[:ny, :nx].reshape(ny // f, f, nx // f, f), axis=(1, 3))
+
+
+def _binned(data, f: int, func=np.nanmean) -> np.ndarray:
+    """_bin of a 2-D array read in bands of f rows, so that a memory map or _Cutouts is not converted whole."""
+    return np.vstack([_bin(np.asarray(data[r:r + f], dtype=np.float32), f, func)
+                      for r in range(0, data.shape[0] // f * f, f)])
 
 
 def _show(ax, data, title=None, cmap='gray', **kw):
@@ -126,7 +137,7 @@ def _read_cat(path: Path) -> Table:
 class _Cutouts:
     """Stands in for data.astype(np.float32) in the stage figures: slices are converted on access, so of a
     memory-mapped fits.getdata array only the rows a cutout spans are read (in mmap pages); fig_preprocess takes
-    the whole image with [:, :] once its masters exist.
+    the whole image with [:, :] once its masters exist, fig_mask reads it through _binned.
     (Compressed or BZERO/BSCALE/BLANK-scaled images are decoded in full by fits.getdata, as before.)"""
     def __init__(self, data: np.ndarray):
         self.shape, self._data = data.shape, data
@@ -193,11 +204,11 @@ def fig_platesolve(path: Path, data, header, info, outdir: Path) -> List[str]:
     r = np.hypot(x - nx / 2, y - ny / 2) * info.get('PIXELSCALE', 0.505) / 60
     names = []
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.6), gridspec_kw=dict(width_ratios=[1.6, 1, 1]))
+    fig, axes = plt.subplots(3, 1, figsize=(5, 10), gridspec_kw=dict(hspace=0.5))   # page: left of wcs_cutouts
     ax = axes[0]
     q = ax.quiver(x, y, dra, ddec, np.hypot(dra, ddec), cmap='viridis', angles='xy',
                   scale_units='xy', scale=1 / 2000, width=0.003)
-    ax.quiverkey(q, 0.05, -0.12, 0.5, '0.5"', labelpos='E')
+    ax.quiverkey(q, 0.05, -0.25, 0.5, '0.5"', labelpos='E')     # below the tick labels of the short panel
     ax.set_xlim(0, nx); ax.set_ylim(0, ny); ax.set_aspect('equal')
     ax.set_title(f'detected -> reference offset (x2000), N={ok.sum()}', fontsize=9)
     fig.colorbar(q, ax=ax, label='|offset| [arcsec]')
@@ -209,7 +220,7 @@ def fig_platesolve(path: Path, data, header, info, outdir: Path) -> List[str]:
     ax.hist(dra, bins=40, histtype='step', label=f'dRA* med {np.median(dra):+.2f}"')
     ax.hist(ddec, bins=40, histtype='step', label=f'dDec med {np.median(ddec):+.2f}"')
     ax.set_xlabel('arcsec'); ax.legend(fontsize=8)
-    fig.suptitle(f'{path.name}  CTYPE={header["CTYPE1"]}  PV1 terms={sum(k.startswith("PV1_") for k in header)}', fontsize=10)
+    fig.suptitle(f'{path.name}\nCTYPE={header["CTYPE1"]}  PV1 terms={sum(k.startswith("PV1_") for k in header)}', fontsize=9)
     names.append(_save(fig, outdir / 'wcs_offsets.png'))
 
     half = 240                                      # cutout half-size [pix] = 2'
@@ -230,16 +241,28 @@ def fig_platesolve(path: Path, data, header, info, outdir: Path) -> List[str]:
 
 
 def fig_mask(path: Path, data, header, info, outdir: Path) -> List[str]:
-    names = []
-    ivp = _product(path, '.invalidmask')
-    if ivp.exists():
-        m = fits.getdata(ivp).astype(np.float32)
-        fig, ax = plt.subplots(figsize=(8, 5.5))
-        ax.imshow(_bin(m, 8, np.max), origin='lower', cmap='gray_r', vmin=0, vmax=1)
-        ax.set_title(f'invalid-pixel mask, 8x8 blocks with any masked pixel  ({100 * np.mean(m > 0):.3f}% masked)', fontsize=9)
-        names.append(_save(fig, outdir / 'invalidmask.png'))
-    names += [n for n in [_link(_product(path, '.srcmask.png'), outdir)] if n]
-    return names
+    """Image, background source mask (.srcmask) and invalid object mask (.invalidmask) in 8x8 blocks (masks read-only,
+    a block is masked when any of its pixels is); a missing mask file is noted in its panel."""
+    masks = [_product(path, s) for s in ('.srcmask', '.invalidmask')]
+    if not any(p.exists() for p in masks):
+        return []
+    f = 8
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4))
+    _show(axes[0], _binned(data, f), f'image, {f}x{f} mean')
+    for ax, p, lab in zip(axes[1:], masks, ('background source mask (.srcmask)',
+                                            'invalid object mask')):
+        if p.exists():
+            m = _binned(fits.getdata(p, memmap=True), f, lambda a, axis: np.mean(a > 0, axis=axis))   # masked fraction
+            ax.imshow(m > 0, origin='lower', cmap='gray_r', vmin=0, vmax=1)
+            ax.set_title(f'{lab}\n{f}x{f} blocks with any masked pixel ({100 * np.mean(m):.3f}% masked)', fontsize=9)
+        else:
+            ax.text(0.5, 0.5, f'none (no {p.suffix} file)', ha='center', va='center', transform=ax.transAxes)
+            ax.set_xlim(0, data.shape[1] // f); ax.set_ylim(0, data.shape[0] // f); ax.set_aspect('equal')
+            ax.set_title(lab, fontsize=9)
+    for ax in axes:
+        ax.set_xticks([]); ax.set_yticks([])
+    fig.suptitle(path.name, fontsize=10)
+    return [_save(fig, outdir / 'mask.png')]
 
 
 def fig_background(path: Path, data, header, info, outdir: Path) -> List[str]:
@@ -376,8 +399,9 @@ def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
 
 def _sources(path: Path, row, info) -> Optional[dict]:
     """Detections of one frame for the coordinate input of the light-curve / SED tabs: rows of the .cat with finite
-    X_WORLD, Y_WORLD, MAGSKY_APER_3 and MAGERR_APER_3 < 1.0857 / SOURCES_SNR (SATDIST None when missing);
-    None without a .cat with MAGSKY_APER_3. mjd of the summary obsdate, as target_photometry takes it."""
+    X_WORLD, Y_WORLD, MAGSKY_APER_3 and MAGERR_APER_3 < 1.0857 / SOURCES_SNR (SATDIST None when missing; x, y =
+    X_IMAGE, Y_IMAGE for _fov, not in SOURCES_FILE); None without a .cat with MAGSKY_APER_3. mjd of the summary obsdate,
+    as target_photometry takes it."""
     cat_path = _product(path, '.cat')
     if not cat_path.exists():
         return None
@@ -386,14 +410,16 @@ def _sources(path: Path, row, info) -> Optional[dict]:
         return None
     col = lambda k: (pd.to_numeric(cat[k], errors='coerce').to_numpy(float, na_value=np.nan) if k in cat
                      else np.full(len(cat), np.nan))
-    ra, dec, mag, err, sat = (col(k) for k in ('X_WORLD', 'Y_WORLD', MAGSKY_KEY, MAGERR_KEY, 'SATDIST'))
+    ra, dec, mag, err, sat, x, y = (col(k) for k in ('X_WORLD', 'Y_WORLD', MAGSKY_KEY, MAGERR_KEY, 'SATDIST',
+                                                     'X_IMAGE', 'Y_IMAGE'))
     ok = np.isfinite(ra) & np.isfinite(dec) & np.isfinite(mag) & (err < 1.0857 / SOURCES_SNR)
     filt = row.get('filter')
     return dict(t=round(float(Time(str(row['obsdate'])).mjd), 6), obs=str(info.get('OBSERVATORY') or ''),
                 f='' if filt is None or pd.isna(filt) else str(filt),
                 ra=np.round(ra[ok], 6).tolist(), dec=np.round(dec[ok], 6).tolist(),
                 mag=np.round(mag[ok], 4).tolist(), err=np.round(err[ok], 4).tolist(),
-                sat=[round(float(s), 3) if np.isfinite(s) else None for s in sat[ok]])
+                sat=[round(float(s), 3) if np.isfinite(s) else None for s in sat[ok]],
+                x=np.round(x[ok], 2).tolist(), y=np.round(y[ok], 2).tolist())
 
 
 def _sources_payload(srcs: list, verbose=True) -> dict:
@@ -412,6 +438,28 @@ def _sources_payload(srcs: list, verbose=True) -> dict:
               f"in {len(have)} frames -> {SOURCES_FILE}")
     return dict(key=MAGSKY_KEY, snr=SOURCES_SNR, t0=min(s['t'] for _, s in have),
                 filters=[filters[k] for k in keys], frames=frames, **cols)
+
+
+def _fov(path: Path, src: dict, out: Path) -> dict:
+    """Whole field of one frame for the click input of the light-curve / SED tabs: FOV_FILE in out (JPEG of f x f
+    nanmean blocks, f = ceil(NAXIS1 / FOV_WIDTH), read in bands of f rows from the read-only memory map; ZScale as in
+    _show, NaN black, highest Y on top) and the frame's detections (_sources) in its pixels: u = (X_IMAGE - 0.5) / f
+    from the left, v from the top. ValueError when X_IMAGE / Y_IMAGE do not all fall within the image."""
+    from PIL import Image
+    data = fits.getdata(path, memmap=True)          # compressed or scaled images are decoded in full, as in _frame
+    ny, nx = data.shape
+    x, y = np.asarray(src['x'], float), np.asarray(src['y'], float)
+    bad = ~((x >= 0.5) & (x <= nx + 0.5) & (y >= 0.5) & (y <= ny + 0.5))
+    if bad.any():
+        raise ValueError(f'X_IMAGE/Y_IMAGE of {int(bad.sum())} of {len(x)} detections not within the {nx} x {ny} image')
+    f = -(-nx // FOV_WIDTH)
+    img = _binned(data, f)
+    vmin, vmax = ZScaleInterval().get_limits(img[np.isfinite(img)])
+    Image.fromarray(np.nan_to_num(np.clip((img[::-1] - vmin) / (vmax - vmin), 0, 1) * 255).astype(np.uint8)).save(
+        out / FOV_FILE, quality=85)
+    h, w = img.shape
+    return dict(file=FOV_FILE, w=w, h=h, u=np.round((x - 0.5) / f, 2).tolist(), v=np.round(h - (y - 0.5) / f, 2).tolist(),
+                ra=src['ra'], dec=src['dec'])
 
 
 # ---------------------------------------------------------------- driver
@@ -435,8 +483,7 @@ CAPTIONS = {
     'preprocess.png': '보정 전(master로 재구성) / 보정 후, 픽셀 히스토그램, 사용된 master bias·dark·flat',
     'wcs_offsets.png': '검출 위치 → 기준성 위치 오프셋: 시야 분포, 중심 거리 의존성, 히스토그램',
     'wcs_cutouts.png': '헤더 WCS로 투영한 기준성 위치(빨강), 시야 9곳 4′×4′',
-    'invalidmask.png': 'invalid pixel mask (8×8 블록 중 하나라도 마스크된 곳)',
-    '.srcmask.png': 'source mask',
+    'mask.png': '원본 이미지(8×8 평균) · background source mask(.srcmask) · invalid object mask(.invalidmask) — 마스크는 8×8 블록 중 하나라도 마스크된 곳',
     '.bkgmap.png': '2D 배경 맵',
     '.bkgrms.png': '배경 rms 맵',
     '.refcat.png': 'ZP 계산에 쓴 기준성 선택',
@@ -519,16 +566,22 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .chip.off{opacity:.35}.chip i{width:10px;height:10px;border-radius:50%}.chip i.sq{border-radius:1px}
 .panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}.panels h3{font-size:12px;font-weight:500;margin:0}
 .ramp{display:inline-block;width:120px;height:8px;border-radius:4px;vertical-align:middle}
+.fit{gap:14px}.fit figure.wide{grid-column:auto;max-width:none}   /* stage figures: --rows rows within --av (hh()) */
+.fit .cap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* one line each; whole caption in title */
+.fit figure img{max-height:calc((var(--av,80vh) - var(--rows,1)*2.6em - (var(--rows,1) - 1)*14px) / var(--rows,1));object-fit:contain;background:none}
+@media (max-width:760px){.fit{grid-template-columns:minmax(0,1fr)!important}.fit figure img{max-height:none}}
+.fov{width:100%;height:auto;display:block;margin:0 auto;background:#000;border-radius:4px;cursor:crosshair;user-select:none}
+.fov .fd circle{fill:none;stroke:#4ade80;opacity:.8;vector-effect:non-scaling-stroke}.fov .pk{fill:none;stroke:#ff4d4f;stroke-width:2;vector-effect:non-scaling-stroke}
 #tip{position:fixed;display:none;z-index:9;pointer-events:none;white-space:pre;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 </style></head><body>
 <header><h1 id="t"></h1><div class="sub" id="s"></div><nav id="nav"></nav></header>
 <main id="m"></main><div id="lb"><img alt=""></div><div id="tip"></div>
 <script>
 const D=__DATA__;
-const TABS=[['overview','개요'],...(D.lcdata||D.srcs?[['lc','광도곡선'],['sed','SED']]:[]),...D.stages.map(s=>[s,D.labels[s]])];
+const TABS=[['overview','개요'],...D.stages.map(s=>[s,D.labels[s]]),...(D.lcdata||D.srcs?[['lc','광도곡선'],['sed','SED']]:[])];
 let tab='overview',idx=0;
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function fig(f){return `<figure${f.wide?' class="wide"':''}><img loading="lazy" src="${f.thumb}" data-full="${f.src}" alt="">${f.caption?`<p class="cap">${esc(f.caption)}</p>`:''}</figure>`}
+function fig(f){return `<figure${f.wide?' class="wide"':''}><img loading="lazy" src="${f.thumb}" data-full="${f.src}" alt="">${f.caption?`<p class="cap" title="${esc(f.caption)}">${esc(f.caption)}</p>`:''}</figure>`}
 function card(t,figs){return `<div class="card"><h2>${esc(t)}</h2><div class="grid">${figs.map(fig).join('')}</div></div>`}
 function overview(){
   const head=D.cols.map(c=>`<th>${esc(c[1])}</th>`).join('');
@@ -537,12 +590,14 @@ function overview(){
   if(D.run.length)h+=card('실행 추이',D.run);
   if(D.lc.length)h+=card('광도곡선',D.lc);
   return h}
-function stage(){
-  const im=D.images[idx],figs=(im.stages[tab]||[]);
+function stage(){ // figures in c columns sized to the window height (.fit); WCS: stacked offsets left of the 3x3 cutouts
+  const im=D.images[idx],figs=(im.stages[tab]||[]),n=figs.length,
+    c=tab==='photometry'?(n<3?n:Math.ceil(n/2)):tab==='background'||tab==='platesolve'&&n===2?n:1,
+    cols=tab==='platesolve'&&n===2?'minmax(0,.5fr) minmax(0,1fr)':`repeat(${c},minmax(0,1fr))`;
   const opts=D.images.map((x,i)=>`<option value="${i}"${i===idx?' selected':''}>${i+1}. ${esc(x.short)}</option>`).join('');
   return `<div class="bar fbar"><button id="pv">←</button><select id="sel">${opts}</select><button id="nx">→</button><span class="meta">${idx+1} / ${D.images.length}</span></div>
   <div class="meta" style="margin-bottom:10px">${esc(im.name)} — seeing ${esc(im.row.SEEING)}″, ZP ${esc(im.row[D.cols[5][0]])} ± ${esc(im.row[D.cols[6][0]])}, UL5 ${esc(im.row[D.cols[7][0]])} <span class="${im.ok?'':'bad'}">· ${esc(im.status)}</span></div>
-  ${figs.length?`<div class="grid">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
+  ${n?`<div class="grid fit" style="grid-template-columns:${cols};--rows:${Math.ceil(n/c)}">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
 function render(){
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" class="${k===tab?'on':''}">${esc(l)}</button>`).join('');
   const lcv=tab==='lc'||tab==='sed';
@@ -550,7 +605,8 @@ function render(){
   if(lcv)draw();hh();
   history.replaceState(null,'',tab==='overview'?'#':lcv?`#${tab}`:`#${tab}/${idx+1}`)}
 function go(i){idx=(i+D.images.length)%D.images.length;render()}
-function hh(){document.documentElement.style.setProperty('--hh',$('header').offsetHeight+'px')}   // frame bar sticks below the header
+function hh(){document.documentElement.style.setProperty('--hh',$('header').offsetHeight+'px');   // frame bar sticks below the header
+  const g=$('.fit');if(g)document.documentElement.style.setProperty('--av',Math.max(240,innerHeight-g.getBoundingClientRect().top-scrollY-parseFloat(getComputedStyle($('main')).paddingBottom)-12)+'px')}   // window height below header, frame bar, name line, main padding
 addEventListener('resize',hh);
 document.addEventListener('click',e=>{
   const b=e.target.closest('nav button');if(b){tab=b.dataset.k;render();return}
@@ -660,16 +716,16 @@ function notes(sed){
   if(no.length)h+=`<p class="cap bad">파장 없음${sed?' (SED에서 제외)':''}: ${esc(no.join(', '))}</p>`;
   if(bad.length)h+=`<p class="cap bad">투과곡선 읽기 실패: ${esc(bad.join('; '))}</p>`;
   return h}
-function lcView(){return coordBar()+(L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>')}
+function lcView(){return coordBar()+fovCard()+(L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>')}
 function draw(){
-  const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
+  fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
   if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
   if(C.msg){c.innerHTML=`<div class="empty${C.bad?' bad':''}">${esc(C.msg)}</div>`;return}
   c.innerHTML=controls(sed)+chips()+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
 // coordinate input (D.srcs): C keeps the typed text across re-renders; C.mode 'table' = D.lcdata, 'cat' = catalog matching
 const T=D.srcs&&D.srcs.target,C={mode:D.lcdata?'table':'cat',ra:T?String(T[0]):'',dec:T?String(T[1]):'',
   r:String((D.srcs&&D.srcs.radius)||5),bad:false,
-  msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.',auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
+  msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.'+(D.fov&&!D.fov.error?' 위 시야 이미지에서 광원을 클릭해도 됩니다.':''),auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
 let SRC=null;                                         // fetch of D.srcs.file, once (again after a failure)
 function coordBar(){if(!D.srcs)return '';
   if(D.srcs.error)return `<div class="card"><p class="cap bad">좌표 입력 없음 — 검출 카탈로그 파일을 만들지 못했습니다: ${esc(D.srcs.error)}</p></div>`;
@@ -732,6 +788,44 @@ document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.clo
 document.addEventListener('mouseup',e=>{if(!ZD)return;const {s,r,a}=ZD,[x0,x1,l,iw,W]=s.dataset.zoom.split(',').map(Number),k=W/r.width;ZD=null;
   const px=c=>x0+((c-r.left)*k-l)/iw*(x1-x0);
   if(Math.abs(e.clientX-a)>5){S.zoom=[px(Math.min(a,e.clientX)),px(Math.max(a,e.clientX))];draw()}else s.querySelector('.zr').setAttribute('width',0)});
+// whole field of one frame (D.fov): wheel zooms, drag pans, a click (moved ≤ 5 px) takes the nearest detection within
+// 20 screen px into the coordinate fields and applies it; V.box = viewBox in image px, kept across re-renders
+const V={on:true,box:null,pick:-1};let VD=null;
+function fovCard(){const F=D.fov;if(!F)return '';const nm=`${F.frame+1}. ${esc(D.images[F.frame].short)}`;
+  if(F.error)return `<div class="card"><p class="cap bad">시야 이미지 없음 (대표 프레임 ${nm}): ${esc(F.error)}</p></div>`;
+  const b=V.box||[0,0,F.w,F.h],p=V.pick;
+  return `<div class="card"><div class="bar"><label class="meta"><input type="checkbox" data-fov="on"${V.on?' checked':''}> 검출 원</label>`+
+    `<button data-fov="reset">전체 시야</button><span class="bad" id="fmsg" style="font-size:12px"></span></div>`+
+    `<svg class="fov" data-fov="img" viewBox="${b.join(' ')}" style="width:min(100%,calc(60vh*${(F.w/F.h).toFixed(4)}))"><image href="${esc(F.file)}?${encodeURIComponent(D.srcs.token)}" width="${F.w}" height="${F.h}"/>`+
+    `<g class="fd"${V.on?'':' style="display:none"'}>${F.u.map((u,j)=>`<circle cx="${u}" cy="${F.v[j]}" r="1"/>`).join('')}</g>`+
+    `<circle class="pk" cx="${p<0?0:F.u[p]}" cy="${p<0?0:F.v[p]}" r="1"${p<0?' style="display:none"':''}/></svg>`+
+    `<p class="cap">대표 프레임 ${nm} — SNR > 3 검출이 가장 많은 프레임 (${F.u.length}개, 초록 원) · 휠: 확대·축소 · 끌기: 이동 · `+
+    `클릭: 화면에서 20 px 안의 가장 가까운 검출의 RA·Dec로 좌표 적용 (빨간 원) · 다른 유닛·필터의 프레임과 시야가 다를 수 있습니다</p></div>`}
+function fovView(){const s=$('svg[data-fov]');if(!s)return;const F=D.fov,b=V.box||[0,0,F.w,F.h],k=b[2]/(s.getBoundingClientRect().width||F.w);
+  s.setAttribute('viewBox',b.join(' '));for(const c of s.querySelectorAll('circle'))c.setAttribute('r',((c.classList.contains('pk')?9:5)*k).toFixed(2))}  // radius in screen px
+function fovSet(x,y,w){const F=D.fov,h=w*F.h/F.w;V.box=[Math.min(Math.max(x,0),F.w-w),Math.min(Math.max(y,0),F.h-h),w,h];fovView()}
+document.addEventListener('wheel',e=>{const s=e.target.closest&&e.target.closest('svg[data-fov]');if(!s)return;if(!e.deltaY)return;e.preventDefault();
+  const F=D.fov,r=s.getBoundingClientRect(),b=V.box||[0,0,F.w,F.h],w=Math.min(Math.max(b[2]*(e.deltaY>0?1.25:.8),F.w/40),F.w),
+    ox=e.clientX-r.left,oy=e.clientY-r.top;
+  fovSet(b[0]+ox*(b[2]-w)/r.width,b[1]+oy*(b[2]-w)/r.width,w)},{passive:false});   // the image point under the cursor stays
+document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.closest('svg[data-fov]');if(!s||e.button)return;
+  VD={r:s.getBoundingClientRect(),x:e.clientX,y:e.clientY,b:V.box||[0,0,D.fov.w,D.fov.h],moved:false};e.preventDefault()});
+document.addEventListener('mousemove',e=>{if(!VD)return;const dx=e.clientX-VD.x,dy=e.clientY-VD.y;
+  if(!VD.moved&&Math.hypot(dx,dy)<=5)return;VD.moved=true;const k=VD.b[2]/VD.r.width;fovSet(VD.b[0]-dx*k,VD.b[1]-dy*k,VD.b[2])});
+document.addEventListener('mouseup',e=>{if(!VD)return;const {r,b,x,y,moved}=VD;VD=null;if(moved||Math.hypot(e.clientX-x,e.clientY-y)>5)return;
+  const F=D.fov,k=b[2]/r.width,ix=b[0]+(e.clientX-r.left)*k,iy=b[1]+(e.clientY-r.top)*k,m=$('#fmsg');let j=-1,d=Infinity;
+  for(let i=0;i<F.u.length;i++){const q=(F.u[i]-ix)**2+(F.v[i]-iy)**2;if(q<d){d=q;j=i}}
+  if(j<0||Math.sqrt(d)/k>20){if(m)m.textContent='근처에 검출 없음';return}
+  if(m)m.textContent='';V.pick=j;C.ra=String(F.ra[j]);C.dec=String(F.dec[j]);
+  for(const c of ['ra','dec']){const el=$(`[data-crd=${c}]`);if(el)el.value=C[c]}
+  const pk=$('svg[data-fov] .pk');if(pk){pk.setAttribute('cx',F.u[j]);pk.setAttribute('cy',F.v[j]);pk.style.display=''}
+  apply()});   // table mode: apply() switches to catalog matching, as the "카탈로그 매칭으로 보기" button
+document.addEventListener('input',e=>{const k=e.target.dataset&&e.target.dataset.crd;if((k==='ra'||k==='dec')&&V.pick>=0){   // typed: no picked detection
+  V.pick=-1;const pk=$('svg[data-fov] .pk');if(pk)pk.style.display='none'}});
+document.addEventListener('change',e=>{if(!(e.target.dataset&&e.target.dataset.fov==='on'))return;V.on=e.target.checked;
+  const g=$('svg[data-fov] .fd');if(g)g.style.display=V.on?'':'none'});
+document.addEventListener('click',e=>{if(e.target.closest('[data-fov=reset]')){V.box=null;fovView()}});
+addEventListener('resize',fovView);
 $('#t').textContent=D.title;$('#s').textContent=D.sub;
 const m=location.hash.match(/^#(\w+)\/(\d+)/);if(m&&D.stages.includes(m[1])){tab=m[1];idx=Math.min(+m[2]-1,D.images.length-1)}
 if((D.lcdata||D.srcs)&&/^#(lc|sed)$/.test(location.hash))tab=location.hash.slice(1);
@@ -763,7 +857,7 @@ def _frame(args):
     imgdir.mkdir(exist_ok=True)
     data, header = fits.getdata(path, header=True)
     info = _info(path)
-    data = _Cutouts(data)                           # cutouts converted on access; whole image only in fig_preprocess
+    data = _Cutouts(data)                           # cutouts converted on access; whole image in fig_preprocess, fig_mask
     for stage in (stages or _auto_stages(path, header, info)):
         try:
             if stage == 'photometry':
@@ -859,6 +953,16 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
         except Exception as e:                     # shown in the light-curve / SED tabs
             data['srcs'] = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'))
             print(f"[visualize] detections for coordinate input failed: {data['srcs']['error']}")
+        if 'file' in data['srcs']:                 # click input: whole field of the frame with the most detections
+            i = int(np.argmax([-1 if s is None else len(s['ra']) for s in srcs]))   # ties: first in gallery order
+            try:
+                data['fov'] = dict(_fov(Path(rows.iloc[i]['path']), srcs[i], out), frame=i)
+                if verbose:
+                    print(f"[visualize] click input: {FOV_FILE} {data['fov']['w']} x {data['fov']['h']} px of "
+                          f"{images[i]['name']} ({len(srcs[i]['ra'])} detections)")
+            except Exception as e:                 # shown in the light-curve / SED tabs
+                data['fov'] = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'), frame=i)
+                print(f"[visualize] whole-field image for the click input failed: {data['fov']['error']}")
     (out / 'manifest.json').write_text(json.dumps(dict(run=[f['src'] for f in run], lightcurve=[f['src'] for f in lc],
                                                        images=manifest), indent=1))
     index = out / 'index.html'
