@@ -11,6 +11,9 @@ Runs are found as ~/ezphot/log/recipes/<objname>/process_images_<tag>.{log,csv}.
 csv exists, 'stopped' when only the log is left, and 'unreadable' when its csv/log cannot be read.
 Runs whose csv is written elsewhere are not listed; runs without --out (e.g. the Python API) appear
 once their csv lands there but are never shown as running. --watch rewrites the page every SEC seconds.
+The gallery link is marked "오래됨" (stale) when the newest csv of a done run is newer than the gallery's index.html
+(file mtimes: the page is rewritten by every visualize run, also --pages-only / --skip-unchanged; a newer
+target_photometry table is not looked at).
 Served by the gallery server: http://127.0.0.1:8765/ezphot/
 """
 from __future__ import annotations
@@ -66,7 +69,8 @@ def _run(stem: Path, running: dict) -> dict:
     run = {'tag': stem.name[len('process_images_'):], 'csv': str(csv) if csv.exists() else '',
            'n': int(m_n.group(1)) if m_n else None, 'ok': None, 'qa': None,
            'sec': int(m_ok.group(3)) if m_ok else None,
-           'mtime': max(p.stat().st_mtime for p in (csv, log) if p.exists())}
+           'mtime': max(p.stat().st_mtime for p in (csv, log) if p.exists()),
+           'csv_mtime': csv.stat().st_mtime if csv.exists() else None}
     if str(csv.resolve()) in running:
         run['state'] = 'running'
         if run['n'] is None:   # the log is block-buffered; count --paths instead
@@ -87,7 +91,7 @@ def _safe_run(stem: Path, running: dict) -> dict:
     except Exception as e:
         mtimes = [p.stat().st_mtime for p in (Path(f'{stem}.csv'), Path(f'{stem}.log')) if p.exists()]
         return {'tag': stem.name[len('process_images_'):], 'csv': f'{type(e).__name__}: {e}', 'state': 'unreadable',
-                'n': None, 'ok': None, 'qa': None, 'sec': None, 'mtime': max(mtimes, default=0)}
+                'n': None, 'ok': None, 'qa': None, 'sec': None, 'mtime': max(mtimes, default=0), 'csv_mtime': None}
 
 
 def collect(log_root: Path = LOG_ROOT, viz_root: Path = VIZ_ROOT) -> list:
@@ -101,12 +105,20 @@ def collect(log_root: Path = LOG_ROOT, viz_root: Path = VIZ_ROOT) -> list:
         if not runs:
             continue
         gallery = viz_root / 'ezphot' / objdir.name / 'viz' / 'index.html'
-        objects.append({'objname': objdir.name, 'runs': runs, 'gallery': gallery.exists()})
+        try:
+            gallery_mtime = gallery.stat().st_mtime
+        except OSError:                             # no gallery (or not readable): no link, as before
+            gallery_mtime = None
+        done = [r['csv_mtime'] for r in runs if r['state'] == 'done' and r.get('csv_mtime') is not None]
+        summary_mtime = max(done, default=None)     # newest done run; running / stopped / unreadable not counted
+        objects.append({'objname': objdir.name, 'runs': runs, 'gallery': gallery_mtime is not None,
+                        'gallery_mtime': gallery_mtime, 'summary_mtime': summary_mtime,
+                        'stale': gallery_mtime is not None and summary_mtime is not None and summary_mtime > gallery_mtime})
     return sorted(objects, key=lambda o: o['runs'][0]['mtime'], reverse=True)
 
 
-def _t(ts):
-    return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M') if ts else '–'
+def _t(ts, fmt='%Y-%m-%d %H:%M'):
+    return datetime.fromtimestamp(ts).strftime(fmt) if ts else '–'
 
 
 def _cells(r: dict) -> str:
@@ -125,6 +137,10 @@ def render(objects: list) -> str:
     for o in objects:
         last = o['runs'][0]
         link = f'<a href="{html.escape(quote(o["objname"]))}/viz/">갤러리</a>' if o['gallery'] else '<span class="mute">없음</span>'
+        if o.get('stale'):
+            tip = (f"처리 결과(summary csv) {_t(o['summary_mtime'], '%Y-%m-%d %H:%M:%S')} > 갤러리 {_t(o['gallery_mtime'], '%Y-%m-%d %H:%M:%S')} — "
+                   "갤러리 페이지 생성 시각 기준이며 target_photometry 변경은 반영 안 함")
+            link += f' <span class="stale" title="{html.escape(tip)}">오래됨</span>'
         runs = ''.join(f'<tr><td>{html.escape(r["tag"])}</td>{_cells(r)}<td class="path">{html.escape(r["csv"])}</td></tr>'
                        for r in o['runs'])
         body.append(f'<tr class="obj"><td><b>{html.escape(o["objname"])}</b> <span class="path">{html.escape(last["tag"])}</span></td>{_cells(last)}<td>{link}</td>'
@@ -150,7 +166,7 @@ th,td{{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;whit
 td:first-child,th:first-child,td.st,td.path{{text-align:left}}tr.sub>td{{padding:0 8px 6px 24px;border-bottom:1px solid var(--line)}}
 tr.obj>td{{border-bottom:0}}details summary{{color:var(--mute);font-size:12px;cursor:pointer}}details table{{margin:4px 0 6px}}
 .path{{color:var(--mute);font-size:12px}}.bad{{color:var(--bad)}}.st.running{{color:var(--run);font-weight:600}}.st.stopped{{color:var(--mute)}}.st.unreadable{{color:var(--bad);font-weight:600}}
-a{{color:var(--acc)}}
+a{{color:var(--acc)}}.stale{{color:var(--run);font-size:12px;border:1px solid currentColor;border-radius:8px;padding:0 5px;cursor:help}}
 </style></head><body><main>
 <h1>ezphot 처리 현황</h1>
 <div class="meta">{now} 갱신 · 대상 {n_obj}개 · 실행 중 {n_run}건 · 60초마다 새로고침 · 성공/qa는 기본 기준(zperr≤0.1, n_ref≥10, seeing≤5)</div>

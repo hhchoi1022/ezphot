@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.3 (2026-11-03)
+### 추가
+- `recipes.status`(처리 목록 페이지 `<root>/ezphot/index.html`): 대상의 갤러리 칸 "갤러리" 링크 옆에 **"오래됨"** 배지를 붙인다. 붙는 조건은, 그 대상의 완료(done) 실행 summary csv 가운데 가장 새 것의 mtime이 갤러리 `index.html`의 mtime보다 뒤일 때다(같으면 붙이지 않는다).
+  - 툴팁에 두 시각(초까지)과 "갤러리 페이지 생성 시각 기준이며 target_photometry 변경은 반영 안 함"을 적는다.
+  - 실행 중·csv 없는 중단·읽기 실패 실행은 판정에 쓰지 않는다. 갤러리가 없으면 이전처럼 "없음"이다.
+  - 시각 기준이라 `visualize --pages-only`·`--skip-unchanged`로 페이지만 다시 만들어도 배지가 사라진다(그림이 새 summary로 그려졌는지는 보지 않는다).
+- `recipes.status.collect()`가 돌려주는 대상 dict에 키 `gallery_mtime`, `summary_mtime`, `stale`이, 실행 dict에 `csv_mtime`(csv가 없거나 읽기 실패면 None)이 추가된다. 기존 키와 값(`gallery`는 index.html이 있는지)은 그대로다.
+- 이미 떠 있는 `status --watch` 프로세스는 옛 코드를 import한 상태라 다시 시작해야 반영된다.
+
 ## 0.7.2 (2026-11-03)
 ### 추가
 - `recipes.visualize`: `visualize(..., skip_unchanged=False, pages_only=False)`, CLI `--skip-unchanged`, `--pages-only`. 둘은 함께 쓸 수 없다(`ValueError`, CLI는 argparse 오류).
