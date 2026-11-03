@@ -545,14 +545,15 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .fit figure img{max-height:calc((var(--av,80vh) - var(--rows,1)*2.6em - (var(--rows,1) - 1)*14px) / var(--rows,1));object-fit:contain;background:none}
 .mid figure:nth-child(odd) img{object-position:100% 50%}.mid figure:nth-child(even) img{object-position:0 50%}   /* 2 columns: figures meet in the middle */
 .mid figure:nth-child(odd) .cap{text-align:right}
+.fit.zp{max-width:1000px;margin:0 auto}.fit.zp figure img{max-height:none;aspect-ratio:4/3}.zp .cap{text-align:center}   /* ZP: 2x2 of equal 4:3 boxes as wide as the cell (grid <= 1000 px, centred), no one-screen height limit */
 .lcgrid{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,1fr);gap:14px;align-items:start}   /* LC / SED: coordinate + image | plot */
 .lcl .cap:not(.bad),.lcl #cmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lcl #cmsg{flex:1 1 100%;min-width:0}   /* one line each; whole text in title */
 .lcl #cmsg:empty{display:none}
 .lcl .bar input[data-crd=ra],.lcl .bar input[data-crd=dec]{width:110px}   /* RA and Dec on one row in a 320 px column */
-@media (max-width:760px){.fit{grid-template-columns:minmax(0,1fr)!important}.fit figure img{max-height:none}.mid figure:nth-child(n) .cap{text-align:left}
+@media (max-width:760px){.fit{grid-template-columns:minmax(0,1fr)!important}.fit figure img{max-height:none}.fit.zp figure img{aspect-ratio:auto}.mid figure:nth-child(n) .cap{text-align:left}
   .lcgrid{grid-template-columns:minmax(0,1fr)}}
 .fov{width:100%;height:auto;display:block;margin:0 auto;background:#000;border-radius:4px;cursor:crosshair;user-select:none}
-.fov .fd circle{fill:none;stroke:#4ade80;opacity:.8;vector-effect:non-scaling-stroke}.fov .pk{fill:none;stroke:#ff4d4f;stroke-width:2;vector-effect:non-scaling-stroke}
+.fov .fd circle{fill:none;stroke:#4ade80;stroke-width:.75;opacity:.5;vector-effect:non-scaling-stroke}.fov .pk{fill:none;stroke:#ff4d4f;stroke-width:2;vector-effect:non-scaling-stroke}
 #tip{position:fixed;display:none;z-index:9;pointer-events:none;white-space:pre;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 </style></head><body>
 <header><h1 id="t"></h1><div class="sub" id="s"></div><nav id="nav"></nav></header>
@@ -578,7 +579,7 @@ function stage(){ // figures in c columns sized to the window height (.fit); WCS
   const opts=D.images.map((x,i)=>`<option value="${i}"${i===idx?' selected':''}>${i+1}. ${esc(x.short)}</option>`).join('');
   return `<div class="bar fbar"><button id="pv">←</button><select id="sel">${opts}</select><button id="nx">→</button><span class="meta">${idx+1} / ${D.images.length}</span></div>
   <div class="meta" style="margin-bottom:10px">${esc(im.name)} — seeing ${esc(im.row.SEEING)}″, ZP ${esc(im.row[D.cols[5][0]])} ± ${esc(im.row[D.cols[6][0]])}, UL5 ${esc(im.row[D.cols[7][0]])} <span class="${im.ok?'':'bad'}">· ${esc(im.status)}</span></div>
-  ${n?`<div class="grid fit${c===2?' mid':''}" style="grid-template-columns:${cols};--rows:${Math.ceil(n/c)}">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
+  ${n?`<div class="grid fit${c===2&&tab==='platesolve'?' mid':''}${tab==='photometry'?' zp':''}" style="grid-template-columns:${cols};--rows:${Math.ceil(n/c)}">${figs.map(fig).join('')}</div>`:'<div class="empty">이 이미지에는 이 단계의 그림이 없습니다.</div>'}`}
 function render(){
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" class="${k===tab?'on':''}">${esc(l)}</button>`).join('');
   const lcv=tab==='lc'||tab==='sed';
@@ -787,7 +788,7 @@ function fovCard(){const F=D.fov;if(!F)return '';const nm=`${F.frame+1}. ${esc(D
     `<circle class="pk" cx="${p<0?0:F.u[p]}" cy="${p<0?0:F.v[p]}" r="1"${p<0?' style="display:none"':''}/></svg>`+
     `<p class="cap" title="${esc(ft)}">대표 프레임 ${F.frame+1}. ${esc(D.images[F.frame].short.split(': ')[0])} · 검출 ${F.u.length}개 · 휠 확대 · 끌기 이동 · 클릭 선택</p></div>`}
 function fovView(){const s=$('svg[data-fov]');if(!s)return;const F=D.fov,b=V.box||[0,0,F.w,F.h],k=b[2]/(s.getBoundingClientRect().width||F.w);
-  s.setAttribute('viewBox',b.join(' '));for(const c of s.querySelectorAll('circle'))c.setAttribute('r',((c.classList.contains('pk')?9:5)*k).toFixed(2))}  // radius in screen px
+  s.setAttribute('viewBox',b.join(' '));for(const c of s.querySelectorAll('circle'))c.setAttribute('r',((c.classList.contains('pk')?9:4)*k).toFixed(2))}  // radius in screen px
 function fovSet(x,y,w){const F=D.fov,h=w*F.h/F.w;V.box=[Math.min(Math.max(x,0),F.w-w),Math.min(Math.max(y,0),F.h-h),w,h];fovView()}
 document.addEventListener('wheel',e=>{const s=e.target.closest&&e.target.closest('svg[data-fov]');if(!s)return;if(!e.deltaY)return;e.preventDefault();
   const F=D.fov,r=s.getBoundingClientRect(),b=V.box||[0,0,F.w,F.h],w=Math.min(Math.max(b[2]*(e.deltaY>0?1.1:1/1.1),F.w/40),F.w),
