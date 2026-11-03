@@ -23,12 +23,16 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 click on it takes the RA/Dec of the nearest detection of that frame
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
-        [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8]
+        [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8] [--skip-unchanged | --pages-only]
 
 Images are drawn in --n-proc processes (default 8; 1 = one after the other): the first image of a gallery
 alone, so that its platesolve figure fills the sky-catalog cache, then the rest in parallel. The
 preprocess figure reads the whole science image, the mask figure all of it in bands of 8 rows; the other figures
 read its shape and cutouts. In the page the figures of a stage are sized to fit the window height.
+Each frame folder keeps .viz_done.json (stage figures drawn, file mtime/size of their inputs, FIG_REV), written by
+every run that draws: --skip-unchanged then redraws only the stages whose inputs changed, --pages-only draws no
+stage figure and rebuilds the pages from the figures on disk (the run-level figures, sources.json, fov.jpg and the
+pages are made again in every mode).
 
 Gallery: <root>/ezphot/<objname>/viz/index.html (root default ~/viz); a later run of the same
 objname replaces the page. Frames are listed as "filter|telname|obsdate: raw file name", medium-band filters
@@ -41,9 +45,11 @@ from __future__ import annotations
 
 import argparse
 import html
+import io
 import json
 import os
 import re
+import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Optional
@@ -73,12 +79,21 @@ SOURCES_SNR = 3                                    # detections kept: MAGERR_APE
 SOURCES_RADIUS_ARCSEC = 5.0                        # default matching radius in the page (= target_photometry --radius)
 FOV_FILE = 'fov.jpg'                               # whole field of one frame for the click input of those tabs
 FOV_WIDTH = 1200                                   # its width is NAXIS1 / ceil(NAXIS1 / FOV_WIDTH) px
+FIG_REV = 1                                        # bump only when a figure drawn here or its thumbnail changes content:
+                                                   # stage records of another rev are redrawn by --skip-unchanged
+DONE_FILE = '.viz_done.json'                       # per frame folder: stage figures drawn, from which inputs (not in manifest)
+_CACHE = {}                                        # per process, cleared by visualize(): sky-catalog utility and tiles, masters
+_FRAME_CATS = None                                 # .cat tables read while one frame is drawn (_frame), else no memo
 
 
 # ---------------------------------------------------------------- helpers
 def _bin(data: np.ndarray, f: int, func=np.nanmean) -> np.ndarray:
     ny, nx = (data.shape[0] // f) * f, (data.shape[1] // f) * f
-    return func(data[:ny, :nx].reshape(ny // f, f, nx // f, f), axis=(1, 3))
+    blocks = data[:ny, :nx].reshape(ny // f, f, nx // f, f)
+    if func is np.nanmean:                          # np.mean is faster and the same where no block has a NaN
+        out = np.mean(blocks, axis=(1, 3))
+        return np.nanmean(blocks, axis=(1, 3)) if np.isnan(out).any() else out
+    return func(blocks, axis=(1, 3))
 
 
 def _binned(data, f: int, func=np.nanmean) -> np.ndarray:
@@ -117,7 +132,11 @@ def _link(src: Path, dst_dir: Path) -> Optional[str]:
     if not src.exists():
         return None
     dst = dst_dir / src.name
-    if dst.is_symlink() or dst.exists():
+    if dst.is_symlink():
+        if os.readlink(dst) == str(src):            # the same link: kept
+            return dst.name
+        dst.unlink()
+    elif dst.exists():
         dst.unlink()
     os.symlink(src, dst)
     return dst.name
@@ -130,7 +149,44 @@ def _save(fig, path: Path) -> str:
 
 
 def _read_cat(path: Path) -> Table:
-    return Table.read(str(path), format='ascii.basic')
+    """While a frame is drawn (_frame) a .cat is parsed once for fig_platesolve and _sources (both only read it)."""
+    if _FRAME_CATS is None:
+        return Table.read(str(path), format='ascii.basic')
+    if str(path) not in _FRAME_CATS:
+        _FRAME_CATS[str(path)] = Table.read(str(path), format='ascii.basic')
+    return _FRAME_CATS[str(path)]
+
+
+def _catalog_util():
+    """One SkyCatalogUtility per process whose tiles (SkyCatalog of an archive summary row) are kept by objname,
+    catalog_type, catalog_version, fov_ra, fov_dec, so that frames of the same field load them once; the archive
+    summary is still read by every get_catalogs. Cleared by visualize(); forked workers start with the parent's."""
+    if 'util' not in _CACHE:
+        from ezphot.skycatalog import SkyCatalogUtility
+
+        class _TileCache(SkyCatalogUtility):
+            @staticmethod
+            def _load_catalog_worker(row):
+                key = (str(row['objname']), str(row['catalog_type']), str(row['catalog_version']),
+                       float(row['fov_ra']), float(row['fov_dec']))
+                tiles = _CACHE.setdefault('tiles', {})
+                if key not in tiles:
+                    tiles[key] = SkyCatalogUtility._load_catalog_worker(row)
+                return tiles[key]
+
+        _CACHE['util'] = _TileCache()
+    return _CACHE['util']
+
+
+def _masters(paths):
+    """bias, dark, flat / mean(flat) and the dark EXPTIME of one master set (paths as in .info), kept in this process
+    for the next frame of the same set: key = (path, mtime_ns) of each; only the latest set is kept."""
+    key = tuple((str(p), os.stat(p).st_mtime_ns) for p in paths)
+    if _CACHE.get('masters', (None,))[0] != key:
+        _CACHE.pop('masters', None)                 # free the previous set before reading the next
+        bias, dark, flat = (fits.getdata(p).astype(np.float32, copy=False) for p in paths)
+        _CACHE['masters'] = (key, (bias, dark, flat / np.nanmean(flat), fits.getheader(paths[1])['EXPTIME']))
+    return _CACHE['masters'][1]
 
 
 class _Cutouts:
@@ -139,10 +195,20 @@ class _Cutouts:
     the whole image with [:, :] once its masters exist, fig_mask reads it through _binned.
     (Compressed or BZERO/BSCALE/BLANK-scaled images are decoded in full by fits.getdata, as before.)"""
     def __init__(self, data: np.ndarray):
-        self.shape, self._data = data.shape, data
+        self.shape, self._data, self._blocks = data.shape, data, {}
 
     def __getitem__(self, key) -> np.ndarray:
         return self._data[key].astype(np.float32)
+
+    def blocks(self, f: int) -> np.ndarray:
+        """_binned(self, f), computed once per frame (fig_preprocess and fig_mask both show the 8x8 image)."""
+        if f not in self._blocks:
+            self._blocks[f] = _binned(self, f)
+        return self._blocks[f]
+
+
+def _blocks(data, f: int) -> np.ndarray:
+    return data.blocks(f) if isinstance(data, _Cutouts) else _binned(data, f)
 
 
 # ---------------------------------------------------------------- stage figures
@@ -150,15 +216,15 @@ def fig_preprocess(path: Path, data, header, info, outdir: Path) -> List[str]:
     paths = [info.get(k) for k in ('BIASPATH', 'DARKPATH', 'FLATPATH')]
     if not all(p and Path(p).exists() for p in paths):
         return []
-    data = data[:, :]                               # whole image: float32 from _Cutouts, a view of an ndarray
-    bias, dark, flat = (fits.getdata(p).astype(np.float32) for p in paths)
-    dark_scale = header['EXPTIME'] / fits.getheader(paths[1])['EXPTIME']
-    flat_norm = flat / np.nanmean(flat)            # ccdproc.flat_correct divides by flat / mean(flat)
-    raw = data * flat_norm + dark * dark_scale + bias
     f = 8
+    corrected = _blocks(data, f)                    # = _bin of the whole image (rows in bands of f), shared with fig_mask
+    data = data[:, :]                               # whole image: float32 from _Cutouts, a view of an ndarray
+    bias, dark, flat_norm, dark_exptime = _masters(paths)   # flat_norm: ccdproc.flat_correct divides by flat / mean(flat)
+    dark_scale = header['EXPTIME'] / dark_exptime
+    raw = data * flat_norm + dark * dark_scale + bias
     fig, axes = plt.subplots(2, 3, figsize=(15, 7))
     _show(axes[0, 0], _bin(raw, f), 'raw (rebuilt = corr*flat + dark + bias)')
-    _show(axes[0, 1], _bin(data, f), 'corrected')
+    _show(axes[0, 1], corrected, 'corrected')
     ax = axes[0, 2]
     for arr, lab in ((raw, 'raw'), (data, 'corrected')):
         v = arr[::7, ::7].ravel()
@@ -175,14 +241,13 @@ def fig_preprocess(path: Path, data, header, info, outdir: Path) -> List[str]:
 
 
 def fig_platesolve(path: Path, data, header, info, outdir: Path) -> List[str]:
-    from ezphot.skycatalog import SkyCatalogUtility
     cat_path = _product(path, '.cat')
     if not cat_path.exists():
         return []
     w = _wcs(header)
     ny, nx = data.shape
     centre = w.pixel_to_world(nx / 2, ny / 2)
-    util = SkyCatalogUtility()
+    util = _catalog_util()
     refs = [util.select_reference_sources(catalog=c, mag_lower=10, mag_upper=18)[0]
             for c in util.get_catalogs(ra=centre.ra.deg, dec=centre.dec.deg,
                                        fov_ra=info.get('FOVX', 1.4), fov_dec=info.get('FOVY', 0.9),
@@ -245,14 +310,15 @@ def fig_mask(path: Path, data, header, info, outdir: Path) -> List[str]:
     """Image, background source mask (.srcmask) and invalid object mask (.invalidmask) in 8x8 blocks (masks read-only,
     a block is masked when any of its pixels is); a missing mask file is noted in its panel."""
     masks = [_product(path, s) for s in ('.srcmask', '.invalidmask')]
-    if not any(p.exists() for p in masks):
+    have = [p.exists() for p in masks]
+    if not any(have):
         return []
     f = 8
     fig, axes = plt.subplots(1, 3, figsize=(16, 4))
-    _show(axes[0], _binned(data, f), f'image, {f}x{f} mean')
-    for ax, p, lab in zip(axes[1:], masks, ('background source mask (.srcmask)',
-                                            'invalid object mask')):
-        if p.exists():
+    _show(axes[0], _blocks(data, f), f'image, {f}x{f} mean')
+    for ax, p, ok, lab in zip(axes[1:], masks, have, ('background source mask (.srcmask)',
+                                                      'invalid object mask')):
+        if ok:
             m = _binned(fits.getdata(p, memmap=True), f, lambda a, axis: np.mean(a > 0, axis=axis))   # masked fraction
             ax.imshow(m > 0, origin='lower', cmap='gray_r', vmin=0, vmax=1)
             ax.set_title(f'{lab}\n{f}x{f} blocks with any masked pixel ({100 * np.mean(m):.3f}% masked)', fontsize=9)
@@ -473,17 +539,31 @@ SUMMARY_COLS = [('filter', '필터'), ('telname', '망원경'), ('obsdate', '관
                 (f'UL5SKY_{D.APER10_KEY}', 'UL5 (10″)'), ('n_ref', 'n_ref')]
 
 
-def _figure(outdir: Path, name: str, prefix: str = '') -> dict:
-    """Gallery entry with a JPEG thumbnail; the full PNG opens on click."""
+def _figure(outdir: Path, name: str, prefix: str = '', reuse: bool = False) -> dict:
+    """Gallery entry with a JPEG thumbnail; the full PNG opens on click. reuse (--skip-unchanged / --pages-only, the
+    stage's recorded inputs equal to the current ones): an existing thumbnail that decodes is kept, its size giving wide;
+    otherwise (missing, unreadable) it is made again."""
     from PIL import Image
     thumb = f'thumb_{Path(name).stem}.jpg'
+    caption = next((v for k, v in CAPTIONS.items() if name.endswith(k)), '')
+    if reuse:
+        try:
+            with Image.open(outdir / thumb) as im:
+                im.load()                           # a truncated or damaged JPEG fails here
+                w, h = im.size
+            return dict(src=prefix + name, thumb=prefix + thumb, caption=caption, wide=w > 1.8 * h)
+        except Exception:
+            pass
     with Image.open(outdir / name) as im:
         im.thumbnail((1400, 1400))
         bg = Image.new('RGB', im.size, 'white')
         bg.paste(im, mask=im.getchannel('A') if im.mode == 'RGBA' else None)
-        bg.save(outdir / thumb, quality=85)
+        buf = io.BytesIO()                          # one write, without the existence checks of save(<path>)
+        bg.save(buf, format='JPEG', quality=85)
+        tmp = outdir / (thumb + '.tmp')
+        tmp.write_bytes(buf.getvalue())
+        os.replace(tmp, outdir / thumb)             # never a half-written thumbnail under its name
         wide = im.size[0] > 1.8 * im.size[1]              # multi-panel strips span the full row
-    caption = next((v for k, v in CAPTIONS.items() if name.endswith(k)), '')
     return dict(src=prefix + name, thumb=prefix + thumb, caption=caption, wide=wide)
 
 
@@ -819,15 +899,65 @@ setL(D.lcdata||{});render();
 </script></body></html>'''
 
 
-def _objname(path: Path) -> str:
-    """OBJNAME from .info, else the scidata layout .../<objname>/<telname>/<filter>/<file>."""
-    return _info(path).get('OBJNAME') or path.parents[2].name
+def _objname(path: Path, info: dict = None) -> str:
+    """OBJNAME from .info (info: already read), else the scidata layout .../<objname>/<telname>/<filter>/<file>."""
+    return (_info(path) if info is None else info).get('OBJNAME') or path.parents[2].name
+
+
+def _stage_inputs(stage: str, path: Path, info: dict) -> dict:
+    """[mtime_ns, size] (None: missing) of the files a stage figure is drawn from, by role - no paths, DONE_FILE is
+    served with the gallery. The sky-catalog archive (platesolve) is not an input."""
+    files = dict(
+        preprocess=dict(image=path, info=_product(path, '.info'),
+                        **{k[:-4].lower(): info.get(k) for k in ('BIASPATH', 'DARKPATH', 'FLATPATH')}),
+        platesolve=dict(image=path, cat=_product(path, '.cat'), info=_product(path, '.info')),
+        mask=dict(image=path, srcmask=_product(path, '.srcmask'), invalidmask=_product(path, '.invalidmask')),
+        background={s: _product(path, s) for s in ('.bkgmap.png', '.bkgrms.png')},
+        photometry={s: _product(path, s) for s in ('.refcat.png', '.zp_mag.png', '.zp_color.png', '.zp_2d.png')})[stage]
+    out = {}
+    for role, f in files.items():
+        try:
+            st = os.stat(f) if f else None
+            out[role] = [st.st_mtime_ns, st.st_size] if st else None
+        except FileNotFoundError:
+            out[role] = None
+    return out
+
+
+def _expected(stage: str, path: Path, info: dict) -> List[str]:
+    """Figure names a stage draws when its inputs exist - for --pages-only in a frame folder without a stage record."""
+    if stage == 'preprocess':
+        ok = all(p and Path(p).exists() for p in (info.get(k) for k in ('BIASPATH', 'DARKPATH', 'FLATPATH')))
+        return ['preprocess.png'] if ok else []
+    if stage == 'platesolve':
+        return ['wcs_offsets.png', 'wcs_cutouts.png'] if _product(path, '.cat').exists() else []
+    if stage == 'mask':
+        return ['mask.png'] if any(_product(path, s).exists() for s in ('.srcmask', '.invalidmask')) else []
+    sfx = ('.bkgmap.png', '.bkgrms.png') if stage == 'background' else ('.refcat.png', '.zp_mag.png', '.zp_color.png', '.zp_2d.png')
+    return [_product(path, s).name for s in sfx if _product(path, s).exists()]
+
+
+def _read_done(imgdir: Path) -> dict:
+    try:
+        return json.loads((imgdir / DONE_FILE).read_text())
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def _write_done(imgdir: Path, done: dict):
+    tmp = imgdir / (DONE_FILE + '.tmp')
+    tmp.write_text(json.dumps(done, indent=1))
+    os.replace(tmp, imgdir / DONE_FILE)            # atomic: a reader sees the old or the new record
 
 
 def _frame(args):
     """Stage figures of one summary row under out/<stem>/; return its gallery entry, manifest item
-    ({} when the file is missing) and detections (_sources, None without them)."""
-    row, out, stages = args
+    ({} when the file is missing), detections (_sources, None without them) and the stages not drawn again.
+    mode 'all': draw every stage; 'skip': keep a stage whose DONE_FILE record (this FIG_REV) has the same inputs
+    (_stage_inputs) and whose figures are all there; 'pages': draw nothing, list the figures on disk (a stage with one
+    missing is left empty and noted in the status). 'all' and 'skip' rewrite DONE_FILE."""
+    global _FRAME_CATS
+    row, out, stages, info, mode = args
     path = Path(row['path'])
     status = 'ok' if bool(row['success']) else f"FAILED at {row['step']}: {row['error']}"
     raw = row.get('raw_path')                      # raw input file name (summary raw_path), else the summary path
@@ -838,32 +968,62 @@ def _frame(args):
     if not path.exists():
         entry['status'] += ' (file missing)'
         entry['ok'] = False
-        return entry, {}, None
+        return entry, {}, None, []
     imgdir = out / path.stem
     imgdir.mkdir(exist_ok=True)
-    data, header = fits.getdata(path, header=True)
-    info = _info(path)
+    data, header = fits.getdata(path, header=True)  # memory map: pixels are read only by the figures drawn (not by pages)
     data = _Cutouts(data)                           # cutouts converted on access; whole image in fig_preprocess, fig_mask
-    for stage in (stages or _auto_stages(path, header, info)):
-        try:
-            names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
-        except Exception as e:
-            names = []
-            entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
-            entry['ok'] = False
-        entry['stages'][stage] = [_figure(imgdir, n, f'{path.stem}/') for n in names]
+    info = _info(path) if info is None else info
+    done = _read_done(imgdir)
+    fresh = done.get('rev') == FIG_REV              # records of this figure revision only
+    rec = dict(done.get('stages', {})) if fresh else {}
+    kept = []
+    _FRAME_CATS = {}
     try:
-        src = _sources(path, row, info)
-    except Exception as e:
-        src = None
-        entry['status'] += f' | detections for coordinate input failed: {type(e).__name__}: {e}'
-        entry['ok'] = False
-    return entry, {str(path): {k: [f['src'] for f in v] for k, v in entry['stages'].items()}}, src
+        for stage in (stages or _auto_stages(path, header, info)):
+            old = rec.get(stage)
+            sig = _stage_inputs(stage, path, info)
+            same = bool(old) and old.get('inputs') == sig   # recorded inputs = current: its thumbnails may be kept
+            if mode == 'pages':
+                want = old['names'] if old else _expected(stage, path, info)
+                names = want if all((imgdir / n).exists() for n in want) else []
+                if len(names) < len(want):
+                    entry['status'] += f' | {stage} figure missing'
+                    entry['ok'] = False
+                kept.append(stage)
+            else:
+                if (mode == 'skip' and same
+                        and all((imgdir / n).exists() for n in old['names'])):
+                    names = old['names']
+                    kept.append(stage)
+                else:
+                    t0, same = time.time(), False         # redrawn: new thumbnails
+                    try:
+                        names = globals()[f'fig_{stage}'](path, data, header, info, imgdir)
+                        rec[stage] = dict(t0=round(t0, 3), inputs=sig, names=names)
+                    except Exception as e:
+                        names = []
+                        rec.pop(stage, None)
+                        entry['status'] += f' | {stage} figure failed: {type(e).__name__}: {e}'
+                        entry['ok'] = False
+            entry['stages'][stage] = [_figure(imgdir, n, f'{path.stem}/', reuse=mode != 'all' and same) for n in names]
+        if mode != 'pages':
+            _write_done(imgdir, dict(rev=FIG_REV, stages=rec))
+        try:
+            src = _sources(path, row, info)
+        except Exception as e:
+            src = None
+            entry['status'] += f' | detections for coordinate input failed: {type(e).__name__}: {e}'
+            entry['ok'] = False
+    finally:
+        _FRAME_CATS = None
+    return entry, {str(path): {k: [f['src'] for f in v] for k, v in entry['stages'].items()}}, src, kept
 
 
 def _frames(tasks: list, n_proc: int):
     """_frame results in task order. In parallel the first frame runs here alone, so that its platesolve figure
-    fills the sky-catalog cache that the workers then read (frames of other fields may still query at once);
+    fills the sky-catalog cache that the workers then read (frames of other fields may still query at once) and the
+    process caches (_CACHE: catalog tiles, masters) that the forked workers start with;
     frames sharing an output directory (same file stem) are drawn one after the other."""
     stems = [Path(t[0]['path']).stem for t in tasks]
     if n_proc > 1 and len(tasks) > 1 and len(set(stems)) == len(stems):
@@ -897,16 +1057,18 @@ def _frame_order(rows: pd.DataFrame) -> pd.DataFrame:
 
 
 def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title: str, source: str,
-             ra=None, dec=None, stages=None, verbose=True, n_proc=8) -> Path:
+             ra=None, dec=None, stages=None, verbose=True, n_proc=8, infos=None, mode='all') -> Path:
     out.mkdir(parents=True, exist_ok=True)
     rows = _frame_order(rows)
     images, manifest, seen, srcs = [], {}, [], []
-    for entry, item, src in _frames([(row, out, stages) for _, row in rows.iterrows()], n_proc):
+    tasks = [(row, out, stages, (infos or {}).get(str(row['path'])), mode) for _, row in rows.iterrows()]
+    for entry, item, src, kept in _frames(tasks, n_proc):
         images.append(entry)
         srcs.append(src)
         seen += [s for s in entry['stages'] if s not in seen]
         if verbose and item:
-            print(f"[visualize] {entry['name']}: " + ', '.join(f'{k}({len(v)})' for k, v in entry['stages'].items()))
+            print(f"[visualize] {entry['name']}: " + ', '.join(f'{k}({len(v)})' for k, v in entry['stages'].items())
+                  + (f"; not redrawn: {', '.join(kept)}" if kept else ''))
         manifest.update(item)
 
     run = [_figure(out, n) for n in fig_run(rows, out)]
@@ -963,10 +1125,20 @@ def visualize(summary: pd.DataFrame | str,
               max_images: int = None,
               root: str | Path = None,
               verbose: bool = True,
-              n_proc: int = 8) -> List[Path]:
+              n_proc: int = 8,
+              skip_unchanged: bool = False,
+              pages_only: bool = False) -> List[Path]:
     """Write per-stage figures and index.html for a process_images summary, one gallery per objname
     at <root>/ezphot/<objname>/viz/ (a later run of the same objname replaces the page); return the index paths.
-    The images of a gallery are drawn in n_proc processes (1 = one after the other)."""
+    The images of a gallery are drawn in n_proc processes (1 = one after the other).
+    skip_unchanged: a stage figure of a frame is not drawn again when its inputs (file mtime and size: image, .info,
+    .cat, masks, masters, linked ezphot figures; not the sky-catalog archive) are those recorded in the frame folder's
+    DONE_FILE by an earlier run of the same FIG_REV and its figures are all there. pages_only: no stage figure is drawn;
+    the pages are rebuilt from the figures on disk. Every run that draws (re)writes DONE_FILE; pages_only does not."""
+    if skip_unchanged and pages_only:
+        raise ValueError('skip_unchanged and pages_only exclude each other')
+    mode = 'pages' if pages_only else 'skip' if skip_unchanged else 'all'
+    _CACHE.clear()                                  # nothing from an earlier call (also cleared on return)
     source = 'summary (DataFrame)'
     if isinstance(summary, (str, Path)):
         source = Path(summary).expanduser()
@@ -978,14 +1150,18 @@ def visualize(summary: pd.DataFrame | str,
     if lightcurve is not None:
         lc_all = pd.read_csv(lightcurve) if isinstance(lightcurve, (str, Path)) else lightcurve
 
-    objnames = rows['path'].map(lambda p: _objname(Path(p)))
+    infos = {str(p): _info(Path(p)) for p in rows['path']}   # read once: objname here, the figures in _frame
+    objnames = rows['path'].map(lambda p: _objname(Path(p), infos[str(p)]))
     indices = []
-    for obj, g in rows.groupby(objnames):
-        lc_df = lc_all
-        if lc_all is not None and 'objname' in lc_all:
-            lc_df = lc_all[lc_all['objname'] == obj]
-        indices.append(_gallery(g, lc_df, root / 'ezphot' / obj / 'viz', obj, source,
-                                ra=ra, dec=dec, stages=stages, verbose=verbose, n_proc=n_proc))
+    try:
+        for obj, g in rows.groupby(objnames):
+            lc_df = lc_all
+            if lc_all is not None and 'objname' in lc_all:
+                lc_df = lc_all[lc_all['objname'] == obj]
+            indices.append(_gallery(g, lc_df, root / 'ezphot' / obj / 'viz', obj, source,
+                                    ra=ra, dec=dec, stages=stages, verbose=verbose, n_proc=n_proc, infos=infos, mode=mode))
+    finally:
+        _CACHE.clear()                              # no master set or tile left in the calling process
     return indices
 
 
@@ -998,9 +1174,14 @@ def main(argv=None):
     ap.add_argument('--max-images', type=int)
     ap.add_argument('--root', help=f'gallery root served over http (default {VIZ_ROOT})')
     ap.add_argument('--n-proc', type=int, default=8)
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument('--skip-unchanged', action='store_true',
+                   help=f'do not redraw a stage figure whose inputs did not change since it was drawn ({DONE_FILE})')
+    g.add_argument('--pages-only', action='store_true', help='draw no stage figure; rebuild the pages from the figures on disk')
     a = ap.parse_args(argv)
     visualize(a.summary, ra=a.ra, dec=a.dec, lightcurve=a.lightcurve, stages=a.stages,
-              max_images=a.max_images, root=a.root, n_proc=a.n_proc)
+              max_images=a.max_images, root=a.root, n_proc=a.n_proc,
+              skip_unchanged=a.skip_unchanged, pages_only=a.pages_only)
     return 0
 
 

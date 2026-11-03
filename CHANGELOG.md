@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.7.2 (2026-11-03)
+### 추가
+- `recipes.visualize`: `visualize(..., skip_unchanged=False, pages_only=False)`, CLI `--skip-unchanged`, `--pages-only`. 둘은 함께 쓸 수 없다(`ValueError`, CLI는 argparse 오류).
+  기본(둘 다 끔)은 0.7.1처럼 모든 단계 그림을 다시 그린다.
+  - `--skip-unchanged`: 프레임 단계마다 입력 파일이 이전 실행 때와 같으면 그 단계 그림을 다시 그리지 않고 있는 그림으로 페이지를 만든다.
+    "같다"는 파일 mtime(ns)과 크기가 같다는 뜻이다. 입력 파일: 전처리 = 이미지·`.info`·master 3장, WCS = 이미지·`.cat`·`.info`, 마스크 = 이미지·`.srcmask`·`.invalidmask`, 배경·ZP = 링크하는 ezphot 그림.
+    다시 그리는 경우는 넷이다: 입력 파일의 mtime이나 크기가 기록과 다를 때, 그 단계를 그린 기록이 없을 때, 그림 파일이 하나라도 없을 때, 기록의 그림 버전(`FIG_REV`)이 다를 때.
+    다시 그리지 않은 단계는 썸네일도 있으면 그대로 쓴다(읽을 수 없으면 다시 만든다).
+    **sky catalog 아카이브가 바뀐 것은 보지 않는다**(WCS 그림의 기준성이 바뀌었으면 기본 실행으로 다시 그린다).
+  - `--pages-only`: 단계 그림을 하나도 그리지 않고 프레임 폴더에 있는 그림으로 페이지를 다시 만든다. 레이아웃·캡션만 바뀐 버전으로 갤러리를 다시 만들 때 쓴다.
+    그 단계의 그림이 하나라도 없으면 그 단계를 비우고 상태에 `| <단계> figure missing`을 붙인다(개요 표에서 실패로 보인다; 그림이 원래 없던 단계는 missing으로 보일 수 있다).
+    썸네일은 그 단계의 기록 입력이 지금과 같을 때만 그대로 쓰고, 아니면 있는 그림에서 다시 만든다.
+    기록이 없는 0.7.1 이전 폴더는 입력 파일로 예상 그림을 정한다.
+  - 두 옵션 모두 프레임 목록·`sources.json`·`fov.jpg`·실행 추이 그림·`manifest.json`·`index.html`은 매번 다시 만든다.
+- 산출물: 프레임 폴더(`<stem>/`)마다 `.viz_done.json`이 생긴다. 내용은 `rev`(=`FIG_REV`)와 `stages: {단계: {t0, inputs, names}}`이다.
+  `inputs`는 역할별 [mtime_ns, 크기]이고 경로는 넣지 않는다. 갤러리와 함께 서빙되기 때문이다.
+  - 그리는 실행(기본, `--skip-unchanged`)이 매번 원자적으로(`os.replace`) 다시 쓴다. 그래야 다음 `--skip-unchanged`가 쓸 수 있다. `--pages-only`는 쓰지 않는다.
+  - `manifest.json`에는 넣지 않았다(manifest 형식 불변).
+### 내부 (속도; 그림·페이지·수치 불변)
+- 같은 입력에서 그림 PNG·썸네일·`manifest.json`·`sources.json`·`index.html`(token 제외)은 0.7.1과 바이트가 같아야 한다(검증 항목).
+- sky catalog 타일(`SkyCatalogUtility._load_catalog_worker`)을 프로세스 안에서 objname·종류·버전·시야 크기로 캐시한다. `SkyCatalogUtility`는 프로세스당 하나다. `visualize()`를 부를 때마다 비운다.
+  병렬 실행의 워커는 fork로 첫 프레임이 채운 캐시를 이어받는다. `ezphot.skycatalog`는 바꾸지 않았다. `visualize()`가 끝나면(오류로 끝나도) 부른 프로세스의 캐시도 비운다.
+- 8×8 블록 축소: NaN이 없으면 `np.mean`을 쓰고, 결과에 NaN이 있으면 이전처럼 `np.nanmean`으로 다시 계산한다. 전처리 'corrected' 칸과 마스크 첫 칸이 같은 축소(행 띠 단위)를 한 번만 계산한다.
+- master bias·dark·flat(및 flat / mean(flat), dark EXPTIME)을 (경로, mtime_ns) 키로 워커 안에 한 세트만 남겨 다음 프레임에 쓴다. 실행 중에는 워커당 상주 메모리가 master 3장(약 0.7 GB, 7DT 9576×6388 float32)만큼 는다.
+  워커는 실행이 끝나면 사라지고, `visualize()`를 부른 프로세스의 세트는 반환할 때 비운다(라이브러리로 부르는 쪽에 남지 않는다).
+- 썸네일: 축소 방식(1400 px, JPEG q85, 흰 배경)은 그대로 두고, 메모리에서 인코딩해 임시 파일에 쓴 뒤 `os.replace`로 바꿔 넣는다. 기본 실행은 0.7.1처럼 썸네일을 매번 다시 만든다(재사용은 위 두 옵션에서만).
+- 파일 시스템 접근 줄이기:
+  - ezphot 그림 링크가 이미 같은 대상을 가리키면 다시 만들지 않는다.
+  - 마스크 파일 존재는 한 번만 확인한다.
+  - `.cat`은 프레임당 한 번만 읽는다(WCS 그림과 좌표 입력이 공유).
+  - `.info`는 objname을 정할 때 한 번 읽은 것을 그림에도 쓴다.
+- 개발자 안내: visualize가 그리는 그림이나 썸네일의 내용을 바꾸는 변경은 `visualize.FIG_REV`를 1 올린다. 그래야 이전 기록이 `--skip-unchanged`·`--pages-only`에서 재사용되지 않는다.
+
 ## 0.7.1 (2026-11-03)
 ### 변경
 - `recipes.visualize` 페이지 표시, ZP Calibration 탭: 0.7.0의 단계별 서술 중 ZP 부분("그림 4장이면 2×2, 한 화면 안에서 가장 크게. 높이 제한 때문에 남는 폭이 있으면 두 열의 그림이 가운데로 모인다")을 대체한다.
