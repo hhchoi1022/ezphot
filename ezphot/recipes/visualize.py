@@ -613,6 +613,7 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .empty{color:var(--mute);padding:24px;text-align:center}
 .pl{width:100%;height:auto;display:block;user-select:none}.pl text{fill:var(--mute);font-size:11px}.pl .gr{stroke:var(--line)}.pl .ax{fill:none;stroke:var(--line)}.pl .zr{fill:var(--acc);opacity:.15;pointer-events:none}
 .bar button.on{border-color:var(--acc);color:var(--acc);font-weight:600}
+.bar button[data-act=tgt]{flex:1 1 0;min-width:4em;max-width:max-content;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* target name: takes what is left of its row (no new row unless < 4em), shortened with "…"; whole name in title */
 .bar input[type=number]{width:80px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .bar input[data-crd=ra],.bar input[data-crd=dec]{width:150px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
@@ -790,7 +791,7 @@ function draw(){
   c.innerHTML=controls(sed)+chips()+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
 // coordinate input (D.srcs): C keeps the typed text across re-renders; C.mode 'table' = D.lcdata, 'cat' = catalog matching
 const T=D.srcs&&D.srcs.target,C={mode:D.lcdata?'table':'cat',ra:T?String(T[0]):'',dec:T?String(T[1]):'',
-  r:String((D.srcs&&D.srcs.radius)||5),bad:false,
+  r:String((D.srcs&&D.srcs.radius)||5),bad:false,tgt:false,
   msg:D.lcdata?'':D.srcs&&D.srcs.error?'좌표 입력에 쓸 검출 카탈로그가 없습니다.':'RA·Dec를 넣고 좌표 적용(또는 Enter)을 누르세요.'+(D.fov&&!D.fov.error?' 시야 이미지에서 광원을 클릭해도 됩니다.':''),auto:!D.lcdata&&!!T&&!!(D.srcs&&D.srcs.file)};
 let SRC=null;                                         // fetch of D.srcs.file, once (again after a failure)
 function coordBar(){if(!D.srcs)return '';
@@ -800,9 +801,10 @@ function coordBar(){if(!D.srcs)return '';
   return `<div class="card"><div class="bar" style="margin-bottom:0"><label class="meta">RA <input data-crd="ra" value="${esc(C.ra)}" placeholder="도 또는 hh:mm:ss"></label>`+
     `<label class="meta">Dec <input data-crd="dec" value="${esc(C.dec)}" placeholder="도 또는 ±dd:mm:ss"></label>`+
     `<label class="meta">반경 <input type="number" min="0" step="any" data-crd="r" value="${esc(C.r)}"> ″</label>`+
-    `<button data-act="crd">${t?'카탈로그 매칭으로 보기':'좌표 적용'}</button>${D.lcdata&&!t?'<button data-act="tbl">표로 돌아가기</button>':''}`+
+    `<button data-act="crd">${t?'카탈로그 매칭으로 보기':'좌표 적용'}</button>${D.fov&&!D.fov.error?'':tgtBtn()}`+
     `<span class="bad" id="cmsg" style="font-size:12px"></span></div>`+
     `<p class="cap" title="${esc(ct)}">${esc(ct)}</p></div>`}
+function tgtBtn(){return T||D.lcdata?`<button data-act="tgt"${C.mode==='table'||C.tgt?' class="on"':''} title="${esc(D.title)}">${esc(D.title)}</button>`:''}   // in the image card's bar when there is one: no new row in the coordinate bar
 function deg(s,h){ // decimal degrees, or h:m:s (RA, h) / ±d:m:s (Dec), ':' or blanks between the fields
   s=s.trim();if(/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s))return +s;
   const m=s.match(/^([+-]?)(\d+)[:\s]+(\d+)(?:[:\s]+(\d+\.?\d*))?$/);if(!m||+m[3]>=60||+(m[4]||0)>=60)return NaN;
@@ -826,7 +828,9 @@ function match(F,ra,dec,r){ // per frame the nearest detection within r arcsec -
 function apply(){
   const p=radec(),r=parseFloat(C.r),m=$('#cmsg');
   if(!p||!(r>0)){if(m)m.textContent=m.title='좌표를 읽을 수 없습니다: RA는 도 또는 hh:mm:ss, Dec는 도 또는 ±dd:mm:ss, 반경 > 0″';hh();return}   // a wrapped message: left column refitted
-  const re=C.mode!=='cat';C.mode='cat';C.msg='검출 카탈로그를 읽는 중…';C.bad=false;if(re){setL({});render()}else draw();
+  const re=C.mode!=='cat';C.mode='cat';C.msg='검출 카탈로그를 읽는 중…';C.bad=false;
+  C.tgt=!!T&&sep(p[0],p[1],T[0],T[1])<0.1&&r===(D.srcs.radius||5);if(re){setL({});render()}else draw();   // C.tgt: matching at the target, default radius
+  const tb=$('[data-act=tgt]');if(tb)tb.classList.toggle('on',C.tgt);
   if(!SRC)SRC=fetch(D.srcs.file,{cache:'no-cache'}).then(x=>{if(!x.ok)throw new Error(`HTTP ${x.status}`);return x.json()});
   SRC.then(F=>{if(C.mode!=='cat')return;
     if(F.token!==D.srcs.token)throw new Error('이 페이지와 다른 visualize 실행에서 만든 파일입니다 — 갤러리를 다시 만든 뒤 페이지를 새로고침하세요');
@@ -836,7 +840,9 @@ function apply(){
 document.addEventListener('input',e=>{const k=e.target.dataset&&e.target.dataset.crd;if(k)C[k]=e.target.value});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.crd)apply()});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const k=a.dataset.act;
-  if(k==='crd')return apply();if(k==='tbl'){C.mode='table';C.msg='';setL(D.lcdata);return render()}
+  if(k==='crd')return apply();
+  if(k==='tgt'){if(T){C.ra=String(T[0]);C.dec=String(T[1]);C.r=String(D.srcs.radius||5);V.pick=-1}   // fields back to the target
+    if(!D.lcdata){render();return apply()}C.mode='table';C.msg='';setL(D.lcdata);return render()}
   if(k==='mode')S.mode=a.dataset.v;else if(k==='unzoom')S.zoom=null;else if(k==='all')S.off.clear();
   else if(k==='none')S.off=new Set(FL.map((_,i)=>i));else if(k==='flt'){const i=+a.dataset.v;S.off.has(i)?S.off.delete(i):S.off.add(i)}
   draw()});
@@ -862,7 +868,7 @@ function fovCard(){const F=D.fov;if(!F)return '';const nm=`${F.frame+1}. ${esc(D
   const b=V.box||[0,0,F.w,F.h],p=V.pick,ft=`대표 프레임 ${F.frame+1}. ${D.images[F.frame].short} — SNR > 3 검출이 가장 많은 프레임 (${F.u.length}개, 초록 원) · `+
     `휠: 확대·축소 · 끌기: 이동 · 클릭: 화면에서 20 px 안의 가장 가까운 검출의 RA·Dec로 좌표 적용 (빨간 원) · 다른 유닛·필터의 프레임과 시야가 다를 수 있습니다`;
   return `<div class="card"><div class="bar"><label class="meta"><input type="checkbox" data-fov="on"${V.on?' checked':''}> 검출 원</label>`+
-    `<button data-fov="reset">전체 시야</button><span class="bad" id="fmsg" style="font-size:12px"></span></div>`+
+    `<button data-fov="reset">전체 시야</button>${tgtBtn()}<span class="bad" id="fmsg" style="font-size:12px"></span></div>`+
     `<svg class="fov" data-fov="img" viewBox="${b.join(' ')}" style="width:min(100%,calc(var(--av,60vh)*${(F.w/F.h).toFixed(4)}))"><image href="${esc(F.file)}?${encodeURIComponent(D.srcs.token)}" width="${F.w}" height="${F.h}"/>`+
     `<g class="fd"${V.on?'':' style="display:none"'}>${F.u.map((u,j)=>`<circle cx="${u}" cy="${F.v[j]}" r="1"/>`).join('')}</g>`+
     `<circle class="pk" cx="${p<0?0:F.u[p]}" cy="${p<0?0:F.v[p]}" r="1"${p<0?' style="display:none"':''}/></svg>`+
