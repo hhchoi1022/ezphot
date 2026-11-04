@@ -18,6 +18,10 @@ Python:
 CLI (images are found with DataBrowser('scidata') unless --paths is given):
     python -m ezphot.recipes.process_images --objname EG21 --observatory 7DT --filter m400 \
         --ra 76.3 --dec -68.0 --n-proc 4 [--no-platesolve] [--preprocess] [--out summary.csv]
+    --no-figures : skip process_images' own diagnostic PNGs (sourcemask, bkgmap, bkgrms, the photometry subbkg,
+    photcal refcat/zp_mag/zp_color/zp_2d) for speed. Measured values are unchanged. The visualize gallery's
+    background and ZP Calibration cells are empty unless PNGs from an earlier run remain (they are not deleted);
+    those old figures are then shown and may not match the current ZP.
 """
 from __future__ import annotations
 
@@ -33,6 +37,8 @@ from ezphot.imageobjects import Errormap, ImageSet, ScienceImage
 from ezphot.recipes import defaults as D
 
 STEP_CONFIG_KEYS = ('circularmask', 'invalidmask', 'sourcemask', 'bkgmap', 'bkgrms', 'photometry', 'photcal')
+# sections whose save_fig --no-figures turns off (the others already save no figures here).
+FIGURE_CONFIG_KEYS = ('sourcemask', 'bkgmap', 'bkgrms', 'photometry', 'photcal')
 # ezphot writes modified copies with these prefixes; they are not raw inputs.
 DERIVED_PREFIXES = ('align_', 'com_', 'coadd_', 'scale_', 'conv_', 'sub_', 'inv_', 'subbkg_')
 
@@ -207,6 +213,7 @@ def main(argv=None):
     ap.add_argument('--ra', type=float); ap.add_argument('--dec', type=float)
     ap.add_argument('--preprocess', action='store_true', help='run correct_bdf first')
     ap.add_argument('--no-platesolve', action='store_true')
+    ap.add_argument('--no-figures', action='store_true', help='do not save the diagnostic PNGs (faster)')
     ap.add_argument('--faint-shift', type=float, default=0.0,
                     help='add this to every filter\'s reference-star faint limit (mag_upper)')
     ap.add_argument('--n-proc', type=int, default=4)
@@ -217,8 +224,9 @@ def main(argv=None):
     imgset = load_images(a.observatory, a.telkey, a.telname, a.objname, a.filter, a.obsdate, a.pattern, a.paths)
     imgs = imgset.target_images[:a.max_images] if a.max_images else imgset.target_images
     print(f"[process_images] {len(imgs)} images")
+    config = {s: {'save_fig': False} for s in FIGURE_CONFIG_KEYS} if a.no_figures else None
     summary = process_images(imgs, ra=a.ra, dec=a.dec, do_preprocess=a.preprocess,
-                             do_platesolve=not a.no_platesolve, mag_faint_shift=a.faint_shift,
+                             do_platesolve=not a.no_platesolve, config=config, mag_faint_shift=a.faint_shift,
                              n_proc=a.n_proc, out=a.out)
     return 0 if summary['success'].all() else 1
 

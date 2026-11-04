@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.4 (2026-11-04)
+### 추가
+- `recipes.process_images` CLI `--no-figures`: process_images가 직접 저장하는 진단 그림 PNG(sourcemask, bkgmap, bkgrms, photometry의 `.subbkg.png`, photcal의 `.refcat`·`.zp_mag`·`.zp_color`·`.zp_2d.png`)를 저장하지 않는다. 옵션을 주지 않으면 0.7.3과 같다(그림 저장).
+  - 비용: 격리 HOME에서 FEIGE110 24장(30 s 노출, `--preprocess`, n_proc 8)을 그림 켜고 끄며 잰 결과, 그림 저장은 장당 약 45 s로 process_images 시간의 17%였다. ZP_APER_3·ZPERR_APER_3·SEEING·UL5SKY_APER_3·n_ref·SKYVAL은 켠 실행과 끈 실행에서 같았다.
+  - Python에서 부르는 쪽은 이미 `process_images(..., config={s: {'save_fig': False} for s in ('sourcemask', 'bkgmap', 'bkgrms', 'photometry', 'photcal')})`로 같은 일을 할 수 있다(시그니처 불변).
+  - 그림을 끄면 visualize 갤러리의 배경·ZP Calibration 칸이 빈다(다른 단계는 visualize가 직접 그린다). 단, 이전 실행의 PNG가 남아 있으면(이 옵션은 지우지 않는다) 그 옛 그림이 보이며, 지금의 ZP와 맞지 않을 수 있다.
+  - 예전에 이 그림이 있던 갤러리 폴더에 `visualize --pages-only`를 돌리면 그 단계에 'figure missing'이 뜰 수 있다.
+
 ## 0.7.3 (2026-11-03)
 ### 추가
 - `recipes.status`(처리 목록 페이지 `<root>/ezphot/index.html`): 대상의 갤러리 칸 "갤러리" 링크 옆에 **"오래됨"** 배지를 붙인다. 붙는 조건은, 그 대상의 완료(done) 실행 summary csv 가운데 가장 새 것의 mtime이 갤러리 `index.html`의 mtime보다 뒤일 때다(같으면 붙이지 않는다).
