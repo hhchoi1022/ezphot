@@ -14,6 +14,8 @@ once their csv lands there but are never shown as running. --watch rewrites the 
 The gallery link is marked "오래됨" (stale) when the newest csv of a done run is newer than the gallery's index.html
 (file mtimes: the page is rewritten by every visualize run, also --pages-only / --skip-unchanged; a newer
 target_photometry table is not looked at).
+The qa counts of a done run are kept in this process and recomputed only when its csv's mtime or size changes
+(qa may read image headers for the colour check), so --watch does not re-read them every cycle.
 Served by the gallery server: http://127.0.0.1:8765/ezphot/
 """
 from __future__ import annotations
@@ -34,6 +36,7 @@ from ezphot.recipes.visualize import VIZ_ROOT
 
 LOG_ROOT = Path.home() / 'ezphot' / 'log' / 'recipes'
 STATE_LABEL = {'running': '실행 중', 'done': '완료', 'stopped': '중단', 'unreadable': '읽기 실패'}
+_QA_CACHE = {}   # csv path -> ((path, mtime_ns, size), qa counts) of the last qa() of that csv
 
 
 def _running_outs() -> dict:
@@ -77,8 +80,12 @@ def _run(stem: Path, running: dict) -> dict:
             run['n'] = running[str(csv.resolve())]
     elif csv.exists():
         run['state'] = 'done'
-        df = qa(str(csv))
-        run.update(n=len(df), ok=int(df['chk_success'].sum()), qa=int(df['qa_pass'].sum()))
+        st = csv.stat()
+        key = (str(csv), st.st_mtime_ns, st.st_size)
+        if _QA_CACHE.get(str(csv), (None,))[0] != key:
+            df = qa(str(csv))
+            _QA_CACHE[str(csv)] = (key, dict(n=len(df), ok=int(df['chk_success'].sum()), qa=int(df['qa_pass'].sum())))
+        run.update(_QA_CACHE[str(csv)][1])
     else:
         run['state'] = 'stopped'
     return run
@@ -169,7 +176,7 @@ tr.obj>td{{border-bottom:0}}details summary{{color:var(--mute);font-size:12px;cu
 a{{color:var(--acc)}}.stale{{color:var(--run);font-size:12px;border:1px solid currentColor;border-radius:8px;padding:0 5px;cursor:help}}
 </style></head><body><main>
 <h1>ezphot 처리 현황</h1>
-<div class="meta">{now} 갱신 · 대상 {n_obj}개 · 실행 중 {n_run}건 · 60초마다 새로고침 · 성공/qa는 기본 기준(zperr≤0.1, n_ref≥10, seeing≤5)</div>
+<div class="meta">{now} 갱신 · 대상 {n_obj}개 · 실행 중 {n_run}건 · 60초마다 새로고침 · 성공/qa는 기본 기준(zperr≤0.1, n_ref≥10, seeing≤5, |K_COLOR_APER_3_g-r|≤0.2 — 값이 없으면 통과)</div>
 <div class="card"><table><thead><tr><th>objname</th><th>최근 상태</th><th>이미지</th><th>성공</th><th>qa 통과</th>
 <th>소요</th><th>최종 갱신</th><th>갤러리</th><th>실행 수</th></tr></thead><tbody>{rows}</tbody></table></div>
 </main></body></html>'''

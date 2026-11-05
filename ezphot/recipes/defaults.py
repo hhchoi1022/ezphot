@@ -80,5 +80,7 @@ FORCED_PHOTOMETRY = dict(aperture_diameter_arcsec=[3, 5, 7, 10, 15], aperture_di
 APER10_KEY = 'APER_3'
 
 # Header keys summarized per image after process_images (QA inputs).
+# K_COLOR_*_g-r: photcal's slope of the 10" ZP residual vs g-r colour (qa color_max).
 SUMMARY_HEADER_KEYS = ['SEEING', 'ELLIP', 'SKYVAL', 'SKYSIG',
-                       f'ZP_{APER10_KEY}', f'ZPERR_{APER10_KEY}', f'UL5SKY_{APER10_KEY}']
+                       f'ZP_{APER10_KEY}', f'ZPERR_{APER10_KEY}', f'UL5SKY_{APER10_KEY}',
+                       f'K_COLOR_{APER10_KEY}_g-r']

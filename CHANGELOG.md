@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.6 (2026-11-04)
+### 수치 변경
+- `recipes.qa`: 기본 `qa_pass`에 색지수 검사 `|K_COLOR_APER_3_g-r| <= 0.2`가 들어간다(`color_max=0.2` 기본 켜짐). `K_COLOR_APER_3_g-r`는 photcal이 헤더에 남기는 10″ ZP 잔차의 g−r 기울기(mag/mag)이며, 모든 필터에 같은 기준을 쓴다.
+  - 값이 없는 이미지(색 적합 실패, (g, r) 없음, 헤더 키·파일 없음)는 색지수 검사를 **통과**로 본다. 다른 검사(NaN이면 실패)와 반대다. 실패 행(`success` False)은 읽지 않는다.
+  - 같은 summary에서 qa 결과와 CLI 종료 코드가 바뀔 수 있다. 실측(0.7.5 qa와 행별 비교):
+    - T22956 pilot·p625, FEIGE110, baseline T05785·T10796에서는 통과→실패가 0이다. 색지수에 걸린 행(FEIGE110 m375w 12장, K +0.224…+0.351; T05785 m450 3장, K 1.46…1.49)이 0.7.5에서도 이미 실패였기 때문이다.
+    - 실제 log 트리 전체(summary 50개, 4,413행)의 qa 통과 수는 4036 → 4019다. 바뀐 실행은 T22956 `c1_20261104_132033` 507 → 506, WD0227+050 `20261031_n1002` 104 → 102, WD0308-565 `20261031_n1002` 439 → 431, WD2039-682 `20261031_n1028` 255 → 254, WD2149+021 `20261031_n1028` 222 → 217뿐이다.
+  - 처리 목록 페이지(`recipes.status`)의 "qa 통과" 열도 이 기준을 따른다. 페이지 위 기준 문구에 색지수 기준을 넣었다. 이미 떠 있는 `status --watch`는 다시 시작해야 반영된다.
+    - 0.7.5 이하 summary는 헤더를 읽으므로, 프로세스의 첫 갱신이 한 번 느리다. 실제 log 트리에서 첫 갱신은 114 s였고, 그 뒤 갱신은 캐시로 0.06–0.3 s였다(0.7.5: 0.96 s).
+  - 이전 판정으로 되돌리려면 `qa(..., color_max=None)` / `--color-max none`. 이때 `K_COLOR_APER_3_g-r`·`chk_color` 열을 만들지 않으며 0.7.5와 같다.
+### 추가
+- `recipes.process_images`(와 같은 체인을 쓰는 `recipes.stack`) summary CSV에 `K_COLOR_APER_3_g-r` 열이 생긴다(`defaults.SUMMARY_HEADER_KEYS` 끝). 헤더에 키가 없으면 빈 값이다. 기존 열·순서는 그대로다.
+- `recipes.qa`: `qa(..., color_max=0.2)`(인자는 `depth_min` 뒤), CLI `--color-max <float|none>`(기본 0.2).
+  - 반환 frame에 `K_COLOR_APER_3_g-r`(값)과 `chk_color` 열이 생긴다. 값은 summary 열에서 읽고, 열이 없거나 값이 비면(0.7.5 이하 summary) 성공 행에 한해 이미지 헤더(`fits.getheader(path)`)에서 읽는다.
+  - CLI 표에 `K_COLOR_APER_3_g-r` 열(`qa_pass` 앞), 요약 줄에 기준과 값 없는 성공 행 수가 둘로 나뉘어 붙고(`; M without key, U unreadable, counted as pass` — M = summary 칸이 비고 헤더에 키가 없는 행, U = FITS를 읽지 못한 행(`OSError`: 파일 없음·FITS 아님); 둘 다 통과로 센다), FAIL 줄에 `color`가 나온다.
+- `recipes.status`: done 실행 csv의 qa 결과를 프로세스 안에 (csv 경로, mtime_ns, 크기) 기준으로 남겨, csv가 바뀌지 않으면 `--watch` 갱신마다 qa(헤더 읽기)를 다시 하지 않는다.
+
 ## 0.7.5 (2026-11-04)
 ### 추가
 - `recipes.visualize` 페이지, 광도곡선·SED 탭: 좌표 칸의 "표로 돌아가기" 버튼을 없애고 **대상 이름 버튼**(갤러리 이름, 예: `GD71`)을 둔다.
