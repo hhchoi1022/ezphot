@@ -364,6 +364,8 @@ class MaskGenerator():
         shape = target_img.data.shape
         aperture = CircularAperture((x_position_pixel, y_position_pixel), r=radius_pixel)
         new_mask = aperture.to_mask(method='center').to_image(shape)      
+        if new_mask is None:  # photutils returns None when the aperture bounding box does not overlap the image
+            raise ValueError(f"Target outside image: ({x_position}, {y_position}) [{unit}] -> pixel ({float(x_position_pixel):.1f}, {float(y_position_pixel):.1f}) (0-based), radius {float(radius_pixel):.1f} px, image shape {shape} (ny, nx)")
 
         mask_previous = target_mask.data
         target_mask.combine_mask(new_mask, 'or')

@@ -7,6 +7,7 @@ stack: per-night stacks of process_images outputs, then the process_images chain
     -> invalidmask -> (circular mask @ target) -> sourcemask -> bkgmap -> photometry_sex
     -> photometric_calibration (2-pass, see process_images). No platesolve; the bkgrms propagated
     by the stacker is kept (as bridge stacked_process does). Groups of one image are not stacked.
+    While it runs, <out>.progress.json next to the summary counts the finished stacks (read by recipes.status).
 
 Python:
     from ezphot.recipes import stack
@@ -20,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Union
 
@@ -28,6 +28,7 @@ import pandas as pd
 
 from ezphot.imageobjects import ImageSet, ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._progress import run_tasks
 from ezphot.recipes.process_images import process_image
 
 STACK_CONFIG_KEYS = ('stack_group', 'stack_prepare', 'stack')
@@ -102,20 +103,15 @@ def stack(summaries: Union[str, Path, List],
         print(f"[stack] {len(paths)} images -> {len(groups)} stacks ({n_single} single-image groups not stacked)")
     if len(groups) == 0:
         raise ValueError("no group has more than one image")
-    t0 = time.time()
-    tasks = [(g, ra, dec, config, mag_faint_shift) for g in groups]
-    if n_proc > 1 and len(groups) > 1:
-        with ProcessPoolExecutor(max_workers=min(n_proc, len(groups))) as ex:
-            rows = list(ex.map(_worker, tasks))
-    else:
-        rows = [_worker(t) for t in tasks]
-    summary = pd.DataFrame(rows)
-
-    if out is None:
+    if out is None:   # decided at the start: <out>.progress.json is written next to it while running
         objname = ScienceImage(path=paths[0], load=True).objname or 'unknown'
         out = Path.home() / 'ezphot' / 'log' / 'recipes' / objname / f"stack_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     out = Path(out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+    tasks = [(g, ra, dec, config, mag_faint_shift) for g in groups]
+    rows = run_tasks(_worker, tasks, n_proc, out)
+    summary = pd.DataFrame(rows)
     summary.to_csv(out, index=False)
     if verbose:
         n_ok = int(summary['success'].sum())

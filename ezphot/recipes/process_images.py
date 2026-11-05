@@ -10,6 +10,7 @@ Products are written next to each image by ezphot itself (.cat/.refcat/.bkgmap/.
 This recipe adds one summary row per image (status + QA header values) and saves it as CSV.
 Summary `path` is the image the chain last held (the correct_bdf / platesolve / photcal output, whose sidecars
 the later recipes read); `raw_path` is the input path.
+While it runs, <out>.progress.json next to the summary counts the finished images (read by recipes.status).
 
 Python:
     from ezphot.recipes import process_images
@@ -27,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -35,6 +35,7 @@ import pandas as pd
 
 from ezphot.imageobjects import Errormap, ImageSet, ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._progress import run_tasks
 
 STEP_CONFIG_KEYS = ('circularmask', 'invalidmask', 'sourcemask', 'bkgmap', 'bkgrms', 'photometry', 'photcal')
 # sections whose save_fig --no-figures turns off (the others already save no figures here).
@@ -163,20 +164,15 @@ def process_images(images: Union[ImageSet, List[ScienceImage]],
     imgs = list(images.target_images) if isinstance(images, ImageSet) else list(images)
     if len(imgs) == 0:
         raise ValueError("no images to process")
-    t0 = time.time()
-    tasks = [(img, ra, dec, do_preprocess, do_platesolve, config, mag_faint_shift, True) for img in imgs]
-    if n_proc > 1 and len(imgs) > 1:
-        with ProcessPoolExecutor(max_workers=min(n_proc, len(imgs))) as ex:
-            rows = list(ex.map(_worker, tasks))
-    else:
-        rows = [_worker(t) for t in tasks]
-    summary = pd.DataFrame(rows)
-
-    if out is None:
+    if out is None:   # decided at the start: <out>.progress.json is written next to it while running
         objname = imgs[0].objname or 'unknown'
         out = Path.home() / 'ezphot' / 'log' / 'recipes' / objname / f"process_images_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     out = Path(out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+    tasks = [(img, ra, dec, do_preprocess, do_platesolve, config, mag_faint_shift, True) for img in imgs]
+    rows = run_tasks(_worker, tasks, n_proc, out)
+    summary = pd.DataFrame(rows)
     summary.to_csv(out, index=False)
     if verbose:
         n_ok = int(summary['success'].sum())

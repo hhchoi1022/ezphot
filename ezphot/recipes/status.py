@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 """
 status: one index page of every objname processed with the recipes, with the state of each
-process_images run (running / done / stopped), success and qa counts, and the gallery link.
+process_images run (running / done / stopped), success and qa counts, and the gallery link; running and
+stopped stack / dia runs are listed too.
 Read-only on the logs; writes only <root>/ezphot/index.html.
 
     python -m ezphot.recipes.status [--root DIR] [--watch SEC]
 
 Runs are found as ~/ezphot/log/recipes/<objname>/process_images_<tag>.{log,csv}. A run is
-'running' while a live process_images process on this host has --out <that csv>, 'done' when the
+'running' while a live process_images / stack / dia process on this host has --out <that csv>, 'done' when the
 csv exists, 'stopped' when only the log is left, and 'unreadable' when its csv/log cannot be read.
-Runs whose csv is written elsewhere are not listed; runs without --out (e.g. the Python API) appear
-once their csv lands there but are never shown as running. --watch rewrites the page every SEC seconds.
+Runs whose csv is written elsewhere are not listed. --watch rewrites the page every SEC seconds.
+process_images, stack and dia write <csv>.progress.json next to their summary while they run (also with --out
+only there and the log elsewhere): such a run is found from that file, is 'running' while the pid in it is alive
+on this host, the recipe loop has not ended (returned or raised) and its csv is not newer than its start (so also
+without --out, e.g. the Python API), shows
+done/total, elapsed and remaining time (elapsed / done x left), and is 'stopped' (done/total) when the process
+is gone without a csv. stack / dia runs are listed only while running or stopped; a finished one (csv written)
+drops out as before. Runs started by an ezphot without progress files show as before.
 The gallery link is marked "오래됨" (stale) when the newest csv of a done run is newer than the gallery's index.html
 (file mtimes: the page is rewritten by every visualize run, also --pages-only / --skip-unchanged; a newer
 target_photometry table is not looked at).
@@ -22,6 +29,8 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
+import os
 import re
 import time
 import traceback
@@ -37,10 +46,11 @@ from ezphot.recipes.visualize import VIZ_ROOT
 LOG_ROOT = Path.home() / 'ezphot' / 'log' / 'recipes'
 STATE_LABEL = {'running': '실행 중', 'done': '완료', 'stopped': '중단', 'unreadable': '읽기 실패'}
 _QA_CACHE = {}   # csv path -> ((path, mtime_ns, size), qa counts) of the last qa() of that csv
+RECIPES = ('process_images', 'stack', 'dia')   # the recipes that write <csv>.progress.json (recipes._progress)
 
 
 def _running_outs() -> dict:
-    """{--out path: number of --paths or None} of live process_images processes on this host
+    """{--out path: number of --paths or None} of live process_images / stack / dia processes on this host
     (read from /proc, so no pgrep self-match; relative --out resolved against the process cwd)."""
     outs = dict()
     for cmdline in Path('/proc').glob('[0-9]*/cmdline'):
@@ -49,7 +59,7 @@ def _running_outs() -> dict:
             cwd = (cmdline.parent / 'cwd').resolve()
         except OSError:
             continue
-        if 'ezphot.recipes.process_images' not in args:
+        if not any(f'ezphot.recipes.{r}' in args for r in RECIPES):
             continue
         out = next((a.split('=', 1)[1] for a in args if a.startswith('--out=')), None)
         if out is None and '--out' in args[:-1]:
@@ -64,20 +74,51 @@ def _running_outs() -> dict:
     return outs
 
 
+def _alive(pid: int, start: float) -> bool:
+    """pid is a live process on this host that started before `start` (a reused pid belongs to a newer process)."""
+    try:
+        ticks = int(Path(f'/proc/{pid}/stat').read_text().rsplit(')', 1)[1].split()[19])   # field 22, starttime
+        btime = next(int(l.split()[1]) for l in Path('/proc/stat').read_text().splitlines() if l.startswith('btime '))
+    except (OSError, ValueError, IndexError, StopIteration):   # no such process (or no /proc): not alive
+        return False
+    return btime + ticks / os.sysconf('SC_CLK_TCK') <= start + 1
+
+
+def _recipe(stem: Path) -> str:
+    return next(r for r in RECIPES if stem.name.startswith(f'{r}_'))
+
+
+def _tag(stem: Path) -> str:
+    """process_images runs keep the bare tag; stack / dia runs keep the recipe name in it."""
+    return stem.name[len('process_images_'):] if _recipe(stem) == 'process_images' else stem.name
+
+
 def _run(stem: Path, running: dict) -> dict:
     csv, log = Path(f'{stem}.csv'), Path(f'{stem}.log')   # tags may contain dots (faint1.5)
+    prog = Path(f'{csv}.progress.json')
     text = log.read_text(errors='replace') if log.exists() else ''
     m_n = re.search(r'\[process_images\] (\d+) images\n', text)
     m_ok = re.search(r'\[process_images\] (\d+)/(\d+) images succeeded in (\d+)s', text)
-    run = {'tag': stem.name[len('process_images_'):], 'csv': str(csv) if csv.exists() else '',
+    run = {'tag': _tag(stem), 'csv': str(csv) if csv.exists() else '',
            'n': int(m_n.group(1)) if m_n else None, 'ok': None, 'qa': None,
            'sec': int(m_ok.group(3)) if m_ok else None,
-           'mtime': max(p.stat().st_mtime for p in (csv, log) if p.exists()),
-           'csv_mtime': csv.stat().st_mtime if csv.exists() else None}
-    if str(csv.resolve()) in running:
+           'mtime': max(p.stat().st_mtime for p in (csv, log, prog) if p.exists()),
+           'csv_mtime': csv.stat().st_mtime if csv.exists() else None,
+           'recipe': _recipe(stem), 'done': None, 'failed': None, 'elapsed': None, 'remaining': None}
+    p = json.loads(prog.read_text()) if prog.exists() else None
+    live = (p is not None and p.get('end') is None and _alive(p['pid'], p['start'])
+            and not (run['csv_mtime'] is not None and run['csv_mtime'] >= p['start']))
+    if str(csv.resolve()) in running or live:
         run['state'] = 'running'
-        if run['n'] is None:   # the log is block-buffered; count --paths instead
+        if live:   # a progress file of a dead earlier run with the same --out is not this run's
+            run['n'], run['done'], run['failed'] = p['total'], p['done'], p['failed']
+            run['elapsed'] = time.time() - p['start']
+            if p['done']:
+                run['remaining'] = run['elapsed'] / p['done'] * (p['total'] - p['done'])
+        elif run['n'] is None:   # the log is block-buffered; count --paths instead
             run['n'] = running[str(csv.resolve())]
+    elif csv.exists() and run['recipe'] != 'process_images':   # not listed by collect(); no qa
+        run['state'] = 'done'
     elif csv.exists():
         run['state'] = 'done'
         st = csv.stat()
@@ -88,6 +129,8 @@ def _run(stem: Path, running: dict) -> dict:
         run.update(_QA_CACHE[str(csv)][1])
     else:
         run['state'] = 'stopped'
+        if p is not None:
+            run['n'], run['done'], run['failed'] = p['total'], p['done'], p['failed']
     return run
 
 
@@ -96,9 +139,11 @@ def _safe_run(stem: Path, running: dict) -> dict:
     try:
         return _run(stem, running)
     except Exception as e:
-        mtimes = [p.stat().st_mtime for p in (Path(f'{stem}.csv'), Path(f'{stem}.log')) if p.exists()]
-        return {'tag': stem.name[len('process_images_'):], 'csv': f'{type(e).__name__}: {e}', 'state': 'unreadable',
-                'n': None, 'ok': None, 'qa': None, 'sec': None, 'mtime': max(mtimes, default=0), 'csv_mtime': None}
+        mtimes = [p.stat().st_mtime for p in (Path(f'{stem}.csv'), Path(f'{stem}.log'), Path(f'{stem}.csv.progress.json'))
+                  if p.exists()]
+        return {'tag': _tag(stem), 'csv': f'{type(e).__name__}: {e}', 'state': 'unreadable',
+                'n': None, 'ok': None, 'qa': None, 'sec': None, 'mtime': max(mtimes, default=0), 'csv_mtime': None,
+                'recipe': _recipe(stem), 'done': None, 'failed': None, 'elapsed': None, 'remaining': None}
 
 
 def collect(log_root: Path = LOG_ROOT, viz_root: Path = VIZ_ROOT) -> list:
@@ -108,7 +153,10 @@ def collect(log_root: Path = LOG_ROOT, viz_root: Path = VIZ_ROOT) -> list:
     objects = []
     for objdir in sorted(p for p in log_root.iterdir() if p.is_dir()):
         stems = {p.parent / p.stem for p in objdir.glob('process_images_*') if p.suffix in ('.csv', '.log')}
-        runs = sorted((_safe_run(s, running) for s in stems), key=lambda r: r['mtime'], reverse=True)
+        stems |= {p.parent / p.name[:-len('.csv.progress.json')] for r in RECIPES for p in objdir.glob(f'{r}_*.csv.progress.json')}
+        runs = [r for r in (_safe_run(s, running) for s in stems)
+                if r['recipe'] == 'process_images' or r['state'] != 'done']   # finished stack / dia runs: not listed, as before
+        runs = sorted(runs, key=lambda r: r['mtime'], reverse=True)
         if not runs:
             continue
         gallery = viz_root / 'ezphot' / objdir.name / 'viz' / 'index.html'
@@ -128,13 +176,23 @@ def _t(ts, fmt='%Y-%m-%d %H:%M'):
     return datetime.fromtimestamp(ts).strftime(fmt) if ts else '–'
 
 
+def _dur(sec: float) -> str:
+    m = int(sec) // 60
+    return f'{m // 60}h{m % 60:02d}m' if m >= 60 else f'{m}m' if m else f'{int(sec)}s'
+
+
 def _cells(r: dict) -> str:
     n = '–' if r['n'] is None else r['n']
     ok = '–' if r['ok'] is None else f"{r['ok']}/{n}"
     q = '–' if r['qa'] is None else f"{r['qa']}/{n}"
     bad = r['state'] == 'done' and (r['ok'] < r['n'] or r['qa'] < r['n'])
     sec = '–' if r['sec'] is None else f"{r['sec']}s"
-    return (f'<td class="st {r["state"]}">{STATE_LABEL[r["state"]]}</td><td>{n}</td>'
+    state = STATE_LABEL[r['state']]
+    if r['done'] is not None:   # from the progress file (running / stopped)
+        state += f" {r['done']}/{n}" + (f" (실패 {r['failed']})" if r['failed'] else '')
+    if r['elapsed'] is not None:
+        sec = f"{_dur(r['elapsed'])} 경과" + (f" · 약 {_dur(r['remaining'])} 남음" if r['remaining'] is not None else '')
+    return (f'<td class="st {r["state"]}">{state}</td><td>{n}</td>'
             f'<td class="{"bad" if bad else ""}">{ok}</td><td class="{"bad" if bad else ""}">{q}</td>'
             f'<td>{sec}</td><td>{_t(r["mtime"])}</td>')
 

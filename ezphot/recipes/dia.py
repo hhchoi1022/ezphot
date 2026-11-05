@@ -8,6 +8,7 @@ dia: difference imaging of calibrated images (single frames or stacks) against a
 Input is one or more summary CSVs of process_images or stack (success rows). One row per image:
 reference path, difference image, number of candidates/transients and, if ra/dec are given, the
 target's forced MAGSKY/MAGERR/ZPERR/UL5SKY in the 10" aperture (*_APER_3) on the difference image.
+While it runs, <out>.progress.json next to the summary counts the finished images (read by recipes.status).
 
 Python:
     from ezphot.recipes import dia
@@ -21,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Union
 
@@ -29,6 +29,7 @@ import pandas as pd
 
 from ezphot.imageobjects import ReferenceImage, ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._progress import run_tasks
 from ezphot.recipes.stack import load_summary
 
 DIA_CONFIG_KEYS = ('dia', 'forced_photometry')
@@ -124,20 +125,15 @@ def dia(summaries: Union[str, Path, List],
     paths = load_summary(summaries)
     if len(paths) == 0:
         raise ValueError("no successful images in the summary")
-    t0 = time.time()
-    tasks = [(p, ra, dec, reference, config) for p in paths]
-    if n_proc > 1 and len(paths) > 1:
-        with ProcessPoolExecutor(max_workers=min(n_proc, len(paths))) as ex:
-            rows = list(ex.map(_worker, tasks))
-    else:
-        rows = [_worker(t) for t in tasks]
-    summary = pd.DataFrame(rows)
-
-    if out is None:
+    if out is None:   # decided at the start: <out>.progress.json is written next to it while running
         objname = ScienceImage(path=paths[0], load=True).objname or 'unknown'
         out = Path.home() / 'ezphot' / 'log' / 'recipes' / objname / f"dia_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     out = Path(out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+    tasks = [(p, ra, dec, reference, config) for p in paths]
+    rows = run_tasks(_worker, tasks, n_proc, out)
+    summary = pd.DataFrame(rows)
     summary.to_csv(out, index=False)
     if verbose:
         n_ok = int(summary['success'].sum())

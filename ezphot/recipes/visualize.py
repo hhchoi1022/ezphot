@@ -19,8 +19,9 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 MAGSKY_APER_3, MAGERR_APER_3, SATDIST) of all frames in sources.json next to index.html; the light-curve /
                 SED tabs then take a coordinate (default --ra/--dec; with --lightcurve the table is shown first) and use
                 the nearest detection within a radius (default 5") in each frame, fetched from sources.json over http;
-                fov.jpg (about 1200 px wide) shows the whole field of the frame with the most of them in those tabs, and a
-                click on it takes the RA/Dec of the nearest detection of that frame
+                fov.jpg (about 1200 px wide) shows the whole field of one frame in those tabs (successful, with detections:
+                highest 0.5 x percentile rank of -SEEING + 0.5 x that of UL5SKY_APER_3; with --ra/--dec the best one whose
+                header WCS has the target on the chip), and a click on it takes the RA/Dec of the nearest detection of that frame
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
         [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8] [--skip-unchanged | --pages-only]
@@ -65,7 +66,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 from astropy.visualization import ZScaleInterval
-from astropy.wcs import WCS
+from astropy.wcs import WCS, NoConvergence
 
 from ezphot.recipes import defaults as D
 
@@ -360,7 +361,9 @@ def fig_run(summary: pd.DataFrame, outdir: Path) -> List[str]:
 
 
 def fig_lightcurve(lc: pd.DataFrame, outdir: Path, run_paths=()) -> List[str]:
-    """Filled: catalogs of images in this summary; open: other catalogs found by target_photometry."""
+    """Filled: catalogs of images in this summary; open: other catalogs found by target_photometry.
+    Colours of LightCurve.FILTER_COLOR, the matplotlib cycle for filters not in it."""
+    from ezphot.dataobjects import LightCurve
     if len(lc) < 2 or MAGSKY_KEY not in lc:
         return []
     lc = lc.copy()
@@ -368,7 +371,7 @@ def fig_lightcurve(lc: pd.DataFrame, outdir: Path, run_paths=()) -> List[str]:
     in_run = lc['target_img'].astype(str).isin(set(map(str, run_paths))) if 'target_img' in lc else np.ones(len(lc), bool)
     fig, ax = plt.subplots(figsize=(11, 3.8))
     for i, (filt, g) in enumerate(lc.groupby('filter')):
-        c = f'C{i}'
+        c = LightCurve.FILTER_COLOR.get(filt, f'C{i}')
         m = in_run[g.index]
         ax.errorbar(g['t'][m], g[MAGSKY_KEY][m], g[MAGERR_KEY][m], fmt='o', ms=5, color=c, label=f'{filt} (this run)')
         if (~m).any():
@@ -396,7 +399,9 @@ def _filter_wavelength(filterdir: Path, observatory: str, filt: str):
 
 
 def _filters(obs: list, filt: list, filterdir: Path):
-    """(observatory, filter) keys sorted by wavelength and their page entries (name, wavelength, source, note, broad)."""
+    """(observatory, filter) keys sorted by wavelength and their page entries (name, wavelength, source, note, broad,
+    c = hex colour of LightCurve.FILTER_COLOR, None for filters not in it, o = LightCurve.FILTER_OFFSET [mag], 0 if not in it)."""
+    from ezphot.dataobjects import LightCurve
     multi_obs = len(set(obs)) > 1                  # same filter name from two observatories = two filters
     filters = {}
     for o, f in set(zip(obs, filt)):
@@ -410,7 +415,9 @@ def _filters(obs: list, filt: list, filterdir: Path):
         if wl is None and m:                       # shown as an estimate in the page
             wl, src = float(m.group(1)), 'name'
         filters[(o, f)] = dict(n=f'{o} {f}' if multi_obs else f, wl=wl, src=src, note=note,
-                               broad=not re.fullmatch(r'm\d{3}', f))
+                               broad=not re.fullmatch(r'm\d{3}', f),
+                               c=matplotlib.colors.to_hex(LightCurve.FILTER_COLOR[f]) if f in LightCurve.FILTER_COLOR else None,
+                               o=float(LightCurve.FILTER_OFFSET.get(f, 0.0)))
     keys = sorted(filters, key=lambda k: (filters[k]['wl'] is None, filters[k]['wl'] or 0, k))
     return keys, filters
 
@@ -501,6 +508,57 @@ def _fov(path: Path, src: dict, out: Path) -> dict:
     h, w = img.shape
     return dict(file=FOV_FILE, w=w, h=h, u=np.round((x - 0.5) / f, 2).tolist(), v=np.round(h - (y - 0.5) / f, 2).tolist(),
                 ra=src['ra'], dec=src['dec'])
+
+
+def _fov_frame(rows: pd.DataFrame, srcs: list, ra=None, dec=None):
+    """Frame of the whole-field image (_fov) among the successful rows with detections (srcs not None): highest score
+    0.5 * p(-SEEING) + 0.5 * p(UL5SKY_APER_3), p = percentile rank 0-1 among those frames with a value (ties averaged;
+    a missing value scores 0), ties first in gallery order. With ra/dec the first in score order whose header WCS puts
+    the target on the chip (-0.5 <= x < NAXIS1 - 0.5, same for y, 0-based pixels; a header without a readable celestial
+    WCS is skipped and counted in the reason with its first error; astropy NoConvergence = off the chip), else the best
+    score. (index, reason for the log, 'target' | 'outside' | 'unknown' (no header WCS readable) | 'score'),
+    or (None, '', '') without such a frame."""
+    cand = [i for i, s in enumerate(srcs) if s is not None and bool(rows.iloc[i]['success'])]
+    if not cand:
+        return None, '', ''
+    sub = rows.iloc[cand]
+    val = lambda k: pd.to_numeric(sub[k], errors='coerce').to_numpy(float) if k in sub else np.full(len(cand), np.nan)
+    see, depth = (np.where(np.isfinite(a), a, np.nan) for a in (val('SEEING'), val(f'UL5SKY_{D.APER10_KEY}')))   # +-inf: missing
+
+    def pct(x):
+        r, m = pd.Series(x).rank().to_numpy(), int(np.isfinite(x).sum())
+        return np.nan_to_num((r - 1) / (m - 1) if m > 1 else np.where(np.isfinite(x), 1.0, np.nan), nan=0.0)
+    score = 0.5 * pct(-see) + 0.5 * pct(depth)
+    order = sorted(range(len(cand)), key=lambda j: -round(float(score[j]), 9))   # stable: ties keep the gallery order
+    j, sel, why = order[0], 'score', 'no --ra/--dec'
+    if ra is not None and dec is not None:
+        sel, why, n_bad, n_nc, err = 'outside', f'target on none of the {len(cand)} chips: best score', 0, 0, ''
+        for k in order:
+            try:
+                h = fits.getheader(rows.iloc[cand[k]]['path'])
+                w = _wcs(h)
+                if not w.has_celestial:
+                    raise ValueError('no celestial WCS')
+                x, y = (float(c) for c in w.all_world2pix(ra, dec, 0))
+                on = -0.5 <= x < h['NAXIS1'] - 0.5 and -0.5 <= y < h['NAXIS2'] - 0.5
+            except NoConvergence:                  # the inverse distortion does not converge: far from this chip
+                n_nc += 1
+                continue
+            except Exception as e:                 # counted in the log with the first error; that frame is not taken
+                n_bad += 1
+                err = err or f'{type(e).__name__}: {e}'
+                continue
+            if on:
+                j, sel, why = k, 'target', 'target on the chip'
+                break
+        if n_bad == len(cand):
+            sel, why = 'unknown', 'target on the chip not checked: best score'
+        if n_nc:
+            why += f', no WCS convergence (taken as off the chip) for {n_nc}'
+        if n_bad:
+            why += f', header WCS unreadable for {n_bad} (first: {err})'
+    return cand[j], (f'SEEING {see[j]:.2f}, UL5SKY_{D.APER10_KEY} {depth[j]:.2f}, score {score[j]:.3f} '
+                     f'({order.index(j) + 1} of {len(cand)} frames), {why}'), sel
 
 
 # ---------------------------------------------------------------- driver
@@ -686,13 +744,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').style.displ
 // interactive light curve / SED: L = D.lcdata (--lightcurve table) or detections in D.srcs.file matched to a coordinate;
 // time binning and combining happen here
 let L,FL,PT,FM,WL0,WL1;
-const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1},DARK=matchMedia('(prefers-color-scheme:dark)').matches;
+const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1,foff:false,boff:false},DARK=matchMedia('(prefers-color-scheme:dark)').matches;
 let TIPS=[],ZD=null;
 const utc=t=>new Date((t-40587)*864e5).toISOString().slice(0,19).replace('T',' ');
 const fwl=f=>f.wl==null?'파장 없음':f.src==='name'?`≈${f.wl} nm (이름 추정)`:`${f.wl} nm`;
 const wt=p=>1/Math.max(p.e,1e-4)**2;                 // inverse variance; floor keeps MAGERR=0 finite
-function fcol(i){const w=FL[i].wl;if(w==null)return 'var(--mute)';const k=WL1>WL0?(w-WL0)/(WL1-WL0):.5;
-  return `hsl(${Math.round(270*(1-k))},${DARK?80:70}%,${DARK?62:42}%)`}   // violet (blue end) -> red
+const sg=v=>(v<0?'':'+')+v.toFixed(1);               // as f'{v:+.1f}' of LightCurve / PhotometricSpectrum labels
+const fo=i=>S.foff&&S.mode==='abs'&&FL[i].o||0;       // LightCurve.FILTER_OFFSET (f.o): absolute light curve only
+function fcol(i){if(FL[i].c)return FL[i].c;const w=FL[i].wl;if(w==null)return 'var(--mute)';const k=WL1>WL0?(w-WL0)/(WL1-WL0):.5;
+  return `hsl(${Math.round(270*(1-k))},${DARK?80:70}%,${DARK?62:42}%)`}   // LightCurve.FILTER_COLOR, else violet (blue end) -> red
 function setL(l){L=l;FL=L.filters||[];PT=(L.pts||[]).map(p=>({t:p[0],f:p[1],m:p[2],e:p[3],fr:p[4],tel:p[5],run:p[6],sep:p[7],sat:p[8]}));
   const wls=FL.map(f=>f.wl).filter(w=>w!=null);WL0=Math.min(...wls);WL1=Math.max(...wls);
   FM=FL.map((_,i)=>{let sw=0,sm=0;for(const p of PT)if(p.f===i){sw+=wt(p);sm+=wt(p)*p.m}return sm/sw});  // per-filter mean for dmag
@@ -735,41 +795,47 @@ function plot(o){ // SVG scatter with error bars; smaller y on top (magnitudes);
       `<circle cx="${cx}" cy="${cy}" r="9" style="fill:transparent"/></g>`}
   return s+`<rect class="zr" x="0" y="${t}" width="0" height="${ih}"/></svg>`}
 function lcMarks(fi){ // fi: one filter (grid panel) or null = all shown filters
-  const dl=S.mode==='delta',use=p=>!S.off.has(p.f)&&(fi==null||p.f===fi),y=p=>dl?p.m-FM[p.f]:p.m,out=[];
-  if(S.ind)for(const p of PT)if(use(p))out.push(mark(p,p.t,y(p),S.comb?.3:1,ptip(p,dl?y(p):null)));
-  if(S.comb)for(const c of bins())if(use(c))out.push(mark(c,c.t,y(c),1,ctip(c,dl?y(c):null)));
+  const dl=S.mode==='delta',use=p=>!S.off.has(p.f)&&(fi==null||p.f===fi),y=p=>dl?p.m-FM[p.f]:p.m+fo(p.f),out=[],
+    ot=p=>fo(p.f)?`\n필터 오프셋 ${sg(fo(p.f))} (그림 y = 등급 ${sg(fo(p.f))})`:'';
+  if(S.ind)for(const p of PT)if(use(p))out.push(mark(p,p.t,y(p),S.comb?.3:1,ptip(p,dl?y(p):null)+ot(p)));
+  if(S.comb)for(const c of bins())if(use(c))out.push(mark(c,c.t,y(c),1,ctip(c,dl?y(c):null)+ot(c)));
   return out}
 function lcPlot(){
   const ms=lcMarks(null);if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류 선택 확인).</div>';
   const x=S.zoom||ext(ms.map(k=>k.x),.03);
-  if(S.mode!=='grid')return plot({W:1100,H:440,x,marks:ms,xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)`,zoom:1});
+  if(S.mode!=='grid')return plot({W:1100,H:440,x,marks:ms,xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)${S.foff?' (+ offset)':''}`,zoom:1});
   return `<div class="panels">${FL.map((f,i)=>{const m=S.off.has(i)?[]:lcMarks(i);
     return m.length?`<div><h3>${esc(f.n)} · ${esc(fwl(f))}</h3>${plot({W:320,H:190,x,marks:m,zoom:1})}</div>`:''}).join('')}</div>`}
 function sedPlot(){ // x = filter wavelength; one bin: filter colours, several bins: one hue, light (early) -> dark (late)
   const w=S.bin,cs=bins().filter(c=>!S.off.has(c.f)&&FL[c.f].wl!=null),bs=[...new Set(cs.map(c=>c.b))].sort((a,c)=>a-c);
   const shown=bs.filter(b=>S.sed<0||b===S.sed),one=shown.length<2,
-    col=(p,b)=>{if(one)return fcol(p.f);const k=bs.indexOf(b)/(bs.length-1);return `hsl(215,75%,${DARK?35+45*k:72-44*k}%)`};
+    col=(p,b)=>{if(one)return fcol(p.f);const k=bs.indexOf(b)/(bs.length-1);return `hsl(215,75%,${DARK?35+45*k:72-44*k}%)`},
+    bo=b=>S.boff&&!one?shown.indexOf(b)*(D.sed_offset||0):0,   // k-th overlaid bin + k x PhotometricSpectrum.OFFSET
+    bt=b=>bo(b)?`\nbin 오프셋 ${sg(bo(b))} (그림 y = 등급 ${sg(bo(b))})`:'';
   const ms=[],lines=[];
   if(S.ind)for(const p of PT){const b=Math.floor((p.t-L.t0)/w);
-    if(!S.off.has(p.f)&&FL[p.f].wl!=null&&shown.includes(b))ms.push(mark(p,FL[p.f].wl,p.m,S.comb?.3:1,ptip(p),col(p,b)))}
+    if(!S.off.has(p.f)&&FL[p.f].wl!=null&&shown.includes(b))ms.push(mark(p,FL[p.f].wl,p.m+bo(b),S.comb?.3:1,ptip(p)+bt(b),col(p,b)))}
   if(S.comb)for(const b of shown){const g=cs.filter(c=>c.b===b).sort((a,c)=>FL[a.f].wl-FL[c.f].wl);
-    lines.push({c:one?'var(--mute)':col(g[0],b),p:g.map(c=>[FL[c.f].wl,c.m])});for(const c of g)ms.push(mark(c,FL[c.f].wl,c.m,1,ctip(c),col(c,b)))}
+    lines.push({c:one?'var(--mute)':col(g[0],b),p:g.map(c=>[FL[c.f].wl,c.m+bo(b)])});for(const c of g)ms.push(mark(c,FL[c.f].wl,c.m+bo(b),1,ctip(c)+bt(b),col(c,b)))}
   if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류·bin 선택 확인).</div>';
-  let h=plot({W:1100,H:440,x:ext(ms.map(k=>k.x),.04),marks:ms,lines,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)`});
+  let h=plot({W:1100,H:440,x:ext(ms.map(k=>k.x),.04),marks:ms,lines,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)${bo(shown[1])?' (+ offset)':''}`});
   if(!one)h+=`<p class="meta">색: bin 시각 순 <span class="ramp" style="background:linear-gradient(90deg,${col(null,bs[0])},${col(null,bs[bs.length-1])})"></span> ${utc(L.t0+bs[0]*w)} → ${utc(L.t0+bs[bs.length-1]*w)} UTC</p>`;
+  if(bo(shown[1]))h+=`<p class="meta">bin 오프셋: ${shown.map(b=>`<span style="color:${col(null,b)}">●</span> bin ${b} · ${utc(L.t0+b*w)} UTC${bo(b)?` (${sg(bo(b))})`:''}`).join(' · ')}</p>`;
   return h}
 function controls(sed){
   const mb=(v,lab)=>`<button data-act="mode" data-v="${v}" class="${S.mode===v?'on':''}">${lab}</button>`;
-  let h='<div class="bar">'+(sed?'':mb('abs','등급')+mb('delta','Δmag')+mb('grid','필터별 패널')+(S.zoom?'<button data-act="unzoom">범위 리셋</button>':''));
+  let h='<div class="bar">'+(sed?'':mb('abs','등급')+mb('delta','Δmag')+mb('grid','필터별 패널')+(S.zoom?'<button data-act="unzoom">범위 리셋</button>':'')+
+    (S.mode==='abs'?`<label class="meta" title="필터마다 LightCurve.FILTER_OFFSET 등급을 더해 그림 (등급 모드에서만)"><input type="checkbox" data-ctl="foff"${S.foff?' checked':''}> 필터 오프셋</label>`:''));
   h+=`<label class="meta">bin 폭 <input type="number" min="0" step="any" value="${S.bin}" data-ctl="bin"> 일</label>`+
     `<label class="meta"><input type="checkbox" data-ctl="comb"${S.comb?' checked':''}> 합친 점</label>`+
     `<label class="meta"><input type="checkbox" data-ctl="ind"${S.ind?' checked':''}> 개별 점</label>`;
   if(sed){const bs=[...new Set(bins().map(c=>c.b))].sort((a,c)=>a-c);
-    if(bs.length>1)h+=`<select data-ctl="sed"><option value="-1">모든 bin 겹쳐 보기 (${bs.length})</option>${bs.map(b=>`<option value="${b}"${b===S.sed?' selected':''}>bin ${b} · ${utc(L.t0+b*S.bin)} UTC</option>`).join('')}</select>`}
+    if(bs.length>1)h+=`<select data-ctl="sed"><option value="-1">모든 bin 겹쳐 보기 (${bs.length})</option>${bs.map(b=>`<option value="${b}"${b===S.sed?' selected':''}>bin ${b} · ${utc(L.t0+b*S.bin)} UTC</option>`).join('')}</select>`+
+      `<label class="meta" title="겹쳐 볼 때 k번째 bin에 k × ${D.sed_offset} 등급을 더해 세로로 벌림 (PhotometricSpectrum.OFFSET)"><input type="checkbox" data-ctl="boff"${S.boff?' checked':''}> bin 오프셋</label>`}
   return h+'</div>'}
-function chips(){
+function chips(sed){
   return `<div class="chips"><button class="chip" data-act="all">전체</button><button class="chip" data-act="none">없음</button>${FL.map((f,i)=>
-    `<button class="chip${S.off.has(i)?' off':''}" data-act="flt" data-v="${i}" title="${esc(fwl(f)+(f.src&&f.src!=='name'?` · ${f.src}`:''))}"><i class="${f.broad?'sq':''}" style="background:${fcol(i)}"></i>${esc(f.n)}</button>`).join('')}</div>`}
+    `<button class="chip${S.off.has(i)?' off':''}" data-act="flt" data-v="${i}" title="${esc(fwl(f)+(f.src&&f.src!=='name'?` · ${f.src}`:''))}"><i class="${f.broad?'sq':''}" style="background:${fcol(i)}"></i>${esc(f.n)}${!sed&&fo(i)?sg(fo(i)):''}</button>`).join('')}</div>`}
 function notes(sed){
   const est=FL.filter(f=>f.src==='name').map(f=>f.n),no=FL.filter(f=>f.wl==null).map(f=>f.n),bad=FL.filter(f=>f.note).map(f=>`${f.n}: ${f.note}`);
   let h=`<p class="cap">${esc(L.key)} (10″) · 점 ${PT.length}개${L.n_bad?`, 제외 ${L.n_bad}개 (MAGERR ≥ 99 또는 NaN)`:''} · bin = floor((MJD − ${L.t0==null?'–':L.t0.toFixed(5)}) / 폭) · `+
@@ -788,7 +854,7 @@ function draw(){
   fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
   if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
   if(C.msg){c.innerHTML=`<div class="empty${C.bad?' bad':''}">${esc(C.msg)}</div>`;return}
-  c.innerHTML=controls(sed)+chips()+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
+  c.innerHTML=controls(sed)+chips(sed)+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
 // coordinate input (D.srcs): C keeps the typed text across re-renders; C.mode 'table' = D.lcdata, 'cat' = catalog matching
 const T=D.srcs&&D.srcs.target,C={mode:D.lcdata?'table':'cat',ra:T?String(T[0]):'',dec:T?String(T[1]):'',
   r:String((D.srcs&&D.srcs.radius)||5),bad:false,tgt:false,
@@ -865,7 +931,7 @@ document.addEventListener('mouseup',e=>{if(!ZD)return;const {s,r,a}=ZD,[x0,x1,l,
 const V={on:true,box:null,pick:-1};let VD=null;
 function fovCard(){const F=D.fov;if(!F)return '';const nm=`${F.frame+1}. ${esc(D.images[F.frame].short)}`;
   if(F.error)return `<div class="card"><p class="cap bad">시야 이미지 없음 (대표 프레임 ${nm}): ${esc(F.error)}</p></div>`;
-  const b=V.box||[0,0,F.w,F.h],p=V.pick,ft=`대표 프레임 ${F.frame+1}. ${D.images[F.frame].short} — SNR > 3 검출이 가장 많은 프레임 (${F.u.length}개, 초록 원) · `+
+  const b=V.box||[0,0,F.w,F.h],p=V.pick,ft=`대표 프레임 ${F.frame+1}. ${D.images[F.frame].short} — ${{target:'대상이 칩 안에 있는 프레임 중 ',outside:'대상이 칩 안에 있는 프레임이 없어 전체 중 ',unknown:'칩 판정 불가(헤더 WCS를 읽지 못함) — 전체 중 '}[F.sel]||''}점수(seeing 0.5 + 깊이 UL5SKY 0.5, 프레임 간 백분위)가 가장 높은 프레임 · SNR > 3 검출 ${F.u.length}개 (초록 원) · `+
     `휠: 확대·축소 · 끌기: 이동 · 클릭: 화면에서 20 px 안의 가장 가까운 검출의 RA·Dec로 좌표 적용 (빨간 원) · 다른 유닛·필터의 프레임과 시야가 다를 수 있습니다`;
   return `<div class="card"><div class="bar"><label class="meta"><input type="checkbox" data-fov="on"${V.on?' checked':''}> 검출 원</label>`+
     `<button data-fov="reset">전체 시야</button>${tgtBtn()}<span class="bad" id="fmsg" style="font-size:12px"></span></div>`+
@@ -1089,9 +1155,11 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
     filters = ', '.join(sorted(rows['filter'].dropna().astype(str).unique()))
     tels = ', '.join(sorted(rows['telname'].dropna().astype(str).unique()))
     n_ok = int(rows['success'].astype(bool).sum())
+    from ezphot.dataobjects import PhotometricSpectrum
     data = dict(title=title, sub=f'{source} · {n_ok}/{len(rows)} 성공 · 필터 {filters} · {tels}',
                 stages=[s for s in STAGES if s in seen], labels=STAGE_LABELS, cols=SUMMARY_COLS,
-                images=images, run=run, lc=lc)
+                images=images, run=run, lc=lc,
+                sed_offset=float(PhotometricSpectrum.OFFSET))   # SED tab: step between overlaid time bins [mag]
     if lcdata is not None:
         data['lcdata'] = lcdata
     if any(s is not None for s in srcs):           # coordinate input in the light-curve / SED tabs
@@ -1104,13 +1172,13 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
         except Exception as e:                     # shown in the light-curve / SED tabs
             data['srcs'] = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'))
             print(f"[visualize] detections for coordinate input failed: {data['srcs']['error']}")
-        if 'file' in data['srcs']:                 # click input: whole field of the frame with the most detections
-            i = int(np.argmax([-1 if s is None else len(s['ra']) for s in srcs]))   # ties: first in gallery order
+        i, why, sel = _fov_frame(rows, srcs, ra, dec) if 'file' in data['srcs'] else (None, '', '')
+        if i is not None:                          # click input: whole field of one frame (seeing and depth score)
             try:
-                data['fov'] = dict(_fov(Path(rows.iloc[i]['path']), srcs[i], out), frame=i)
+                data['fov'] = dict(_fov(Path(rows.iloc[i]['path']), srcs[i], out), frame=i, sel=sel)
                 if verbose:
                     print(f"[visualize] click input: {FOV_FILE} {data['fov']['w']} x {data['fov']['h']} px of "
-                          f"{images[i]['name']} ({len(srcs[i]['ra'])} detections)")
+                          f"{images[i]['name']} ({len(srcs[i]['ra'])} detections; {why})")
             except Exception as e:                 # shown in the light-curve / SED tabs
                 data['fov'] = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'), frame=i)
                 print(f"[visualize] whole-field image for the click input failed: {data['fov']['error']}")

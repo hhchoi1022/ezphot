@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.7.7 (2026-11-05)
+### 변경
+- `recipes.process_images`·`recipes.stack`·`recipes.dia`: `out`을 주지 않으면 기본 경로 `~/ezphot/log/recipes/<objname>/<recipe>_<YYYYmmdd_HHMMSS>.csv`를 처리 **전**에 정한다. 그래서 파일명의 시각이 끝난 시각에서 **시작 시각**으로 바뀌고, 디렉터리도 처리 전에 만든다(빈 입력으로 `ValueError`가 나는 경우는 전처럼 만들지 않는다). 파일명 패턴은 그대로다. 파일 이름(시각)으로 최신 실행을 고르는 코드는 확인할 것: 오래 걸린 실행은, 그보다 늦게 시작해 먼저 끝난 실행보다 이름의 시각이 앞선다.
+- `recipes.visualize` 갤러리의 필터 색을 `LightCurve.FILTER_COLOR`와 같게 한다(중대역은 중대역 전체 파장 범위로 정규화한 plasma, 광대역 u/g/r/i/z/U/B/V/R/I 등은 고정색). 대상은 페이지 광도곡선·SED 탭의 점·선·필터 칩과 정적 그림 `lightcurve.png`다. 정규화 범위가 고정이라 갤러리가 달라도 같은 필터는 같은 색이다(이전: 페이지는 그 페이지 필터들의 파장 범위로 정규화한 보라→빨강 hsl, `lightcurve.png`는 matplotlib 순환색 `C0`, `C1`, …).
+  - `FILTER_COLOR`에 있는 필터는 다크·라이트 모드에서 같은 색이다. 없는 필터는 이전 색이다(페이지: 모드별 hsl 파장 보간, 파장이 없으면 회색; `lightcurve.png`: 순환색).
+  - 마커 모양·필터별 등급 오프셋은 그대로다.
+  - 밝은 바탕에서는 노란 계열(m800–m875, `i`), 어두운 바탕에서는 짙은 남색 계열(m375w–m400)이 잘 보이지 않을 수 있다.
+  - 이미 만든 갤러리는 `visualize --pages-only`로 페이지만 다시 만들면 반영된다(`sources.json`도 이때 다시 쓰이고, `lightcurve.png`는 처음처럼 `--lightcurve`를 주면 다시 그려진다).
+- `recipes.visualize` 광도곡선·SED 탭의 시야 이미지(`fov.jpg`, 클릭 입력) **대표 프레임 기준**을 바꾼다(이전: SNR > 3 검출이 가장 많은 프레임).
+  - 후보는 성공 행 가운데 검출(`.cat`)이 있는 프레임이다. 점수는 0.5 × p(−`SEEING`) + 0.5 × p(`UL5SKY_APER_3`)이고, p는 후보 안 백분위 순위(0–1, 같은 값은 평균 순위)다. 값이 없으면 그 항은 0점이다. 점수가 가장 높은 프레임을 고르고, 동률이면 갤러리 순서 앞이다. 필터는 구분하지 않는다. 후보가 없으면(성공 행에 검출이 없으면) 시야 이미지가 없다.
+  - `--ra`/`--dec`가 있으면 점수 순으로 헤더 WCS를 읽어, 대상이 칩 안(0-based 픽셀 −0.5 ≤ x < NAXIS1 − 0.5, y도 같음)인 첫 프레임을 고른다. 그런 프레임이 없으면 점수 1위다. 천구 WCS가 없거나 헤더를 읽지 못한 프레임은 건너뛰고 로그에 수와 첫 오류를 적는다. 하나도 판정하지 못하면 점수 1위이고 페이지에 "칩 판정 불가"로 표시한다. WCS 역변환이 수렴하지 않으면(`NoConvergence`) 칩 밖으로 본다. 이 때문에 후보 수만큼 헤더를 더 읽을 수 있다.
+  - 갤러리마다 시야 이미지와 클릭 입력에 쓰이는 프레임이 바뀔 수 있다. 매칭·측광 값은 바뀌지 않는다.
+  - 로그의 `click input` 줄에 고른 이유(SEEING, 깊이, 점수와 순위, 대상이 칩 안인지)가 붙는다. 페이지 데이터 `fov`에 `sel`(`target`·`outside`·`unknown`·`score`) 키가 생기고, 시야 이미지 툴팁 문구가 새 기준을 설명한다.
+  - 이미 만든 갤러리는 `visualize --pages-only`로 다시 만들면 반영된다.
+### 수정
+- `MaskGenerator.mask_circle`(와 이를 부르는 `ScienceImage.calculate_circularmask`, 레시피 `process_images`의 circularmask 단계): 원형 개구의 bounding box가 이미지와 겹치지 않으면(대상이 칩 밖) `ValueError: Target outside image: (<x>, <y>) [<unit>] -> pixel (<px>, <py>) (0-based), radius <r> px, image shape <shape> (ny, nx)`를 낸다(`unit='coord'`면 `(<x>, <y>)`는 RA/Dec(deg)). 이전에는 같은 경우 `AttributeError: 'NoneType' object has no attribute 'copy'`(data가 있는 외부 mask를 넘기면 `... 'astype'`)였다.
+  - 가장자리·모서리 바로 밖이라 bbox만 걸치면 이전처럼 빈 원형 마스크로 진행한다(예외 없음).
+  - 실패 여부는 그대로다(실패 → 실패). 예외 타입만 `AttributeError` → `ValueError`로 바뀌므로, 이 경우를 `AttributeError`로 잡던 호출처는 `ValueError`로 바꿔야 한다.
+  - `process_images` summary CSV의 `error` 열 문구가 위 메시지로 바뀐다(`step`은 그대로 `circularmask`). 일부만 겹치거나 칩 안이면 마스크와 수치는 이전과 같다.
+### 추가
+- `recipes.process_images`·`recipes.stack`·`recipes.dia`: 실행 중에 summary CSV 옆에 진행 파일 `<out>.progress.json`이 생긴다(예: `process_images_<tag>.csv.progress.json`). Python API에서 `out`을 준 경우에도 그 옆에 생긴다.
+  - 부모 프로세스가 시작할 때와 작업 하나(stack은 스택 하나)가 끝날 때마다 원자적으로 다시 쓴다(tmp + `os.replace`). 실행이 끝나도 지우지 않는다.
+  - 내용은 `recipes.status`가 읽는 내부 형식이라 바뀔 수 있다. 스키마는 약속하지 않는다.
+  - summary CSV의 열·값·행 순서(입력 순서), 반환, 종료 코드는 그대로다. 워커 프로세스가 죽을 때의 예외(`BrokenProcessPool`) 전파도 그대로다.
+  - 진행 파일을 쓰지 못하면(`OSError`) 실행마다 처음 한 번 `[progress] cannot write ...`를 출력하고 처리를 계속한다.
+- `recipes.status`(처리 목록 페이지): 실행 중인 실행의 진행률을 보여 준다.
+  - `~/ezphot/log/recipes/<objname>/`의 진행 파일로도 실행을 찾는다. 그래서 `--out`만 이 디렉터리로 주고 로그는 다른 곳에 쓰는 실행, `--out` 없이 기본 경로로 쓰는 실행(Python API 포함)도 실행 중에 보인다. `--out`이 이 디렉터리 밖인 실행은 지금처럼 목록에 없다.
+  - 실행 중 행: 상태 칸 "실행 중 N/M"(실패가 있으면 "(실패 k)"), 이미지 칸 M, 소요 칸 "1h05m 경과 · 약 20m 남음" 형식이다(끝난 실행은 지금처럼 초). 남은 시간은 경과/N × (M−N)이고, N = 0이면 경과만 나온다.
+  - "실행 중"으로 보는 조건은 셋이다. (1) 진행 파일의 pid가 이 호스트에서 살아 있다. 실행 시작 전에 시작된 프로세스여야 하므로 재사용된 pid는 걸러진다. (2) 레시피의 처리 루프가 아직 끝나지 않았다(반환도 예외도 아님). (3) csv가 실행 시작 뒤에 쓰이지 않았다. 지금처럼 `--out`이 맞는 레시피 프로세스가 있어도 실행 중이다.
+  - csv가 없고 프로세스가 없거나 처리 루프가 예외로 끝났으면 "중단 N/M"이다. 예를 들어 Python API에서 예외가 난 뒤에도 프로세스가 살아 있는 경우가 그렇다. 정상으로 끝난 Python API 실행은 루프가 끝난 뒤 csv를 쓰기까지의 짧은 동안 "중단"으로 보일 수 있다.
+  - stack·dia 실행은 실행 중·중단일 때만 행으로 나온다(실행 열 `stack_<tag>`/`dia_<tag>`). 끝나서 csv가 생기면 지금처럼 목록에서 빠진다. 끝난 실행의 표시·qa·"오래됨"은 그대로 process_images csv 기준이다.
+  - `collect()`가 돌려주는 실행 dict에 `recipe`, `done`, `failed`, `elapsed`, `remaining` 키가 생긴다(진행 파일이 없으면 `None`). 기존 키는 그대로다.
+  - 이미 떠 있는 실행(0.7.6 이하)은 진행 파일을 쓰지 않으므로 전처럼 보인다. 이미 떠 있는 `status --watch`는 다시 시작해야 반영된다.
+- `recipes.visualize`: 페이지 데이터(`lcdata`)와 `sources.json`(카탈로그 매칭 모드)의 `filters` 항목에 `c` 키(hex 색, `FILTER_COLOR`에 없으면 `null`)와 `o` 키(`LightCurve.FILTER_OFFSET` 등급, 없으면 0)가 생긴다. 페이지 데이터 맨 위에 `sed_offset`(`PhotometricSpectrum.OFFSET`)이 생긴다. 기존 키는 그대로다.
+- `recipes.visualize` 페이지 광도곡선 탭: **"필터 오프셋"** 켜기/끄기(기본 끔 = 이전과 같음). "등급" 모드에서만 보이고 적용된다.
+  - 켜면 필터마다 `LightCurve.FILTER_OFFSET`(없는 필터 0)을 그림의 등급에 더한다. 필터 칩 이름에 `LightCurve.plot` 범례처럼 `m625+2.0`으로 붙고, 툴팁에 오프셋 줄이 생기며, y축 이름에 `(+ offset)`이 붙는다. 툴팁의 등급 값은 오프셋 전 값이다.
+  - Δmag 모드(필터별 평균 기준 차이)와 필터별 패널에는 적용하지 않는다(필터마다 따로 보거나 평균을 빼므로 의미가 없다).
+- `recipes.visualize` 페이지 SED 탭: 여러 시간 bin을 겹쳐 볼 때 **"bin 오프셋"** 켜기/끄기(기본 끔). 켜면 k번째 bin(0부터)에 k × `PhotometricSpectrum.OFFSET`(2 등급)을 더해 세로로 벌린다. 그림 아래에 bin별 오프셋 범례(`PhotometricSpectrum.plot`처럼 `(+2.0)`), 툴팁에 오프셋 줄, y축 이름에 `(+ offset)`이 붙는다. bin 하나만 볼 때는 적용되지 않는다.
+  - 정적 `lightcurve.png`는 바뀌지 않는다. 이미 만든 갤러리는 `visualize --pages-only`로 다시 만들면 생긴다.
+
 ## 0.7.6 (2026-11-04)
 ### 수치 변경
 - `recipes.qa`: 기본 `qa_pass`에 색지수 검사 `|K_COLOR_APER_3_g-r| <= 0.2`가 들어간다(`color_max=0.2` 기본 켜짐). `K_COLOR_APER_3_g-r`는 photcal이 헤더에 남기는 10″ ZP 잔차의 g−r 기울기(mag/mag)이며, 모든 필터에 같은 기준을 쓴다.
