@@ -14,7 +14,11 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 interactive light-curve / SED tabs of MAGSKY_APER_3 (10") from 1 row on (a table with no usable
                 row gives the tabs with a note): frames are combined in the page per time bin and filter
                 (default 1 day, width changeable); filter wavelength = response-weighted mean of the transmission
-                curve in SYNPHOT_FILTERDIR (<observatory>_<filter>.csv, then <filter>.csv)
+                curve in SYNPHOT_FILTERDIR (<observatory>_<filter>.csv, then <filter>.csv); with gpimg importable
+                (optional dependency, not in requirements) also GP curves (mean and +-1 sigma) fitted once per gallery
+                to the points of the medium-band filters (m###; not m###w, not broad band): per filter in the
+                light-curve tab, over wavelength at the time of each bin in the SED tab (_gp_payload; --no-gp: none;
+                without gpimg, or when it refuses the data, the tabs say why)
     sources     .cat with MAGSKY_APER_3 -> detections with SNR > 3 (MAGERR_APER_3 < 1.0857/3: X_WORLD, Y_WORLD,
                 MAGSKY_APER_3, MAGERR_APER_3, SATDIST) of all frames in sources.json next to index.html; the light-curve /
                 SED tabs then take a coordinate (default --ra/--dec; with --lightcurve the table is shown first) and use
@@ -24,7 +28,8 @@ A stage is shown when its products are on disk (or when it is named in --stages)
                 header WCS has the target on the chip), and a click on it takes the RA/Dec of the nearest detection of that frame
 
     python -m ezphot.recipes.visualize summary.csv [--ra deg --dec deg] [--lightcurve lc.csv] \
-        [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8] [--skip-unchanged | --pages-only]
+        [--stages platesolve photometry] [--max-images N] [--root DIR] [--n-proc 8] [--skip-unchanged | --pages-only] \
+        [--no-gp]
 
 Images are drawn in --n-proc processes (default 8; 1 = one after the other): the first image of a gallery
 alone, so that its platesolve figure fills the sky-catalog cache, then the rest in parallel. The
@@ -75,6 +80,10 @@ VIZ_ROOT = Path.home() / 'viz'
 ZP_KEY = f'ZP_{D.APER10_KEY}'
 MAG_KEY, MAGERR_KEY, MAGSKY_KEY = f'MAG_{D.APER10_KEY}', f'MAGERR_{D.APER10_KEY}', f'MAGSKY_{D.APER10_KEY}'
 LC_BIN_DAYS = 1                                    # default time bin of the interactive light-curve / SED tabs
+GP_STEP_DAYS = 0.25                                # time grid of the GP curves in those tabs (coarser at GP_MAX_VALUES)
+GP_SED_NWAVE = 60                                  # SED tab: wavelengths evenly between the bands, besides the band ones
+GP_MAX_VALUES = 120000                             # grid values in the page (3 per grid point: mean, bounds), about 1 MB
+GP_ERR_FLOOR = 1e-4                                # mag, as the floor of the page's inverse-variance weights
 SOURCES_FILE = 'sources.json'                      # per-frame detections for the coordinate input of those tabs
 SOURCES_SNR = 3                                    # detections kept: MAGERR_APER_3 < 1.0857 / SOURCES_SNR
 SOURCES_RADIUS_ARCSEC = 5.0                        # default matching radius in the page (= target_photometry --radius)
@@ -445,6 +454,69 @@ def _lc_payload(lc: pd.DataFrame, run_paths=(), verbose=True) -> dict:
                 n_bad=int((~ok).sum()), filters=[filters[k] for k in keys], pts=pts)
 
 
+def _gp_payload(pts: list, filters: list, verbose=True) -> dict:
+    """GP curves of the interactive light-curve / SED tabs: one gpimg fit (optional dependency; Matérn-3/2 in time x
+    squared exponential in ln wavelength, no jitter, the best of 10 starts) of the page points (pts, filters of
+    _lc_payload) of the medium-band filters (m###, not broad): wavelength = the page's filter wavelength wl x 10 [Å],
+    flux = 10^(-0.4 (mag - 23.9)) [μJy], error = flux ln10 / 2.5 max(MAGERR, GP_ERR_FLOOR). No limit on the number of
+    bands here: gpimg refuses more than it was built for. One prediction (smoother 'rts') of the noise-free flux on
+    t = the time range of those points in steps of <= GP_STEP_DAYS (fewer, evenly spaced, when the grid would have more
+    than GP_MAX_VALUES / 3 points) x wl = the band wavelengths and GP_SED_NWAVE between the first and the last
+    (no extrapolation), as magnitudes rounded to 1 mmag: m of the mean, lo of mean + 1σ, hi of mean - 1σ (None where
+    the flux is <= 0). Returns dict(t [MJD], wl [nm], f = filter indices fitted, row = their row in wl, m, lo, hi
+    [row = wl][column = t], n, step [d], fit, version), or dict(error, skip) without paths: skip=True (a note in the
+    page, not a failure) when gpimg is not installed (ImportError) or there is no medium-band point, False when gpimg
+    is broken, refuses the data (e.g. more bands than its build takes) or fails."""
+    mask = lambda e: re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}')   # no paths in the page
+    try:
+        import gpimg
+    except Exception as e:                         # ImportError: not installed; anything else: a broken installation
+        out = dict(error=f'gpimg is not importable ({mask(e)}): optional dependency, no GP curves',
+                   skip=isinstance(e, ImportError))
+        print(f"[visualize] GP curves skipped: {out['error']}")
+        return out
+    try:
+        use = [i for i, f in enumerate(filters) if not f['broad'] and f['wl'] is not None]
+        band = {i: j for j, i in enumerate(use)}
+        p = [q for q in pts if q[1] in band]
+        if not p:
+            out = dict(error='no point of a medium-band (m###) filter to fit', skip=True)
+            print(f"[visualize] GP curves skipped: {out['error']}")
+            return out
+        t, m, e = (np.array([q[k] for q in p], float) for k in (0, 2, 3))
+        w = np.array([filters[i]['wl'] * 10 for i in use], float)
+        flux = 10 ** (-0.4 * (m - 23.9))
+        t_ref, span = t.min(), t.max() - t.min()      # times relative to the first point in the fit
+        t0 = time.time()
+        gp = gpimg.GP(t - t_ref, np.array([band[q[1]] for q in p], np.int32), flux,
+                      flux * np.log(10) / 2.5 * np.maximum(e, GP_ERR_FLOOR), wavelengths=w)
+        res = gp.fit(jitter=False, nstart=10)
+        wg = np.unique(np.concatenate([w, np.linspace(w.min(), w.max(), GP_SED_NWAVE)]))
+        nt = min(int(np.ceil(span / GP_STEP_DAYS - 1e-9)) + 1, max(2, GP_MAX_VALUES // (3 * wg.size)))
+        tg = np.linspace(0, span, nt) if span > 0 else np.zeros(1)
+        pr = gp.predict(tg, wg, smoother='rts')
+        with np.errstate(divide='ignore', invalid='ignore'):
+            sd = pr.std
+            mag = lambda f: np.where(f > 0, 23.9 - 2.5 * np.log10(f), np.nan)
+            mm, lo, hi = mag(pr.mean), mag(pr.mean + sd), mag(pr.mean - sd)
+        ser = lambda a: [[round(float(v), 3) if np.isfinite(v) else None for v in r] for r in a]
+        out = dict(t=[round(float(v + t_ref), 5) for v in tg], wl=[round(float(v) / 10, 2) for v in wg], f=use,
+                   row=[int(i) for i in np.searchsorted(wg, w)], m=ser(mm), lo=ser(lo), hi=ser(hi), n=len(p),
+                   step=round(float(tg[1] - tg[0]), 4) if tg.size > 1 else 0,
+                   fit=dict(amp=res.amplitude, lt=res.length_time, ll=res.length_wave, status=int(res.status),
+                            msg=res.message, converged=bool(res.converged), rank=int(pr.rank)),
+                   version=str(getattr(gpimg, '__version__', '')))
+    except Exception as e:                         # shown in the light-curve / SED tabs; the points are kept
+        out = dict(error=mask(e), skip=False)
+        print(f"[visualize] GP curves failed: {out['error']}")
+        return out
+    if verbose:
+        print(f"[visualize] GP curves (gpimg {out['version']}, {time.time() - t0:.1f} s): {len(p)} points, {len(use)} "
+              f"m### filters, l_t {res.length_time:.3g} d, l_lambda {res.length_wave:.3g}, {res.message}; grid {tg.size} "
+              f"x {wg.size} (step {out['step']} d), {len(json.dumps(out)) / 1e6:.2f} MB in the page")
+    return out
+
+
 def _sources(path: Path, row, info) -> Optional[dict]:
     """Detections of one frame for the coordinate input of the light-curve / SED tabs: rows of the .cat with finite
     X_WORLD, Y_WORLD, MAGSKY_APER_3 and MAGERR_APER_3 < 1.0857 / SOURCES_SNR (SATDIST None when missing; x, y =
@@ -673,6 +745,7 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .bar button.on{border-color:var(--acc);color:var(--acc);font-weight:600}
 .bar button[data-act=tgt]{flex:1 1 0;min-width:4em;max-width:max-content;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* target name: takes what is left of its row (no new row unless < 4em), shortened with "…"; whole name in title */
 .bar input[type=number]{width:80px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+.bar input[type=date]{padding:5px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;color-scheme:light dark}
 .bar input[data-crd=ra],.bar input[data-crd=dec]{width:150px;padding:6px;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;font:inherit;font-size:12px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;cursor:pointer}
@@ -744,13 +817,39 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').style.displ
 // interactive light curve / SED: L = D.lcdata (--lightcurve table) or detections in D.srcs.file matched to a coordinate;
 // time binning and combining happen here
 let L,FL,PT,FM,WL0,WL1;
-const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1,foff:false,boff:false},DARK=matchMedia('(prefers-color-scheme:dark)').matches;
-let TIPS=[],ZD=null;
+const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1,foff:false,boff:false,
+  bstep:+(D.sed_offset||0),gp:true},DARK=matchMedia('(prefers-color-scheme:dark)').matches;   // zoom: date range [MJD, MJD] of both tabs, null = all
+let TIPS=[],ZD=null,CPN=0;
 const utc=t=>new Date((t-40587)*864e5).toISOString().slice(0,19).replace('T',' ');
 const fwl=f=>f.wl==null?'파장 없음':f.src==='name'?`≈${f.wl} nm (이름 추정)`:`${f.wl} nm`;
 const wt=p=>1/Math.max(p.e,1e-4)**2;                 // inverse variance; floor keeps MAGERR=0 finite
 const sg=v=>(v<0?'':'+')+v.toFixed(1);               // as f'{v:+.1f}' of LightCurve / PhotometricSpectrum labels
 const fo=i=>S.foff&&S.mode==='abs'&&FL[i].o||0;       // LightCurve.FILTER_OFFSET (f.o): absolute light curve only
+const inR=t=>!S.zoom||t>=S.zoom[0]&&t<=S.zoom[1];      // in the date range (light-curve x range, SED bins)
+function trange(){let a=Infinity,b=-Infinity;for(const p of PT){if(p.t<a)a=p.t;if(p.t>b)b=p.t}return [a,b]}   // first, last point
+const xfull=()=>ext(trange(),.03);                   // whole range with the 3 % margin of the unzoomed light curve
+const gpOk=()=>!!(L.gp&&!L.gp.error&&L.gp.t),G=()=>S.gp&&gpOk()?L.gp:null;   // GP curves of the --lightcurve table (L.gp), when shown
+function gpLines(fi){ // GP of each shown medium-band filter (L.gp.f; fi: that one only) in the y of lcMarks: [{f, c, p, lo, hi}] of [MJD, y];
+  const g=G(),out=[];if(!g)return out;              // p: mean, lo / hi: mean + / - 1σ in magnitudes; null: flux <= 0, or outside the first .. last point of that filter
+  const R=new Map();for(const p of PT){const q=R.get(p.f);if(!q)R.set(p.f,[p.t,p.t]);else{if(p.t<q[0])q[0]=p.t;if(p.t>q[1])q[1]=p.t}}
+  g.f.forEach((i,j)=>{if(S.off.has(i)||(fi!=null&&i!==fi)||!R.has(i))return;const r=g.row[j],d=S.mode==='delta'?-FM[i]:fo(i),[ta,tb]=R.get(i),
+    ys=a=>g.t.map((t,k)=>[t,a[r][k]==null||t<ta-1e-5||t>tb+1e-5?null:a[r][k]+d]);
+    out.push({f:i,c:fcol(i),p:ys(g.m),lo:ys(g.lo),hi:ys(g.hi)})});
+  return out}
+const gpPlot=ls=>({lines:ls.map(g=>({p:g.p,c:g.c,w:1.5,op:.9})),bands:ls.map(g=>({c:g.c,lo:g.lo,hi:g.hi}))});   // plot() arguments
+function sedBins(){ // combined points with a wavelength, bin -> mean time of its points (tb) and the bins with that time in the date range (ib)
+  const all=bins().filter(c=>FL[c.f].wl!=null),tb=new Map();
+  for(const c of all){const a=tb.get(c.b)||[0,0];a[0]+=c.t*c.n;a[1]+=c.n;tb.set(c.b,a)}
+  for(const [b,a] of tb)tb.set(b,a[0]/a[1]);
+  return {all,tb,ib:[...tb.keys()].filter(b=>inR(tb.get(b))).sort((a,c)=>a-c)}}
+function sedGp(b,off,tb){ // GP over wavelength at the time of bin b (tb: sedBins().tb), linear in time between grid columns, + off [mag]:
+  const g=G();if(!g)return null;const t=(tb||sedBins().tb).get(b),T=g.t,n=T.length;   // {t, p, lo, hi} of [nm, mag], null outside the grid
+  if(t==null||t<T[0]-1e-6||t>T[n-1]+1e-6)return null;
+  let k=0;while(k<n-2&&T[k+1]<t)k++;
+  const a=n>1?Math.min(Math.max((t-T[k])/(T[k+1]-T[k]),0),1):0,
+    v=(r,j)=>{const x=r[j][k],y=n>1?r[j][k+1]:x;return x==null||y==null?null:x+(y-x)*a+(off||0)},
+    ys=r=>g.wl.map((w,j)=>[w,v(r,j)]);
+  return {t,p:ys(g.m),lo:ys(g.lo),hi:ys(g.hi)}}
 function fcol(i){if(FL[i].c)return FL[i].c;const w=FL[i].wl;if(w==null)return 'var(--mute)';const k=WL1>WL0?(w-WL0)/(WL1-WL0):.5;
   return `hsl(${Math.round(270*(1-k))},${DARK?80:70}%,${DARK?62:42}%)`}   // LightCurve.FILTER_COLOR, else violet (blue end) -> red
 function setL(l){L=l;FL=L.filters||[];PT=(L.pts||[]).map(p=>({t:p[0],f:p[1],m:p[2],e:p[3],fr:p[4],tel:p[5],run:p[6],sep:p[7],sat:p[8]}));
@@ -788,7 +887,12 @@ function plot(o){ // SVG scatter with error bars; smaller y on top (magnitudes);
   s+=`<rect class="ax" x="${l}" y="${t}" width="${iw}" height="${ih}"/>`;
   if(o.xl)s+=`<text x="${l+iw/2}" y="${H-4}" text-anchor="middle">${esc(o.xl)}</text>`;
   if(o.yl)s+=`<text transform="rotate(-90)" x="${-(t+ih/2)}" y="13" text-anchor="middle">${esc(o.yl)}</text>`;
-  for(const ln of o.lines||[])s+=`<polyline points="${ln.p.map(([a,c])=>X(a)+','+Y(c)).join(' ')}" style="fill:none;stroke:${ln.c};opacity:.6"/>`;
+  const runs=a=>{const r=[];let q=[];a.forEach((v,k)=>{if(v[1]==null){if(q.length)r.push(q);q=[]}else q.push(k)});if(q.length)r.push(q);return r};   // index runs with y != null
+  let g='';                                        // o.bands: ±1σ polygons, lo .. hi (hi null: past the faint edge); o.lines: null y breaks a line
+  for(const bd of o.bands||[])for(const q of runs(bd.lo))if(q.length>1)g+=`<polygon points="${q.map(k=>X(bd.lo[k][0])+','+Y(bd.lo[k][1])).concat(
+    q.slice().reverse().map(k=>X(bd.hi[k][0])+','+(bd.hi[k][1]==null?t+ih+2:Y(bd.hi[k][1])))).join(' ')}" style="fill:${bd.c};opacity:.15;stroke:none"/>`;
+  for(const ln of o.lines||[])for(const q of runs(ln.p))g+=`<polyline points="${q.map(k=>X(ln.p[k][0])+','+Y(ln.p[k][1])).join(' ')}" style="fill:none;stroke:${ln.c};opacity:${ln.op==null?'.6':ln.op}${ln.w?`;stroke-width:${ln.w}`:''}${ln.dash?`;stroke-dasharray:${ln.dash}`:''}"/>`;
+  if(g){const id=`cp${++CPN}`;s+=`<clipPath id="${id}"><rect x="${l}" y="${t}" width="${iw}" height="${ih}"/></clipPath><g clip-path="url(#${id})">${g}</g>`}   // curves end at the axes
   for(const k of ms){const i=TIPS.push(k.tip)-1,cx=X(k.x),cy=+Y(k.y),st=`stroke:${k.c};stroke-width:1.5;fill:${k.open?'var(--card)':k.c}`;
     s+=`<g data-tip="${i}" style="opacity:${k.op}"><line x1="${cx}" x2="${cx}" y1="${Y(k.y-k.e)}" y2="${Y(k.y+k.e)}" style="stroke:${k.c}"/>`+
       (k.sq?`<rect x="${cx-3.5}" y="${cy-3.5}" width="7" height="7" style="${st}"/>`:`<circle cx="${cx}" cy="${cy}" r="4" style="${st}"/>`)+
@@ -803,36 +907,46 @@ function lcMarks(fi){ // fi: one filter (grid panel) or null = all shown filters
 function lcPlot(){
   const ms=lcMarks(null);if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류 선택 확인).</div>';
   const x=S.zoom||ext(ms.map(k=>k.x),.03);
-  if(S.mode!=='grid')return plot({W:1100,H:440,x,marks:ms,xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)${S.foff?' (+ offset)':''}`,zoom:1});
+  if(S.mode!=='grid')return plot({W:1100,H:440,x,marks:ms,...gpPlot(gpLines(null)),xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)${S.foff?' (+ offset)':''}`,zoom:1});
   return `<div class="panels">${FL.map((f,i)=>{const m=S.off.has(i)?[]:lcMarks(i);
-    return m.length?`<div><h3>${esc(f.n)} · ${esc(fwl(f))}</h3>${plot({W:320,H:190,x,marks:m,zoom:1})}</div>`:''}).join('')}</div>`}
+    return m.length?`<div><h3>${esc(f.n)} · ${esc(fwl(f))}</h3>${plot({W:320,H:190,x,marks:m,...gpPlot(gpLines(i)),zoom:1})}</div>`:''}).join('')}</div>`}
 function sedPlot(){ // x = filter wavelength; one bin: filter colours, several bins: one hue, light (early) -> dark (late)
-  const w=S.bin,cs=bins().filter(c=>!S.off.has(c.f)&&FL[c.f].wl!=null),bs=[...new Set(cs.map(c=>c.b))].sort((a,c)=>a-c);
-  const shown=bs.filter(b=>S.sed<0||b===S.sed),one=shown.length<2,
+  const w=S.bin,{all,tb,ib}=sedBins(),cs=all.filter(c=>!S.off.has(c.f)&&ib.includes(c.b)),bs=[...new Set(cs.map(c=>c.b))].sort((a,c)=>a-c);   // bins in the date range
+  const sel=ib.includes(S.sed)?S.sed:-1,shown=bs.filter(b=>sel<0||b===sel),one=shown.length<2,
     col=(p,b)=>{if(one)return fcol(p.f);const k=bs.indexOf(b)/(bs.length-1);return `hsl(215,75%,${DARK?35+45*k:72-44*k}%)`},
-    bo=b=>S.boff&&!one?shown.indexOf(b)*(D.sed_offset||0):0,   // k-th overlaid bin + k x PhotometricSpectrum.OFFSET
+    bo=b=>S.boff&&!one?shown.indexOf(b)*S.bstep:0,   // k-th overlaid bin + k x the step (default PhotometricSpectrum.OFFSET)
     bt=b=>bo(b)?`\nbin 오프셋 ${sg(bo(b))} (그림 y = 등급 ${sg(bo(b))})`:'';
   const ms=[],lines=[];
   if(S.ind)for(const p of PT){const b=Math.floor((p.t-L.t0)/w);
     if(!S.off.has(p.f)&&FL[p.f].wl!=null&&shown.includes(b))ms.push(mark(p,FL[p.f].wl,p.m+bo(b),S.comb?.3:1,ptip(p)+bt(b),col(p,b)))}
   if(S.comb)for(const b of shown){const g=cs.filter(c=>c.b===b).sort((a,c)=>FL[a.f].wl-FL[c.f].wl);
     lines.push({c:one?'var(--mute)':col(g[0],b),p:g.map(c=>[FL[c.f].wl,c.m+bo(b)])});for(const c of g)ms.push(mark(c,FL[c.f].wl,c.m+bo(b),1,ctip(c)+bt(b),col(c,b)))}
-  if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류·bin 선택 확인).</div>';
-  let h=plot({W:1100,H:440,x:ext(ms.map(k=>k.x),.04),marks:ms,lines,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)${bo(shown[1])?' (+ offset)':''}`});
+  if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류·bin 선택·기간 확인).</div>';
+  const gb=shown.map(b=>[b,sedGp(b,bo(b),tb)]).filter(x=>x[1]),gc=one?'var(--fg)':null,bands=[];   // GP at the bin times
+  for(const [b,q] of gb){lines.push({c:gc||col(null,b),p:q.p,w:1.5,op:.9,dash:'6 3'});if(one)bands.push({c:gc,lo:q.lo,hi:q.hi})}
+  let h=plot({W:1100,H:440,x:ext(ms.map(k=>k.x),.04),marks:ms,lines,bands,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)${bo(shown[1])?` (${bo(shown[1])<0?'−':'+'} offset)`:''}`});
+  if(G())h+=`<p class="meta">GP (점선${one?', 띠 ±1σ':''}): ${one&&gb.length?`${utc(gb[0][1].t)} UTC (bin 점들의 평균 시각)`:`bin ${gb.length}개`}`+
+    `${shown.length>gb.length?` · GP 시간 범위 밖이라 곡선 없는 bin ${shown.length-gb.length}개`:''}</p>`;
   if(!one)h+=`<p class="meta">색: bin 시각 순 <span class="ramp" style="background:linear-gradient(90deg,${col(null,bs[0])},${col(null,bs[bs.length-1])})"></span> ${utc(L.t0+bs[0]*w)} → ${utc(L.t0+bs[bs.length-1]*w)} UTC</p>`;
   if(bo(shown[1]))h+=`<p class="meta">bin 오프셋: ${shown.map(b=>`<span style="color:${col(null,b)}">●</span> bin ${b} · ${utc(L.t0+b*w)} UTC${bo(b)?` (${sg(bo(b))})`:''}`).join(' · ')}</p>`;
   return h}
 function controls(sed){
   const mb=(v,lab)=>`<button data-act="mode" data-v="${v}" class="${S.mode===v?'on':''}">${lab}</button>`;
-  let h='<div class="bar">'+(sed?'':mb('abs','등급')+mb('delta','Δmag')+mb('grid','필터별 패널')+(S.zoom?'<button data-act="unzoom">범위 리셋</button>':'')+
+  let h='<div class="bar">'+(sed?'':mb('abs','등급')+mb('delta','Δmag')+mb('grid','필터별 패널')+
     (S.mode==='abs'?`<label class="meta" title="필터마다 LightCurve.FILTER_OFFSET 등급을 더해 그림 (등급 모드에서만)"><input type="checkbox" data-ctl="foff"${S.foff?' checked':''}> 필터 오프셋</label>`:''));
   h+=`<label class="meta">bin 폭 <input type="number" min="0" step="any" value="${S.bin}" data-ctl="bin"> 일</label>`+
     `<label class="meta"><input type="checkbox" data-ctl="comb"${S.comb?' checked':''}> 합친 점</label>`+
-    `<label class="meta"><input type="checkbox" data-ctl="ind"${S.ind?' checked':''}> 개별 점</label>`;
-  if(sed){const bs=[...new Set(bins().map(c=>c.b))].sort((a,c)=>a-c);
+    `<label class="meta"><input type="checkbox" data-ctl="ind"${S.ind?' checked':''}> 개별 점</label>`+
+    (gpOk()?`<label class="meta" title="gpimg GP 평균 ±1σ (중대역 m### 필터만)"><input type="checkbox" data-ctl="gp"${S.gp?' checked':''}> GP</label>`:'');
+  if(sed){const bs=sedBins().ib;   // bins in the date range
     if(bs.length>1)h+=`<select data-ctl="sed"><option value="-1">모든 bin 겹쳐 보기 (${bs.length})</option>${bs.map(b=>`<option value="${b}"${b===S.sed?' selected':''}>bin ${b} · ${utc(L.t0+b*S.bin)} UTC</option>`).join('')}</select>`+
-      `<label class="meta" title="겹쳐 볼 때 k번째 bin에 k × ${D.sed_offset} 등급을 더해 세로로 벌림 (PhotometricSpectrum.OFFSET)"><input type="checkbox" data-ctl="boff"${S.boff?' checked':''}> bin 오프셋</label>`}
-  return h+'</div>'}
+      `<label class="meta" title="겹쳐 볼 때 k번째 bin에 k × (오른쪽 칸) 등급을 더해 세로로 벌림 (기본 ${D.sed_offset} = PhotometricSpectrum.OFFSET)"><input type="checkbox" data-ctl="boff"${S.boff?' checked':''}> bin 오프셋</label>`+
+      `<label class="meta">k × <input type="number" step="0.1" value="${S.bstep}" data-ctl="bstep"> 등급</label>`}
+  return h+'</div>'+dates()}
+function dates(){ // date range of both tabs (S.zoom; UTC days in the fields, the end day included): light-curve x range, SED bins
+  if(!PT.length)return '';const [a,b]=trange(),z=S.zoom||[a,b],d=v=>utc(v).slice(0,10);
+  return `<div class="bar"><label class="meta">기간 (UTC) <input type="date" data-ctl="d0" value="${d(z[0])}"> – <input type="date" data-ctl="d1" value="${d(S.zoom?z[1]-1e-6:z[1])}"></label>`+
+    `<button data-act="unzoom"${S.zoom?'':' class="on"'}>전체 기간</button>${[7,30,100].filter(n=>b-a>n).map(n=>`<button data-act="last" data-v="${n}">마지막 ${n}일</button>`).join('')}</div>`}
 function chips(sed){
   return `<div class="chips"><button class="chip" data-act="all">전체</button><button class="chip" data-act="none">없음</button>${FL.map((f,i)=>
     `<button class="chip${S.off.has(i)?' off':''}" data-act="flt" data-v="${i}" title="${esc(fwl(f)+(f.src&&f.src!=='name'?` · ${f.src}`:''))}"><i class="${f.broad?'sq':''}" style="background:${fcol(i)}"></i>${esc(f.n)}${!sed&&fo(i)?sg(fo(i)):''}</button>`).join('')}</div>`}
@@ -840,18 +954,26 @@ function notes(sed){
   const est=FL.filter(f=>f.src==='name').map(f=>f.n),no=FL.filter(f=>f.wl==null).map(f=>f.n),bad=FL.filter(f=>f.note).map(f=>`${f.n}: ${f.note}`);
   let h=`<p class="cap">${esc(L.key)} (10″) · 점 ${PT.length}개${L.n_bad?`, 제외 ${L.n_bad}개 (MAGERR ≥ 99 또는 NaN)`:''} · bin = floor((MJD − ${L.t0==null?'–':L.t0.toFixed(5)}) / 폭) · `+
     `합친 점 = 같은 bin·필터(유닛 무관)의 등급 역분산 가중 평균, 오차 max(√(1/Σw), std/√n) · 채운 기호: 이번 summary의 이미지, 빈 기호: 다른 카탈로그 · ○ 중대역, □ 광대역`+
-    `${sed?'':' · 그림을 가로로 끌면 시간 범위를 확대합니다'}</p>`;
+    `${sed?' · 기간: bin 점들의 평균 시각이 기간 안인 bin만':' · 그림을 가로로 끌면 시간 범위를 확대합니다(기간 칸도 바뀜)'}</p>`;
   if(L.cat){const c=L.cat;h+=`<p class="cap">검출 카탈로그 매칭: RA ${c.ra.toFixed(6)}°, Dec ${c.dec.toFixed(6)}° 반경 ${c.r}″ 안에서 프레임마다 가장 가까운 검출 (SNR > ${c.snr}) · `+
     `카탈로그 있는 프레임 ${c.nf}장 중 ${c.nm}장에서 찾음${D.images.length>c.nf?`, 카탈로그 없는 프레임 ${D.images.length-c.nf}장`:''} · `+
     `<span class="${c.n2?'bad':''}">반경 안 검출 2개 이상 ${c.n2}장</span> · SNR ≤ ${c.snr}인 프레임은 빠짐 · target_photometry(카탈로그 사이 군집 선택)와 혼잡한 곳에서 다를 수 있음</p>`}
   if(est.length)h+=`<p class="cap">투과곡선이 없어 이름에서 파장을 추정: ${esc(est.join(', '))}</p>`;
   if(no.length)h+=`<p class="cap bad">파장 없음${sed?' (SED에서 제외)':''}: ${esc(no.join(', '))}</p>`;
   if(bad.length)h+=`<p class="cap bad">투과곡선 읽기 실패: ${esc(bad.join('; '))}</p>`;
-  return h}
+  return h+gpNote(sed)}
+function gpNote(sed){const g=L.gp;   // L.gp: --lightcurve table only (not catalog matching)
+  if(!g)return L.cat&&D.lcdata&&D.lcdata.gp?'<p class="cap">GP 곡선은 target_photometry 표(--lightcurve)에서만 그립니다.</p>':'';
+  if(g.error)return `<p class="cap${g.skip?'':' bad'}">GP 곡선 없음: ${esc(g.error)}</p>`;
+  const x=g.fit,sk=FL.filter((_,i)=>!g.f.includes(i)).map(f=>f.n),pr=v=>Number(v).toPrecision(3);
+  return `<p class="cap">GP (gpimg ${esc(g.version)}): 중대역 m### 필터 ${g.f.length}개의 점 ${g.n}개를 한 번 적합 · Matérn-3/2(시간) × 제곱지수(ln λ), 오차 = MAGERR(바닥 1e-4 등급), jitter 없음 · `+
+    `l_t ${pr(x.lt)} d, l_λ ${pr(x.ll)} (ln λ), A ${pr(x.amp)} μJy · 선 = 잡음 없는 flux의 사후 평균, 띠 = ±1σ (등급으로 바꿈; 평균 − 1σ ≤ 0이면 띠가 아래로 열림) · `+
+    `시간 격자 ${g.step} d, 적합한 점의 첫–마지막 시각 안만${x.converged?'':` · <span class="bad">최적화: ${esc(x.msg)}</span>`}${sk.length?` · GP에 넣지 않은 필터: ${esc(sk.join(', '))}`:''}`+
+    (sed?` · SED: bin 점들의 평균 시각에서 격자 사이를 시간 선형 보간, 파장 ${g.wl[0]}–${g.wl[g.wl.length-1]} nm (밴드 범위 안), bin 하나면 ±1σ 띠, 여럿이면 선만`:'')+'</p>'}
 function lcView(){const l=coordBar()+fovCard(),r=L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>';
   return l?`<div class="lcgrid"><div class="lcl">${l}</div><div>${r}</div></div>`:r}   // left: coordinate input + whole-field image, right: plot
 function draw(){
-  fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
+  ZP=false;fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
   if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
   if(C.msg){c.innerHTML=`<div class="empty${C.bad?' bad':''}">${esc(C.msg)}</div>`;return}
   c.innerHTML=controls(sed)+chips(sed)+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
@@ -910,11 +1032,32 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(
   if(k==='tgt'){if(T){C.ra=String(T[0]);C.dec=String(T[1]);C.r=String(D.srcs.radius||5);V.pick=-1}   // fields back to the target
     if(!D.lcdata){render();return apply()}C.mode='table';C.msg='';setL(D.lcdata);return render()}
   if(k==='mode')S.mode=a.dataset.v;else if(k==='unzoom')S.zoom=null;else if(k==='all')S.off.clear();
+  else if(k==='last'){const n=+a.dataset.v,b=trange()[1];S.zoom=[b-n,b+.03*n]}   // last n days of data (+3 % margin as the full x range)
   else if(k==='none')S.off=new Set(FL.map((_,i)=>i));else if(k==='flt'){const i=+a.dataset.v;S.off.has(i)?S.off.delete(i):S.off.add(i)}
   draw()});
 document.addEventListener('change',e=>{const k=e.target.dataset&&e.target.dataset.ctl;if(!k)return;
-  if(k==='bin'){const v=parseFloat(e.target.value);S.bin=v>0?v:1;S.sed=-1}else if(k==='sed')S.sed=+e.target.value;else S[k]=e.target.checked;
+  if(k==='d0'||k==='d1'){if(!e.target.dataset.typed)dset(e.target,1);return}   // calendar pick: now; typed: on Enter / leaving the field
+  if(k==='bin'){const v=parseFloat(e.target.value);S.bin=v>0?v:1;S.sed=-1}else if(k==='sed')S.sed=+e.target.value;
+  else if(k==='bstep'){const v=parseFloat(e.target.value);if(isFinite(v))S.bstep=v}   // not a number: the previous step (field rewritten)
+  else S[k]=e.target.checked;
   draw()});
+let ZP=false,PD=null;   // ZP: S.zoom set from a date field but not drawn yet (draw() clears it); PD: plot-card control being pressed
+function dset(el,now){ // a date field into S.zoom (UTC day start [MJD]; end field: end of that day); now: redraw, else ZP (a control redraws)
+  delete el.dataset.typed;
+  if(el.value===el.defaultValue){if(now&&ZP)draw();return}   // the field as drawn: no range from it (a pending one is drawn)
+  const v=Date.parse(el.value+'T00:00:00Z')/864e5+40587,z=S.zoom||xfull();
+  if(!isFinite(v)){if(now)draw();return}             // unreadable: the redraw rewrites the fields
+  let r=el.dataset.ctl==='d0'?[v,z[1]]:[z[0],v+1];if(r[0]>=r[1])r=[v,v+1];   // start after end: that one day
+  if(!S.zoom||r[0]!==S.zoom[0]||r[1]!==S.zoom[1]){S.zoom=r;if(now)draw();else ZP=true}else if(now&&ZP)draw()}
+const isd=el=>el&&el.dataset&&(el.dataset.ctl==='d0'||el.dataset.ctl==='d1');
+const ctlOf=el=>el&&el.closest?el.closest('#lcc label,#lcc [data-act],#lcc [data-ctl]'):null;   // a control of the plot card (redrawn by draw())
+document.addEventListener('pointerdown',e=>{PD=ctlOf(e.target);setTimeout(()=>{PD=null},0)},true);   // buttons that take no focus (Safari): relatedTarget null
+document.addEventListener('keydown',e=>{if(!isd(e.target))return;   // typing a date: no redraw (focus, half-typed years) until Enter or focus leaves
+  if(e.key==='Enter')dset(e.target,1);else if(e.key!=='Tab')e.target.dataset.typed='1'});
+document.addEventListener('focusout',e=>{const el=e.target,d=isd(el);   // a typed date field, or a plot-card control with a pending range, is left:
+  if(!(d&&el.dataset.typed)&&!(ZP&&ctlOf(el)))return;
+  const now=!(ctlOf(e.relatedTarget)||PD);           // to another plot-card control: no redraw here, its own handler redraws (its click is kept)
+  if(d)dset(el,now);else if(now)draw()});
 document.addEventListener('mousemove',e=>{
   if(ZD){const r=ZD.r,k=ZD.W/r.width,z=ZD.s.querySelector('.zr');
     z.setAttribute('x',((Math.min(ZD.a,e.clientX)-r.left)*k).toFixed(1));z.setAttribute('width',(Math.abs(e.clientX-ZD.a)*k).toFixed(1));return}
@@ -1129,7 +1272,7 @@ def _frame_order(rows: pd.DataFrame) -> pd.DataFrame:
 
 
 def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title: str, source: str,
-             ra=None, dec=None, stages=None, verbose=True, n_proc=8, infos=None, mode='all') -> Path:
+             ra=None, dec=None, stages=None, verbose=True, n_proc=8, infos=None, mode='all', gp=True) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     rows = _frame_order(rows)
     images, manifest, seen, srcs = [], {}, [], []
@@ -1152,6 +1295,8 @@ def _gallery(rows: pd.DataFrame, lc_df: Optional[pd.DataFrame], out: Path, title
         except Exception as e:                     # shown in the light-curve / SED tabs
             lcdata = dict(error=re.sub(r'(?<![\w.~])/[^\s\'"]+', '<path>', f'{type(e).__name__}: {e}'))   # no paths in the page
             print(f"[visualize] interactive light curve failed: {lcdata['error']}")
+        if gp and 'pts' in lcdata:                 # a GP failure is kept in lcdata['gp'], the points are shown
+            lcdata['gp'] = _gp_payload(lcdata['pts'], lcdata['filters'], verbose)
     filters = ', '.join(sorted(rows['filter'].dropna().astype(str).unique()))
     tels = ', '.join(sorted(rows['telname'].dropna().astype(str).unique()))
     n_ok = int(rows['success'].astype(bool).sum())
@@ -1201,14 +1346,17 @@ def visualize(summary: pd.DataFrame | str,
               verbose: bool = True,
               n_proc: int = 8,
               skip_unchanged: bool = False,
-              pages_only: bool = False) -> List[Path]:
+              pages_only: bool = False,
+              gp: bool = True) -> List[Path]:
     """Write per-stage figures and index.html for a process_images summary, one gallery per objname
     at <root>/ezphot/<objname>/viz/ (a later run of the same objname replaces the page); return the index paths.
     The images of a gallery are drawn in n_proc processes (1 = one after the other).
     skip_unchanged: a stage figure of a frame is not drawn again when its inputs (file mtime and size: image, .info,
     .cat, masks, masters, linked ezphot figures; not the sky-catalog archive) are those recorded in the frame folder's
     DONE_FILE by an earlier run of the same FIG_REV and its figures are all there. pages_only: no stage figure is drawn;
-    the pages are rebuilt from the figures on disk. Every run that draws (re)writes DONE_FILE; pages_only does not."""
+    the pages are rebuilt from the figures on disk. Every run that draws (re)writes DONE_FILE; pages_only does not.
+    gp: with a lightcurve table, fit the GP curves of the light-curve / SED tabs (_gp_payload; needs gpimg) in every
+    mode, pages_only included."""
     if skip_unchanged and pages_only:
         raise ValueError('skip_unchanged and pages_only exclude each other')
     mode = 'pages' if pages_only else 'skip' if skip_unchanged else 'all'
@@ -1233,7 +1381,8 @@ def visualize(summary: pd.DataFrame | str,
             if lc_all is not None and 'objname' in lc_all:
                 lc_df = lc_all[lc_all['objname'] == obj]
             indices.append(_gallery(g, lc_df, root / 'ezphot' / obj / 'viz', obj, source,
-                                    ra=ra, dec=dec, stages=stages, verbose=verbose, n_proc=n_proc, infos=infos, mode=mode))
+                                    ra=ra, dec=dec, stages=stages, verbose=verbose, n_proc=n_proc, infos=infos, mode=mode,
+                                    gp=gp))
     finally:
         _CACHE.clear()                              # no master set or tile left in the calling process
     return indices
@@ -1252,10 +1401,11 @@ def main(argv=None):
     g.add_argument('--skip-unchanged', action='store_true',
                    help=f'do not redraw a stage figure whose inputs did not change since it was drawn ({DONE_FILE})')
     g.add_argument('--pages-only', action='store_true', help='draw no stage figure; rebuild the pages from the figures on disk')
+    ap.add_argument('--no-gp', action='store_true', help='no GP curves in the light-curve / SED tabs (no gpimg fit)')
     a = ap.parse_args(argv)
     visualize(a.summary, ra=a.ra, dec=a.dec, lightcurve=a.lightcurve, stages=a.stages,
               max_images=a.max_images, root=a.root, n_proc=a.n_proc,
-              skip_unchanged=a.skip_unchanged, pages_only=a.pages_only)
+              skip_unchanged=a.skip_unchanged, pages_only=a.pages_only, gp=not a.no_gp)
     return 0
 
 
