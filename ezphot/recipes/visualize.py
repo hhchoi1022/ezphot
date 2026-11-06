@@ -818,8 +818,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').style.displ
 // time binning and combining happen here
 let L,FL,PT,FM,WL0,WL1;
 const S={bin:(D.lcdata||D.srcs||{}).bin||1,comb:true,ind:false,mode:'abs',off:new Set(),zoom:null,sed:-1,foff:false,boff:false,
-  bstep:+(D.sed_offset||0),gp:true},DARK=matchMedia('(prefers-color-scheme:dark)').matches;   // zoom: date range [MJD, MJD] of both tabs, null = all
-let TIPS=[],ZD=null,CPN=0;
+  bstep:+(D.sed_offset||0),gp:true,ly:null,sx:null,sy:null},DARK=matchMedia('(prefers-color-scheme:dark)').matches;   // zoom: date range [MJD, MJD] of both tabs, null = all
+// ly: light-curve y range [top, bottom, mode it was set in], sx / sy: SED x [nm] / y range, set by dragging an axis; null = automatic
+let TIPS=[],ZD=null,CPN=0,AX=[],AD=null,RAF=0;   // AX: geometry of the plots of the last draw(), AD: axis being dragged
 const utc=t=>new Date((t-40587)*864e5).toISOString().slice(0,19).replace('T',' ');
 const fwl=f=>f.wl==null?'파장 없음':f.src==='name'?`≈${f.wl} nm (이름 추정)`:`${f.wl} nm`;
 const wt=p=>1/Math.max(p.e,1e-4)**2;                 // inverse variance; floor keeps MAGERR=0 finite
@@ -855,7 +856,7 @@ function fcol(i){if(FL[i].c)return FL[i].c;const w=FL[i].wl;if(w==null)return 'v
 function setL(l){L=l;FL=L.filters||[];PT=(L.pts||[]).map(p=>({t:p[0],f:p[1],m:p[2],e:p[3],fr:p[4],tel:p[5],run:p[6],sep:p[7],sat:p[8]}));
   const wls=FL.map(f=>f.wl).filter(w=>w!=null);WL0=Math.min(...wls);WL1=Math.max(...wls);
   FM=FL.map((_,i)=>{let sw=0,sm=0;for(const p of PT)if(p.f===i){sw+=wt(p);sm+=wt(p)*p.m}return sm/sw});  // per-filter mean for dmag
-  S.off=new Set();S.zoom=null;S.sed=-1}
+  S.off=new Set();S.zoom=null;S.sed=-1;S.ly=S.sx=S.sy=null}
 function bins(){ // bin = floor((mjd - t0) / width); same bin and filter (any unit) -> inverse-variance mean in magnitudes
   const w=S.bin,g=new Map();
   for(const p of PT){const k=Math.floor((p.t-L.t0)/w)+'|'+p.f;if(!g.has(k))g.set(k,[]);g.get(k).push(p)}
@@ -877,9 +878,10 @@ function ctip(c,d){const f=FL[c.f],w=S.bin;
 function ext(a,pad){let lo=Math.min(...a),hi=Math.max(...a);if(!(hi>lo)){lo-=.5;hi+=.5}const d=(hi-lo)*pad;return [lo-d,hi+d]}
 function ticks(a,b,n){const raw=(b-a)/Math.max(n,2),p=10**Math.floor(Math.log10(raw)),st=[1,2,5,10].map(k=>k*p).find(k=>k>=raw),r=[];
   for(let i=Math.ceil(a/st);i*st<=b;i++)r.push(i*st);r.d=Math.max(0,-Math.floor(Math.log10(st)));return r}
-function plot(o){ // SVG scatter with error bars; smaller y on top (magnitudes); o.zoom: drag selects an x range
+function plot(o){ // SVG scatter with error bars; smaller y on top (magnitudes); o.zoom: drag selects an x range; o.y: y range [top, bottom], else automatic
   const W=o.W,H=o.H,l=o.yl?66:46,r=10,t=8,b=o.xl?36:22,iw=W-l-r,ih=H-t-b,[x0,x1]=o.x;
-  const ms=o.marks.filter(k=>k.x>=x0&&k.x<=x1),[y0,y1]=ms.length?ext(ms.flatMap(k=>[k.y-k.e,k.y+k.e]),.05):[0,1];
+  const ms=o.marks.filter(k=>k.x>=x0&&k.x<=x1),ya=ms.length?ext(ms.flatMap(k=>[k.y-k.e,k.y+k.e]),.05):[0,1],[y0,y1]=o.y||ya;
+  AX.push({x:[x0,x1],y:[y0,y1],l,t,iw,ih,W,xa:ext(o.marks.map(k=>k.x),0),ya});   // xa, ya: automatic ranges (x: all marks), bound of the axis drags
   const X=v=>(l+(v-x0)/(x1-x0)*iw).toFixed(1),Y=v=>(t+(v-y0)/(y1-y0)*ih).toFixed(1),xt=ticks(x0,x1,iw/100),yt=ticks(y0,y1,ih/40);
   let s=`<svg class="pl" viewBox="0 0 ${W} ${H}"${o.zoom?` data-zoom="${x0},${x1},${l},${iw},${W}"`:''}>`;
   for(const v of xt)s+=`<line class="gr" x1="${X(v)}" x2="${X(v)}" y1="${t}" y2="${t+ih}"/><text x="${X(v)}" y="${t+ih+14}" text-anchor="middle">${v.toFixed(xt.d)}</text>`;
@@ -892,11 +894,14 @@ function plot(o){ // SVG scatter with error bars; smaller y on top (magnitudes);
   for(const bd of o.bands||[])for(const q of runs(bd.lo))if(q.length>1)g+=`<polygon points="${q.map(k=>X(bd.lo[k][0])+','+Y(bd.lo[k][1])).concat(
     q.slice().reverse().map(k=>X(bd.hi[k][0])+','+(bd.hi[k][1]==null?t+ih+2:Y(bd.hi[k][1])))).join(' ')}" style="fill:${bd.c};opacity:.15;stroke:none"/>`;
   for(const ln of o.lines||[])for(const q of runs(ln.p))g+=`<polyline points="${q.map(k=>X(ln.p[k][0])+','+Y(ln.p[k][1])).join(' ')}" style="fill:none;stroke:${ln.c};opacity:${ln.op==null?'.6':ln.op}${ln.w?`;stroke-width:${ln.w}`:''}${ln.dash?`;stroke-dasharray:${ln.dash}`:''}"/>`;
-  if(g){const id=`cp${++CPN}`;s+=`<clipPath id="${id}"><rect x="${l}" y="${t}" width="${iw}" height="${ih}"/></clipPath><g clip-path="url(#${id})">${g}</g>`}   // curves end at the axes
+  let id='';                                       // curves end at the axes; marks too with o.y (points out of range cut)
+  if(g||o.y){id=`cp${++CPN}`;s+=`<clipPath id="${id}"><rect x="${l}" y="${t}" width="${iw}" height="${ih}"/></clipPath>`+(g?`<g clip-path="url(#${id})">${g}</g>`:'')}
+  if(o.y)s+=`<g clip-path="url(#${id})">`;
   for(const k of ms){const i=TIPS.push(k.tip)-1,cx=X(k.x),cy=+Y(k.y),st=`stroke:${k.c};stroke-width:1.5;fill:${k.open?'var(--card)':k.c}`;
     s+=`<g data-tip="${i}" style="opacity:${k.op}"><line x1="${cx}" x2="${cx}" y1="${Y(k.y-k.e)}" y2="${Y(k.y+k.e)}" style="stroke:${k.c}"/>`+
       (k.sq?`<rect x="${cx-3.5}" y="${cy-3.5}" width="7" height="7" style="${st}"/>`:`<circle cx="${cx}" cy="${cy}" r="4" style="${st}"/>`)+
       `<circle cx="${cx}" cy="${cy}" r="9" style="fill:transparent"/></g>`}
+  if(o.y)s+='</g>';
   return s+`<rect class="zr" x="0" y="${t}" width="0" height="${ih}"/></svg>`}
 function lcMarks(fi){ // fi: one filter (grid panel) or null = all shown filters
   const dl=S.mode==='delta',use=p=>!S.off.has(p.f)&&(fi==null||p.f===fi),y=p=>dl?p.m-FM[p.f]:p.m+fo(p.f),out=[],
@@ -906,8 +911,8 @@ function lcMarks(fi){ // fi: one filter (grid panel) or null = all shown filters
   return out}
 function lcPlot(){
   const ms=lcMarks(null);if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류 선택 확인).</div>';
-  const x=S.zoom||ext(ms.map(k=>k.x),.03);
-  if(S.mode!=='grid')return plot({W:1100,H:440,x,marks:ms,...gpPlot(gpLines(null)),xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)${S.foff?' (+ offset)':''}`,zoom:1});
+  const x=S.zoom||ext(ms.map(k=>k.x),.03),y=S.ly&&S.ly[2]===S.mode?S.ly:null;   // panels: y automatic
+  if(S.mode!=='grid')return plot({W:1100,H:440,x,y,marks:ms,...gpPlot(gpLines(null)),xl:'MJD (UTC)',yl:S.mode==='delta'?'Δmag (필터별 가중 평균 기준)':`${L.key} (10″)${S.foff?' (+ offset)':''}`,zoom:1});
   return `<div class="panels">${FL.map((f,i)=>{const m=S.off.has(i)?[]:lcMarks(i);
     return m.length?`<div><h3>${esc(f.n)} · ${esc(fwl(f))}</h3>${plot({W:320,H:190,x,marks:m,...gpPlot(gpLines(i)),zoom:1})}</div>`:''}).join('')}</div>`}
 function sedPlot(){ // x = filter wavelength; one bin: filter colours, several bins: one hue, light (early) -> dark (late)
@@ -924,7 +929,7 @@ function sedPlot(){ // x = filter wavelength; one bin: filter colours, several b
   if(!ms.length)return '<div class="empty">표시할 점이 없습니다 (필터·점 종류·bin 선택·기간 확인).</div>';
   const gb=shown.map(b=>[b,sedGp(b,bo(b),tb)]).filter(x=>x[1]),gc=one?'var(--fg)':null,bands=[];   // GP at the bin times
   for(const [b,q] of gb){lines.push({c:gc||col(null,b),p:q.p,w:1.5,op:.9,dash:'6 3'});if(one)bands.push({c:gc,lo:q.lo,hi:q.hi})}
-  let h=plot({W:1100,H:440,x:ext(ms.map(k=>k.x),.04),marks:ms,lines,bands,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)${bo(shown[1])?` (${bo(shown[1])<0?'−':'+'} offset)`:''}`});
+  let h=plot({W:1100,H:440,x:S.sx||ext(ms.map(k=>k.x),.04),y:S.sy,marks:ms,lines,bands,xl:'투과곡선 응답 가중 평균 파장 (nm)',yl:`${L.key} (10″)${bo(shown[1])?` (${bo(shown[1])<0?'−':'+'} offset)`:''}`});
   if(G())h+=`<p class="meta">GP (점선${one?', 띠 ±1σ':''}): ${one&&gb.length?`${utc(gb[0][1].t)} UTC (bin 점들의 평균 시각)`:`bin ${gb.length}개`}`+
     `${shown.length>gb.length?` · GP 시간 범위 밖이라 곡선 없는 bin ${shown.length-gb.length}개`:''}</p>`;
   if(!one)h+=`<p class="meta">색: bin 시각 순 <span class="ramp" style="background:linear-gradient(90deg,${col(null,bs[0])},${col(null,bs[bs.length-1])})"></span> ${utc(L.t0+bs[0]*w)} → ${utc(L.t0+bs[bs.length-1]*w)} UTC</p>`;
@@ -942,6 +947,8 @@ function controls(sed){
     if(bs.length>1)h+=`<select data-ctl="sed"><option value="-1">모든 bin 겹쳐 보기 (${bs.length})</option>${bs.map(b=>`<option value="${b}"${b===S.sed?' selected':''}>bin ${b} · ${utc(L.t0+b*S.bin)} UTC</option>`).join('')}</select>`+
       `<label class="meta" title="겹쳐 볼 때 k번째 bin에 k × (오른쪽 칸) 등급을 더해 세로로 벌림 (기본 ${D.sed_offset} = PhotometricSpectrum.OFFSET)"><input type="checkbox" data-ctl="boff"${S.boff?' checked':''}> bin 오프셋</label>`+
       `<label class="meta">k × <input type="number" step="0.1" value="${S.bstep}" data-ctl="bstep"> 등급</label>`}
+  if(sed||S.mode!=='grid')h+=`<button data-act="auto"${(sed?S.sx||S.sy:S.ly)?'':' class="on"'} title="${sed?'x(파장)·y':'y'} 범위를 자동으로. `+
+    `축 눈금 숫자 줄을 끌면 범위를 바꿉니다: 양 끝 1/3은 그쪽 한계만, 가운데는 범위째 이동. 축을 더블클릭하면 그 축만 자동${sed?'':' (x: 전체 기간)'}">축 자동</button>`;
   return h+'</div>'+dates()}
 function dates(){ // date range of both tabs (S.zoom; UTC days in the fields, the end day included): light-curve x range, SED bins
   if(!PT.length)return '';const [a,b]=trange(),z=S.zoom||[a,b],d=v=>utc(v).slice(0,10);
@@ -954,7 +961,8 @@ function notes(sed){
   const est=FL.filter(f=>f.src==='name').map(f=>f.n),no=FL.filter(f=>f.wl==null).map(f=>f.n),bad=FL.filter(f=>f.note).map(f=>`${f.n}: ${f.note}`);
   let h=`<p class="cap">${esc(L.key)} (10″) · 점 ${PT.length}개${L.n_bad?`, 제외 ${L.n_bad}개 (MAGERR ≥ 99 또는 NaN)`:''} · bin = floor((MJD − ${L.t0==null?'–':L.t0.toFixed(5)}) / 폭) · `+
     `합친 점 = 같은 bin·필터(유닛 무관)의 등급 역분산 가중 평균, 오차 max(√(1/Σw), std/√n) · 채운 기호: 이번 summary의 이미지, 빈 기호: 다른 카탈로그 · ○ 중대역, □ 광대역`+
-    `${sed?' · 기간: bin 점들의 평균 시각이 기간 안인 bin만':' · 그림을 가로로 끌면 시간 범위를 확대합니다(기간 칸도 바뀜)'}</p>`;
+    `${sed?' · 기간: bin 점들의 평균 시각이 기간 안인 bin만':' · 그림을 가로로 끌면 시간 범위를 확대합니다(기간 칸도 바뀜)'}`+
+    ` · 축 눈금 숫자 줄을 끌면 범위 조절(양 끝 1/3: 그쪽 한계, 가운데: 이동${sed?'':'; x는 기간 칸도 바뀜, 필터별 패널은 x만'}) · 축 더블클릭: 그 축 자동${sed?'':'(x: 전체 기간)'}</p>`;
   if(L.cat){const c=L.cat;h+=`<p class="cap">검출 카탈로그 매칭: RA ${c.ra.toFixed(6)}°, Dec ${c.dec.toFixed(6)}° 반경 ${c.r}″ 안에서 프레임마다 가장 가까운 검출 (SNR > ${c.snr}) · `+
     `카탈로그 있는 프레임 ${c.nf}장 중 ${c.nm}장에서 찾음${D.images.length>c.nf?`, 카탈로그 없는 프레임 ${D.images.length-c.nf}장`:''} · `+
     `<span class="${c.n2?'bad':''}">반경 안 검출 2개 이상 ${c.n2}장</span> · SNR ≤ ${c.snr}인 프레임은 빠짐 · target_photometry(카탈로그 사이 군집 선택)와 혼잡한 곳에서 다를 수 있음</p>`}
@@ -973,7 +981,7 @@ function gpNote(sed){const g=L.gp;   // L.gp: --lightcurve table only (not catal
 function lcView(){const l=coordBar()+fovCard(),r=L.error?`<div class="card"><div class="empty bad">광도곡선·SED 데이터를 만들지 못했습니다: ${esc(L.error)}</div></div>`:'<div class="card" id="lcc"></div>';
   return l?`<div class="lcgrid"><div class="lcl">${l}</div><div>${r}</div></div>`:r}   // left: coordinate input + whole-field image, right: plot
 function draw(){
-  ZP=false;fovView();const c=$('#lcc');if(!c)return;TIPS=[];const sed=tab==='sed';
+  ZP=false;fovView();const c=$('#lcc');if(!c)return;TIPS=[];AX=[];const sed=tab==='sed';
   if(C.auto){C.auto=false;apply()}           // --ra/--dec without --lightcurve: match on the first opening
   if(C.msg){c.innerHTML=`<div class="empty${C.bad?' bad':''}">${esc(C.msg)}</div>`;return}
   c.innerHTML=controls(sed)+chips(sed)+(PT.length?(sed?sedPlot():lcPlot()):'<div class="empty">표시할 점이 없습니다.</div>')+notes(sed)}
@@ -1031,7 +1039,9 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(
   if(k==='crd')return apply();
   if(k==='tgt'){if(T){C.ra=String(T[0]);C.dec=String(T[1]);C.r=String(D.srcs.radius||5);V.pick=-1}   // fields back to the target
     if(!D.lcdata){render();return apply()}C.mode='table';C.msg='';setL(D.lcdata);return render()}
-  if(k==='mode')S.mode=a.dataset.v;else if(k==='unzoom')S.zoom=null;else if(k==='all')S.off.clear();
+  if(k==='mode'){S.mode=a.dataset.v;if(S.ly&&S.mode!=='grid'&&S.ly[2]!==S.mode)S.ly=null}   // magnitude <-> Δmag: y automatic (kept through the panels)
+  else if(k==='auto'){if(tab==='sed')S.sx=S.sy=null;else S.ly=null}
+  else if(k==='unzoom')S.zoom=null;else if(k==='all')S.off.clear();
   else if(k==='last'){const n=+a.dataset.v,b=trange()[1];S.zoom=[b-n,b+.03*n]}   // last n days of data (+3 % margin as the full x range)
   else if(k==='none')S.off=new Set(FL.map((_,i)=>i));else if(k==='flt'){const i=+a.dataset.v;S.off.has(i)?S.off.delete(i):S.off.add(i)}
   draw()});
@@ -1058,13 +1068,39 @@ document.addEventListener('focusout',e=>{const el=e.target,d=isd(el);   // a typ
   if(!(d&&el.dataset.typed)&&!(ZP&&ctlOf(el)))return;
   const now=!(ctlOf(e.relatedTarget)||PD);           // to another plot-card control: no redraw here, its own handler redraws (its click is kept)
   if(d)dset(el,now);else if(now)draw()});
+// axis drag: the tick-label band below the x axis / left of the y axis; the outer thirds move that limit only (the other fixed),
+// the middle third moves the range; the grabbed value follows the pointer. Light curve: x = S.zoom, y = S.ly (not the panels); SED: S.sx, S.sy
+function axAt(s,e){ // [state key, 0 x / 1 y, axis fraction from the left / top, range at the press, automatic range] under the mouse; 0: plot area, margins; null: panel y
+  const G=AX[0];if(!G)return 0;const r=s.getBoundingClientRect(),k=G.W/r.width,px=(e.clientX-r.left)*k,py=(e.clientY-r.top)*k,sed=tab==='sed';   // AX[0]: the one plot, or panels of one geometry and x
+  if(py>G.t+G.ih&&px>=G.l&&px<=G.l+G.iw)return [sed?'sx':'zoom',0,(px-G.l)/G.iw,G.x,G.xa];
+  if(px<G.l&&py>=G.t&&py<=G.t+G.ih)return sed||S.mode!=='grid'?[sed?'sy':'ly',1,(py-G.t)/G.ih,G.y,G.ya]:null;
+  return 0}
+const axEnd=f=>f<1/3?0:f>2/3?1:.5,axCur=q=>q?axEnd(q[2])===.5?'move':q[1]?'ns-resize':'ew-resize':'';
+function axDrag(a,f0,f,e,b){ // range a at the press, grabbed at fraction f0, pointer now at f -> range with the grabbed value at f, kept in the
+  const w=a[1]-a[0],v=a[0]+f0*w,B=b[1]-b[0],lo=Math.min(b[0]-100*B,a[0]),hi=Math.max(b[1]+100*B,a[1]);   // automatic range b ± 100 × its width (or a): repeated drags do not grow it
+  if(e===.5){const s=Math.min(Math.max((f0-f)*w,lo-a[0]),hi-a[1]);return [a[0]+s,a[1]+s]}   // moved, width kept
+  const d=e?v-a[0]:a[1]-v,q=e?f:1-f,m=Math.max(w*1e-3,Math.abs(a[0])*1e-8,Math.abs(a[1])*1e-8),M=e?hi-a[0]:a[1]-lo,
+    n=Math.min(Math.max(q>0?d/q:M,m),M);          // e 0 / 1: lower / upper limit only; width in [m, M]: no flip (pointer at or past the fixed end), no zero width (ticks())
+  return e?[a[0],a[0]+n]:[a[1]-n,a[1]]}
+function axMove(e){const {G,r}=AD,k=G.W/r.width;
+  if(!AD.moved){if(Math.abs(AD.xy?e.clientY-AD.cy:e.clientX-AD.cx)<=5)return;AD.moved=true}   // a click or a shake (<= 5 px along the axis) changes nothing
+  const f=AD.xy?((e.clientY-r.top)*k-G.t)/G.ih:((e.clientX-r.left)*k-G.l)/G.iw,z=axDrag(AD.a,AD.f0,f,AD.e,AD.b);
+  if(AD.k==='ly')z.push(S.mode);S[AD.k]=z;
+  if(!RAF){RAF=1;requestAnimationFrame(()=>{RAF=0;draw()})}}   // one draw() per frame; the svg is new after each
+document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.closest('#lcc svg.pl'),q=s&&!e.button&&axAt(s,e);if(!q)return;
+  AD={k:q[0],xy:q[1],f0:q[2],a:q[3].slice(),b:q[4].slice(),e:axEnd(q[2]),r:s.getBoundingClientRect(),G:AX[0],cx:e.clientX,cy:e.clientY,moved:false};
+  document.body.style.cursor=axCur(q);$('#tip').style.display='none';e.preventDefault()});
+document.addEventListener('mouseup',()=>{if(AD){AD=null;document.body.style.cursor=''}});
+document.addEventListener('dblclick',e=>{const s=e.target.closest&&e.target.closest('#lcc svg.pl'),q=s&&axAt(s,e);if(!q)return;S[q[0]]=null;draw()});   // that axis automatic
 document.addEventListener('mousemove',e=>{
+  if(AD)return axMove(e);
   if(ZD){const r=ZD.r,k=ZD.W/r.width,z=ZD.s.querySelector('.zr');
     z.setAttribute('x',((Math.min(ZD.a,e.clientX)-r.left)*k).toFixed(1));z.setAttribute('width',(Math.abs(e.clientX-ZD.a)*k).toFixed(1));return}
+  const p=e.target.closest&&e.target.closest('#lcc svg.pl');if(p)p.style.cursor=axCur(axAt(p,e));   // axis ends: resize, middle: move
   const g=e.target.closest&&e.target.closest('[data-tip]'),tp=$('#tip');if(!g){tp.style.display='none';return}
   tp.textContent=TIPS[+g.dataset.tip];tp.style.display='block';
   tp.style.left=Math.min(e.clientX+14,innerWidth-tp.offsetWidth-8)+'px';tp.style.top=Math.min(e.clientY+14,innerHeight-tp.offsetHeight-8)+'px'});
-document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.closest('svg[data-zoom]');if(!s||e.button)return;
+document.addEventListener('mousedown',e=>{const s=e.target.closest&&e.target.closest('svg[data-zoom]');if(!s||e.button||axAt(s,e)!==0)return;   // not on an axis band
   ZD={s,r:s.getBoundingClientRect(),a:e.clientX,W:+s.dataset.zoom.split(',')[4]};$('#tip').style.display='none';e.preventDefault()});
 document.addEventListener('mouseup',e=>{if(!ZD)return;const {s,r,a}=ZD,[x0,x1,l,iw,W]=s.dataset.zoom.split(',').map(Number),k=W/r.width;ZD=null;
   const px=c=>x0+((c-r.left)*k-l)/iw*(x1-x0);
