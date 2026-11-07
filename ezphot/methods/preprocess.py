@@ -120,7 +120,8 @@ class Preprocess:
                         exptime: float = None,
                         filter_: str = None,
                         max_days: float = 30,
-                        verbose: bool = True):
+                        verbose: bool = True,
+                        dark_exptime_fallback: bool = False):
         """
         Get master frame from the image.
         
@@ -144,6 +145,11 @@ class Preprocess:
             The observation date of the image to get the master frame from.
         max_days : float, optional
             The maximum number of days to search for the master frame.
+        dark_exptime_fallback : bool, optional
+            DARK only. If True, the group (or the max_days window) is chosen from darks of any exposure.
+            Within it, among darks with exposure >= exptime, the nearest night is taken (masters within 0.5 day
+            of the nearest one's obsdate), and in that night the dark of the same exposure, else the shortest
+            longer one (scaled by EXPTIME in correct_dark). Darks shorter than exptime are never used; None if none is left.
             
         Returns
         -------
@@ -182,8 +188,12 @@ class Preprocess:
 
         mask &= (all_masterframe_tbl['imagetyp'] == imagetyp.upper())
 
+        dark_fallback = (dark_exptime_fallback and imagetyp.upper() == 'DARK' and exptime is not None
+                         and 'exptime' in all_masterframe_tbl.colnames)
         if imagetyp.upper() == 'DARK' and exptime is not None and 'exptime' in all_masterframe_tbl.colnames:
-            mask &= np.isclose(all_masterframe_tbl['exptime'], exptime)
+            # With dark_fallback the exposure is chosen after the group (below)
+            if not dark_fallback:
+                mask &= np.isclose(all_masterframe_tbl['exptime'], exptime)
             
         elif imagetyp.upper() == 'FLAT' and filter_ is not None and 'filtername' in all_masterframe_tbl.colnames:
             mask &= (all_masterframe_tbl['filtername'] == filter_)
@@ -218,6 +228,25 @@ class Preprocess:
                 self.helper.print("No calibration frame found within max_days.", verbose)
                 return None
             sub_mask = within_range
+
+        if dark_fallback:
+            # Candidates: darks not shorter than the frame. Nearest night = candidates within 0.5 day of the nearest
+            # candidate's obsdate; in it the same exposure if present, else the shortest longer one
+            dark_exptimes = np.asarray(all_masterframe_tbl['exptime'], dtype=float)
+            candidates = np.asarray(sub_mask, dtype=bool) & ((dark_exptimes > exptime) | np.isclose(dark_exptimes, exptime))
+            if not np.any(candidates):
+                self.helper.print(f"No DARK with exptime >= {exptime} s in the selected master frames.", verbose)
+                return None
+            delta_t = np.asarray(all_masterframe_tbl['time_difference'], dtype=float)
+            nearest = np.argmin(np.where(candidates, delta_t, np.inf))
+            night = candidates & (np.abs(obs_times - obs_times[nearest]) < 0.5)
+            same_exptime = night & np.isclose(dark_exptimes, exptime)
+            if np.any(same_exptime):
+                sub_mask = same_exptime
+            else:
+                used_exptime = dark_exptimes[night].min()
+                sub_mask = night & np.isclose(dark_exptimes, used_exptime)
+                self.helper.print(f"DARK {used_exptime} s used for {exptime} s frame (scaled)", verbose)
 
         # === Final filtering ===
         filtered_tbl = all_masterframe_tbl[sub_mask]

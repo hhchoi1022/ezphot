@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.10 (2026-11-07)
+### 추가
+- 같은 노출의 master dark가 없을 때 더 긴 노출의 dark를 쓰는 선택 옵션(기본 꺼짐, 끄면 선택 결과는 0.7.9와 같다).
+  - `Preprocess.get_masterframe(..., dark_exptime_fallback=False)`: 새 인자(맨 끝). `True`이고 `imagetyp='DARK'`, `exptime`이 주어지면
+    master group을 노출과 무관하게 고른다(관측소·telkey·telname이 맞는 DARK 행 가운데 시간상 가장 가까운 `group_id >= 0` 행의 group).
+    그 group 안에서 프레임 노출 이상(`np.isclose` 포함)인 dark를 후보로, 시간상 가장 가까운 밤을 고른다
+    (밤 = 시간차가 가장 작은 후보의 `obsdate`에서 0.5일 안에 있는 후보들). 그 밤 안에서 같은 노출 행이 있으면 그것을,
+    없으면 프레임보다 긴 노출 가운데 가장 짧은 노출의 행을 쓴다. 그래서 group이 길어도 먼 밤의 같은 노출보다 가까운 밤의 긴 노출이 먼저다.
+    **프레임보다 짧은 dark는 쓰지 않는다.** 그 group에 후보가 없으면 `None`이다(다른 group으로 가지 않는다).
+    `group_id >= 0` 행이 없으면(시간 분기) `max_days` 안의 행에 같은 규칙을 적용한다. 반환 표는 고른 밤·노출의 행만 `time_difference` 순으로 담는다.
+  - 다른 노출을 고르면 `verbose`일 때 `DARK <x> s used for <y> s frame (scaled)` 한 줄을 출력한다. 환산은 기존 `correct_dark`/`correct_bdf`의
+    `ccdproc.subtract_dark(scale=True, exposure_time='EXPTIME')`가 한다. 헤더 키는 새로 없고, 쓰인 dark는 기존 `DARKPATH`로 확인한다.
+  - 켜면 같은 노출 dark가 다른 group이나 같은 group의 먼 밤에 있어도 가까운 밤의 긴 노출 dark가 선택된다. 켰을 때 고른 group이
+    꺼졌을 때와 같고 그 group에서 가장 가까운 후보 밤에 같은 노출이 있으면 선택되는 dark(`[0]`)는 대개 같다(반환 표는 그 밤의 행만 담는다;
+    두 밤의 거의 중간인 프레임은 예외일 수 있다). group 경계 근처 프레임에서는 같은 노출 dark도
+    꺼졌을 때와 다른(더 먼 날짜일 수 있는) group에서 고를 수 있다.
+  - `ImageMethod.get_masterframe(imagetyp, max_days=10, dark_exptime_fallback=False)`, `ImageMethod.correct_bdf(..., dark_exptime_fallback=False)`:
+    같은 인자(맨 끝). `correct_bdf`는 `dark_image`가 없을 때의 DARK 조회에만 넘긴다. `ImageMethod.correct_dark`에는 없다.
+  - `recipes.process_images`: CLI `--dark-fallback`(`--preprocess`와 함께), Python `process_images(..., dark_exptime_fallback=False)`,
+    `process_image(..., dark_exptime_fallback=False)`(둘 다 맨 끝). summary CSV 열은 그대로다.
+  - 켜도 맞는 dark가 없으면 dark가 없을 때와 같이 실패한다(`correct_bdf`/레시피 `step=correct_bdf` 오류).
+
 ## 0.7.9 (2026-11-06)
 ### 추가
 - `recipes.visualize` 광도곡선·SED 탭: **축 드래그로 x·y 범위 조절**. 축 바깥의 눈금 숫자 줄(x: 축 아래, y: 축 왼쪽)을 끈다.

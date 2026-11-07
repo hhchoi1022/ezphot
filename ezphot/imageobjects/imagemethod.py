@@ -110,7 +110,8 @@ class ImageMethod:
                     dark_image: Union[CalibrationImage, MasterImage] = None,
                     flat_image: Union[CalibrationImage, MasterImage] = None,
                     save: bool = False,
-                    verbose: bool = True
+                    verbose: bool = True,
+                    dark_exptime_fallback: bool = False
                     ):
         """
         Correct bias, dark, and flat.
@@ -125,6 +126,10 @@ class ImageMethod:
             The flat image to correct bias, dark, and flat.
         save : bool, optional
             Whether to save the corrected image.
+        dark_exptime_fallback : bool, optional
+            When dark_image is None, choose the master group from darks of any exposure and, in its nearest
+            night with a dark not shorter than the frame, use the same exposure, else the shortest longer one
+            (see Preprocess.get_masterframe).
 
         Returns
         -------
@@ -139,7 +144,7 @@ class ImageMethod:
             else:
                 bias_image = bias_image[0]
         if dark_image is None:
-            dark_image = self.get_masterframe(imagetyp = 'DARK', max_days = 100)
+            dark_image = self.get_masterframe(imagetyp = 'DARK', max_days = 100, dark_exptime_fallback = dark_exptime_fallback)
             if dark_image is None:
                 raise ValueError("Cannot correct bias, dark, and flat: Required dark frame is missing.")
             else:
@@ -743,7 +748,8 @@ class ImageMethod:
     
     def get_masterframe(self,
                         imagetyp: str,
-                        max_days: float = 10
+                        max_days: float = 10,
+                        dark_exptime_fallback: bool = False
                         ):
         """
         Get master frame from the image.
@@ -756,6 +762,8 @@ class ImageMethod:
             The type of image to get the master frame from. (BIAS, DARK, FLAT)
         max_days : float, optional
             The maximum number of days to search for the master frame.
+        dark_exptime_fallback : bool, optional
+            DARK only: see Preprocess.get_masterframe.
             
         Returns
         -------
@@ -770,6 +778,7 @@ class ImageMethod:
             target_img = self,
             imagetyp = imagetyp,
             max_days = max_days,
+            dark_exptime_fallback = dark_exptime_fallback,
             )
                 
         return result
