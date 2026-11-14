@@ -7,7 +7,8 @@ write into the archive (~/ezphot/data, shared with BRIDGE).
     -> creates <base>/<purpose>_<YYYYmmdd_HHMMSS> (mode 700) and prints its path as T
     HOME=$T/home MPLCONFIGDIR=/tmp/ezphot-matplotlib python -m ezphot.recipes.process_images --paths <real fits> ...
 
-$T/home/ezphot/config is a copy of ~/ezphot/config whose data and log dirs point to $T/archive and $T/log.
+$T/home/ezphot/config is a copy of ~/ezphot/config whose data and log dirs (common/*.config, and the *_LOGDIR /
+*_HISTORYDIR of specific/<telkey>/*.config) point to $T/archive and $T/log.
 CATALOG_DIR, the SExtractor/SCAMP/SWarp/PSFEx parameter dirs and ~/.astropy stay real (read; the catalog cache
 may gain new files). Inputs given with --paths are only read; products land under $T/archive.
 Afterwards `find <real tile dirs> ~/ezphot/data/refdata -newer $T/marker` must print nothing.
@@ -34,7 +35,8 @@ def make_isolated_home(purpose: str, base: Path = BASE) -> Path:
     shutil.copytree(real_home / 'ezphot' / 'config', cfg, symlinks=True)
 
     redirect = {str(real_home / 'ezphot' / 'data'): root / 'archive', str(real_home / 'ezphot' / 'log'): root / 'log'}
-    for f in sorted((cfg / 'common').glob('*.config')):
+    conf_files = sorted((cfg / 'common').glob('*.config')) + sorted((cfg / 'specific').glob('*/*.config'))
+    for f in conf_files:
         conf = json.loads(f.read_text())
         changed = False
         for key, val in conf.items():
@@ -48,10 +50,10 @@ def make_isolated_home(purpose: str, base: Path = BASE) -> Path:
             f.write_text(json.dumps(conf, indent=4))
 
     # refuse to hand out a HOME that still points into the real data/log dirs
-    for f in (cfg / 'common').glob('*.config'):
+    for f in conf_files:
         for key, val in json.loads(f.read_text()).items():
             if key != 'CATALOG_DIR' and isinstance(val, str) and val.startswith(tuple(redirect)):
-                raise RuntimeError(f'{f.name}: {key} still points to {val}')
+                raise RuntimeError(f'{f.relative_to(cfg)}: {key} still points to {val}')
 
     if (real_home / '.astropy').exists():
         (root / 'home' / '.astropy').symlink_to(real_home / '.astropy')

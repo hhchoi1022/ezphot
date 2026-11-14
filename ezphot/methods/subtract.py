@@ -483,7 +483,9 @@ class Subtract:
             reference_imglist = [reference_imglist]
         for i, reference_img in enumerate(reference_imglist):
             reference_img_temp = reference_img.copy()
-            reference_img_temp.path = reference_img.savedir / (uuid.uuid4().hex + '.fits')
+            # Temporary copy in the target's product directory (as in _reproject_to_target), not the reference's
+            reference_img_temp.savedir = reprojected_target_img.savepath.savedir
+            reference_img_temp.path = reference_img_temp.savedir / (uuid.uuid4().hex + '.fits')
             reference_img_temp.write(verbose = False)
             
             # Step 2: Reproject reference images to reprojected_target_img

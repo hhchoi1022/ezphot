@@ -159,6 +159,8 @@ class LightCurve:
         ):
         """
         Plot light curve for the closest source to (ra, dec).
+        With a magnitude flux_key, rows whose `fluxerr_key` value is >= 99 (error sentinel) are not drawn;
+        the returned table keeps them.
         
         Parameters
         ----------
@@ -256,6 +258,9 @@ class LightCurve:
         filt = np.array(tbl['filter'], dtype=object) # Filter names
         groups = np.array(tbl['filter_group'], dtype=object)
         order = np.argsort(mjds)
+        if fluxerr_key is not None and is_mag:   # error sentinel rows (MAGERR >= 99) are not drawn; tbl keeps them
+            sentinel = ~getmaskarray(tbl[fluxerr_key]) & (magerrs >= 99)
+            order = order[~sentinel[order]]
         mags = mags[order]
         magerrs = magerrs[order]
         zperrs = zperrs[order]

@@ -8,13 +8,17 @@ Adds SATDIST (distance to the nearest saturated star / its mask radius) and warn
 SATDIST < 1.2: there the bright-star halo is masked out of the background map, so the sky is under-subtracted
 (about +0.8 ADU/pix at 0.6) and the target too bright; use DIA or a local-annulus measurement for those rows.
 
+dedupe=True / --dedupe keeps one catalog per (observatory, telname, filter, obsdate), the one with the deepest
+UL5 (median UL5SKY_APER_3 of the catalog, else its info depth), e.g. when the same epoch was coadded twice;
+off by default.
+
 Python:
     from ezphot.recipes import target_photometry
     tbl = target_photometry(catalogset_or_list, ra, dec)
 
 CLI (catalogs are found with DataBrowser('scidata') unless --paths is given):
     python -m ezphot.recipes.target_photometry --objname EG21 --observatory 7DT --ra 76.3 --dec -68.0 \
-        [--filter m400] [--radius 5] [--out table.csv] [--plot]
+        [--filter m400] [--radius 5] [--out table.csv] [--plot] [--dedupe]
 """
 from __future__ import annotations
 
@@ -43,17 +47,49 @@ def _target_satdist(catalog: Catalog, ra: float, dec: float, matching_radius_arc
     return float(d['SATDIST'][i]) if sep[i] < matching_radius_arcsec else np.nan
 
 
+def _deepest_per_epoch(catalogs: List[Catalog]):
+    """(kept, dropped), both in input order: one catalog per (observatory, telname, filter, obsdate), the deepest UL5 =
+    median of the finite UL5SKY_APER_3 values of the catalog, else info.depth (neither: shallowest; ties keep the first).
+    Catalogs missing one of the keys are kept."""
+    ul5_key = f'UL5SKY_{D.APER10_KEY}'
+    best = {}
+    for c in catalogs:
+        key = (c.info.observatory, c.info.telname, c.info.filter, c.info.obsdate)
+        if None in key:
+            key = id(c)
+        d = c.data
+        ul5 = []
+        if d is not None and ul5_key in d.colnames:
+            ul5 = np.ma.masked_invalid(np.ma.asarray(d[ul5_key], dtype=float)).compressed()
+        depth = float(np.median(ul5)) if len(ul5) else c.info.depth
+        if depth is None or not np.isfinite(depth):
+            depth = -np.inf
+        if key not in best or depth > best[key][0]:
+            best[key] = (depth, c)
+    kept = {id(c) for _, c in best.values()}
+    return [c for c in catalogs if id(c) in kept], [c for c in catalogs if id(c) not in kept]
+
+
 def target_photometry(catalogs: Union[CatalogSet, List[Catalog]],
                       ra: float,
                       dec: float,
                       matching_radius_arcsec: float = 5.0,
                       out: Union[str, Path] = None,
                       plot: bool = False,
-                      verbose: bool = True):
-    """Return an astropy Table (one row per catalog) for the source nearest (ra, dec); save CSV."""
+                      verbose: bool = True,
+                      dedupe: bool = False):
+    """Return an astropy Table (one row per catalog) for the source nearest (ra, dec); save CSV.
+    dedupe=True first keeps one catalog per (observatory, telname, filter, obsdate), the deepest UL5 (UL5SKY_APER_3)."""
     catset = catalogs if isinstance(catalogs, CatalogSet) else CatalogSet(list(catalogs))
     if len(catset.catalogs) == 0:
         raise ValueError("no catalogs given")
+    if dedupe:
+        kept, dropped = _deepest_per_epoch(catset.target_catalogs)
+        if verbose:
+            print(f"[target_photometry] dedupe: kept {len(kept)}/{len(kept) + len(dropped)} catalogs (deepest UL5 per "
+                  f"observatory/telname/filter/obsdate), dropped: "
+                  + (', '.join(Path(str(c.path)).name for c in dropped[:10]) or 'none'))
+        catset = CatalogSet(kept)
     lc = LightCurve(catset)
     tbl = lc.extract_source_info(ra, dec, matching_radius_arcsec=matching_radius_arcsec, verbose=verbose)
     if tbl is None:
@@ -122,12 +158,14 @@ def main(argv=None):
     ap.add_argument('--ra', type=float, required=True); ap.add_argument('--dec', type=float, required=True)
     ap.add_argument('--radius', type=float, default=5.0, help='matching radius [arcsec]')
     ap.add_argument('--plot', action='store_true')
+    ap.add_argument('--dedupe', action='store_true',
+                    help='keep one catalog per (observatory, telname, filter, obsdate): the deepest UL5 (UL5SKY_APER_3)')
     ap.add_argument('--out')
     a = ap.parse_args(argv)
 
     catset = load_catalogs(a.observatory, a.telkey, a.telname, a.objname, a.filter, a.obsdate, a.pattern, a.paths)
     print(f"[target_photometry] {len(catset.catalogs)} catalogs")
-    tbl = target_photometry(catset, a.ra, a.dec, matching_radius_arcsec=a.radius, out=a.out, plot=a.plot)
+    tbl = target_photometry(catset, a.ra, a.dec, matching_radius_arcsec=a.radius, out=a.out, plot=a.plot, dedupe=a.dedupe)
     return 0 if tbl is not None else 1
 
 

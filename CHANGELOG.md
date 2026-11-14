@@ -1,5 +1,126 @@
 # Changelog
 
+## 0.7.11 (2026-11-14)
+### 추가
+- `recipes.visualize` 갤러리에 **DIA**(dia 레시피 결과): 새 인자 `visualize(..., dia=None)`(맨 끝, CSV 경로·DataFrame 또는 그 목록),
+  CLI `--dia a.csv [b.csv ...]`(dia 레시피 summary CSV). 넣지 않고 프레임 폴더에 `dia.json`도 없으면 페이지 데이터(`const D`)·산출 파일·
+  manifest·`.viz_done.json`은 이전과 같다(페이지 JS가 늘어 `index.html` 바이트만 다르다). 측광 값과 레시피 출력은 바뀌지 않는다.
+  - 매칭: 행의 `path`가 갤러리 프레임의 path와 같으면 그 프레임, 아니면 파일명이 같은 유일한 프레임(처리 영상 사본에서 돌린 DIA).
+    어느 프레임에도 맞지 않는 행(스택 DIA 등), 갤러리에 같은 파일명이 여럿인 행, 한 프레임에 맞는 행이 둘 이상인 경우는 쓰지 않고
+    개수를 로그와 개요 부제(`DIA n프레임, … 건너뜀`)에 적는다. 한 프레임에 행이 여럿이면 그 프레임 상태 칸에도 적는다.
+  - 새 탭 "차영상(DIA)": 프레임마다 `dia.png`(+ `thumb_dia.jpg`). science(`sci_`)·reference(`ref_`)·convolved(`conv_`)·차영상(`sub_`) 4칸,
+    forced 위치(`sub_<name>.circ.cat`의 `X_WORLD`/`Y_WORLD`) 중심 한 변 약 60″, 10″ 지름 개구 원(빨강, 차영상 헤더 WCS).
+    칸마다 ZScale, 차영상은 0 중심 대칭. convolved 칸 제목은 차영상 헤더 `CONVOL00`(TEMPLATE: convolved reference, IMAGE: convolved science).
+    실제 PNG로 쓴다(링크가 아님). 영상은 읽기 전용 memmap의 `.section`으로 잘라낼 부분만 읽고 ezphot 영상 객체를 만들지 않는다.
+    탭 위에 그 프레임의 DIA 값(`MAGSKY_APER_3` ± `MAGERR_APER_3`, `UL5SKY_APER_3`, `ZPERR_APER_3`, reference 파일명, convolve 방향, 고정 좌표, CSV 파일명).
+  - 광도곡선·SED 탭: **DIA 계열**(빈 마름모 ◇, "DIA" 체크박스, 기본 켜짐). 값은 dia summary의 `MAGSKY_APER_3`·`MAGERR_APER_3` 그대로다
+    — 차영상 flux의 등급(총 flux 등급이 아님)이고 국소 배경 보정 전이다. 시각은 summary `obsdate`의 MJD. 프레임마다 점 하나이고
+    GP 적합·합친 점·Δmag 기준(필터별 평균)·SED bin 평균에 넣지 않으며, Δmag 모드에서는 그리지 않는다. MAGERR ≥ 99 또는 NaN인 행과
+    forced 위치가 없는 행(`.circ.cat` 없음, dia를 `--ra/--dec` 없이 돌린 경우)은 점이 없다. 필터 칩·필터별 패널은 이름이 같은 필터에 적용된다.
+    DIA 점만 있는 시간 bin은 SED bin 목록에 "DIA 점만"으로 나온다. 체크박스를 끄면 DIA가 없는 보기(y 범위 포함)와 같다.
+    페이지의 좌표 입력과 무관한 고정 좌표 계열이다(좌표를 적용하기 전인 카탈로그 매칭 모드에서는 탭에 안내문만 나온다).
+    광도곡선·SED 탭은 DIA 점만 있는 갤러리에도 생긴다.
+  - 새 산출물: 프레임 폴더 `<stem>/dia.png`, `<stem>/thumb_dia.jpg`, `<stem>/dia.json`(그 프레임의 DIA 값·파일명, 경로 없음),
+    `.viz_done.json`의 `dia` 레코드, `manifest.json` `images[<path>]`의 `'dia'` 키(그림이 없으면 빈 목록). 페이지 데이터에 `dia`, `images[].dia`,
+    `labels.dia`가 생긴다(내부 형식).
+  - 나중 갱신: 프레임 폴더의 `dia.json` 덕분에 `--dia` 없이 다시 돌려도(모든 모드) 마지막 DIA를 보여 준다. DIA 산출물과 CSV를 지운 뒤에도 그렇다.
+    이미 만든 갤러리는 `visualize <summary> --skip-unchanged --dia <csv> ...`로 DIA만 추가된다. 다른 단계 그림은 입력이 같으면 다시 그리지 않는다.
+    sources.json·fov.jpg·index.html, 그리고 `--lightcurve`가 있으면 GP 적합은 지금처럼 매번 다시 한다(`--no-gp`로 뺄 수 있다).
+    실패한 행, 차영상 파일이 없는 행, 모호한 행은 그 프레임의 기존 DIA를 바꾸지 않고 상태 칸에 이유를 적는다.
+    쓸 수 있는 행인데 `dia.png`를 그리다 실패하면(산출물 일부 없음, forced 위치가 차영상 밖 등) 그 프레임 갤러리 폴더의 옛 `dia.png`·`thumb_dia.jpg`를
+    지운다(갤러리 출력만). 그래서 이후 실행에서 옛 그림이 새 값과 함께 나오지 않고 상태 칸에 "dia figure missing"이 나온다.
+    `--pages-only`(`pages_only=True`)는 `--dia`를 받지 않는다(오류).
+  - 읽는 것: dia 레시피 summary 열 `path`, `success`, `subtracted`, `obsdate`, `filter`(필수, 없으면 `ValueError`)와 `step`, `error`, `telname`,
+    `reference`, `MAGSKY/MAGERR/ZPERR/UL5SKY_APER_3`, DIA 산출물 이름 `sci_/ref_/conv_/sub_<name>`, `sub_<name>.circ.cat`, 차영상 헤더 `CONVOL00`.
+    이 열이나 이름이 바뀌면 이 기능도 바꿔야 한다.
+- `recipes.target_photometry`: 같은 관측의 중복 카탈로그를 거르는 선택 옵션 **dedupe**(기본 꺼짐, 끄면 카탈로그 선택과 표·CSV는 이전과 같다. 그림은 아래 `### 수정`의 `LightCurve.plot` 항목을 따른다).
+  Python `target_photometry(..., dedupe=False)`(새 인자, 맨 끝), CLI `--dedupe`.
+  - 켜면 카탈로그 info의 (observatory, telname, filter, obsdate)가 모두 같은 묶음마다 UL5가 가장 큰(가장 깊은) 카탈로그 하나만 남긴다.
+    UL5는 그 카탈로그 `UL5SKY_APER_3` 열의 유한값 중앙값(10″ 개구 5σ 한계, 출력 표의 같은 열로 확인할 수 있다)이고, 열이 없거나 전부 NaN이면
+    카탈로그 info의 `depth`다(info의 `depth`가 비어 있는 카탈로그도 있다). 둘 다 없으면 가장 얕은 것으로 치고, 같으면 입력 순서가 앞인 것을 남긴다.
+    거르기 전에 모든 카탈로그의 표를 읽는다(그 뒤 측광에서도 읽는 표다).
+    네 값 가운데 하나라도 없는 카탈로그는 거르지 않는다. obsdate는 문자열이 완전히 같아야 같은 묶음이다.
+  - LightCurve를 만들기 전에 카탈로그 단계에서 거르므로 표 행과 `--plot` 그림이 모두 남긴 카탈로그로 만들어진다.
+    입력이 `CatalogSet`이면 그 `target_catalogs`(선택된 카탈로그)에서 거른다. `verbose`면 남긴 수/전체 수와 뺀 파일명(최대 10개)을 한 줄 출력한다.
+  - 용도: 같은 노출 시각(`DATE-OBS`)의 coadd가 두 번 만들어진 경우(예: 파일명 끝 `_0005`/`_0006`). 서로 다른 노출이 같은 obsdate를
+    가질 수 있는 데이터에서는 정보를 잃으므로 켜지 않는다.
+  - CLI의 DataBrowser 검색(`--paths` 없이)은 지금처럼 `coadd_` 등 파생 접두 카탈로그를 버린다. coadd 카탈로그에는 `--paths`나 Python 호출로 넘길 때 적용된다.
+### 변경
+- `recipes.visualize` 광도곡선·SED 탭의 **GP 곡선**: jitter를 적합하고, GP에서 크게 벗어난 점을 반복 클리핑으로 뺀다. 갤러리 페이지만 바뀐다.
+  측광 값, target_photometry 표, summary CSV, 다른 산출물은 그대로다.
+  - 적합: `gp.fit(jitter=True, nstart=10)`(이전: `jitter=False`). gpimg 기본 시작점·경계(flux 척도의 0.01배에서 시작, 1e-6–1배 안)이고,
+    각 측정 분산은 오차² + j²다.
+  - 클리핑: 남은 점(처음에는 전부)으로 적합 → 모든 중대역 점(빠진 점 포함)의 시각·밴드 파장에서 잡음 없는 flux를 예측(smoother `rts`) →
+    z = (flux − 평균) / √(오차² + j² + 예측 분산) → |z| ≤ 5인 점만 남겨 다시 적합. 남는 점이 바뀌지 않거나 적합이 6번 돌면 멈추고,
+    곡선은 마지막 적합의 것이다. 어떤 단계에서 모든 점이 빠지게 되면 그 직전 적합을 쓴다. 기준은 모듈 상수 `GP_CLIP_SIGMA = 5`,
+    `GP_CLIP_MAXITER = 6`이고 CLI 옵션은 없다. 점이 모두 빠진 필터도 GP 필터 목록에 남고, 그 파장의 곡선은 다른 밴드에서 예측된다
+    (광도곡선 탭에는 그 필터의 선을 그리지 않는다). 적합이 최대 6번 돌므로 GP 시간이 그만큼 길어질 수 있다.
+  - 표시: GP 체크박스가 켜져 있는 동안(**기본으로 켜져 있다**), 빠진 점은 같은 기호로 흐리게 그린다(불투명도 0.3, 개별 점과 합친 점을 함께 볼 때 0.15, 오차 막대 포함).
+    또 합친 점(bin 평균), 필터별 가중 평균(Δmag 기준), SED bin 평균에서 뺀다. "개별 점"을 끄고 합친 점만 볼 때도 그 점들을 그린다.
+    - 빠진 점만 있는 SED bin은 bin 목록에 "GP에서 뺀 점만 (합친 점 없음)"으로 남는다(bin 시각 = 그 점들의 평균 시각).
+    - 한 필터의 점이 모두 빠지면 그 필터의 Δmag 기준은 전체 점 평균이다.
+    - 탭 설명·GP 캡션에 빠진 점 수, |z| 기준, 적합 횟수, jitter 값, 점이 모두 빠진 필터를 적고(캡션의 "jitter 없음"은 없어진다),
+      빠진 점의 툴팁에 "GP 적합에서 뺀 점"을 적는다.
+  - GP 체크박스를 끄거나 GP가 없으면(`--no-gp`, gpimg 없음·실패, 좌표 입력 매칭) 모든 점을 0.7.10과 똑같이 그리고 합친다.
+    체크박스가 기본으로 켜져 있으므로, 빠진 점이 있는 표는 **기본 보기**의 합친 점·Δmag 기준·SED bin이 0.7.10과 다르다.
+    0.7.10과 같은 보기는 GP를 끈다. 체크박스를 켜고 끄면 합친 점·Δmag 기준·SED bin이 그에 따라 다시 계산된다.
+  - 예: LDS749B(gpimg 0.2.0, 갤러리 페이지 점으로 측정). 중대역 점 393개 가운데 2개(2026-10-30 이중상 프레임 두 장)가 빠지고 적합이 수렴한다:
+    A 3530 μJy, l_t 12.0 d, l_λ 0.094, jitter 49.6 μJy. 0.7.10 페이지의 적합(jitter 없음, 모든 점)은 수렴하지 못했고, 길이 척도 둘 다
+    하한(l_t 0.5 d, l_λ 0.03)에 붙어 있었다. 같은 측정에서 빠진 점은 GD71 0개, WD2149+021 0개, FEIGE110 1개, T22956 5개(1,953개 중)였다.
+  - 페이지 데이터 `lcdata.gp`에 `x`(빠진 점의 `pts` 인덱스), `nx`, `clip`(`sigma`, `fits`, `stable`), `fit.jit`(μJy, 유한하지 않으면 null) 키가 생기고,
+    `n`은 마지막 적합의 점 수다(내부 형식).
+  - 이미 만든 갤러리는 `visualize --pages-only --lightcurve <표>`로 다시 만들면 반영된다.
+- `recipes.visualize` 광도곡선·SED 탭의 **시야 이미지**: 좌표를 적용하면 그 위치로 옮기고 확대한다. 갤러리 페이지만 바뀐다
+  (페이지 데이터, sources.json, fov.jpg, CLI, 다른 탭은 그대로).
+  - 언제: "좌표 적용"("카탈로그 매칭으로 보기") 버튼, 좌표 칸의 Enter, 대상 이름 버튼, 탭을 처음 열 때(`--ra/--dec`가 있을 때).
+    `--lightcurve` 표 모드에서도(`--ra/--dec`가 있을 때) 대상 이름 버튼과 처음 열 때 대상 좌표로 옮긴다(광도곡선은 표 그대로).
+    시야 이미지를 클릭해 검출을 고를 때는 지금처럼 보기를 움직이지 않는다.
+  - 배율: 전체 시야(처음, "전체 시야" 버튼 뒤, 휠로 끝까지 축소한 상태)면 폭 4′로 확대하고(휠과 같은 한계: 이미지 폭의 1/40 – 전체 폭),
+    이미 확대해 두었으면 그 폭 그대로 중심만 옮긴다. 보기는 끌기·휠처럼 이미지 안에 머물러서 가장자리 근처의 좌표는 가운데에 오지 않는다.
+  - 위치: 좌표에 가장 가까운 대표 프레임 검출(SNR > 3) 10개에 최소제곱 affine 변환(좌표를 접점으로 한 gnomonic ξ, η → 시야 이미지 px)을
+    맞춰 구한다. 4′의 px 크기도 이 변환의 배율에서 정한다.
+  - 표시: 적용한 좌표 위치에 빨간 원(클릭으로 고른 검출과 같은 원)을 그린다(이전: 클릭으로 고른 검출에만). RA·Dec 칸을 고치면 지금처럼
+    원이 사라지고, 보기는 그대로다.
+  - 시야 밖: 변환한 위치가 이미지 밖이거나, 가장 가까운 검출이 10′보다 멀거나, 가까운 검출이 3개 미만이거나 거의 한 줄이어서
+    변환을 맞출 수 없으면 보기를 그대로 두고 빨간 원을 숨기며, 시야 이미지 카드에
+    "좌표가 이 프레임의 시야 밖입니다"를 쓴다. 대표 프레임 하나 기준이라 다른 유닛·필터의 프레임에는 그 좌표가 있을 수 있고,
+    광도곡선 매칭은 지금처럼 모든 프레임에서 한다.
+  - 이미 만든 갤러리는 `visualize --pages-only`(같은 `--ra/--dec`, `--lightcurve`)로 다시 만들면 반영된다.
+### 수정
+- `PhotometryHelper.run_swarp(fill_zero_tonan=True)`(기본값)가 **입력 FITS를 더 이상 고치지 않는다**(이전: 입력 파일을 열어 0을 NaN으로 바꿔 제자리에 덮어썼다).
+  0 → NaN은 출력 폴더(`target_outpath`의 부모) 아래 임시 하위 디렉터리 `.swarp_input_*`에 같은 파일 이름으로 만든 사본에서 하고,
+  SWarp는 그 사본을 읽으며, 사본은 SWarp가 끝나면(실패해도) 지운다. 입력 옆에 SWarp 외부 헤더(`<name><HEADER_SUFFIX>`, 기본 `.head`)가 있으면 함께 복사한다.
+  시그니처·반환·출력 파일 이름과 위치는 그대로다. SWarp가 읽는 픽셀 값은 이전과 같다. **수치 변화 없음**: 수정 전 코드와 같은 입력 사본으로
+  비교해, 합성 영상 `run_swarp` 6사례(결합, 재표본만, `fill_zero_tonan=False`, 외부 헤더 있음·없음, BSCALE/BZERO 정수형)의 출력 배열(헤더 차이는
+  `DATE`뿐), `Reproject.reproject`(에러맵 포함) 출력, T08635 7DT01 m400 단일 프레임 DIA의 `sub_/sci_/ref_/conv_` 배열과
+  forced `MAGSKY/MAGERR/ZPERR/UL5SKY_APER_3`, 같은 밤 3장 stack의 coadd·`.bkgrms`·`.bkgmap`·summary가 모두 같았다.
+  실패 사례(BZERO 32768 uint16 입력의 `ValueError`, 없는 weight 파일로 SWarp가 실패한 `ExternalToolError`)는 옛·새 코드가 같은 예외를 냈다
+  (uint16 입력 한계는 이 변경 전부터 있던 것).
+  새 코드에서는 입력 파일이 바뀌지 않았고(이전 코드는 그 DIA science의 0 픽셀 9401개를 NaN으로 바꿨다) refdata에 쓴 파일이 없었다.
+  - 이 함수를 거치는 경로 모두 해당한다: `Reproject.reproject`/`ImageMethod.reproject`(기본 `fill_zero_tonan=True`, 에러맵용 두 번째 SWarp 호출 포함),
+    `Subtract.find_transients`/`ImageMethod.DIA`와 `recipes.dia`(science·reference 재투영), `ImageSet.prepare_stack`/`Stack.prepare_images`의 재투영과
+    `Stack.stack_swarp`(SWarp 결합), `recipes.stack`.
+  - 사용처가 확인할 동작 변경: 위 처리 뒤에도 입력 science·reference·에러맵 파일의 0 픽셀이 NaN으로 바뀌지 않는다. 처리 뒤 입력 파일이
+    NaN으로 바뀌어 있다는 데 기대던 코드는 고쳐야 한다. 이전 버전이 이미 0 → NaN으로 바꾼 입력 파일은 되돌리지 않는다. 그래서 같은 입력을 다시
+    처리한 결과(예: process_images 재실행)는 이전 버전에서 입력이 NaN으로 바뀐 뒤 돌린 결과와 다를 수 있다.
+  - 실행 중에는 출력 폴더에 그 호출의 입력 크기만큼 사본이 생긴다. 프로세스가 강제 종료되면(`SIGKILL` 등) `.swarp_input_*`가
+    남을 수 있다(점으로 시작해 `DataBrowser` 검색에는 잡히지 않는다).
+  - 파일 이름이 같은 두 입력을 한 번에 넘기면 사본을 만들 때 `OSError`가 난다(이름이 같으면 SWarp 재표본 파일 이름도 겹친다).
+    `fill_zero_tonan=False`이면 이전처럼 입력을 그대로 SWarp에 넘긴다. SWarp XML(`XML_NAME`)에 적히는 입력 경로는 임시 사본 경로가 된다.
+- `Subtract.find_transients`(`ImageMethod.DIA`, `recipes.dia`): reference 임시 사본(`<uuid>.fits`와 그 `.info`)을 `reference_img.savedir`
+  (헤더 필드가 다 있으면 헤더로 만든 `REFDATA_DIR` 레이아웃 폴더이고, `--reference`로 준 파일의 실제 폴더와 다를 수 있다) 대신 target 산출물 폴더(재투영된 reference `coadd_<uuid>.fits`가 원래 쓰이던 곳)에 쓰고, 지금처럼 재투영 뒤 지운다.
+  DIA 산출물의 이름·위치·수치는 그대로다. 중간에 실패해 남는 임시 사본도 이제 target 폴더에 남는다.
+- `LightCurve.plot`: 등급 키일 때(`flux_key`에 `MAG`가 들어갈 때) `fluxerr_key` 값이 99 이상(오차 센티널)인 행을 그리지 않는다(점·오차 막대·선·비검출 표시 모두).
+  플럭스 키로 그릴 때는 이전과 같다.
+  이전에는 그 행이 검출로 그려져(오차 99) y 범위·오차 막대가 크게 벌어질 수 있었다. 반환하는 표와 `LightCurve.data`는 그대로(그 행 포함)이고,
+  오차가 마스크된 행은 이전처럼 비검출로 그린다. `recipes.visualize` 갤러리와 같은 규칙이며 `recipes.target_photometry --plot` 그림에도 적용된다.
+  `PhotometricSpectrum.plot`은 바꾸지 않았다(같은 문제가 남아 있다).
+### 내부
+- `tests/make_isolated_home.py`: 격리 HOME의 `config/specific/<telkey>/*.config`에 있는 실제 `~/ezphot/data`·`~/ezphot/log` 경로
+  (`SEX`/`SCAMP`/`SWARP`/`PSFEX`의 `*_LOGDIR`·`*_HISTORYDIR`)도 `$T/log` 아래로 바꾸고, 남은 실제 경로 검사(`RuntimeError`)를 specific까지 넓혔다
+  (메시지의 파일 이름은 config 기준 상대 경로). 실제 config 파일을 가리키는 `*_CONFIG`·`*_DIR`은 그대로다. 라이브러리 동작은 바뀌지 않는다.
+- `recipes/defaults.py` 머리말 docstring: 레시피 기본값은 ezphot을 단독으로 쓸 때의 값이고 다른 파이프라인 설정과 맞춰 두지 않는다는 뜻으로 고쳤다. 값은 그대로다.
+
 ## 0.7.10 (2026-11-07)
 ### 추가
 - 같은 노출의 master dark가 없을 때 더 긴 노출의 dark를 쓰는 선택 옵션(기본 꺼짐, 끄면 선택 결과는 0.7.9와 같다).

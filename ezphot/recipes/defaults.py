@@ -1,7 +1,7 @@
 """
-Default step parameters for the recipes. Mirrors the 7DT production settings in
-BRIDGE/bridge/configuration/alertprocessor.config (2026-10) so that recipes are bridge-free
-but give the same products. Override per call via the `config` argument of each recipe.
+Default step parameters for the recipes when ezphot is used on its own. The values started from the 7DT
+production settings of 2026-10 and are not kept in sync with any other pipeline's configuration; a caller
+with its own settings passes them per call via the `config` argument of each recipe.
 """
 
 CIRCULARMASK = dict(radius_arcsec=150)

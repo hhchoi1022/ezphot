@@ -704,9 +704,14 @@ or configuration:
 
 ### Mutation and deletion hazards
 
-- `PhotometryHelper.run_swarp(fill_zero_tonan=True)` opens every input FITS in
-  update mode and changes zero-valued pixels to NaN before running SWarp. Set the
-  option deliberately and never assume SWarp wrappers are input-preserving.
+- `PhotometryHelper.run_swarp(fill_zero_tonan=True)` changes zero-valued pixels
+  to NaN in same-name copies of the inputs, written to a temporary `.swarp_input_*`
+  directory under the output directory and removed after SWarp; the inputs are only
+  read. Versions up to 0.7.10 rewrote the inputs in place, so files processed by
+  them may already hold NaN where they had zeros. Still do not assume the SWarp
+  wrappers are input-preserving: `Reproject.reproject(overwrite=True)` writes its
+  output to the image's save path, which is the input file itself when the savedir
+  is the input's folder.
 - `BaseImage.rename()` unlinks an existing destination before renaming.
 - `write()` methods generally use FITS overwrite behavior.
 - `remove()` methods can delete the main object and connected sidecars. Inspect

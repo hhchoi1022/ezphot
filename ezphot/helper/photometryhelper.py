@@ -2558,7 +2558,12 @@ class PhotometryHelper(Configuration):
             swarp_params['BACK_FILTERSIZE'] = filter_size 
         
         # Command to run SWARP
-        all_images_str = ' '.join([str(img) for img in target_path])
+        # fill_zero_tonan: SWarp reads 0 -> NaN copies of the inputs, written under the same file names (resampled outputs
+        # are named after them) to a unique temporary subdirectory of the output directory and removed afterwards.
+        # The input files are only read.
+        tmp_dir = Path(tempfile.mkdtemp(prefix='.swarp_input_', dir=output_dir)) if fill_zero_tonan else None
+        swarp_inputs = [tmp_dir / img.name for img in target_path] if fill_zero_tonan else target_path
+        all_images_str = ' '.join([str(img) for img in swarp_inputs])
         command = ['SWarp', 
                    str(all_images_str), 
                    '-c', 
@@ -2568,14 +2573,23 @@ class PhotometryHelper(Configuration):
             command.extend([f'-{key}', str(value)])
         command_str = ' '.join(command)
         
-        if fill_zero_tonan:
-            for path in target_path:
-                with fits.open(path) as image:
-                    image[0].data[image[0].data == 0] = np.nan
-                    image.writeto(path, overwrite=True)
-                    
-        self.print(f'RUN COMMAND: {command_str}', verbose)
-        result = self.run_command(command, cwd = None, timeout = 900)
+        try:
+            if fill_zero_tonan:
+                header_suffix = str(swarp_params.get('HEADER_SUFFIX', all_params.get('HEADER_SUFFIX', '.head')))
+                for path, copy_path in zip(target_path, swarp_inputs):
+                    with fits.open(path) as image:
+                        image[0].data[image[0].data == 0] = np.nan
+                        image.writeto(copy_path)   # no overwrite: two inputs with the same file name raise here
+                    # SWarp also reads an external header <name><HEADER_SUFFIX> next to each image
+                    external_header = Path(str(path.with_suffix('')) + header_suffix)
+                    if external_header.is_file():
+                        shutil.copy(external_header, tmp_dir / external_header.name)
+
+            self.print(f'RUN COMMAND: {command_str}', verbose)
+            result = self.run_command(command, cwd = None, timeout = 900)
+        finally:
+            if tmp_dir is not None:
+                shutil.rmtree(tmp_dir)
         self.print("SWARP process finished=====================", verbose)
         return True, target_outlist, weights_outlist
 
