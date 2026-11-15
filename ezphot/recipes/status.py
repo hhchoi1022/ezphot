@@ -2,21 +2,21 @@
 """
 status: one index page of every objname processed with the recipes, with the state of each
 process_images run (running / done / stopped), success and qa counts, and the gallery link; running and
-stopped stack / dia runs are listed too.
+stopped stack / dia / forced_photometry runs are listed too.
 Read-only on the logs; writes only <root>/ezphot/index.html.
 
     python -m ezphot.recipes.status [--root DIR] [--watch SEC]
 
 Runs are found as ~/ezphot/log/recipes/<objname>/process_images_<tag>.{log,csv}. A run is
-'running' while a live process_images / stack / dia process on this host has --out <that csv>, 'done' when the
+'running' while a live process_images / stack / dia / forced_photometry process on this host has --out <that csv>, 'done' when the
 csv exists, 'stopped' when only the log is left, and 'unreadable' when its csv/log cannot be read.
 Runs whose csv is written elsewhere are not listed. --watch rewrites the page every SEC seconds.
-process_images, stack and dia write <csv>.progress.json next to their summary while they run (also with --out
+process_images, stack, dia and forced_photometry write <csv>.progress.json next to their summary while they run (also with --out
 only there and the log elsewhere): such a run is found from that file, is 'running' while the pid in it is alive
 on this host, the recipe loop has not ended (returned or raised) and its csv is not newer than its start (so also
 without --out, e.g. the Python API), shows
 done/total, elapsed and remaining time (elapsed / done x left), and is 'stopped' (done/total) when the process
-is gone without a csv. stack / dia runs are listed only while running or stopped; a finished one (csv written)
+is gone without a csv. stack / dia / forced_photometry runs are listed only while running or stopped; a finished one (csv written)
 drops out as before. Runs started by an ezphot without progress files show as before.
 The gallery link is marked "오래됨" (stale) when the newest csv of a done run is newer than the gallery's index.html
 (file mtimes: the page is rewritten by every visualize run, also --pages-only / --skip-unchanged; a newer
@@ -46,11 +46,11 @@ from ezphot.recipes.visualize import VIZ_ROOT
 LOG_ROOT = Path.home() / 'ezphot' / 'log' / 'recipes'
 STATE_LABEL = {'running': '실행 중', 'done': '완료', 'stopped': '중단', 'unreadable': '읽기 실패'}
 _QA_CACHE = {}   # csv path -> ((path, mtime_ns, size), qa counts) of the last qa() of that csv
-RECIPES = ('process_images', 'stack', 'dia')   # the recipes that write <csv>.progress.json (recipes._progress)
+RECIPES = ('process_images', 'stack', 'dia', 'forced_photometry')   # the recipes that write <csv>.progress.json (recipes._progress)
 
 
 def _running_outs() -> dict:
-    """{--out path: number of --paths or None} of live process_images / stack / dia processes on this host
+    """{--out path: number of --paths or None} of live process_images / stack / dia / forced_photometry processes on this host
     (read from /proc, so no pgrep self-match; relative --out resolved against the process cwd)."""
     outs = dict()
     for cmdline in Path('/proc').glob('[0-9]*/cmdline'):
@@ -89,7 +89,7 @@ def _recipe(stem: Path) -> str:
 
 
 def _tag(stem: Path) -> str:
-    """process_images runs keep the bare tag; stack / dia runs keep the recipe name in it."""
+    """process_images runs keep the bare tag; stack / dia / forced_photometry runs keep the recipe name in it."""
     return stem.name[len('process_images_'):] if _recipe(stem) == 'process_images' else stem.name
 
 
@@ -155,7 +155,7 @@ def collect(log_root: Path = LOG_ROOT, viz_root: Path = VIZ_ROOT) -> list:
         stems = {p.parent / p.stem for p in objdir.glob('process_images_*') if p.suffix in ('.csv', '.log')}
         stems |= {p.parent / p.name[:-len('.csv.progress.json')] for r in RECIPES for p in objdir.glob(f'{r}_*.csv.progress.json')}
         runs = [r for r in (_safe_run(s, running) for s in stems)
-                if r['recipe'] == 'process_images' or r['state'] != 'done']   # finished stack / dia runs: not listed, as before
+                if r['recipe'] == 'process_images' or r['state'] != 'done']   # finished stack / dia / forced_photometry runs: not listed, as before
         runs = sorted(runs, key=lambda r: r['mtime'], reverse=True)
         if not runs:
             continue

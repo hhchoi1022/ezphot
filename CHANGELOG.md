@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.7.12 (2026-11-15)
+### 추가
+- 새 레시피 `recipes.forced_photometry`: 단일·스택·차 영상에서 주어진 좌표(스칼라 또는 배열)에 forced 원형 측광을 하고 ZP를 붙인다.
+  Python `forced_photometry(images, ra, dec, calibrate='header', config=None, n_proc=4, out=None, verbose=True)`(영상×타겟 한 행의 DataFrame,
+  CSV 저장), 영상 하나 단위 `forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True)`(타겟별 행 목록),
+  CLI `python -m ezphot.recipes.forced_photometry <image.fits | summary.csv> ... --ra ... --dec ... [--calibrate header|reference_stars] [--n-proc] [--out]`.
+  `ezphot.recipes`가 두 함수를 export한다. 이 레시피를 더하는 것만으로 기존 레시피의 동작과 값은 바뀌지 않는다
+  (`photometric_calibration`의 변경은 아래 `### 수정`, target_photometry 검색은 `### 변경`).
+  - 입력: FITS 경로와 process_images/stack 요약 CSV(`success` 행의 `path`)를 섞어서(경로는 resolve해 중복을 뺀다). 한 영상의 모든 타겟을 한 번의 forced 호출로 잰다.
+  - `calibrate='header'`(기본): `photometry_forced_circular` → `apply_zp`(영상 헤더 ZP). dia가 차영상에서 하는 것과 같은 호출이고, 차영상(`sub_`)에서는
+    배경도 dia처럼 넣지 않으므로 같은 차영상·좌표면 dia의 forced 값과 같다.
+  - `calibrate='reference_stars'`: `<img>.fits.refcat`의 기준성 위치와 타겟을 한 번에 forced로 재고 그 카탈로그로 `photometric_calibration`
+    (defaults `PHOTCAL`, 기준성 선택 등급 `MAG_APER_3`). 레시피가 고정하는 키(config로 바꿀 수 없음): `update_header=False`, `save_image=False`, `save=True`,
+    `mag_lower`/`mag_upper`(`defaults.MAG_RANGE`), 영역 컷 없음(`ra_deg=dec_deg=None`, `inner_fraction=1.0` — refcat은 이미 process_images의 영역 컷을 거쳤다).
+    forced 섹션은 `save=True` 고정. refcat이 없으면 그 영상은 `step='refcat'` 실패.
+    forced 카탈로그에 없는 열로 하는 별 판별·FWHM·플래그·SATDIST 컷은 빠진다(`RECIPES_CONTRACT.md` 5절).
+  - 배경: 차영상은 없음, 그 밖은 영상 옆 `.bkgmap`/`.bkgrms` 사이드카(헤더 ZP를 정한 측광의 배경). 없으면 영상에서 메모리로 계산(소스 마스크 없음)하고
+    요약 `bkg_source`/`bkgrms_source`에 `sidecar`/`image`/`none`으로 적는다.
+  - 산출물: 영상과 같은 폴더의 `<img>.fits.circ.cat`(+ `.info`, ASCII 표), `reference_stars`면 `<img>.fits.circ.refcat`(+ `.info`)도. 그림은 만들지 않는다.
+    입력 FITS는 다시 쓰지 않는다. 같은 영상에 이미 있는 `.circ.cat`(+ `.info`, 다른 도구가 만든 것 포함)은 덮어쓴다. 영상 폴더에 남아 있던 `subbkg_<img>*` 파일은
+    지운다(배경을 뺄 때의 임시 객체 정리, process_images 측광과 같은 동작). `reference_stars` 뒤에 `header`로 다시 돌리면 이전 `.circ.refcat`이 낡은 채 남는다
+    (지우지 않는다). 카탈로그 자체에는 어느 방식의 ZP인지 기록이 없다(요약 `calibrate` 열). 입력이 심볼릭 링크면 따라간 실제 파일의 폴더에 쓰고
+    그 폴더의 `subbkg_<img>*`를 지운다. 요약 `path`는 resolve된 절대 경로다.
+  - 차영상(`sub_`)에 dia와 다른 좌표로 돌리면 dia가 쓴 `sub_*.fits.circ.cat`을 덮어써서, `visualize --dia`가 그리는 forced 위치(그 파일의 첫 행)가 바뀐다
+    (값은 dia 요약에서 오므로 위치와 값이 어긋날 수 있다).
+  - 요약 열: `path`, `target`, `ra`, `dec`, `telname`, `filter`, `obsdate`, `exptime`, `calibrate`, `success`, `step`, `error`, `n_ref`, `bkg_source`, `bkgrms_source`,
+    `catalog`, `MAGSKY_APER_3`, `MAGERR_APER_3`, `ZP_APER_3`, `ZPERR_APER_3`, `UL5SKY_APER_3`. `out=` 기본 `~/ezphot/log/recipes/<objname>/forced_photometry_<stamp>.csv`,
+    실행 중 `<out>.progress.json`. 성공 판정은 카탈로그의 `ZP_APER_3`가 있고 유한한가(`reference_stars`는 `n_ref > 0`도)다. 아니면 그 영상 행은
+    `step='apply_zp'`(헤더에 `ZP_APER_3` 없음, dia는 이 경우 성공에 빈 값) 또는 `step='photometric_calibration'`(기준성 0개 등) 실패다.
+    영상을 열 수 없으면(파일 없음, 망원경 판별, 헤더 값 해석) 비대화 실행에서는 멈추지 않고 그 영상 행을 `step='load'` 실패로 남긴다
+    (터미널·Jupyter의 순차 실행이면 ezphot이 망원경 등록 입력을 먼저 묻는다). `n_ref`는 정수 열(실패 행은 빈 칸)이다.
+  - `recipes.status`가 실행 중·중단된 forced_photometry 실행도 보여 준다(stack·dia와 같은 방식).
+  - **BRIDGE 영향**: forced 카탈로그를 직접 만들던 경로를 이 레시피로 바꿀 수 있다. 카탈로그 읽기 계약(파일 이름·위치·형식, `X_WORLD`/`Y_WORLD`/
+    `MAGSKY`/`MAGERR`/`ZPERR`/`UL5SKY_APER_3`, info `obsdate`·`filter`·`observatory`·`telname`, 행 순서가 아니라 좌표 매칭)은 `RECIPES_CONTRACT.md` 4절.
+- `photometric_calibration`(`methods.PhotometricCalibration`, `ImageMethod` 래퍼)에 새 인자 `save_image=True`(맨 끝). 기본값은 이전과 같이 끝에서 영상(FITS와 `.info`)을
+  savepath에 쓴다. `False`면 영상 파일을 쓰지 않는다(`update_header=True`여도 헤더는 메모리에서만 바뀐다). 이전에는 `update_header=False`여도 항상 썼다.
+- 새 문서 `RECIPES_CONTRACT.md`(저장소 루트): process_images·stack·dia·forced_photometry·target_photometry·qa의 시그니처, 요약 열, `out=` 규칙, 실패 표현,
+  구멍 번호의 뜻(`APER_3` = 10″, 인덱스 0은 접미사 없음, seeing 배수 구멍은 뒤에 붙고 영상마다 다름), forced 카탈로그 읽기 계약, 이 계약을 바꿀 때의 규칙.
+  - **BRIDGE 영향**: 앞으로 이 문서의 항목(요약 열, 구멍 목록, forced 카탈로그 형식 등)을 바꾸면 이 CHANGELOG에 분류와 사용처 영향을 적는다.
+### 변경
+- `recipes.target_photometry`: DataBrowser 검색(`load_catalogs`, CLI에서 `--paths` 없이)이 파생 접두어에 더해 forced 카탈로그 `*.circ.cat`도 버린다.
+  forced_photometry를 단일 영상에 돌리면 접두어 없는 `<img>.fits.circ.cat`이 생겨 기본 패턴 `*.cat`이 같은 에포크를 두 번 잡기 때문이다.
+  접두어 없는 `.circ.cat`이 없는 폴더에서는 결과가 이전과 같다(지금까지 레시피가 만든 `.circ.cat`은 `coadd_`·`sub_` 접두어라 이미 걸러졌다).
+  `--pattern`(`pattern=`)이 `.circ.cat`으로 끝나면 forced 카탈로그를 버리지 않는다. `--paths`나 `catalogs`로 직접 준 카탈로그는 그대로 쓴다.
+### 수정
+- `photometric_calibration`: 카탈로그에 `SKYSIG` 열이 **없을 때**(forced `.circ.cat` 등) `UL3SKY_APER[_k]`/`UL5SKY_APER[_k]`가 빠지던 것을 고침.
+  `apply_zp`와 같은 순서로, 구멍마다 카탈로그의 `UL3_APER[_k]`/`UL5_APER[_k]` 열이 있으면 그 값 + ZP(행별), 없으면 영상 info `SKYSIG`로
+  `ZP − 2.5 log10(n · SKYSIG · √mean(NPIX))`(n = 3, 5). 카탈로그(와 refcat)에만 쓰고, 헤더 갱신용 `update_kwargs`(반환 네 번째 값)에는 넣지 않는다 —
+  헤더의 `UL3SKY`/`UL5SKY`·`SKYSIG`는 그 영상의 SExtractor 보정 값으로 남는다. `SKYSIG` 열이 있는 카탈로그(process_images·stack의 SExtractor `.cat`)는
+  값·헤더 모두 이전과 같다. info에 `SKYSIG`가 없는 영상(헤더에 없음, CalibrationImage)이고 `UL*_APER` 열도 없으면 이전처럼 한계 등급 열이 없다.
+  - **BRIDGE 영향**: 스택 forced 카탈로그(`photometric_calibration` 경로)에 이제 `UL5SKY_APER_3`가 생긴다(전에는 없었다). 새로 생기는 값이고
+    기존 값은 바뀌지 않는다. 같은 카탈로그를 `apply_zp`로 보정했을 때와 같은 식(`UL5_APER_3` + ZP)이다.
+
 ## 0.7.11 (2026-11-14)
 ### 추가
 - `recipes.visualize` 갤러리에 **DIA**(dia 레시피 결과): 새 인자 `visualize(..., dia=None)`(맨 끝, CSV 경로·DataFrame 또는 그 목록),

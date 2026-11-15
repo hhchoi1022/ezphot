@@ -16,7 +16,8 @@ Python:
     from ezphot.recipes import target_photometry
     tbl = target_photometry(catalogset_or_list, ra, dec)
 
-CLI (catalogs are found with DataBrowser('scidata') unless --paths is given):
+CLI (catalogs are found with DataBrowser('scidata') unless --paths is given; that search skips derived-image prefixes
+and, unless --pattern itself ends with .circ.cat, forced catalogs *.circ.cat):
     python -m ezphot.recipes.target_photometry --objname EG21 --observatory 7DT --ra 76.3 --dec -68.0 \
         [--filter m400] [--radius 5] [--out table.csv] [--plot] [--dedupe]
 """
@@ -135,7 +136,9 @@ def target_photometry(catalogs: Union[CatalogSet, List[Catalog]],
 def load_catalogs(observatory: str = None, telkey: str = None, telname: str = None,
                   objname: str = None, filter: str = None, obsdate: str = None,
                   pattern: str = '*.cat', paths: List[str] = None) -> CatalogSet:
-    """CatalogSet of single-image catalogs, from explicit paths or DataBrowser('scidata')."""
+    """CatalogSet of single-image catalogs, from explicit paths or DataBrowser('scidata') (without derived-image
+    prefixes, and without forced *.circ.cat catalogs unless pattern ends with .circ.cat; explicit paths are taken
+    as given)."""
     if paths:
         return CatalogSet([Catalog(path=p, load=True) for p in paths])
     from ezphot.utils import DataBrowser
@@ -145,7 +148,9 @@ def load_catalogs(observatory: str = None, telkey: str = None, telname: str = No
         if val is not None:
             setattr(db, key, val)
     catset = db.search(pattern=pattern, return_type='catalog')
-    cats = [c for c in catset.catalogs if not Path(c.path).name.startswith(DERIVED_PREFIXES)]
+    drop_forced = not pattern.endswith('.circ.cat')   # a pattern for forced catalogs keeps them
+    cats = [c for c in catset.catalogs if not Path(c.path).name.startswith(DERIVED_PREFIXES)
+            and not (drop_forced and Path(c.path).name.endswith('.circ.cat'))]
     return CatalogSet(cats)
 
 

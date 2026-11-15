@@ -108,7 +108,8 @@ class PhotometricCalibration:
                                 verbose: bool = True,
                                 visualize: bool = True,
                                 save_fig: bool = False,
-                                save_refcat: bool = True):
+                                save_refcat: bool = True,
+                                save_image: bool = True):
 
         """
         Perform photometric calibration of astronomical images.
@@ -180,6 +181,9 @@ class PhotometricCalibration:
             Whether to save the figure.
         save_refcat : bool, optional
             Whether to save the reference catalog.
+        save_image : bool, optional
+            Whether to write the target image (FITS and .info) to its savepath at the end, as before (default).
+            False leaves the files untouched; with update_header=True the header is then updated in memory only.
             
         Returns
         -------
@@ -432,6 +436,19 @@ class PhotometricCalibration:
                     matched_obj[ul5_key] = ul5
                     update_kwargs[ul3_key] = (ul3, f"3-sigma depth for {mag_key}")
                     update_kwargs[ul5_key] = (ul5, f"5-sigma depth for {mag_key}")
+            # No SKYSIG column (e.g. forced photometry catalogs): as apply_zp, the catalog's UL3/UL5 column + ZP,
+            # else the image SKYSIG. Catalog only, not update_kwargs: the header keeps its own depth.
+            if skysig is None:
+                for n_sigma, ul_key in ((3, ul3_key), (5, ul5_key)):
+                    ul_inst_key = mag_key.replace('MAG_', f'UL{n_sigma}_')
+                    if ul_inst_key in target_catalog_data.colnames:
+                        target_catalog_data[ul_key] = target_catalog_data[ul_inst_key] + zp_median
+                        matched_obj[ul_key] = matched_obj[ul_inst_key] + zp_median
+                    elif npix_key in target_catalog_data.colnames and getattr(target_img.info, 'SKYSIG', None) is not None:
+                        bkg_noise = target_img.info.SKYSIG * np.sqrt(np.mean(target_catalog_data[npix_key]))
+                        ul = zp_median - 2.5 * np.log10(n_sigma * bkg_noise)
+                        target_catalog_data[ul_key] = ul
+                        matched_obj[ul_key] = ul
 
             # When calculate_color_terms
             if calculate_color_terms:
@@ -830,7 +847,8 @@ class PhotometricCalibration:
             filtered_catalog.info.update(key, value)
 
         # Update the target image
-        target_img.write(verbose = verbose) 
+        if save_image:
+            target_img.write(verbose = verbose)
 
         if save:
             target_catalog.write(verbose = verbose)

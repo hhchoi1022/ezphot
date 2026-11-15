@@ -1,7 +1,7 @@
 """
-Progress sidecar of the recipe loops (process_images, stack, dia): <out>.progress.json next to the summary
-CSV, rewritten by the parent process at the start and after every finished task (tmp + os.replace, so a
-reader never sees half a file). Read by recipes.status. Internal format, may change:
+Progress sidecar of the recipe loops (process_images, stack, dia, forced_photometry): <out>.progress.json next
+to the summary CSV, rewritten by the parent process at the start and after every finished task (tmp + os.replace,
+so a reader never sees half a file). Read by recipes.status. Internal format, may change:
 
     {"pid", "start", "updated", "total", "done", "ok", "failed", "end"}
     (times in unix seconds; ok = row['success']; end = None until run_tasks returns or raises)

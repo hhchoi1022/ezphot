@@ -1152,7 +1152,8 @@ class ImageMethod:
                                 verbose: bool = True,
                                 visualize: bool = True,
                                 save_fig: bool = False,
-                                save_refcat: bool = True
+                                save_refcat: bool = True,
+                                save_image: bool = True
                                 ):
         
         from ezphot.methods import PhotometricCalibration
@@ -1202,7 +1203,8 @@ class ImageMethod:
             verbose = verbose,
             visualize = visualize,
             save_fig = save_fig,
-            save_refcat = save_refcat)
+            save_refcat = save_refcat,
+            save_image = save_image)
         
         return result
     
