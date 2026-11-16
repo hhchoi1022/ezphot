@@ -111,7 +111,8 @@ class ImageMethod:
                     flat_image: Union[CalibrationImage, MasterImage] = None,
                     save: bool = False,
                     verbose: bool = True,
-                    dark_exptime_fallback: bool = False
+                    dark_exptime_fallback: bool = False,
+                    master_max_days: float = 100
                     ):
         """
         Correct bias, dark, and flat.
@@ -130,6 +131,8 @@ class ImageMethod:
             When dark_image is None, choose the master group from darks of any exposure and, in its nearest
             night with a dark not shorter than the frame, use the same exposure, else the shortest longer one
             (see Preprocess.get_masterframe).
+        master_max_days : float, optional
+            max_days of get_masterframe for the bias, dark and flat that are not given (default 100).
 
         Returns
         -------
@@ -138,19 +141,19 @@ class ImageMethod:
         """
         from ezphot.methods import Preprocess
         if bias_image is None:
-            bias_image = self.get_masterframe(imagetyp = 'BIAS', max_days = 100)
+            bias_image = self.get_masterframe(imagetyp = 'BIAS', max_days = master_max_days)
             if bias_image is None:
                 raise ValueError("Cannot correct bias, dark, and flat: Required bias frame is missing.")
             else:
                 bias_image = bias_image[0]
         if dark_image is None:
-            dark_image = self.get_masterframe(imagetyp = 'DARK', max_days = 100, dark_exptime_fallback = dark_exptime_fallback)
+            dark_image = self.get_masterframe(imagetyp = 'DARK', max_days = master_max_days, dark_exptime_fallback = dark_exptime_fallback)
             if dark_image is None:
                 raise ValueError("Cannot correct bias, dark, and flat: Required dark frame is missing.")
             else:
                 dark_image = dark_image[0]
         if flat_image is None:
-            flat_image = self.get_masterframe(imagetyp = 'FLAT', max_days = 100)
+            flat_image = self.get_masterframe(imagetyp = 'FLAT', max_days = master_max_days)
             if flat_image is None:
                 raise ValueError("Cannot correct bias, dark, and flat: Required flat frame is missing.")
             else:
@@ -973,7 +976,10 @@ class ImageMethod:
                                    save: bool = True,
                                    verbose: bool = True,
                                    visualize: bool = True,
-                                   save_fig: bool = False):
+                                   save_fig: bool = False,
+                                   annulus_errors: bool = True,
+                                   n_empty_apertures: int = None,
+                                   host_img = None):
         '''
         Perform forced photometry on the target image.
         
@@ -988,7 +994,7 @@ class ImageMethod:
         aperture_diameter_seeing : Union[float, list]
             The aperture diameter in seeing units.
         annulus_width_arcsec : Union[float, list]
-            The annulus width in arcseconds.
+            Local background annulus: added to the inner diameter (largest aperture + 1.5 seeing) for the outer one.
         unit : str
             The unit of the coordinates.
         target_bkg : Background
@@ -1005,6 +1011,13 @@ class ImageMethod:
             Whether to visualize the photometry.
         save_fig : bool
             Whether to save the photometry figure.
+        annulus_errors : bool
+            With an annulus, False uses it only for the background level (errors and upper limits from bkgrms).
+        n_empty_apertures : int
+            None: off. N: scale SKYSIG/UL/FLUXERR background part by the noise measured in N random empty apertures.
+        host_img : ScienceImage or ReferenceImage
+            None: off. Add the Poisson noise of this image's aperture flux (e.g. the convolved reference of a
+            difference image) to FLUXERR/MAGERR. See AperturePhotometry.circular_photometry.
 
         Returns
         -------
@@ -1028,7 +1041,10 @@ class ImageMethod:
             save = save,
             verbose = verbose,
             visualize = visualize,
-            save_fig = save_fig)
+            save_fig = save_fig,
+            annulus_errors = annulus_errors,
+            n_empty_apertures = n_empty_apertures,
+            host_img = host_img)
         return result
         
     def photometry_forced_elliptical(self,

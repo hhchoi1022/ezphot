@@ -91,6 +91,63 @@ class AperturePhotometry:
         mean, median, std = sigma_clipped_stats(sub, sigma=sigma, maxiters=maxiters)
         return dict(mean=float(mean), median=float(median), mode=float(2.5 * median - 1.5 * mean), std=float(std))
 
+    @staticmethod
+    def _empty_aperture_ratios(data, bkgrms, mask, radii, annulus_radii, n: int, host=None,
+                               seed: int = 0) -> np.ndarray:
+        """Measured / predicted background noise for apertures of these radii (pixels), from up to n random empty
+        positions over the whole image (fixed seed: the same positions for images of the same shape).
+        r = 4-sigma-clipped std of net / pred, with net = aperture sum minus, given annulus_radii (r_in, r_out), the
+        5-sigma-clipped annulus mean x area (the targets' estimator) and pred = sqrt(aperture sum of bkgrms**2) (the
+        targets' SKYSIG). Empty: largest aperture and annulus inside the image; no masked, non-finite or invalid pixel
+        (|value| < 1e-20: 0, or the 1e-30 hotpants writes for invalid output pixels; assumes ADU-scale pixel values)
+        in the largest aperture; with host
+        (first 2n such positions), its flux in the largest aperture, minus its own annulus mean x area when
+        annulus_radii are given (without them the host background is taken as flat), not more than 3 pred above the
+        median of those positions (no source of the host image). NaN for a radius with fewer than max(n // 4, 10)
+        usable positions."""
+        from astropy.stats import sigma_clipped_stats
+        n_min = max(n // 4, 10)
+        ny, nx = data.shape
+        ratios = np.full(len(radii), np.nan)
+        rmax = float(np.max(radii))
+        edge = int(np.ceil(max(rmax, annulus_radii[1] if annulus_radii is not None else 0))) + 1
+        if nx <= 2 * edge + 1 or ny <= 2 * edge + 1:
+            return ratios
+        rng = np.random.default_rng(seed)
+        pos = np.column_stack([rng.uniform(edge, nx - 1 - edge, 4 * n), rng.uniform(edge, ny - 1 - edge, 4 * n)])
+        bad = ~np.isfinite(data) | ((data > -1e-20) & (data < 1e-20))   # bool temporaries only, no float copy
+        if mask is not None:
+            bad |= np.asarray(mask).astype(bool)
+        largest = CircularAperture(pos, r=rmax)
+        pos = pos[np.asarray(aperture_photometry(bad.astype(np.uint8), largest, method='center')['aperture_sum']) == 0]
+        variance = bkgrms**2
+        if host is not None and len(pos):
+            pos = pos[:2 * n]
+            largest = CircularAperture(pos, r=rmax)
+            pred = np.sqrt(np.asarray(aperture_photometry(variance, largest)['aperture_sum']))
+            host_sum = np.asarray(aperture_photometry(host, largest)['aperture_sum'])
+            if annulus_radii is not None:
+                host_sum = host_sum - largest.area * np.array(ApertureStats(
+                    host, CircularAnnulus(pos, r_in=annulus_radii[0], r_out=annulus_radii[1]),
+                    sigma_clip=SigmaClip(sigma=5.0, maxiters=5), mask=mask).mean)
+            pos = pos[host_sum - np.nanmedian(host_sum) <= 3 * pred]
+        pos = pos[:n]
+        if len(pos) < n_min:
+            return ratios
+        local = 0.0
+        if annulus_radii is not None:
+            local = np.array(ApertureStats(data, CircularAnnulus(pos, r_in=annulus_radii[0], r_out=annulus_radii[1]),
+                                           sigma_clip=SigmaClip(sigma=5.0, maxiters=5), mask=mask).mean)
+        for i, r in enumerate(radii):
+            aperture = CircularAperture(pos, r=r)
+            net = np.asarray(aperture_photometry(data, aperture, mask=mask)['aperture_sum']) - local * aperture.area
+            pred = np.sqrt(np.asarray(aperture_photometry(variance, aperture, mask=mask)['aperture_sum']))
+            z = net / pred
+            z = z[np.isfinite(z)]
+            if len(z) >= n_min:
+                ratios[i] = sigma_clipped_stats(z, sigma=4.0, maxiters=5)[2]
+        return ratios
+
     def sex_photometry(self,  
                        # Input parameters
                        target_img: Union[ScienceImage, ReferenceImage, CalibrationImage], 
@@ -630,6 +687,9 @@ class AperturePhotometry:
                             verbose: bool = True,
                             visualize: bool = True,
                             save_fig: bool = False,
+                            annulus_errors: bool = True,
+                            n_empty_apertures: int = None,
+                            host_img: Union[ScienceImage, ReferenceImage] = None,
                             **kwargs
                             ):
         """
@@ -645,8 +705,10 @@ class AperturePhotometry:
             The y-coordinates of the sources.
         aperture_diameter_arcsec : Union[float, list], optional
             The aperture diameter in arcseconds. Defaults to [5,7,10].
-        annulus_diameter_arcsec : Union[float, list], optional
-            The annulus diameter in arcseconds. Defaults to None.
+        annulus_width_arcsec : float, optional
+            Local background annulus (5-sigma-clipped mean) when given. Defaults to None. Inner diameter = largest
+            aperture + 1.5 seeing (1.5 x largest aperture without seeing), outer diameter = inner diameter + this value
+            (so the radial width is half of it).
         unit : str, optional
             The unit of the coordinates. Defaults to 'pixel'.
         target_bkg : Optional[Background], optional
@@ -661,6 +723,23 @@ class AperturePhotometry:
             Whether to visualize the aperture photometry. Defaults to True.
         save_fig : bool, optional
             Whether to save the aperture photometry figure. Defaults to False.
+        annulus_errors : bool, optional
+            With annulus_width_arcsec: True (default) takes SKYSIG/UL3/UL5 and the background part of FLUXERR from the
+            annulus std; False uses the annulus only for the background level subtracted from the flux, and the errors
+            and upper limits are those without annulus (bkgrms summed over the aperture, calc_total_error).
+        n_empty_apertures : int, optional
+            None (default): off. N: measure the background noise in up to N random empty apertures of each size
+            (_empty_aperture_ratios, fixed seed) and multiply SKYSIG_APER_k, UL3/UL5_APER_k and the background part of
+            FLUXERR_APER_k by r_k = measured / predicted (bkgrms) noise, written as NOISE_RATIO_APER_k (NaN, and no
+            scaling, when too few empty apertures were found). Pixels with |value| < 1e-20 count as invalid, which
+            assumes ADU-scale pixel values. Needs the bkgrms errors (no annulus or annulus_errors=False).
+        host_img : ScienceImage or ReferenceImage, optional
+            None (default): off. An image on the pixel grid and flux scale of target_img holding the light under the
+            sources that target_img itself lacks (for a difference image: the convolved reference, conv_). Its aperture
+            sum (minus its own annulus mean x area with annulus_width_arcsec; without an annulus its background must be
+            ~0), written as HOST_FLUX_APER_k, clipped at 0 and divided by target_img.egain, is added to the FLUXERR
+            variance (so MAGERR); SKYSIG and the upper limits do not change. A non-finite host flux (NaN
+            HOST_FLUX_APER_k) adds nothing. With n_empty_apertures it also keeps the empty apertures off its sources. Needs the bkgrms errors.
         **kwargs : dict, optional
             Additional keyword arguments.
 
@@ -669,6 +748,9 @@ class AperturePhotometry:
         target_catalog : Catalog
             The aperture photometry catalog.
         """
+        if (n_empty_apertures or host_img is not None) and annulus_width_arcsec is not None and annulus_errors:
+            raise ValueError("n_empty_apertures and host_img scale the bkgrms errors: "
+                             "with annulus_width_arcsec set annulus_errors=False")
 
         # Step 1: Background subtraction
         data = self.helper.to_native(target_img.data)
@@ -826,7 +908,7 @@ class AperturePhotometry:
                 results[mag_key] = mag
 
                 # --- Flux error propagation ---
-                if 'aperture_sum_err' in phot_table.colnames:
+                if annulus_errors and 'aperture_sum_err' in phot_table.colnames:
 
                     # Photutils aperture error (includes poisson + bkgrms input)
                     aper_err = np.array(phot_table['aperture_sum_err'])
@@ -845,24 +927,25 @@ class AperturePhotometry:
                     results[magerr_key] = magerr
 
                 # --- Local sky sigma in aperture ---
-                sky_sigma = bkg_std * np.sqrt(aperture.area)
-                results[skysig_key] = sky_sigma
+                if annulus_errors:
+                    sky_sigma = bkg_std * np.sqrt(aperture.area)
+                    results[skysig_key] = sky_sigma
 
-                # --- Upper limits ---
-                ul5_flux = 5.0 * sky_sigma
-                ul3_flux = 3.0 * sky_sigma
+                    # --- Upper limits ---
+                    ul5_flux = 5.0 * sky_sigma
+                    ul3_flux = 3.0 * sky_sigma
 
-                ul5 = np.full(len(ul5_flux), np.nan)
-                ul3 = np.full(len(ul3_flux), np.nan)
+                    ul5 = np.full(len(ul5_flux), np.nan)
+                    ul3 = np.full(len(ul3_flux), np.nan)
 
-                valid5 = ul5_flux > 0
-                valid3 = ul3_flux > 0
+                    valid5 = ul5_flux > 0
+                    valid3 = ul3_flux > 0
 
-                ul5[valid5] = -2.5 * np.log10(ul5_flux[valid5])
-                ul3[valid3] = -2.5 * np.log10(ul3_flux[valid3])
+                    ul5[valid5] = -2.5 * np.log10(ul5_flux[valid5])
+                    ul3[valid3] = -2.5 * np.log10(ul3_flux[valid3])
 
-                results[ul5_key] = ul5
-                results[ul3_key] = ul3
+                    results[ul5_key] = ul5
+                    results[ul3_key] = ul3
                 
             # When annulus is NOT defined (pure aperture photometry)
             else:
@@ -876,14 +959,19 @@ class AperturePhotometry:
                 mag[valid_flux] = -2.5 * np.log10(aperture_flux[valid_flux])
                 results[mag_key] = mag
 
+            # Errors and upper limits from bkgrms: without annulus, or with an annulus that only sets the
+            # background level (annulus_errors=False)
+            if annulus_width_arcsec is None or not annulus_errors:
+                flux = np.array(results[flux_key])
+
                 # Error propagation
                 if 'aperture_sum_err' in phot_table.colnames:
                     flux_err = np.array(phot_table['aperture_sum_err'])
                     results[fluxerr_key] = flux_err
 
-                    magerr = np.full(len(aperture_flux), np.nan)
-                    valid = (aperture_flux > 0) & (flux_err > 0)
-                    magerr[valid] = 2.5 / np.log(10) * flux_err[valid] / aperture_flux[valid]
+                    magerr = np.full(len(flux), np.nan)
+                    valid = (flux > 0) & (flux_err > 0)
+                    magerr[valid] = 2.5 / np.log(10) * flux_err[valid] / flux[valid]
                     results[magerr_key] = magerr
 
                 # Use global bkgrms for UL if available
@@ -907,6 +995,53 @@ class AperturePhotometry:
 
                     results[ul5_key] = ul5
                     results[ul3_key] = ul3
+
+        # Step 7: measured background noise (n_empty_apertures) and host Poisson term (host_img) on the bkgrms errors
+        if n_empty_apertures or host_img is not None:
+            annulus_radii = None
+            if annulus_width_arcsec is not None:
+                annulus_radii = (annulus_inner_radius / pixelscale, annulus_outer_radius / pixelscale)
+            host = self.helper.to_native(host_img.data) if host_img is not None else None
+            ratios = np.full(len(all_apertures_pixel), np.nan)
+            if n_empty_apertures:
+                ratios = self._empty_aperture_ratios(data, bkgrms, mask, all_apertures_pixel / 2, annulus_radii,
+                                                     int(n_empty_apertures), host=host)
+                if not np.all(np.isfinite(ratios)):
+                    print(f"[WARNING] too few empty apertures in {target_img.path.name}: "
+                          "SKYSIG/UL/FLUXERR not scaled for the apertures with NOISE_RATIO NaN")
+            for i, diameter_pixel in enumerate(all_apertures_pixel):
+                suffix_key = '' if i == 0 else '_%d' % i
+                aperture = CircularAperture(positions, r=diameter_pixel / 2)
+                ratio = ratios[i] if np.isfinite(ratios[i]) else 1.0
+                sky_sigma = np.array(results[f'SKYSIG_APER{suffix_key}'])
+                flux_var = np.array(results[f'FLUXERR_APER{suffix_key}'])**2 + (ratio**2 - 1) * sky_sigma**2
+                if host is not None:
+                    host_flux = np.array(aperture_photometry(host, aperture, mask=mask)['aperture_sum'])
+                    if annulus_radii is not None:   # the host image's own local level, as for the target
+                        host_annulus = CircularAnnulus(positions, r_in=annulus_radii[0], r_out=annulus_radii[1])
+                        host_stats = ApertureStats(host, host_annulus, sigma_clip=SigmaClip(sigma=5.0, maxiters=5),
+                                                   mask=mask)
+                        host_flux = host_flux - np.array(host_stats.mean) * aperture.area
+                    # Host aperture or annulus not finite: no host term for that source, HOST_FLUX NaN shows it
+                    finite = np.isfinite(host_flux)
+                    flux_var = flux_var + np.where(finite, np.clip(host_flux, 0, None), 0.0) / target_img.egain
+                    results[f'HOST_FLUX_APER{suffix_key}'] = np.where(finite, host_flux, np.nan)
+                flux = np.array(results[f'FLUX_APER{suffix_key}'])
+                flux_err = np.sqrt(flux_var)
+                sky_sigma = ratio * sky_sigma
+                magerr = np.full(len(flux), np.nan)
+                valid = (flux > 0) & (flux_err > 0)
+                magerr[valid] = 2.5 / np.log(10) * flux_err[valid] / flux[valid]
+                results[f'FLUXERR_APER{suffix_key}'] = flux_err
+                results[f'MAGERR_APER{suffix_key}'] = magerr
+                results[f'SKYSIG_APER{suffix_key}'] = sky_sigma
+                for n_sigma in (5, 3):
+                    ul = np.full(len(sky_sigma), np.nan)
+                    valid = sky_sigma > 0
+                    ul[valid] = -2.5 * np.log10(n_sigma * sky_sigma[valid])
+                    results[f'UL{n_sigma}_APER{suffix_key}'] = ul
+                if n_empty_apertures:
+                    results[f'NOISE_RATIO_APER{suffix_key}'] = np.full(len(results), ratios[i])
 
         cat_path = target_img.savepath.catalogpath.with_suffix('.circ.cat')
         target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 

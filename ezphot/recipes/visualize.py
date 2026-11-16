@@ -112,6 +112,11 @@ DONE_FILE = '.viz_done.json'                       # per frame folder: stage fig
 DIA_FILE = 'dia.json'                              # per frame folder: its DIA (_dia_point) for runs without --dia
 DIA_SIZE_ARCSEC = 60                               # dia.png: cutouts about this wide around the forced position
 DIA_APER_ARCSEC = 10                               # dia.png: aperture circle, diameter of MAGSKY_APER_3 (dia recipe forced photometry)
+DIA_MATCH_ARCSEC = 1.0                             # _dia_point: .circ.cat row within this of the summary ra/dec
+DIA_NOPOS = {'no circ': 'DIA without forced photometry (no .circ.cat)',   # _dia_point 'nopos' -> status note
+             'no ra/dec': 'DIA without forced photometry (the dia row has no ra/dec)',
+             'no match': f'no forced position: no .circ.cat row within {DIA_MATCH_ARCSEC:g}" of the dia ra/dec '
+                         '(rewritten by another forced run?)'}
 DIA_CONV = dict(TEMPLATE='convolved reference', IMAGE='convolved science')   # sub header CONVOL00 -> conv_ image
 _CACHE = {}                                        # per process, cleared by visualize(): sky-catalog utility and tiles, masters
 _FRAME_CATS = None                                 # .cat tables read while one frame is drawn (_frame), else no memo
@@ -668,14 +673,29 @@ def _dia_point(row: dict, info: dict) -> dict:
     image exists: t = mjd of the row's obsdate (as _sources), obs = OBSERVATORY of the frame's .info, f, tel = filter,
     telname of the row, m, e, zpe, ul = its MAGSKY / MAGERR / ZPERR / UL5SKY_APER_3 as the recipe wrote them (None if not
     finite), ref = reference file name, sub = difference image file name, conv = CONVOL00 of its header, ra, dec = forced
-    position (X_WORLD, Y_WORLD of the first .circ.cat row; None without one: no figure, no point), csv = summary file name."""
+    position: X_WORLD, Y_WORLD of the .circ.cat row within DIA_MATCH_ARCSEC of the row's ra, dec (dia summaries with
+    those columns; none when they are empty: dia without a target), of its first row for older summaries without the
+    columns; None without such a row: no figure, no point, and nopos says why (a DIA_NOPOS key: 'no circ' missing or
+    empty .circ.cat, 'no ra/dec', 'no match' e.g. rewritten for other positions; None with a position).
+    The fallback is per --dia item: pass old and new summaries as separate items, not one pd.concat DataFrame (the old
+    rows would then have an empty ra and no position). csv = summary file name."""
     sub = Path(str(row['subtracted']))
     circ = _product(sub, '.circ.cat')
     ra = dec = None
+    nopos = 'no circ'
     if circ.exists():
         t = Table.read(str(circ), format='ascii.basic')
-        if len(t):
-            ra, dec = round(float(t['X_WORLD'][0]), 6), round(float(t['Y_WORLD'][0]), 6)
+        i = 0 if len(t) else None   # older summaries without ra/dec: the first row, as dia wrote it
+        if i is not None and 'ra' in row:
+            ra0, dec0 = (pd.to_numeric(row.get(k), errors='coerce') for k in ('ra', 'dec'))
+            i, nopos = None, 'no ra/dec'
+            if ra0 is not None and dec0 is not None and np.isfinite(ra0) and np.isfinite(dec0):
+                x, y = np.asarray(t['X_WORLD'], float), np.asarray(t['Y_WORLD'], float)
+                sep = np.hypot(((x - ra0 + 180) % 360 - 180) * np.cos(np.radians(dec0)), y - dec0) * 3600
+                i = int(np.nanargmin(sep)) if np.any(sep <= DIA_MATCH_ARCSEC) else None
+                nopos = 'no match'
+        if i is not None:
+            ra, dec, nopos = round(float(t['X_WORLD'][i]), 6), round(float(t['Y_WORLD'][i]), 6), None
 
     def num(k):
         v = pd.to_numeric(row.get(k), errors='coerce')
@@ -685,7 +705,7 @@ def _dia_point(row: dict, info: dict) -> dict:
                 f=str(row['filter']), tel=str(row.get('telname')), m=num(MAGSKY_KEY), e=num(MAGERR_KEY),
                 zpe=num(f'ZPERR_{D.APER10_KEY}'), ul=num(f'UL5SKY_{D.APER10_KEY}'),
                 ref=Path(ref).name if isinstance(ref, str) else None, sub=sub.name,
-                conv=None if conv is None else str(conv), ra=ra, dec=dec, csv=row['csv'])
+                conv=None if conv is None else str(conv), ra=ra, dec=dec, nopos=nopos, csv=row['csv'])
 
 
 def _dia_payload(have: list, verbose=True) -> dict:
@@ -1501,7 +1521,8 @@ def _dia_stage(path: Path, info: dict, rows, mode: str, rec: dict, imgdir: Path,
         else:
             names = []
     if point is not None and point['ra'] is None:
-        note += (' | ' if note else '') + 'DIA without forced photometry (no .circ.cat): no figure, no point'
+        why = DIA_NOPOS.get(point.get('nopos'), DIA_NOPOS['no circ'])   # DIA_FILE before 'nopos': the old wording
+        note += (' | ' if note else '') + f'{why}: no figure, no point'
     entry['stages']['dia'] = [_figure(imgdir, n, f'{path.stem}/', reuse=mode != 'all' and same) for n in names]
     if point is not None:
         entry['dia'] = point

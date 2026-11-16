@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.8.0 (2026-11-16)
+### 파괴적
+- dia(`ra`/`dec`를 준 실행): 차영상 헤더에 유한한 `ZP_APER_3`가 없으면 그 행은 이제 `success=False`, `step='apply_zp'`(오류 문구는 forced_photometry와 같음)이고
+  값 열은 비어 있다. 0.7.12는 성공에 빈 값이었다. 같은 입력에서 `success`·`step`과 CLI 종료 코드(0 → 1)가 바뀌므로 계약의 실패 표현 변경이다.
+  `ra`/`dec` 없이 돌린 dia는 그대로다(그때는 ZP를 보지 않는다).
+  deprecation 기간 없이 바꾸는 이유: 사용자 결정(D4)이고, 값이 빈 행을 성공으로 두면 하류가 NaN을 측정값으로 받는다. 옛 동작을 고르는 인자는 두지 않는다.
+  - 갤러리: `visualize --dia`는 그런 프레임의 dia.png를 그리지 않고 상태에 "DIA failed at apply_zp: …"를 적는다(0.7.12는 그림만 그리고 점은 없었다).
+  - **BRIDGE 영향**: ZP 없는 차영상 행을 실패로 받는다(종료 코드 1). 성공 행만 쓰는 처리라면 결과는 같고, 실패 집계가 늘 수 있다.
+### 수치 변경
+- **차영상(`sub_*`) forced 측광**(dia 레시피, forced_photometry 레시피에 차영상을 줄 때): 새 config 섹션 `forced_photometry_sub`
+  (`defaults.FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_empty_apertures=500, host_poisson=True)`)을
+  `forced_photometry` 위에 얹는다(같은 키는 이쪽이 이긴다). 차영상이 아닌 영상의 forced 측광, dia의 후보·트랜지언트 카탈로그, 차영상 자체는 바뀌지 않는다.
+  - 국소 배경: 타겟마다 고리(안쪽 지름 = 가장 큰 개구 + 1.5 seeing, 바깥 = 안쪽 + 60″; seeing 2.5–4.9″에서 반경 약 9–12″ … 39–42″)의
+    5σ 클립 평균 × 개구 면적을 플럭스에서 뺀다. hotpants의 1차 평면 배경이 남긴 차영상 pedestal(T08635 고리 평균 −1.56 … +1.52 ADU/pix)을 없앤다.
+    고리는 플럭스에만 쓰고 `SKYSIG`·`UL3`/`UL5`·`FLUXERR`의 배경 항은 고리 std가 아니라 지금처럼 bkgrms 적분이다.
+  - 배경 잡음 실측 비 r_k: 같은 영상의 무작위 빈 개구(최대 500, 고정 시드)에서 타겟과 같은 방식으로 잰 값의 산포 ÷ bkgrms 예측.
+    `SKYSIG_APER_k`·`UL3/UL5_APER_k`(→ `UL3SKY`/`UL5SKY`)·`FLUXERR_APER_k`의 배경 항에 곱한다(상관 잡음). 빈 개구의 소스 회피는 `conv_`가
+    convolve된 reference일 때만 한다(그 밖에는 무효 픽셀 회피와 4σ 클립뿐, 계약 3절). `host_poisson=False`이면 `conv_`를 열지 않으므로
+    소스 회피도 없다.
+  - 호스트 Poisson: 같은 폴더 `conv_<name>`(convolve된 reference, `CONVOL00=TEMPLATE`)의 개구 플럭스(자기 고리 평균을 뺀 값) ÷ EGAIN을
+    `FLUXERR`/`MAGERR` 분산에만 더한다. 한계 등급에는 넣지 않는다. `conv_`가 없거나 convolve된 science이거나 그 타겟에서 유한하지 않으면 넣지 않고
+    요약 `host_source`(`missing`/`not template`/`not finite`)와 카탈로그 `HOST_FLUX_APER_k`(NaN)에 남긴다.
+  - 정의는 `RECIPES_CONTRACT.md` 3절. 0.7.12 값을 다시 내려면(기본 `forced_photometry` 섹션 기준) `config={'forced_photometry_sub':
+    dict(annulus_width_arcsec=None, n_empty_apertures=None, host_poisson=False)}`. `forced_photometry` 섹션에 `annulus_width_arcsec=X`를 직접 주던 호출은
+    차영상에서 이제 그 값이 이 섹션 값으로 덮이므로, 0.7.12 값은 `forced_photometry_sub=dict(annulus_width_arcsec=X, annulus_errors=True,
+    n_empty_apertures=None, host_poisson=False)`로 낸다.
+  - 호스트 항은 T08635에서 `FLUXERR` 분산의 0.07/0.31/0.43(최소/중앙/최대)을 차지한다. `host_source`가 `conv`가 아닌 행(`missing`·`not template`·
+    `off`·`not finite`)은 이 항이 없어 오차가 작게 나오므로, 한 광도곡선에 섞으면 오차가 일관되지 않는다.
+  - 자원(T08635 실측, 60.9 Mpx 차영상 60장, 4개씩): 워커 최대 RSS는 변하지 않았다(3.4–3.7 GB). 시간은 영상당 약 +1.5 s(+4 %)이고,
+    60장 forced가 540 s에서 562 s가 됐다.
+  - **BRIDGE 영향**: `sub_*.fits.circ.cat`과 dia 요약에서 바뀌는 열. 숫자는 T08635 DIA 60장·20필터 격리 검증의 실측(새 − 0.7.12, 최소/중앙/최대)이다.
+    | 열 | 변화 |
+    | --- | --- |
+    | `MAGSKY_APER_3` 프레임(`MAG`·`FLUX_APER_3`, 다른 구멍도) | 국소 배경만큼. 청·녹(m400–m725, r; 42장) −0.078/−0.009/+0.071 mag(\|Δ\| 중앙 0.017), 적색(m750–m875; 18장) −0.122/+0.015/+0.478 mag(\|Δ\| 중앙 0.066, 프레임 SNR 1.7–12). 새 프레임 오차 단위로 −1.40/−0.13/+1.16σ |
+    | `MAGSKY_APER_3` 3장 결합(플럭스 역분산 가중) | 20필터 −0.100/−0.008/+0.228 mag. m800 −0.100, m825 −0.039, m850 +0.103, m875 +0.228(등급 가중이면 −0.101, −0.031, +0.086, +0.166). 적색은 SNR이 낮아 결합 방식에 따라 0.1 mag 넘게 달라진다 |
+    | `BACKGROUND`(새 열, 타겟별 고리 평균) | −1.56/−0.19/+1.52 ADU/pix |
+    | `FLUXERR_APER_3` | ×1.188/1.356/1.448(r_3와 호스트 항). 3장 결합 오차 ×1.185/1.360/1.544 |
+    | `MAGERR_APER_3` | ×1.134/1.353/1.940(= FLUXERR 비 × FLUX_0.7.12 / FLUX_new; 최대는 m875 f1, SNR 1.7) |
+    | `SKYSIG_APER_3` | × noise_ratio = 1.117/1.214/1.376(r 표본 오차 약 3 %, N = 500) |
+    | `UL5SKY_APER_3`·`UL3SKY_APER_3`(`UL5`/`UL3_APER_3`) | 0.120/0.211/0.346 mag 얕아짐(= 2.5 log10 r_3, 호스트 항은 넣지 않음) |
+    | `X_WORLD`, `Y_WORLD`, `ZP_APER_3`, `ZPERR_APER_3` | 그대로 |
+    | 새 열 | `BACKGROUND`(ADU/pix), `NOISE_RATIO_APER[_k]`(r_k), `HOST_FLUX_APER[_k]`(호스트 항에 쓴 `conv_` 플럭스, ADU) |
+    검증 전 이 항목에 있던 기대값(지난 QA 기준의 결합값과 FLUXERR·MAGERR 비)은 지웠다. 지난 QA의 3σ 클립 pedestal이 0.13 ADU/pix 낮게 편향돼 있었고,
+    새 5σ 클립 고리 평균은 대상 근처 빈 개구 평균과 편향이 없다(+0.000 ± 0.018 ADU/pix).
+    정규화 잔차는 값에 보정하지 않고 `norm_*` 열로만 알린다(아래 `### 추가`).
+    BRIDGE는 수용 검사에서 위 열의 분포를 다시 보고, 한계 등급(`UL5SKY_APER_3`)이 빈 개구 실측 기준으로 얕아진 것을 반영해야 한다.
+### 추가
+- `AperturePhotometry.circular_photometry`·`ImageMethod.photometry_forced_circular`에 새 인자(맨 끝, 기본 = 이전 동작): `annulus_errors=True`
+  (False면 고리를 배경 수준에만 쓰고 오차·한계 등급은 bkgrms로), `n_empty_apertures=None`(N이면 빈 개구 실측 잡음 비 r_k로 `SKYSIG`/`UL`/`FLUXERR`
+  배경 항을 키우고 `NOISE_RATIO_APER_k` 열을 쓴다), `host_img=None`(주면 그 영상 개구 플럭스의 Poisson 잡음을 `FLUXERR`/`MAGERR`에 더하고
+  `HOST_FLUX_APER_k` 열을 쓴다; 고리가 없으면 그 영상의 배경이 0이라고 본다).
+  뒤의 둘은 bkgrms 오차에만 적용되며, 고리와 함께 쓰면서 `annulus_errors=True`이면 `ValueError`.
+- dia 요약 끝에 새 열: `ra`, `dec`(넘긴 좌표), `noise_ratio`, `host_source`(차영상 forced, forced_photometry와 같은 뜻), 정규화 QA
+  `norm_resid`(필드 별 10″ 플럭스 비 차영상/science의 중앙값), `norm_resid_n`(쓴 별 수, 정수), `norm_resid_mad`, `ksum`(헤더 `KSUM00`),
+  `ksum_exp`(=10^(−0.4(ZP_ref−ZP_sci)), `CONVOL00=TEMPLATE`일 때만), `ksum_ratio`, `norm_flag`(|`norm_resid`| > `defaults.DIA_NORM_RESID_MAX` = 0.035).
+  별은 science 영상 옆 `<img>.fits.refcat`(ZP 기준성). 별이 10개 미만이면(refcat·`sci_`가 없을 때 포함) `norm_resid`·`norm_resid_mad`·`norm_flag`는
+  빈 칸이고(플래그를 세우지 않음) `norm_resid_n`은 그 별 수다. QA 열은 값과 `success`를 바꾸지 않고, 파일을 쓰거나 지우지 않는다. 기존 열의 이름·순서는 그대로다.
+  `norm_resid`는 밝은 refcat 별(적색 필터에서 약 10–14 mag) 기준이라, 적색에서는 어두운 천체보다 0.5–1 % 낮게 나올 수 있다(계약 2절 dia).
+  - **BRIDGE 영향**: `norm_flag`가 참인 차영상은 hotpants 플럭스 스케일이 3.5 % 넘게 어긋난 것이다. T08635 검증에서 플래그는 m650 f0,
+    m675 f1·f2 세 장이었다(norm_resid 약 −4 %, +6 %, +5.5 %, 지난 QA와 0.004 안). **그 프레임의 `MAGSKY`는 보정하지 않는다.**
+    T08635에서 m650 f0은 약 0.08 mag 어둡고 m675 f1·f2는 약 0.11 mag 밝았다(10″ 안 호스트/트랜지언트 1.6–1.8배). 사용처가 그 프레임을 빼거나 보정해야 한다.
+- forced_photometry 요약 끝에 `noise_ratio`, `host_source`(타겟별, 차영상만, 그 밖은 빈 칸).
+  - **BRIDGE 영향**: forced_photometry 요약(스택·`reference_stars` 포함)에 끝 열 둘이 늘어난다(차영상이 아니면 빈 칸). 열 집합을 엄격히 검사하면 맞춘다.
+- dia·forced_photometry의 새 config 섹션 `forced_photometry_sub`(`defaults.FORCED_PHOTOMETRY_SUB`, 차영상에만 `forced_photometry` 위에 얹음, 같은 키는 이쪽이 이긴다)와
+  `defaults.DIA_NORM_RESID_MAX`(0.035, config 섹션이 아닌 상수).
+- 새 예외 `ezphot.recipes.NothingToDo(ValueError)`: 처리할 것이 없을 때(입력이 빔, 성공 행 없음, 스택할 묶음 없음, 카탈로그 없음). 메시지는 그대로다:
+  process_images `no images to process`, stack `no successfully processed images in the summary`·`no group has more than one image`,
+  dia `no successful images in the summary`, forced_photometry `no images given`, target_photometry `no catalogs given`(일관성을 위해 함께).
+  `except ValueError`는 그대로 잡는다. 계약 1절에 메시지 표.
+  - **BRIDGE 영향**: 메시지 앞부분 비교 대신 `except NothingToDo`로 "처리할 것 없음"을 가를 수 있다.
+- `ImageMethod.correct_bdf(..., master_max_days=100)`, `process_image`·`process_images(..., master_max_days=100)`, CLI `process_images --master-max-days`:
+  `do_preprocess`에서 master bias·dark·flat 세 가지를 찾는 기간(일). 기본 100 = 이전 고정값(결과 같음).
+  - **BRIDGE 영향**: 1000일 등 긴 창이 필요하면 이 인자로 레시피 전처리를 쓸 수 있다.
+### 변경
+- dia: 차영상 forced가 `recipes.forced_photometry.forced_image`(`calibrate='header'`)를 부른다(같은 호출이라 위 수치 변경과 `### 파괴적`을 빼면 값과
+  `sub_*.circ.cat`은 같다). 행의 `telname`·`filter`·`obsdate`·`exptime`은 그대로 science 영상 값이다. forced의 ZP 외 실패는 `step='forced_photometry'`.
+- dia: 영상을 열거나 헤더 값을 읽지 못하면 실행 전체가 예외로 멈추던 것을, forced_photometry처럼 그 영상 행만 `step='load'` 실패로 남기고 계속한다
+  (요약 CSV가 생기고, n_proc > 1에서 나머지 영상이 취소되지 않는다). 정상 입력의 결과는 같다.
+  - **BRIDGE 영향**: 열 수 없는 영상은 예외가 아니라 `success=False, step='load'` 행으로 온다. CLI 종료 코드는 그대로 1이다. 예외로 이 실패를 잡던 Python 호출은
+    `success`를 본다.
+- dia: `ra`/`dec`는 타겟 하나다. 숫자 또는 원소 하나짜리 리스트·튜플·배열을 받고, 그 밖(원소 둘 이상, 숫자가 아님)은 처리 전에 `ValueError`다
+  (0.7.12는 리스트를 받아 첫 타겟 값을 썼다). `dia_image`는 그대로 예외를 내지 않는다. 계약 밖 입력이라(0.7.12 계약·주석 타입은 float,
+  CLI는 `type=float`) 파괴적으로 분류하지 않는다.
+- forced_photometry: 차영상의 `bkg_source`가 고리를 쓰면 `annulus`(0.7.12: `none`).
+### 수정
+- `visualize --dia`: forced 위치를 `sub_*.circ.cat`의 첫 행이 아니라 dia 요약 `ra`/`dec`에서 1″ 안의 행에서 가져온다. 다른 좌표의 forced_photometry가
+  그 파일을 덮어써서 맞는 행이 없거나 요약의 `ra`/`dec`가 비어 있으면 그 프레임의 DIA 그림·점을 그리지 않고 상태에 그 이유를 적는다.
+  이유는 프레임 폴더 `dia.json`의 `nopos`(내부 형식)에도 남아 `--dia` 없이 갱신해도 같은 메모가 나온다(`nopos`가 없는 옛 `dia.json`은 이전 문구).
+  `ra`/`dec` 열이 없는 옛 요약은 이전처럼 첫 행. 옛 요약과 새 요약은 따로 넘긴다(한 DataFrame으로 합치면 옛 행은 `ra`가 빈 칸이 되어 위치가 없다).
+- `circular_photometry`·`photometry_forced_circular` docstring: `annulus_width_arcsec`는 고리 바깥 지름 = 안쪽 지름 + 이 값(반경 폭은 절반)이다.
+
 ## 0.7.12 (2026-11-15)
 ### 추가
 - 새 레시피 `recipes.forced_photometry`: 단일·스택·차 영상에서 주어진 좌표(스칼라 또는 배열)에 forced 원형 측광을 하고 ZP를 붙인다.

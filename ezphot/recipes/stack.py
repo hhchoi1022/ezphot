@@ -28,6 +28,7 @@ import pandas as pd
 
 from ezphot.imageobjects import ImageSet, ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._common import NothingToDo
 from ezphot.recipes._progress import run_tasks
 from ezphot.recipes.process_images import process_image
 
@@ -93,7 +94,7 @@ def stack(summaries: Union[str, Path, List],
     """Group, stack and calibrate the images of process_images summaries; return (and save) one row per stack."""
     paths = load_summary(summaries)
     if len(paths) == 0:
-        raise ValueError("no successfully processed images in the summary")
+        raise NothingToDo("no successfully processed images in the summary")
     cfg, _ = _split_config(config)
     groups = ImageSet([ScienceImage(path=p, load=True) for p in paths]).divide_images(**cfg['stack_group'])
     groups = [[str(img.path) for img in g.target_images] for g in groups]
@@ -102,7 +103,7 @@ def stack(summaries: Union[str, Path, List],
     if verbose:
         print(f"[stack] {len(paths)} images -> {len(groups)} stacks ({n_single} single-image groups not stacked)")
     if len(groups) == 0:
-        raise ValueError("no group has more than one image")
+        raise NothingToDo("no group has more than one image")
     if out is None:   # decided at the start: <out>.progress.json is written next to it while running
         objname = ScienceImage(path=paths[0], load=True).objname or 'unknown'
         out = Path.home() / 'ezphot' / 'log' / 'recipes' / objname / f"stack_{time.strftime('%Y%m%d_%H%M%S')}.csv"

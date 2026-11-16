@@ -75,6 +75,16 @@ DIA = dict(reject_variable_sources=True, negative_detection=True, reverse_subtra
 FORCED_PHOTOMETRY = dict(aperture_diameter_arcsec=[3, 5, 7, 10, 15], aperture_diameter_seeing=[2.5, 3.5],
                          annulus_width_arcsec=None, verbose=False, visualize=False, save=True, save_fig=True)
 
+# Forced photometry on difference images (sub_*; dia and forced_photometry), on top of FORCED_PHOTOMETRY:
+# - local background: 5-sigma-clipped annulus mean, inner diameter = largest aperture + 1.5 seeing, outer = inner + 60"
+#   (radii ~9-12" to ~39-42" at seeing 2.5-4.9"), used for the flux only (annulus_errors=False);
+# - SKYSIG/UL3/UL5 and the background part of FLUXERR x the measured/predicted noise of 500 random empty apertures;
+# - host_poisson: Poisson noise of the convolved reference (conv_, CONVOL00 TEMPLATE) added to FLUXERR/MAGERR only.
+FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_empty_apertures=500, host_poisson=True)
+
+# dia normalisation QA: norm_flag when |median 10" difference/science flux ratio of the field stars| exceeds this.
+DIA_NORM_RESID_MAX = 0.035
+
 # 10" aperture is MAG_APER_3 in ezphot catalogs (aperture_diameter_arcsec index 3).
 # Pipeline (tract7dt) uses APER_5 / ZP_5 for 10": do not mix the two conventions.
 APER10_KEY = 'APER_3'

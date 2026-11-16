@@ -32,6 +32,7 @@ import numpy as np
 
 from ezphot.dataobjects import Catalog, CatalogSet, LightCurve
 from ezphot.recipes import defaults as D
+from ezphot.recipes._common import NothingToDo
 
 DERIVED_PREFIXES = ('align_', 'com_', 'coadd_', 'scale_', 'conv_', 'sub_', 'inv_', 'subbkg_')
 SATDIST_WARN = 1.2
@@ -83,7 +84,7 @@ def target_photometry(catalogs: Union[CatalogSet, List[Catalog]],
     dedupe=True first keeps one catalog per (observatory, telname, filter, obsdate), the deepest UL5 (UL5SKY_APER_3)."""
     catset = catalogs if isinstance(catalogs, CatalogSet) else CatalogSet(list(catalogs))
     if len(catset.catalogs) == 0:
-        raise ValueError("no catalogs given")
+        raise NothingToDo("no catalogs given")
     if dedupe:
         kept, dropped = _deepest_per_epoch(catset.target_catalogs)
         if verbose:

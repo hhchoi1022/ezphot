@@ -13,8 +13,10 @@ Claude Code skills/agents, or by bridge.
     python -m ezphot.recipes.status [--watch 60]
 
 Function signatures, summary columns, out= defaults, failure rows, aperture numbering and the forced catalog
-format are described in RECIPES_CONTRACT.md at the repository root.
+format are described in RECIPES_CONTRACT.md at the repository root. NothingToDo (a ValueError) is raised when the input
+leaves nothing to process.
 """
+from ._common import NothingToDo
 from .process_images import process_image, process_images
 from .stack import stack, stack_group
 from .dia import dia, dia_image

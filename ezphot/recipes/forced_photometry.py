@@ -14,10 +14,17 @@ forced_photometry: forced circular-aperture photometry at given sky positions on
         The recipe fixes update_header=False, save_image=False, save=True, mag_lower/upper (defaults.MAG_RANGE) and
         the region (ra_deg=dec_deg=None, inner_fraction=1); config cannot change these.
 
-Background: difference images (sub_*) none, as dia (circular_photometry computes the bkgrms from the image). Other
-images use their .bkgmap/.bkgrms sidecars, i.e. the background of the process_images/stack photometry that set the
-header ZP (stacks: the propagated bkgrms). A missing sidecar is computed from the image in memory, without a source
-mask (sources only sigma-clipped, so it may differ from process_images); bkg_source / bkgrms_source say which.
+Background: difference images (sub_*) have no background map (circular_photometry computes the bkgrms from the
+image). The forced_photometry_sub section (defaults.FORCED_PHOTOMETRY_SUB, on top of forced_photometry for them)
+measures the flux over a local annulus mean (bkg_source 'annulus'), scales SKYSIG/UL3/UL5 and the background part of
+FLUXERR by the noise ratio of random empty apertures of the same image (noise_ratio, NOISE_RATIO_APER_k) and adds the
+Poisson noise of the host, the aperture flux of the convolved reference conv_<name> next to it (hotpants, CONVOL00
+TEMPLATE), to FLUXERR/MAGERR only (host_source 'conv'; 'missing' without conv_, 'not template' when conv_ is the convolved science
+image, 'off' with host_poisson=False, 'not finite' for a target whose conv_ aperture or annulus is not finite: no host
+term, HOST_FLUX_APER_k NaN). Other images use their .bkgmap/.bkgrms sidecars, i.e. the background of the
+process_images/stack photometry that set the header ZP (stacks: the propagated bkgrms). A missing sidecar is computed
+from the image in memory, without a source mask (sources only sigma-clipped, so it may differ from process_images);
+bkg_source / bkgrms_source say which.
 
 Products next to each image (its own folder, not the config archive layout): <img>.fits.circ.cat (+ .info), an ASCII
 table with X_WORLD/Y_WORLD and the per-aperture MAGSKY/MAGERR/ZP/ZPERR/UL5SKY_APER[_k] columns; with
@@ -25,7 +32,8 @@ table with X_WORLD/Y_WORLD and the per-aperture MAGSKY/MAGERR/ZP/ZPERR/UL5SKY_AP
 an older .circ.refcat as it is). No figures. The input FITS is not rewritten.
 One summary row per image x target (target = index in ra/dec): success/step/error (the same for all targets of an
 image), n_ref (reference stars of 'reference_stars'), bkg_source, bkgrms_source, catalog and the target's
-MAGSKY/MAGERR/ZP/ZPERR/UL5SKY in the 10" aperture (*_APER_3). An image without a finite ZP_APER_3 fails (header: step
+MAGSKY/MAGERR/ZP/ZPERR/UL5SKY in the 10" aperture (*_APER_3), then noise_ratio (r of the 10" aperture) and
+host_source (difference images, else empty). An image without a finite ZP_APER_3 fails (header: step
 apply_zp, no ZP_APER_3 in the header; reference_stars: step photometric_calibration, also when n_ref is 0); an image
 that cannot be opened fails at step load; an empty UL5SKY_APER_3 means no depth was available.
 While it runs, <out>.progress.json next to the summary counts the finished images (read by recipes.status).
@@ -51,17 +59,19 @@ import pandas as pd
 from ezphot.dataobjects import Catalog
 from ezphot.imageobjects import ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._common import NothingToDo
 from ezphot.recipes._progress import run_tasks
 from ezphot.recipes.stack import load_summary
 
-FORCED_CONFIG_KEYS = ('forced_photometry', 'photcal')
+FORCED_CONFIG_KEYS = ('forced_photometry', 'forced_photometry_sub', 'photcal')
 CALIBRATE = ('header', 'reference_stars')
 FORCED_KEYS = [f'{p}_{D.APER10_KEY}' for p in ('MAGSKY', 'MAGERR', 'ZP', 'ZPERR', 'UL5SKY')]
 ROW_KEYS = ('path', 'target', 'ra', 'dec', 'telname', 'filter', 'obsdate', 'exptime', 'calibrate', 'success', 'step',
             'error', 'n_ref', 'bkg_source', 'bkgrms_source', 'catalog')   # summary columns before FORCED_KEYS
+NOISE_KEYS = ['noise_ratio', 'host_source']   # summary columns after FORCED_KEYS (difference images), per target
 # Processing recipes make no figures. Forced catalogs have no MAG_AUTO (the photcal section's key): reference
 # stars are picked on the 10" aperture; photcal still fits the ZP of every aperture.
-RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False),
+RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False), 'forced_photometry_sub': {},
                    'photcal': dict(visualize=False, save_fig=False, magnitude_key=f'MAG_{D.APER10_KEY}',
                                    magnitudeerr_key=f'MAGERR_{D.APER10_KEY}')}
 
@@ -84,7 +94,7 @@ def _targets(ra, dec):
 
 def _background(target_img: ScienceImage):
     """(bkg, bkgrms, bkg_source, bkgrms_source) for the forced photometry; target_img.savedir is its own folder."""
-    if target_img.path.name.startswith('sub_'):   # as dia
+    if target_img.path.name.startswith('sub_'):   # no map; a local annulus with forced_photometry_sub (forced_image)
         return None, None, 'none', 'image'
     bkg, bkgrms = target_img.bkgmap, target_img.bkgrms
     sources = ('sidecar' if bkg is not None else 'image', 'sidecar' if bkgrms is not None else 'image')
@@ -97,6 +107,17 @@ def _background(target_img: ScienceImage):
         if bkgrms is None:
             bkgrms = target_img.calculate_bkgrms(target_ivpmask=ivpmask, **dict(D.BKGRMS, **quiet))
     return (bkg, bkgrms) + sources
+
+
+def _host(target_img: ScienceImage):
+    """(host image or None, host_source) for the host Poisson term of a difference image sub_<name>: conv_<name> in its
+    folder (hotpants output) when it is the convolved reference (header CONVOL00 TEMPLATE). Opened read-only."""
+    conv = target_img.path.with_name('conv_' + target_img.path.name[len('sub_'):])
+    if not conv.exists():
+        return None, 'missing'
+    if str(target_img.header.get('CONVOL00', '')).strip().upper() != 'TEMPLATE':
+        return None, 'not template'
+    return ScienceImage(path=conv, telinfo=target_img.telinfo, load=True), 'conv'
 
 
 def forced_image(target_img: ScienceImage,
@@ -113,8 +134,8 @@ def forced_image(target_img: ScienceImage,
         raise ValueError(f"calibrate must be one of {CALIBRATE}, got {calibrate!r}")
     ra, dec = _targets(ra, dec)
     row = dict(dict.fromkeys(ROW_KEYS), path=str(target_img.path), calibrate=calibrate, success=False)
-    values = [dict.fromkeys(FORCED_KEYS) for _ in ra]
-    bkg = bkgrms = refcat = catalog = used = None
+    values = [dict.fromkeys(FORCED_KEYS + NOISE_KEYS) for _ in ra]
+    bkg = bkgrms = refcat = catalog = used = host_img = None
     try:
         row['step'] = 'load'   # header values that do not parse (DATE-OBS, EXPTIME) fail this image only
         row.update(telname=target_img.telname, filter=target_img.filter, obsdate=target_img.obsdate,
@@ -122,6 +143,17 @@ def forced_image(target_img: ScienceImage,
         target_img.savedir = target_img.path.parent   # products next to the image, not the config archive layout
         row['step'] = 'background'
         bkg, bkgrms, row['bkg_source'], row['bkgrms_source'] = _background(target_img)
+        phot = dict(cfg['forced_photometry'])
+        if target_img.path.name.startswith('sub_'):   # difference image: forced_photometry_sub on top
+            sub = dict(cfg['forced_photometry_sub'])
+            host_source = 'off'
+            if sub.pop('host_poisson', False):
+                host_img, host_source = _host(target_img)
+            for v in values:
+                v['host_source'] = host_source
+            phot.update(sub, host_img=host_img)
+            if phot.get('annulus_width_arcsec') is not None:
+                row['bkg_source'] = 'annulus'
         x, y = ra, dec
         if calibrate == 'reference_stars':
             row['step'] = 'refcat'
@@ -133,8 +165,14 @@ def forced_image(target_img: ScienceImage,
         row['step'] = 'forced_photometry'
         catalog = target_img.photometry_forced_circular(
             x_arr=x, y_arr=y, unit='coord', target_bkg=bkg, target_bkgrms=bkgrms,
-            **dict(cfg['forced_photometry'], save=True))   # save=False would remove the .circ.cat
+            **dict(phot, save=True))   # save=False would remove the .circ.cat
         row['catalog'] = str(catalog.path)
+        ratio_key, host_key = f'NOISE_RATIO_{D.APER10_KEY}', f'HOST_FLUX_{D.APER10_KEY}'
+        for i, v in enumerate(values):   # the targets are the first len(ra) rows
+            if ratio_key in catalog.data.colnames:
+                v['noise_ratio'] = float(catalog.data[ratio_key][i])
+            if host_key in catalog.data.colnames and not np.isfinite(float(catalog.data[host_key][i])):
+                v['host_source'] = 'not finite'   # conv_ aperture or annulus not finite: no host term
         if calibrate == 'header':
             row['step'] = 'apply_zp'
             catalog = target_img.apply_zp(catalog, verbose=False, save=True)
@@ -162,7 +200,7 @@ def forced_image(target_img: ScienceImage,
         row['error'] = f"{type(e).__name__}: {e}"
     finally:
         if clear:
-            for obj in (target_img, bkg, bkgrms, refcat, catalog, used):
+            for obj in (target_img, bkg, bkgrms, refcat, catalog, used, host_img):
                 if obj is not None:
                     try:
                         obj.clear(verbose=False)
@@ -172,7 +210,7 @@ def forced_image(target_img: ScienceImage,
 
 
 def _target_rows(row: dict, ra, dec, values: List[dict] = None) -> List[dict]:
-    values = values or [dict.fromkeys(FORCED_KEYS) for _ in ra]
+    values = values or [dict.fromkeys(FORCED_KEYS + NOISE_KEYS) for _ in ra]
     return [dict(row, target=i, ra=float(r), dec=float(d), **v) for i, (r, d, v) in enumerate(zip(ra, dec, values))]
 
 
@@ -210,7 +248,7 @@ def forced_photometry(images: Union[str, Path, List],
     return (and save) one row per image x target."""
     paths = _image_paths(images)
     if len(paths) == 0:
-        raise ValueError("no images given")
+        raise NothingToDo("no images given")
     ra, dec = _targets(ra, dec)
     _config(config)   # unknown sections fail here, not once per image
     if calibrate not in CALIBRATE:

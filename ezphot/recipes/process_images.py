@@ -18,7 +18,9 @@ Python:
 
 CLI (images are found with DataBrowser('scidata') unless --paths is given):
     python -m ezphot.recipes.process_images --objname EG21 --observatory 7DT --filter m400 \
-        --ra 76.3 --dec -68.0 --n-proc 4 [--no-platesolve] [--preprocess [--dark-fallback]] [--out summary.csv]
+        --ra 76.3 --dec -68.0 --n-proc 4 [--no-platesolve] [--preprocess [--dark-fallback] [--master-max-days 100]] \
+        [--out summary.csv]
+    --master-max-days : with --preprocess, search window in days of the master bias, dark and flat (default 100).
     --dark-fallback : with --preprocess, pick the nearest master group from darks of any exposure; in its nearest night
     with a dark not shorter than the frame, use the frame's exposure, else the shortest longer one (scaled by EXPTIME);
     see Preprocess.get_masterframe.
@@ -38,6 +40,7 @@ import pandas as pd
 
 from ezphot.imageobjects import Errormap, ImageSet, ScienceImage
 from ezphot.recipes import defaults as D
+from ezphot.recipes._common import NothingToDo
 from ezphot.recipes._progress import run_tasks
 
 STEP_CONFIG_KEYS = ('circularmask', 'invalidmask', 'sourcemask', 'bkgmap', 'bkgrms', 'photometry', 'photcal')
@@ -74,13 +77,15 @@ def process_image(target_img: ScienceImage,
                   mag_faint_shift: float = 0.0,
                   clear: bool = True,
                   bkgrms: Errormap = None,
-                  dark_exptime_fallback: bool = False) -> dict:
+                  dark_exptime_fallback: bool = False,
+                  master_max_days: float = 100) -> dict:
     """Run the chain on one image. Never raises; returns a summary row with success/error.
 
     mag_faint_shift : added to the per-filter reference-star faint limit (mag_upper), e.g. 1.5
     to include fainter stars in the ZP fit and the ZP figures.
     bkgrms : use this error map instead of calculating one (stacks keep the propagated bkgrms).
     dark_exptime_fallback : passed to correct_bdf (do_preprocess only).
+    master_max_days : passed to correct_bdf (do_preprocess only): max_days of the master bias, dark and flat search.
     """
     cfg = _config(config)
     row = dict(path=str(target_img.path), raw_path=str(target_img.path), telname=target_img.telname, filter=target_img.filter,
@@ -92,7 +97,8 @@ def process_image(target_img: ScienceImage,
     try:
         if do_preprocess:
             row['step'] = 'correct_bdf'
-            target_img = target_img.correct_bdf(save=True, verbose=False, dark_exptime_fallback=dark_exptime_fallback)
+            target_img = target_img.correct_bdf(save=True, verbose=False, dark_exptime_fallback=dark_exptime_fallback,
+                                                master_max_days=master_max_days)
             row['path'] = str(target_img.path)
         if do_platesolve and _needs_platesolve(target_img):
             row['step'] = 'platesolve'
@@ -165,19 +171,20 @@ def process_images(images: Union[ImageSet, List[ScienceImage]],
                    n_proc: int = 4,
                    out: Union[str, Path] = None,
                    verbose: bool = True,
-                   dark_exptime_fallback: bool = False) -> pd.DataFrame:
+                   dark_exptime_fallback: bool = False,
+                   master_max_days: float = 100) -> pd.DataFrame:
     """Run process_image over an ImageSet / list and return (and save) the summary table."""
     imgs = list(images.target_images) if isinstance(images, ImageSet) else list(images)
     if len(imgs) == 0:
-        raise ValueError("no images to process")
+        raise NothingToDo("no images to process")
     if out is None:   # decided at the start: <out>.progress.json is written next to it while running
         objname = imgs[0].objname or 'unknown'
         out = Path.home() / 'ezphot' / 'log' / 'recipes' / objname / f"process_images_{time.strftime('%Y%m%d_%H%M%S')}.csv"
     out = Path(out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    tasks = [(img, ra, dec, do_preprocess, do_platesolve, config, mag_faint_shift, True, None, dark_exptime_fallback)
-             for img in imgs]
+    tasks = [(img, ra, dec, do_preprocess, do_platesolve, config, mag_faint_shift, True, None, dark_exptime_fallback,
+              master_max_days) for img in imgs]
     rows = run_tasks(_worker, tasks, n_proc, out)
     summary = pd.DataFrame(rows)
     summary.to_csv(out, index=False)
@@ -218,6 +225,8 @@ def main(argv=None):
     ap.add_argument('--dark-fallback', action='store_true',
                     help='with --preprocess: nearest master group of any dark exposure, its nearest night with a '
                          'dark not shorter than the frame; same exposure, else the shortest longer dark (scaled)')
+    ap.add_argument('--master-max-days', type=float, default=100,
+                    help='with --preprocess: search window in days of the master bias, dark and flat (default 100)')
     ap.add_argument('--no-platesolve', action='store_true')
     ap.add_argument('--no-figures', action='store_true', help='do not save the diagnostic PNGs (faster)')
     ap.add_argument('--faint-shift', type=float, default=0.0,
@@ -233,7 +242,8 @@ def main(argv=None):
     config = {s: {'save_fig': False} for s in FIGURE_CONFIG_KEYS} if a.no_figures else None
     summary = process_images(imgs, ra=a.ra, dec=a.dec, do_preprocess=a.preprocess,
                              do_platesolve=not a.no_platesolve, config=config, mag_faint_shift=a.faint_shift,
-                             n_proc=a.n_proc, out=a.out, dark_exptime_fallback=a.dark_fallback)
+                             n_proc=a.n_proc, out=a.out, dark_exptime_fallback=a.dark_fallback,
+                             master_max_days=a.master_max_days)
     return 0 if summary['success'].all() else 1
 
 
