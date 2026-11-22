@@ -922,6 +922,9 @@ class ImageMethod:
             The aperture diameter in seeing units.
         seeing_arcsec : float
             Seeing FWHM in arcsec. If None, estimated from the image (header SEEING is not used).
+        annulus_width_arcsec : float
+            Not supported (ValueError if given; SExtractor LOCAL background is mode-biased). For a local
+            background use photometry_forced_circular (5-sigma-clipped mean annulus).
         saturation_level : float
             The saturation level for the photometry.
         kron_factor : float
@@ -1081,7 +1084,8 @@ class ImageMethod:
         unit : str
             The unit of the coordinates.
         annulus_ratio : float
-            The ratio of the annulus diameter to the semi-major axis.
+            Elliptical annulus from the aperture ellipse (inner) to the aperture scaled by annulus_ratio (outer);
+            sky = its 5-sigma-clipped mean. See AperturePhotometry.elliptical_photometry.
         target_bkg : Background
             The background to subtract from the target image.
         target_bkgrms : Errormap

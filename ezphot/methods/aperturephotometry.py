@@ -159,8 +159,8 @@ class AperturePhotometry:
                        aperture_diameter_arcsec: Union[float, list] = [3, 5, 7, 10, 15],
                        aperture_diameter_seeing: Union[float, list] = [2.5, 3.5], # If given, use seeing to calculate aperture size
                        seeing_arcsec: float = None, # If None, estimated from the image (header SEEING is not used)
-                       annulus_width_arcsec: float = None,
-                       local_bkg_bias_limit: float = 0.02, # [mag] warn if SExtractor LOCAL background would bias a SNR=10 source more than this
+                       annulus_width_arcsec: float = None, # Not supported (ValueError if given); use circular_photometry
+                       local_bkg_bias_limit: float = 0.02, # Unused (kept for compatibility)
                        saturation_level: float = 60000,
                        kron_factor: float = 2.5,
                        
@@ -192,6 +192,13 @@ class AperturePhotometry:
             Seeing FWHM [arcsec] for SEEING_FWHM and the seeing-scaled apertures. If None, it is estimated
             from a first SExtractor run; the header SEEING is never read, so the result depends only on the
             pixels and not on earlier calibrations that rewrote the header. Defaults to None.
+        annulus_width_arcsec : float, optional
+            Not supported: must be None (the background is always BACKPHOTO_TYPE GLOBAL). Any other value raises
+            ValueError before anything is run. SExtractor's LOCAL background is a mode-type estimate
+            (~2.5*median - 1.5*mean) that biases faint sources bright on a photon-skewed sky; for a local
+            background use circular_photometry (5-sigma-clipped mean annulus). Defaults to None.
+        local_bkg_bias_limit : float, optional
+            Unused (kept for compatibility). Defaults to 0.02.
         saturation_level : float, optional
             The saturation level for the aperture photometry. Defaults to 60000.
         kron_factor : float, optional
@@ -207,6 +214,7 @@ class AperturePhotometry:
 
         Raises
         ------
+        ValueError: If annulus_width_arcsec is not None.
         ValueError: If target_img is not a ScienceImage, ReferenceImage, or CalibrationImage.
         RuntimeError: If the source extractor fails.
         RuntimeError: If the source extractor fails.
@@ -219,6 +227,15 @@ class AperturePhotometry:
         # if not isinstance(target_img, (ScienceImage, ReferenceImage, CalibrationImage)):
         #     raise ValueError('target_img must be a ScienceImage, ReferenceImage, or CalibrationImage.')
         
+        if annulus_width_arcsec is not None:
+            raise ValueError(
+                "sex_photometry: annulus_width_arcsec is not supported (got %r). SExtractor's LOCAL background "
+                "(BACKPHOTO_TYPE LOCAL) is a mode-type estimate (~2.5*median - 1.5*mean) that biases faint sources "
+                "bright on a photon-skewed sky. Use annulus_width_arcsec=None (background map only) or, for a local "
+                "background, circular_photometry / ImageMethod.photometry_forced_circular (5-sigma-clipped mean "
+                "annulus; note its annulus_width_arcsec is added to the annulus inner diameter, a different "
+                "meaning)." % (annulus_width_arcsec,))
+
         if not target_img.is_saved:
             target_img.write(verbose = False)
         
@@ -346,32 +363,14 @@ class AperturePhotometry:
         # Residual-sky statistics of the background-subtracted frame (sigma-clipped, subsampled; ~0.3 s).
         # On a photon-skewed (low-count) sky mode < median < mean even for a perfect bkgmap, so any
         # mode-type estimator applied afterwards (SExtractor LOCAL/AUTO) under-subtracts by (mean - mode).
-        sky_stats = None
         if target_bkg is not None and not isinstance(target_bkg, (float, int)):
             sky_stats = self._sky_residual_stats(target_img_sub.data,
                                                  mask=target_mask.data if target_mask is not None else None)
             self.helper.print("[BKG] residual after bkgmap (ADU/pix): mean=%+.3f median=%+.3f SEx-mode=%+.3f sigma=%.2f"
                               % (sky_stats['mean'], sky_stats['median'], sky_stats['mode'], sky_stats['std']), verbose)
 
-        if annulus_width_arcsec is not None:
-            annulus_width_pixel = annulus_width_arcsec / pixelscale
-            sex_params['BACKPHOTO_TYPE'] = 'LOCAL'
-            sex_params['BACKPHOTO_THICK'] = annulus_width_pixel
-            if sky_stats is not None:
-                # expected brightening of a SNR=10 source in the largest aperture by the LOCAL (mode) background.
-                # ZP-independent: pedestal flux (pedestal*A) over the flux of a sky-noise-limited SNR=10 source
-                # (10*sigma*sqrt(A)), both in ADU.
-                pedestal = sky_stats['mean'] - sky_stats['mode']
-                area_max = np.pi * (max(all_apertures) / 2 / pixelscale) ** 2
-                flux_ratio = pedestal * np.sqrt(area_max) / (10 * sky_stats['std'])
-                bias_mag = 2.5 * np.log10(1 + flux_ratio) if flux_ratio > -1 else np.inf
-                if bias_mag > local_bkg_bias_limit:
-                    self.helper.print("[WARNING] SExtractor LOCAL background is a mode estimate: residual sky mean-mode = %+.2f ADU/pix "
-                                      "-> a SNR=10 source in the %.1f\" aperture is biased ~%.3f mag bright (limit %.3f). "
-                                      "Use annulus_width_arcsec=None (bkgmap only) or circular_photometry (clipped-mean annulus)."
-                                      % (pedestal, max(all_apertures), bias_mag, local_bkg_bias_limit), True)
-        else:
-            sex_params['BACKPHOTO_TYPE'] = 'GLOBAL'
+        # LOCAL (annulus_width_arcsec) is rejected at the top; GLOBAL also overrides a user BACKPHOTO_TYPE
+        sex_params['BACKPHOTO_TYPE'] = 'GLOBAL'
             
         for key, value in sex_params.items():
             all_sexconfig[key] = value
@@ -1110,13 +1109,19 @@ class AperturePhotometry:
         unit : str, optional
             The unit of the coordinates. Defaults to 'pixel'.
         annulus_ratio : float, optional
-            The ratio of the annulus diameter to the semi-major axis. Defaults to None.
+            Elliptical annulus for the local sky: inner ellipse = the aperture itself, outer ellipse = the
+            aperture scaled by annulus_ratio (a, b both x annulus_ratio; must be > 1). The sky level is the
+            5-sigma-clipped mean of the annulus pixels (mask applied): FLUX_EANNULUS = mean x aperture area,
+            FLUX_ELIP = aperture sum - FLUX_EANNULUS. With target_bkgrms, FLUXERR_ELIP also includes
+            aperture area x std / sqrt(annulus area). NaN for a source whose annulus has no usable pixel
+            (fully masked or off the image). If None, no annulus subtraction. Defaults to None.
         target_bkg : Optional[Background], optional
             The background to subtract from the target image. Defaults to None.
         target_mask : Optional[Mask], optional
             The mask to use for the aperture photometry. Defaults to None.
         target_bkgrms : Optional[Errormap], optional
-            The background RMS to use for the aperture photometry. Defaults to None.
+            The background RMS to use for the aperture photometry (FLUXERR_ELIP, MAGERR_ELIP and SKYSIG =
+            per-pixel sky sigma in the aperture, sqrt(sum of bkgrms^2 / aperture area) [ADU]). Defaults to None.
         save : bool, optional
             Whether to save the aperture photometry catalog. Defaults to True.
         visualize : bool, optional
@@ -1212,7 +1217,9 @@ class AperturePhotometry:
         if bkgrms is not None:
             for aperture in apertures:
                 var_tbl = aperture_photometry(bkgrms**2, aperture, mask=mask)
-                sky_sigma = np.sqrt(var_tbl['aperture_sum'][0])
+                # per-pixel sky sigma (ADU/pix) as SKYSIG elsewhere: sqrt(sum of bkgrms^2 / aperture area)
+                sky_sigma = np.sqrt(var_tbl['aperture_sum'][0] / aperture.area)
+                bkgrms_all.append(sky_sigma)
             results['SKYSIG'] = bkgrms_all
             
         results['FLUX_ELIP'] = fluxes
@@ -1225,20 +1232,35 @@ class AperturePhotometry:
 
         # Step 9: Annulus subtraction
         if annulus_ratio is not None:
-            ann_fluxes, ann_areas = [], []
+            # 5-sigma-clipped MEAN of the annulus as the sky level (as circular_photometry): the median/mode
+            # biases faint sources bright on a photon-skewed sky; 5 sigma rejects neighbours.
+            # NaN when the annulus has no usable pixel (fully masked or off the image).
+            sigma_clip = SigmaClip(sigma=5.0, maxiters=5)
+            bkg_means, bkg_stds, n_annulus_eff = [], [], []
             for xi, yi, smai, smii, thetai in zip(x, y, sma_image, smi_image, theta):
                 annulus = EllipticalAnnulus((xi, yi), a_in=smai, a_out=smai * annulus_ratio,
                                             b_in=smii, b_out=smii * annulus_ratio, theta=thetai)
-                tbl = aperture_photometry(data, annulus, error=error, mask=mask)
-                ann_fluxes.append(tbl['aperture_sum'][0])
-                ann_areas.append(annulus.area)
+                annulus_stats = ApertureStats(data, annulus, sigma_clip=sigma_clip, mask=mask)
+                bkg_means.append(np.array(annulus_stats.mean, dtype=float).ravel()[0])
+                bkg_stds.append(np.array(annulus_stats.std, dtype=float).ravel()[0])
+                n_annulus_eff.append(np.array(annulus_stats.sum_aper_area, dtype=float).ravel()[0])
 
-            bkg_area_ratio = np.array(areas) / np.array(ann_areas)
-            annulus_bkg_flux = np.array(ann_fluxes) * bkg_area_ratio
-            results['FLUX_ELIP'] = np.array(fluxes) - annulus_bkg_flux
+            annulus_bkg_flux = np.array(bkg_means) * np.array(areas)
+            flux_net = np.array(fluxes) - annulus_bkg_flux
+            results['FLUX_ELIP'] = flux_net
             results['FLUX_EANNULUS'] = annulus_bkg_flux
             results['MAG_ELIP'] = -2.5 * np.log10(results['FLUX_ELIP'])
             results['MAG_EANNULUS'] = -2.5 * np.log10(results['FLUX_EANNULUS'])
+
+            # Background-level uncertainty of the annulus mean, scaled to the aperture area
+            if fluxerrs:
+                bkg_flux_err = np.array(areas) * np.array(bkg_stds) / np.sqrt(np.array(n_annulus_eff))
+                total_flux_err = np.sqrt(np.array(fluxerrs)**2 + bkg_flux_err**2)
+                results['FLUXERR_ELIP'] = total_flux_err
+                magerr = np.full(len(flux_net), np.nan)
+                valid = (flux_net > 0) & (total_flux_err > 0)
+                magerr[valid] = 2.5 / np.log(10) * total_flux_err[valid] / flux_net[valid]
+                results['MAGERR_ELIP'] = magerr
         
         cat_path = target_img.savepath.catalogpath.with_suffix('.ellip.cat')
         target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img) 

@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.11.0 (2026-11-22)
+기본 설정의 레시피(process_images·stack·dia·forced_photometry)와 baseline 결과는 바뀌지 않는다: 레시피의 `annulus_width_arcsec` 기본값은 None이고
+`elliptical_photometry`는 레시피에서 부르지 않는다.
+### 파괴적
+- `AperturePhotometry.sex_photometry` / `ImageMethod.photometry_sex`: `annulus_width_arcsec`에 None이 아닌 값을 주면 이제 SExtractor를 돌리기 전에
+  (파일 쓰기·배경 빼기 전에) `ValueError`를 낸다. 이전에는 SExtractor `BACKPHOTO_TYPE LOCAL`(`BACKPHOTO_THICK` = 이 값)을 켜고, 예상 편향이
+  `local_bkg_bias_limit`을 넘으면 경고만 출력했다. 배경은 이제 언제나 `BACKPHOTO_TYPE GLOBAL`이다(`sex_params`의 `BACKPHOTO_TYPE`도 지금처럼 덮어쓴다).
+  - deprecation 없이 막는 이유: 틀린 결과. SExtractor LOCAL은 바꿀 수 없는 최빈값형 추정(≈ 2.5·median − 1.5·mean)이라 광자 통계로 치우친
+    낮은 하늘에서 하늘을 덜 빼고 어두운 별을 밝게 만든다. 이번 실측에서 배경 맵을 뺀 하늘 잔차의 평균 − 최빈값이 +1.2–1.5 ADU/pix이고,
+    10″ 구경이면 별마다 +380–460 ADU가 더해진다(구경 면적에 비례).
+  - 레시피: process_images·stack의 config `photometry` 섹션에 `annulus_width_arcsec`를 주면 그 영상 행은 이제 `success=False`,
+    `step='photometry'`, `error='ValueError: …'`로 실패한다(종료 코드 1). 이전에는 LOCAL 배경으로 측광했다.
+  - 사용처 확인: `annulus_width_arcsec`를 넘기던 호출은 지우거나(배경 맵만, 레시피 기본값과 같음) 국소 배경이 필요하면 `circular_photometry` /
+    `photometry_forced_circular`(5σ 클리핑 평균 어널러스)로 옮긴다. 그쪽 `annulus_width_arcsec`는 어널러스 안쪽 지름(가장 큰 구경 + 1.5 seeing)에
+    더해 바깥 지름을 만드는 값이라 의미가 다르다.
+  - 인자 이름 `annulus_width_arcsec`·`local_bkg_bias_limit`은 시그니처에 남는다. `local_bkg_bias_limit`은 이제 쓰이지 않는다.
+    `[BKG] residual after bkgmap` 진단 출력은 그대로다.
+### 수치 변경
+- `AperturePhotometry.elliptical_photometry` / `ImageMethod.photometry_forced_elliptical`, `annulus_ratio`를 주고 `target_bkgrms`는 주지 않을 때:
+  어널러스 하늘값이 "어널러스 합 × (구경 면적 / 어널러스 기하 면적)"(클리핑 없음, 마스크된 픽셀·영상 밖 부분도 면적에 셈)에서
+  `circular_photometry`와 같은 5σ 클리핑 평균(`SigmaClip(sigma=5, maxiters=5)`, 마스크 적용, 유한하지 않은 픽셀 제외) × 구경 면적으로 바뀐다.
+  `.ellip.cat`의 `FLUX_EANNULUS`·`MAG_EANNULUS`·`FLUX_ELIP`·`MAG_ELIP` 4열이 바뀐다. 소스·마스크 없는 상수 하늘에서는 같은 값이고
+  (잡음이 있으면 픽셀 표본 차이만큼), 레시피 경로에는 없어 실제 영상에서의 크기는 재지 않았다.
+  - 어널러스에 이웃 별·결함이 있으면 이전 값은 하늘을 높게 잡아 별을 어둡게 했다. 어널러스 일부가 마스크되었거나 영상 가장자리에 일부 걸쳐 있으면
+    이전 값은 하늘을 낮게 잡았다(합은 줄고 면적은 기하값).
+  - 경계 동작: 어널러스가 전부 마스크되면 그 소스의 `FLUX_EANNULUS`·`FLUX_ELIP`·`MAG_ELIP`은 이제 NaN이다(이전: 하늘 0, `FLUX_ELIP` = 구경 합).
+    반대로 마스크되지 않은 NaN·inf 픽셀이 어널러스에 있으면 이전에는 NaN이었고 이제는 그 픽셀을 빼고 유한값이 나온다.
+    구경까지 영상 밖인 소스는 이전과 같이 구경 플럭스부터 NaN이다.
+### 수정
+- `elliptical_photometry` / `photometry_forced_elliptical`, `target_bkgrms`를 줄 때: 이전에는 소스가 하나 이상이면 언제나
+  `ValueError`(`SKYSIG`에 빈 리스트가 들어가 열 길이가 맞지 않음)로 실패했다. 이제 동작하며 다음 열을 낸다.
+  - `SKYSIG`: 구경 안 하늘 잡음의 **픽셀당** 값 [ADU/pix] = sqrt(Σ bkgrms² / 구경 면적). 다른 ezphot 카탈로그의 `SKYSIG`와 같은 의미다
+    (구경 적분 잡음이 아니다).
+  - `FLUXERR_ELIP`: 구경의 `aperture_sum_err`(bkgrms + Poisson). `annulus_ratio`를 주면 어널러스 평균의 불확도
+    `구경 면적 × std / sqrt(어널러스 유효 면적)`(클리핑·마스크 뒤 픽셀 수)을 제곱합으로 더한다(`circular_photometry`와 같은 방식).
+  - `MAGERR_ELIP`: `2.5/ln10 × FLUXERR_ELIP / FLUX_ELIP`. `annulus_ratio`를 주면 어널러스를 뺀 플럭스 기준이고, 그 플럭스나 오차가 0 이하면 NaN.
+- `annulus_ratio` docstring(`elliptical_photometry`, `photometry_forced_elliptical`): 실제 모양으로 고침 — 안쪽 = 구경 타원,
+  바깥 = 구경을 `annulus_ratio`배 한 타원.
+
 ## 0.10.0 (2026-11-22)
 ### 파괴적
 - **`ezphot.methods.psfphotometry.PSFPhotometry`를 새로 작성해 교체**(같은 모듈·클래스 이름). 옛 메서드 `select_psfstars`, `extract_sources`,
