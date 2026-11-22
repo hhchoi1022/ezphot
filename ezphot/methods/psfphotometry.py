@@ -1,66 +1,229 @@
-
-#%%# 
+#%%
 import inspect
 from typing import Union, Optional
 
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Circle
-from astropy.table import Table, vstack, hstack
-from astropy.stats import sigma_clipped_stats
-from astropy.wcs.utils import pixel_to_skycoord
-from astropy.visualization import simple_norm
-from astropy.modeling.fitting import LevMarLSQFitter
-from astropy.io import fits
+from scipy import ndimage, signal
+from astropy.table import Table, vstack, unique
 from astropy.coordinates import SkyCoord
-from photutils.segmentation import deblend_sources
-from photutils.utils import calc_total_error
-from photutils.psf import EPSFModel
-from tqdm import tqdm
-import sep
+from astropy.stats import SigmaClip, mad_std
+from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
+from photutils.aperture import CircularAnnulus, ApertureStats
 
-from ezphot.methods import BackgroundGenerator, MaskGenerator, ErrormapGenerator
+from ezphot.methods import ErrormapGenerator, PhotometricCalibration
 from ezphot.helper import Helper
 from ezphot.imageobjects import (
-    ScienceImage, ReferenceImage, CalibrationImage,
+    ScienceImage, ReferenceImage,
     Background, Mask, Errormap
 )
-from ezphot.utils import *
+from ezphot.dataobjects import Catalog
+from ezphot.skycatalog import SkyCatalogUtility
 #%%
+
+# FLAG_PSF bits
+FLAG_FALLBACK = 1   # the PSF at the position comes (partly) from a Moffat fallback tile of build_epsf (psf_info given)
+FLAG_MASKED = 2     # masked or invalid pixels inside the fit radius (weight 0)
+FLAG_EDGE = 4       # the fit radius crosses the image edge
+FLAG_FAILED = 8     # no fit: position not finite or off the image, background not finite, too few usable pixels
+FLAG_RECENTER = 16  # psf_photometry recenter: the position fit moved more than recenter_max_shift, or failed
+#                     ('offset': the applied offset exceeds recenter_max_shift, an image-level warning, not a bad fit)
+
+# build_epsf model='poly' with grid 1: evaluation tiles of about this size (pixels) along x and y
+_POLY_TILE_PIXEL = 512
+# build_epsf model='poly' order ladder: an order k >= 1 needs >= _POLY_ZONE_STARS usable stars in each of the
+# N x N equal zones of the image, N = _POLY_ZONES[k] (orders above 3: _POLY_ZONES[3]), besides 5 x its coefficients
+# stars
+_POLY_ZONES = {1: 2, 2: 2, 3: 3}
+_POLY_ZONE_STARS = 1
+# build_epsf recenter_iter: a star whose fitted centre moves more than this (pixels) in one round keeps its centre
+_EPSF_RECENTER_LIMIT = 1.0
+# psf_photometry recenter='offset': a plane per axis from >= _OFFSET_MIN_PLANE measured sources, the median from
+# >= _OFFSET_MIN_CONST, else no offset; one _OFFSET_CLIP-sigma (MAD) clipping of the plane, then the final fit
+_OFFSET_MIN_PLANE = 10
+_OFFSET_MIN_CONST = 3
+_OFFSET_CLIP = 3.0
+
+# build_epsf star cuts on the sky-subtracted star box (FWHM = header seeing):
+# second peak: a local maximum of the box smoothed with a Gaussian of the FWHM, 1.5 FWHM < r <= R + 11 from the star
+# and off the box border, above max(_PEAK2_SNR x the smoothed noise, _PEAK2_FRACTION x the smoothed star peak)
+# (a neighbour, galaxy or residue of >= 5 % of the star; the wing of a smooth PSF has no local maximum)
+_PEAK2_SNR = 5.0
+_PEAK2_FRACTION = 0.05
+# spike: a pixel within R of the star above the mean a of its 8 neighbours by more than both _SPIKE_RATIO x a
+# (above 2 a: a PSF pixel exceeds its neighbour mean only where the profile is concave, most at the centre, and the
+# centre of a star with FWHM >~ 3 px is below 2 a, whatever the header seeing (at 2.5 px a few % of normal stars are
+# dropped); a median of the neighbours would be pulled low on a steep wing) and _SPIKE_SNR x sqrt(noise^2 + a / EGAIN)
+# (8 sigma keeps noise out in a box of a few thousand pixels): a cosmic ray or bad pixel; skipped without EGAIN (the
+# star's Poisson noise of the noise condition is then undefined)
+_SPIKE_RATIO = 1.0
+_SPIKE_SNR = 8.0
+_NEIGHBOUR_MEAN8 = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]]) / 8
+
+
+def _bad_pixels(a: np.ndarray) -> np.ndarray:
+    """Not finite, or nonzero with |value| < 1e-20 (the 1e-30 hotpants writes for invalid pixels; ADU-scale values
+    assumed). An exact 0 is valid data: raw - master bias - master dark of integer-valued masters on a low-sky frame
+    (empty areas are NaN in stacks and, from 0.9.0, in reprojections incl. DIA sci_/ref_ images (SWarp weight 0 ->
+    NaN), 1e-30 in hotpants difference images). Pass empty areas that are 0 (e.g. the no-weight SWarp edges of
+    reprojections and DIA sci_ images written before 0.9.0 or with weight0_tonan=False) as target_mask."""
+    return ~np.isfinite(a) | ((a != 0) & (a > -1e-20) & (a < 1e-20))
+
+
+def _grid_xy(grid):
+    """(nx, ny) tiles along x (columns) and y (rows) of grid: an int N (N x N) or (nx, ny)."""
+    g = (grid, grid) if np.ndim(grid) == 0 else tuple(grid)
+    if len(g) != 2 or any(int(v) != v or v < 1 for v in g):
+        raise ValueError(f"grid must be a positive int N or a pair (nx, ny) of them, got {grid!r}")
+    return int(g[0]), int(g[1])
+
+
+def _tiles(shape, grid):
+    """Equal tiling of an image into grid = N (N x N) or (nx, ny) tiles: tile centres xc (columns), yc (rows) and
+    edges xe, ye (0-based pixel)."""
+    ny, nx = shape
+    gx, gy = _grid_xy(grid)
+    xe = np.linspace(0, nx, gx + 1).round().astype(int)
+    ye = np.linspace(0, ny, gy + 1).round().astype(int)
+    return (xe[:-1] + xe[1:]) // 2, (ye[:-1] + ye[1:]) // 2, xe, ye
+
+
+def _tent_weights(v: float, centres) -> np.ndarray:
+    """Weights of the tiles along one axis at coordinate v: linear between neighbouring centres, 1 outside the outer
+    centres (a partition of unity)."""
+    n = len(centres)
+    w = np.zeros(n)
+    if n == 1 or v <= centres[0]:
+        w[0] = 1.0
+    elif v >= centres[-1]:
+        w[-1] = 1.0
+    else:
+        k = int(np.searchsorted(centres, v, side='right')) - 1
+        f = (v - centres[k]) / (centres[k + 1] - centres[k])
+        w[k], w[k + 1] = 1.0 - f, f
+    return w
+
+
+def _centroid(d: np.ndarray, x0: float, y0: float, sigma: float, n: int = 10):
+    """Gaussian-weighted (sigma, pixels) iterative centroid of the positive part of d, starting at (x0, y0)."""
+    yy, xx = np.indices(d.shape)
+    x, y = x0, y0
+    for _ in range(n):
+        w = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * sigma ** 2)) * np.clip(d, 0, None)
+        s = w.sum()
+        if s <= 0:
+            break
+        x, y = (w * xx).sum() / s, (w * yy).sum() / s
+    return x, y
+
+
+def _fit_shift(d: np.ndarray, p: np.ndarray, w: np.ndarray, dx: float, dy: float, fit_const: bool = False,
+               limit: float = 1.0, max_iter: int = 20, tol: float = 1e-3, h: float = 0.05):
+    """Position of a point source by Gauss-Newton: d = F P(dx, dy) (+ C with fit_const), weighted least squares over
+    the pixels with weight w > 0. d, p, w are (n, n); P(dx, dy) is p shifted by (dy, dx) (scipy.ndimage.shift, order
+    3) and normalised to sum 1, as psf_photometry places the PSF, so (dx, dy) is the source offset from the stamp
+    centre n // 2. Starts at (dx, dy) with the linear F (and C); position derivatives by central differences of +-h
+    px. Returns the fitted (dx, dy), or None: singular system, not finite, F <= 0, a move of more than limit px from
+    the start, or no step below tol px in max_iter steps."""
+    def model(sx, sy):
+        m = ndimage.shift(p, (sy, sx), order=3, mode='constant')
+        return m / m.sum()
+
+    g = w > 0
+    W, D = w[g], d[g]
+    x0, y0 = dx, dy
+    try:
+        P = model(dx, dy)[g]
+        X = np.column_stack([P, np.ones_like(P)]) if fit_const else P[:, None]
+        lin = np.linalg.solve(X.T @ (W[:, None] * X), X.T @ (W * D))
+        F, C = lin[0], (lin[1] if fit_const else 0.0)
+        for _ in range(max_iter):
+            P = model(dx, dy)[g]
+            Px = (model(dx + h, dy)[g] - model(dx - h, dy)[g]) / (2 * h)
+            Py = (model(dx, dy + h)[g] - model(dx, dy - h)[g]) / (2 * h)
+            J = np.column_stack([P, F * Px, F * Py] + ([np.ones_like(P)] if fit_const else []))
+            step = np.linalg.solve(J.T @ (W[:, None] * J), J.T @ (W * (D - F * P - C)))
+            F, dx, dy = F + step[0], dx + step[1], dy + step[2]
+            if fit_const:
+                C = C + step[3]
+            if not (np.all(np.isfinite(step)) and F > 0 and np.hypot(dx - x0, dy - y0) <= limit):
+                return None
+            if np.hypot(step[1], step[2]) < tol:
+                return dx, dy
+    except np.linalg.LinAlgError:
+        return None
+    return None
+
+
+def _offset_model(x, y, dx, dy, shape):
+    """Smooth position offset over the image from offsets (dx, dy) measured at (x, y) (NaN: not measured), per
+    axis a + b u + c v (u, v: x, y scaled from the first/last pixel to -1/+1): with >= _OFFSET_MIN_PLANE measured a
+    least-squares plane of all, one clipping of the sources beyond _OFFSET_CLIP sigma from the median residual on
+    either axis (sigma = 1.4826 MAD of the residuals per axis, at least 1e-3 px) and the final plane of the kept ones
+    (all kept when fewer than _OFFSET_MIN_PLANE would remain); with >= _OFFSET_MIN_CONST the median (b = c = 0, no
+    clipping); else none (all 0). Returns (a, b, c) for dx and for dy, the sources used, the sources measured and the
+    residual rms (x, y) of the used ones about the returned model (NaN without a model)."""
+    ny, nx = shape
+    ok = np.isfinite(dx) & np.isfinite(dy) & np.isfinite(x) & np.isfinite(y)
+    n_meas = int(ok.sum())
+    if n_meas < _OFFSET_MIN_CONST:
+        return np.zeros(3), np.zeros(3), 0, n_meas, (np.nan, np.nan)
+    A = np.column_stack([np.ones(n_meas), 2 * x[ok] / (nx - 1) - 1, 2 * y[ok] / (ny - 1) - 1])
+    ddx, ddy = dx[ok], dy[ok]
+    keep = np.ones(n_meas, dtype=bool)
+    if n_meas < _OFFSET_MIN_PLANE:
+        cx, cy = np.array([np.median(ddx), 0.0, 0.0]), np.array([np.median(ddy), 0.0, 0.0])
+    else:
+        rx = ddx - A @ np.linalg.lstsq(A, ddx, rcond=None)[0]
+        ry = ddy - A @ np.linalg.lstsq(A, ddy, rcond=None)[0]
+        clip = ((np.abs(rx - np.median(rx)) <= _OFFSET_CLIP * max(mad_std(rx), 1e-3))
+                & (np.abs(ry - np.median(ry)) <= _OFFSET_CLIP * max(mad_std(ry), 1e-3)))
+        if clip.sum() >= _OFFSET_MIN_PLANE:
+            keep = clip
+        cx = np.linalg.lstsq(A[keep], ddx[keep], rcond=None)[0]   # the final plane of the kept sources
+        cy = np.linalg.lstsq(A[keep], ddy[keep], rcond=None)[0]
+    rx, ry = ddx - A @ cx, ddy - A @ cy
+    rms = (float(np.sqrt(np.mean(rx[keep] ** 2))), float(np.sqrt(np.mean(ry[keep] ** 2))))
+    return cx, cy, int(keep.sum()), n_meas, rms
+
+
+def _check_psf(a: np.ndarray, name: str):
+    if a.ndim not in (2, 4) or a.shape[-1] != a.shape[-2] or a.shape[-1] % 2 == 0:
+        raise ValueError(f"{name} must be an odd square array (n, n) or tiles of them (ny, nx, n, n), got shape "
+                         f"{a.shape}")
+
 
 class PSFPhotometry:
     """
-    PSFPhotometry class for performing PSF photometry.
-    
-    This class provides methods 
-    
-    1. Select PSF stars
-    
-    2. Extract sources
-    
-    3. Build EPSF model
-    
-    4. PSF photometry
-    
-    5. Build EPSF model with PSFEx
-    
-    6. PSF photometry with PSFEx
-    
-    7. Build EPSF model with SExtractor
-    
+    Method class for forced PSF photometry.
+
+    This class provides methods
+
+    1. Empirical PSF (ePSF) from isolated, unsaturated catalog (Gaia) stars of the image, optionally per tile of an
+       nx x ny tiling or as a polynomial in the position evaluated at the tile centres, with a Moffat fallback
+       (build_epsf, moffat_psf).
+
+    2. Effective PSF of a filtered image: the PSF convolved with the filter kernel (effective_psf).
+
+    3. Forced PSF photometry at fixed positions: linear least-squares fit of the PSF amplitude (psf_photometry),
+       catalog <img>.fits.psf.cat.
+
+    4. PSF zero point ZP_PSF from the reference stars of the image (calibrate_zp).
+
+    PSF arrays are odd square (2R+1, 2R+1) with the centre at index R, or (ny, nx, 2R+1, 2R+1) for the equal
+    nx x ny tiling of the measured image (nx tiles along x, ny along y; tile [j, i] = row j, column i), blended at a
+    position with tent weights between the tile centres. Pixel coordinates are 0-based (x = column, y = row).
     """
     def __init__(self):
         """
         Initialize the PSFPhotometry class.
-        
+
         Parameters
         ----------
         None
         """
         self.helper = Helper()
-        self.background = BackgroundGenerator()
-        self.masking = MaskGenerator()
         self.errormap = ErrormapGenerator()
+        self.catalogutils = SkyCatalogUtility()
 
     def __repr__(self):
         return f"Method class: {self.__class__.__name__}\n For help, use 'help(self)' or `self.help()`."
@@ -85,1464 +248,1093 @@ class PSFPhotometry:
         help_text = ""
         self.helper.print(f"Help for {self.__class__.__name__}\n{help_text}\nPublic methods:\n" + "\n".join(lines), True)
 
-    def select_psfstars(self,
-                        target_catalog: Table,
-                        image_shape: tuple,
-                        num_grids: Optional[int] = 4,
-                        max_per_grid: int = 30,
-                        
-                        # Selection criteria
-                        snr_lower: float = 15,
-                                                
-                        eccentricity_upper: float = None,
-                        eccentricity_sigma: float = 5,
-                        fwhm_lower: float = 2,
-                        fwhm_sigma: float = 5,
-                        
-                        inner_fraction = 0.9,
-                        isolation_radius: float = 30.0,
-                        verbose: bool = True,
-                        visualize: bool = True,
-                        
-                        mag_key: str = 'MAG_AUTO',
-                        flux_key: str = 'FLUX_APER',
-                        fluxerr_key: str = 'FLUXERR_APER',
-                        fwhm_key: str = 'FWHM_IMAGE',
-                        x_key: str = 'X_IMAGE',
-                        y_key: str = 'Y_IMAGE',  
-                        eccentricity_key: str = 'ECCENTRICITY',                      
-                        **kwargs) -> Table:
+    @staticmethod
+    def _fwhm_pixel(target_img):
+        """(FWHM in pixels from the header seeing, pixel scale in arcsec/pixel)."""
+        scale = target_img.pixelscale
+        if scale is None:
+            raise ValueError(f"{target_img.path.name}: no celestial WCS (pixel scale)")
+        scale = float(np.mean(scale))
+        if target_img.seeing is None:
+            raise ValueError(f"{target_img.path.name}: no seeing (header SEEING) for the PSF size")
+        return float(target_img.seeing) / scale, scale
+
+    def _gaia_isolated(self, target_img, catalog_type, catalog_version, g_lower, g_upper, isolation_radius_arcsec,
+                       verbose):
+        """0-based pixel positions of the catalog stars with g_lower < g_mean < g_upper and no other catalog star
+        (any magnitude) within isolation_radius_arcsec."""
+        catalogs = self.catalogutils.get_catalogs(
+            ra = target_img.ra,
+            dec = target_img.dec,
+            fov_ra = target_img.fovx,
+            fov_dec = target_img.fovy,
+            objname = target_img.objname,
+            catalog_type = catalog_type,
+            catalog_version = catalog_version,
+            verbose = verbose
+        )
+        if len(catalogs) == 0:
+            raise ValueError("No catalogs found in the given coordinates.")
+        stars = vstack([catalog.data for catalog in catalogs])
+        if 'id' in stars.colnames:   # overlapping catalog tiles: a star listed twice would not be isolated
+            stars = unique(stars, keys='id')
+        ra = np.ma.filled(np.ma.asarray(stars['ra'], dtype=float), np.nan)
+        dec = np.ma.filled(np.ma.asarray(stars['dec'], dtype=float), np.nan)
+        g = np.ma.filled(np.ma.asarray(stars['g_mean'], dtype=float), np.nan)
+        finite = np.isfinite(ra) & np.isfinite(dec)
+        ra, dec, g = ra[finite], dec[finite], g[finite]
+        sel = (g > g_lower) & (g < g_upper)
+        if sel.sum() == 0 or len(ra) < 2:
+            return np.array([]), np.array([])
+        coord = SkyCoord(ra, dec, unit='deg')
+        _, d2, _ = coord[sel].match_to_catalog_sky(coord, nthneighbor=2)
+        iso = d2.arcsec > isolation_radius_arcsec
+        x, y = target_img.wcs.all_world2pix(ra[sel][iso], dec[sel][iso], 0)
+        return np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+
+    @staticmethod
+    def moffat_psf(fwhm_pixel: float, radius_pixel: int, beta: float = 3.0, oversample: int = 5) -> np.ndarray:
         """
-        Select PSF stars from the catalog.
-        
+        Circular Moffat PSF, pixel-integrated (oversample x oversample sub-pixels), zero beyond radius_pixel, sum 1.
+
         Parameters
         ----------
-        target_catalog : Table
-            The catalog to select PSF stars from.
-        image_shape : tuple
-            The shape of the image.
-        num_grids : int or None
-            If None or 0, apply selection globally instead of grid-by-grid.
-        max_per_grid : int
-            The maximum number of stars to select per grid.
-        snr_lower : float
-            The minimum SNR for the stars.
-        eccentricity_upper : float or None
-            The maximum eccentricity for the stars.
-        eccentricity_sigma : float
-            The sigma for the eccentricity cut.
-        fwhm_lower : float
-            The minimum FWHM for the stars.
-        fwhm_sigma : float
-            The sigma for the FWHM cut.
-        inner_fraction : float
-            The fraction of the image to select stars from.
-        isolation_radius : float
-            The radius to use for the isolation cut.
-        verbose : bool
-            Whether to print verbose output.
-        visualize : bool
-            Whether to visualize the stars.
-        **kwargs : dict
-            Additional keyword arguments.
+        fwhm_pixel : float
+            FWHM in pixels.
+        radius_pixel : int
+            R: the array is (2R+1, 2R+1) with the centre at index R.
+        beta : float, optional
+            Moffat beta. Defaults to 3.
+        oversample : int, optional
+            Sub-pixels per pixel and axis. Defaults to 5.
 
         Returns
         -------
-        target_catalog : Table
-            The catalog of selected PSF stars.
+        psf : np.ndarray
         """
-        from astropy.table import Table
-        import numpy as np
-        from scipy.spatial import cKDTree
-        
-        def select_subset(sources: Table, visualize: bool = False, verbose = True) -> Table:
-            if sources is None or len(sources) == 0:
-                return sources
-            
-            if fwhm_key not in sources.keys():
-                visualize = False
-                self.helper.print(f"Warning: '{fwhm_key}' not found in sources. Visualization disabled.", verbose)
-            if visualize:
-                plt.figure(dpi=300)
-                plt.xlabel(mag_key)
-                plt.ylabel(fwhm_key)
-                plt.title("Star selection filtering")
+        R = int(radius_pixel)
+        alpha = fwhm_pixel / (2 * np.sqrt(2 ** (1 / beta) - 1))
+        n = 2 * R + 1
+        t = (np.arange(n * oversample) + 0.5) / oversample - 0.5 - R
+        xx, yy = np.meshgrid(t, t)
+        m = (1 + (xx ** 2 + yy ** 2) / alpha ** 2) ** (-beta)
+        m = m.reshape(n, oversample, n, oversample).mean(axis=(1, 3))
+        yy, xx = np.indices(m.shape)
+        m[np.hypot(xx - R, yy - R) > R] = 0
+        return m / m.sum()
 
-            def _plot_if_visualize(x, y, color, label, alpha=0.4):
-                if visualize:  # or pass `visualize` as a parameter
-                    plt.scatter(x, y, c=color, alpha=alpha, label=label)
-            _plot_if_visualize(sources[mag_key], sources[fwhm_key], 'k', label = 'All sources', alpha = 0.3)#, c = sources[x_key])
-            filtered_catalog = sources.copy()
-            self.helper.print(f'Initial sources: {len(filtered_catalog)}', verbose)
-
-            # Step 1: Inner region cut
-            if x_key not in filtered_catalog.keys() or y_key not in filtered_catalog.keys():
-                self.helper.print(f"Warning: '{x_key}' or '{y_key}' not found in sources.", verbose)
-            else:
-                x_vals = filtered_catalog[x_key]
-                y_vals = filtered_catalog[y_key]
-
-                x_min, x_max = np.min(x_vals), np.max(x_vals)
-                y_min, y_max = np.min(y_vals), np.max(y_vals)
-
-                x_center = (x_min + x_max) // 2
-                y_center = (y_min + y_max) // 2
-                x_half_range = (x_max - x_min) * inner_fraction // 2
-                y_half_range = (y_max - y_min) * inner_fraction // 2
-                
-                x_inner_min = x_center - x_half_range
-                x_inner_max = x_center + x_half_range
-                y_inner_min = y_center - y_half_range
-                y_inner_max = y_center + y_half_range
-
-                inner_mask = (
-                    (x_vals >= x_inner_min) & (x_vals <= x_inner_max) &
-                    (y_vals >= y_inner_min) & (y_vals <= y_inner_max)
-                )
-                filtered_catalog = filtered_catalog[inner_mask]
-                self.helper.print(f'[INNERREGION CUT] {len(filtered_catalog)} sources passed within X = [{x_inner_min},{x_inner_max}], Y = [{y_inner_min},{y_inner_max}]', verbose)
-            
-            _plot_if_visualize(filtered_catalog[mag_key], filtered_catalog[fwhm_key], 'r', label = 'InnerRegion cut', alpha = 0.3)
-
-            # Step 2: Isolation
-            if x_key not in filtered_catalog.keys() or y_key not in filtered_catalog.keys():
-                self.helper.print(f"Warning: '{x_key}' or '{y_key}' not found in sources.")
-            else:
-                # Step 1.1: Build KD-tree
-                positions = np.vstack([filtered_catalog[x_key].value, filtered_catalog[y_key].value]).T
-                tree = cKDTree(positions)
-                neighbors = tree.query_ball_tree(tree, r=isolation_radius)
-
-                # Step 1.2: Keep only isolated sources
-                isolated_mask = np.array([len(nbrs) == 1 for nbrs in neighbors])
-                filtered_catalog = filtered_catalog[isolated_mask]
-                self.helper.print(f'[ISOLATION CUT] {len(filtered_catalog)} sources passed with isolation radius {isolation_radius} pixels', verbose)
-
-            _plot_if_visualize(filtered_catalog[mag_key], filtered_catalog[fwhm_key], 'g', label = 'Isolation cut', alpha = 0.3)
-
-            # Step 3: SNR cut
-            if flux_key not in filtered_catalog.keys():
-                self.helper.print(f"Warning: '{flux_key}' not found in sources.", verbose)
-            else:
-                filtered_catalog = filtered_catalog[(filtered_catalog[flux_key] / filtered_catalog[fluxerr_key]) > snr_lower]
-                self.helper.print(f"[SNR CUT]: {len(filtered_catalog)} sources passed with SNR > {snr_lower}", verbose)
-                
-            _plot_if_visualize(filtered_catalog[mag_key], filtered_catalog[fwhm_key], 'b', label = 'SNR cut', alpha = 0.3)
-
-            # Step 5: FWHM absolute and relative cut
-            if fwhm_key not in filtered_catalog.keys():
-                self.helper.print(f"Warning: '{fwhm_key}' not found in sources.", verbose)
-            else:
-                # Step 5.1: Absolute cut: remove too small sources
-                abs_fwhm_mask = filtered_catalog[fwhm_key] > fwhm_lower
-                filtered_catalog = filtered_catalog[abs_fwhm_mask]
-
-                # Step 5.2: Relative cut: sigma-clipped sources
-                fwhm_values = filtered_catalog[fwhm_key]
-                fwhm_mean, fwhm_median, fwhm_std = sigma_clipped_stats(fwhm_values, sigma=5.0, maxiters=5)
-                clip_mask = np.abs(fwhm_values - fwhm_median) <= fwhm_sigma * fwhm_std
-                filtered_catalog = filtered_catalog[clip_mask]
-                self.helper.print(
-                    f"[FWHM CUT]: {len(filtered_catalog)} sources passed with FWHM > {fwhm_lower} and within ±{fwhm_sigma} sigma"
-                    f"around median ({fwhm_median:.2f} ± {fwhm_std:.2f})",
-                    verbose
-                ) 
-                
-            _plot_if_visualize(filtered_catalog[mag_key], filtered_catalog[fwhm_key], 'orange', label = 'FWHM cut', alpha = 0.3)
-
-
-            # Step 6: Eccentricity cut
-            if eccentricity_key not in filtered_catalog.keys():
-                self.helper.print(f"Warning: '{eccentricity_key}' not found in sources.", verbose)
-            else:
-                eccen_vals = filtered_catalog[eccentricity_key]
-                
-                # Step 6.1: Absolute limit
-                if eccentricity_upper is not None:
-                    abs_eccen_mask = eccen_vals < eccentricity_upper
-                    filtered_catalog = filtered_catalog[abs_eccen_mask]
-
-                # Step 6.2: Sigma-clipping
-                eccen_mean, eccen_median, eccen_std = sigma_clipped_stats(eccen_vals, sigma=5.0, maxiters=5)
-                sigclip_mask = np.abs(eccen_vals - eccen_median) < eccentricity_sigma * eccen_std
-                filtered_catalog = filtered_catalog[sigclip_mask]
-
-                self.helper.print(f"[ECCENTRICITY CUT]: {len(filtered_catalog)} passed eccentricity < {eccentricity_upper} and within ±{eccentricity_sigma} sigma of median ({eccen_median:.2f} ± {eccen_std:.2f})", verbose)
-
-            _plot_if_visualize(filtered_catalog[mag_key], filtered_catalog[fwhm_key], 'purple', label = 'Final selected', alpha = 0.3)
-            seeing = np.median(filtered_catalog[fwhm_key])
-            
-            if visualize:
-                plt.legend()
-                plt.ylim(seeing - 2, seeing + 10)
-                valid_mag = target_catalog[mag_key][~np.isnan(target_catalog[mag_key])]
-                if len(valid_mag) > 0:
-                    plt.xlim(np.min(valid_mag) - 0.5, np.max(valid_mag) + 0.5)
-                else:
-                    # No valid data to set xlim
-                    self.helper.print("Warning: No valid magnitudes for setting xlim.", verbose)
-            return filtered_catalog
-
-        # ---------- Global Mode ----------
-        if num_grids is None or num_grids <= 1:
-            result = select_subset(target_catalog)
-            total_rows = len(result)
-            n = min(max_per_grid, total_rows)
-            random_indices = np.random.choice(total_rows, size=n, replace=False)
-            result = result[random_indices]
-
-            if result is None:
-                if verbose:
-                    self.helper.print("No suitable stars found (global mode).", verbose)
-                return Table()
-            if verbose:
-                self.helper.print(f"Selected {len(result)} stars from {len(target_catalog)} candidates (global mode).", verbose)
-            return result
-
-        # ---------- Grid Mode ----------
-        h, w = image_shape
-        y_step = h // num_grids
-        x_step = w // num_grids
-
-        selected_catalog = []
-
-        for i in range(num_grids):
-            for j in range(num_grids):
-                # Grid bounds
-                x_min = j * x_step
-                x_max = (j + 1) * x_step
-                y_min = i * y_step
-                y_max = (i + 1) * y_step
-
-                in_cell = (target_catalog['X_IMAGE'] >= x_min) & (target_catalog['X_IMAGE'] < x_max) & \
-                        (target_catalog['Y_IMAGE'] >= y_min) & (target_catalog['Y_IMAGE'] < y_max)
-                sub_tbl = target_catalog[in_cell]
-                result = select_subset(sub_tbl)
-                total_rows = len(result)
-                n = min(max_per_grid, total_rows)
-                random_indices = np.random.choice(total_rows, size=n, replace=False)
-                result = result[random_indices]
-                
-                if result is not None:
-                    selected_catalog.append(result)
-                    
-                self.helper.print(f"Grid ({i},{j}): {len(sub_tbl)} candidates, {len(result) if result is not None else 0} selected.", verbose)
-
-        if len(selected_catalog) == 0:
-            if verbose:
-                self.helper.print("No suitable stars found in any grid.", verbose)
-            return Table()
-
-        result_tbl = Table(np.hstack(selected_catalog))
-
-        self.helper.print(f"Selected {len(result_tbl)} stars from {len(target_catalog)} candidates (grid mode).", verbose)
-
-        if visualize:
-            self._visualize_objects(target_catalog.target_img, result_tbl, size=2000)
-        return result_tbl
-
-    #TODO CHANGE EXTRACT SOURCES TO FIND PEAKS OR MAKE ANOTHER METHOD TO FIND PEAKS
-    def extract_sources(self,
-                        target_img: Union[ScienceImage, ReferenceImage, CalibrationImage],
-                        target_bkg: Optional[Background] = None,
-                        target_bkgrms: Optional[Errormap] = None,
-                        target_mask: Optional[Mask] = None,
-                     
-                        # Detection criteria
-                        detection_sigma: float = 5,
-                        minarea_pixels: int = 5,
-                        deblend_nlevels: int = 32,
-                        deblend_contrast: float = 0.003,
-                        aperture_diameter_arcsec: float = 7.0,
-                                             
-                        # Other parameters
-                        visualize: bool = True,
-                        verbose: bool = True,
-                        save: bool = False,
-                        **kwargs) -> Table:
+    @staticmethod
+    def effective_psf(psf: np.ndarray, psi: np.ndarray) -> np.ndarray:
         """
-        Detect stars using SEP (with background RMS).
-        
+        Effective PSF of an image filtered with the kernel psi (e.g. a difference image after a decorrelation
+        filter): the full linear convolution psf (x) psi (scipy.signal.fftconvolve, mode 'full').
+
         Parameters
         ----------
-        target_img : Union[ScienceImage, ReferenceImage, CalibrationImage]
-            The target image to detect sources from.
-        target_bkg : Optional[Background], optional
-            The background to subtract from the target image. Defaults to None.
-        target_bkgrms : Optional[Errormap], optional
-            The background RMS to use for the detection. Defaults to None.
-        target_mask : Optional[Mask], optional
-            The mask to use for the detection. Defaults to None.
-        detection_sigma : float, optional
-            Detection threshold in units of background RMS. Defaults to 5.
-        minarea_pixels : int, optional
-            The minimum area in pixels for the detection. Defaults to 5.
-        deblend_nlevels : int, optional
-            The number of levels for the deblending. Defaults to 32.
-        deblend_contrast : float, optional
-            The contrast for the deblending. Defaults to 0.003.
-        aperture_diameter_arcsec : float, optional
-            The aperture diameter in arcseconds. Defaults to 7.0.
-        visualize : bool, optional
-            Whether to visualize the detection. Defaults to True.
+        psf : np.ndarray
+            PSF of the unfiltered image: (n, n) or (ny, nx, n, n), n odd.
+        psi : np.ndarray
+            Filter kernel: (m, m) or (ny, nx, m, m), m odd, centre at index m // 2.
+
+        Returns
+        -------
+        psf_eff : np.ndarray
+            (n + m - 1, n + m - 1) when both are 2-D, else (ny, nx, n + m - 1, n + m - 1): tile [j, i] is the
+            PSF tile convolved with the psi tile (a 2-D input is used for every tile; two tiled inputs need the same
+            (ny, nx)). Not renormalised: the sum is sum(psf) x sum(psi) (psi(0) = 1 keeps it; psf_photometry
+            normalises to 1 anyway). A tiled psi must come from the equal nx x ny tiling of the image that
+            psf_photometry uses (same tile centres, blended with the same tent weights). Tile by tile is an
+            approximation: blending the products of two tiled inputs differs from the product of the blends by
+            second-order cross terms between neighbouring tiles. A tiled psi is one array: tile kernels of different
+            sizes are zero-padded (centred) to a common odd size m by the caller.
+        """
+        psf = np.asarray(psf, dtype=float)
+        psi = np.asarray(psi, dtype=float)
+        _check_psf(psf, 'psf')
+        _check_psf(psi, 'psi')
+        if psf.ndim == 2 and psi.ndim == 2:
+            return signal.fftconvolve(psf, psi, mode='full')
+        if psf.ndim == 4 and psi.ndim == 4 and psf.shape[:2] != psi.shape[:2]:
+            raise ValueError(f"psf and psi tiles differ: (ny, nx) {psf.shape[:2]} and {psi.shape[:2]}")
+        gy, gx = psf.shape[:2] if psf.ndim == 4 else psi.shape[:2]
+        return np.array([[signal.fftconvolve(psf[j, i] if psf.ndim == 4 else psf,
+                                             psi[j, i] if psi.ndim == 4 else psi, mode='full')
+                          for i in range(gx)] for j in range(gy)])
+
+    def build_epsf(self,
+                   target_img: Union[ScienceImage, ReferenceImage],
+                   target_mask: Optional[Mask] = None,
+                   star_x: Union[list, np.ndarray] = None,
+                   star_y: Union[list, np.ndarray] = None,
+                   catalog_type: str = 'GAIAXP',
+                   catalog_version: str = 'v1',
+                   g_lower: float = 12.5,
+                   g_upper: float = 15.5,
+                   isolation_radius_arcsec: float = 15.0,
+                   peak_fraction: float = 0.5,
+                   snr_lower: float = 50.0,
+                   radius_pixel: int = None,
+                   grid: Union[int, tuple] = 1,
+                   model: str = 'grid',
+                   poly_order: int = 3,
+                   min_stars: int = 20,
+                   max_stars: int = 300,
+                   max_stars_total: int = 1000,
+                   beta: float = 3.0,
+                   seed: int = 0,
+                   verbose: bool = True,
+                   recenter_iter: int = 0,
+                   snr_lower_fallback: Optional[float] = 30.0):
+        """
+        Empirical PSF of the image: median of normalised, sub-pixel re-centred cut-outs of isolated unsaturated stars.
+
+        Stars: catalog stars (catalog_type, archived or queried as in photometric_calibration) with
+        g_lower < g_mean < g_upper and no other catalog star within isolation_radius_arcsec, or the given positions.
+        Per star (box half-width R + 11 px inside the image, the whole box free of invalid pixels, not finite or
+        nonzero with |value| < 1e-20 (an exact 0 is valid), and of target_mask): minus the median of the ring
+        R + 4 < r <= R + 11 px; kept if the net peak
+        (central 5 x 5) < peak_fraction x SATURATE - that sky (header SATURATE, 5e4 without it) and > snr_lower x the
+        MAD std of the pixels beyond R + 4 px, and dropped when the box has a second peak or a spike: a local maximum of
+        the box smoothed with a Gaussian of the FWHM at 1.5 FWHM < r <= R + 11 px (not on the box border) above
+        max(5 x the MAD std of the smoothed box beyond R + 4 px, 0.05 x the smoothed peak within 1.5 FWHM) (a
+        neighbour star, a galaxy, a residue), or a pixel at r <= R above the mean a of its 8 neighbours by more than
+        both a (twice the mean; a star centre with FWHM >~ 3 px is below it; at 2.5 px a few % of normal stars, and
+        more of more undersampled ones, may be dropped) and 8 x sqrt(noise^2 + a / EGAIN) (a cosmic ray or bad pixel;
+        without a positive finite EGAIN the star's Poisson noise in that condition is undefined and this spike cut is
+        skipped conservatively, with a warning);
+        centroid (Gaussian-weighted, sigma = FWHM / 2.355), cubic-spline shift
+        (scipy.ndimage.shift, order 3) to the box centre, cut to (2R+1, 2R+1), normalised to sum 1. The FWHM is the
+        header seeing. The image and its files are only read.
+
+        model 'grid' (default): per tile, up to max_stars stars of the tile in a random order (fixed seed); the
+        median of >= min_stars cut-outs, with negative wings beyond 2 FWHM and everything beyond R set to 0,
+        normalised to sum 1; with fewer, the tile is moffat_psf(FWHM, R, beta) and a warning is printed.
+        model 'poly' (PSFEx/Piff-like pixel basis): up to max_stars_total stars of the whole image in a random order
+        (fixed seed); every pixel of the cut-outs is a polynomial of total order poly_order in the star position
+        (x^a y^b, a + b <= poly_order, x and y scaled from the image's first/last pixel to -1/+1), fitted by linear
+        least squares (a mean, not a median) to all of these stars (no outlier rejection). The first fit is
+        unweighted; its model M gives the per-star variance of the normalised cut-out, var = (noise / S)^2 +
+        max(M, 0) / (EGAIN x S) (noise = the MAD std above, S = the cut-out sum; without a positive finite EGAIN the
+        Poisson term is left out, with a warning), and the fit is repeated once with one weight per star, 1 / the
+        mean of var over r <= R. The polynomial is evaluated at the tile centres and post-processed
+        as a median tile above. Positions beyond the outermost fitted stars are extrapolated (no flag).
+        Order ladder: poly_order is the highest order; an order k >= 1 is used when there are >= 5 x its
+        (k + 1)(k + 2) / 2 coefficients usable stars (order 3: 50, 2: 30, 1: 15; min_stars does not enter) and >= 1
+        usable star in each equal zone of the image: 3 x 3 zones (x and y in thirds) for order 3 (and higher),
+        2 x 2 (halves) for orders 2 and 1; else the next lower order is tried (order 0 only when poly_order is 0:
+        >= 5 stars, no zones). No order fits: model 'grid' with grid 1 from the same stars (one median ePSF, 2-D;
+        the Moffat fallback below min_stars), info 'model' 'grid'. A lower order or the median ePSF is announced by
+        one warning with the reason of the order poly_order (star count, empty zones).
+
+        S/N fallback: when the stars passing the cuts at snr_lower are fewer than the stars the order poly_order needs
+        (model 'poly') or than min_stars in a tile (model 'grid'), the selection of those stars is repeated (same order
+        of the stars) with the peak S/N limit snr_lower_fallback (if lower than snr_lower; None: off), with a warning;
+        the stars of the repeat are used (model 'poly': for the order ladder above) whatever their number.
+
+        recenter_iter > 0 (default 0: the centroid alone): after the PSF above, recenter_iter rounds of: the PSF
+        (model 'grid': the tile's PSF; 'poly': the polynomial at the star, post-processed as a tile) shifted (cubic
+        spline) to put its first moment at the array centre; per star a Gauss-Newton fit of position and flux of that
+        PSF to the sky-subtracted box over r <= R (uniform weights); the cut-out re-made at the fitted centre; the PSF
+        re-made from the same stars (same cuts, judged once; 'poly': the polynomial at the catalog positions) and
+        shifted to put its first moment at the array centre. A star whose fit fails or moves its centre by more than
+        1 px in a round keeps its centre of the previous round. Moffat tiles are not re-made.
+
+        Parameters
+        ----------
+        target_img : ScienceImage or ReferenceImage
+            The image (header SEEING and a celestial WCS needed).
+        target_mask : Mask, optional
+            Pixels (nonzero) kept out of the star boxes (an exact 0 is valid data: pass 0-filled empty areas,
+            e.g. the SWarp no-weight edges of DIA sci_ images written before 0.9.0, here; from 0.9.0 the
+            reprojection sets them to NaN).
+        star_x, star_y : array-like, optional
+            0-based pixel positions of the stars to use instead of the catalog selection (no isolation check).
+        catalog_type, catalog_version : str, optional
+            Star catalog. Defaults to 'GAIAXP', 'v1'.
+        g_lower, g_upper : float, optional
+            Gaia G range (g_mean). Defaults to 12.5, 15.5.
+        isolation_radius_arcsec : float, optional
+            No other catalog star within this radius. Defaults to 15.
+        peak_fraction : float, optional
+            Saturation cut as a fraction of SATURATE. Defaults to 0.5.
+        snr_lower : float, optional
+            Net peak / noise lower limit. Defaults to 50.
+        radius_pixel : int, optional
+            R. Defaults to ceil(max(3 FWHM, 8 arcsec)).
+        grid : int or tuple, optional
+            Tiling of the image: N for N x N tiles or (nx, ny) for nx tiles along x (columns) and ny along y (rows).
+            Model 'grid': 1 (default) is one PSF for the image, else one PSF per tile (stars inside the tile).
+            Model 'poly': the tiles whose centres the polynomial is evaluated at; 1 or (1, 1) is an automatic tiling
+            of about 512 x 512 px tiles (round(image size / 512) per axis, at least 1).
+        model : str, optional
+            'grid' (default) or 'poly' (see above).
+        poly_order : int, optional
+            Model 'poly': highest total order of the polynomial in x, y (the order ladder above). Defaults to 3.
+        min_stars : int, optional
+            Fewer usable stars in a tile (model 'grid', or the median ePSF of model 'poly' when no order fits):
+            Moffat fallback. Not used by the polynomial orders (order ladder above). Defaults to 20.
+        max_stars : int, optional
+            Model 'grid': at most this many stars per tile. Defaults to 300.
+        max_stars_total : int, optional
+            Model 'poly': at most this many stars in the image. Defaults to 1000.
+        beta : float, optional
+            Moffat beta of the fallback. Defaults to 3.
+        seed : int, optional
+            Random order of the stars. Defaults to 0.
         verbose : bool, optional
-            Whether to print verbose output. Defaults to True.
-        save : bool, optional
-            Whether to save the detection. Defaults to False.
-        **kwargs : dict, optional
-            Additional keyword arguments.
+            Whether to print the star counts.
+        recenter_iter : int, optional
+            Rounds of PSF-fitted star centres (see above). Defaults to 0 (Gaussian-weighted centroid only).
+        snr_lower_fallback : float, optional
+            Peak S/N limit of the S/N fallback above. Defaults to 30; None: no fallback.
 
         Returns
         -------
-        new_objects : Table
-            The catalog of detected sources.
-        target_img : ScienceImage
-            The target image with detected sources.
+        psf : np.ndarray
+            (2R+1, 2R+1) for a single tile (grid 1 or (1, 1), or model 'poly' when no order fits), else
+            (ny, nx, 2R+1, 2R+1); each PSF sums to 1.
+        info : dict
+            'source' (ny, nx) array of 'epsf' or 'moffat', 'nstars' (ny, nx) usable stars per tile (model 'poly':
+            'epsf' and the stars of the fit in every tile), 'fwhm_pixel', 'radius_pixel', 'grid' (an int grid as
+            given when that tiling was used, else the (nx, ny) used), 'model' (the model used: 'grid' for the
+            no-order fallback of 'poly'), 'poly_order' (the order used; None for model 'grid'), 'psf_model' ('poly0'
+            ... 'poly3' ... (the order used), 'grid' (median ePSF, at least one tile 'epsf') or 'moffat' (every tile
+            Moffat)), 'recenter_iter', 'recenter' (one dict per round: 'n_fit' stars with a new centre, 'n_kept'
+            stars that kept theirs, 'median_shift' and 'max_shift' of the new centres in px, NaN without one),
+            'snr_lower_used' (ny, nx) peak S/N limit of the stars of each tile (snr_lower, or snr_lower_fallback after
+            the S/N fallback; model 'poly': one value in every tile).
         """
-        from photutils.detection import DAOStarFinder, find_peaks
-        from photutils.segmentation import detect_sources, SourceCatalog
-        
-        bkgrms_map = None
-        bkgrms = None
-        mask_map = target_mask.data if target_mask is not None else None
-        mask_map = self.helper.to_native(mask_map)
-        # Step 1: Background subtraction
-        if target_bkg is not None:
-            target_img = self.background.subtract_background(
-                target_img=target_img,
-                target_bkg=target_bkg,
-                overwrite=False
-            )
-
-        # Step 2: Set error map
-        if bkgrms_map is not None:
-            bkgrms = self.helper.to_native(bkgrms_map.data)
-        elif target_bkgrms is not None:
-            bkgrms = self.helper.to_native(target_bkgrms.data)
+        if model not in ('grid', 'poly'):
+            raise ValueError(f"model must be 'grid' or 'poly', got {model!r}")
+        if model == 'poly' and (not isinstance(poly_order, (int, np.integer)) or poly_order < 0):
+            raise ValueError(f"poly_order must be an int >= 0, got {poly_order!r}")
+        if not isinstance(recenter_iter, (int, np.integer)) or recenter_iter < 0:
+            raise ValueError(f"recenter_iter must be an int >= 0, got {recenter_iter!r}")
+        gx, gy = _grid_xy(grid)
+        fwhm, scale = self._fwhm_pixel(target_img)
+        R = int(radius_pixel) if radius_pixel else int(np.ceil(max(3 * fwhm, 8.0 / scale)))
+        data = self.helper.to_native(target_img.data)
+        ny, nx = data.shape
+        half = R + 11   # star box half-width: sky ring R + 4 < r <= R + 11
+        edge = R + 12
+        if star_x is None:
+            x, y = self._gaia_isolated(target_img, catalog_type, catalog_version, g_lower, g_upper,
+                                       isolation_radius_arcsec, verbose)
         else:
-            # Use sigma-clipped std if no error map available
-            bkgrms_map, _, _ = self.errormap.calculate_errormap_from_image(
-                target_img=target_img,
-                target_mask=None,
-                mode='sep',
-                errormap_type='bkgrms',
-                save=save,
-                visualize=visualize,
-                **kwargs
-            )
-            bkgrms = bkgrms_map.data
+            x = np.atleast_1d(np.asarray(star_x, dtype=float))
+            y = np.atleast_1d(np.asarray(star_y, dtype=float))
+        inside = np.isfinite(x) & np.isfinite(y) & (x >= edge) & (x < nx - edge) & (y >= edge) & (y < ny - edge)
+        x, y = x[inside], y[inside]
+        mask = None
+        if target_mask is not None:
+            mask = np.asarray(self.helper.to_native(target_mask.data)).astype(bool)
+        try:
+            saturation = float(target_img.header['SATURATE'])
+        except (KeyError, TypeError, ValueError):
+            saturation = 5e4
+            print(f"[WARNING] {target_img.path.name}: no SATURATE in the header; PSF star peak cut at "
+                  f"{peak_fraction} x 5e4 ADU")
 
-        target_data = self.helper.to_native(target_img.data).astype(np.float32)
-        error = calc_total_error(data=target_data, bkg_error=bkgrms, effective_gain=target_img.egain)
+        if model == 'poly' and (gx, gy) == (1, 1):   # automatic evaluation tiles of about _POLY_TILE_PIXEL px
+            gx, gy = max(1, int(round(nx / _POLY_TILE_PIXEL))), max(1, int(round(ny / _POLY_TILE_PIXEL)))
+        xc, yc, xe, ye = _tiles(data.shape, (gx, gy))
+        rng = np.random.default_rng(seed)
+        n = 2 * R + 1
+        psf = np.zeros((gy, gx, n, n))
+        source = np.full((gy, gx), 'epsf', dtype='<U6')
+        nstars = np.zeros((gy, gx), dtype=int)
+        yy, xx = np.indices((2 * half + 1, 2 * half + 1))
+        rr_psf = np.hypot(*(np.indices((n, n)) - R))
+        try:
+            gain = float(target_img.egain)
+        except (TypeError, ValueError):
+            gain = np.nan
+        if not (np.isfinite(gain) and gain > 0):
+            gain = None
+            print(f"[WARNING] {target_img.path.name}: no positive EGAIN; the spike cut of the PSF star selection is "
+                  f"skipped")
 
-        threshold = detection_sigma * bkgrms / np.sqrt(minarea_pixels)
-        segm = detect_sources(target_data, threshold, npixels=minarea_pixels, mask=mask_map)
-        if segm is None:
-            self.helper.print("No sources detected.", verbose)
-            #return Table()
-        segm = deblend_sources(data = target_data, segment_img = segm, npixels=minarea_pixels, nlevels = deblend_nlevels, contrast = deblend_contrast)
-        cat = SourceCatalog(data=target_data, segment_img=segm, error=error, wcs = target_img.wcs)        
-        cat_tbl = cat.to_table()
+        def cut_out(k, snr):
+            """The stamp() tuple of star k (sky-subtracted, re-centred cut-out normalised to sum 1, ...), or None when
+            it fails the cuts (peak S/N limit snr)."""
+            xa, ya = int(round(x[k])), int(round(y[k]))
+            box = (slice(ya - half, ya + half + 1), slice(xa - half, xa + half + 1))
+            d = np.asarray(data[box], dtype=float)
+            if _bad_pixels(d).any() or (mask is not None and mask[box].any()):
+                return None
+            rr = np.hypot(xx - (x[k] - xa + half), yy - (y[k] - ya + half))
+            sky = np.median(d[(rr > R + 4) & (rr <= R + 11)])
+            d = d - sky
+            noise = mad_std(d[rr > R + 4])
+            peak = d[half - 2:half + 3, half - 2:half + 3].max()
+            if not (peak < peak_fraction * saturation - sky and peak > snr * noise):
+                return None
+            # spike (cosmic ray, bad pixel): above twice its 8-neighbour mean and far above the noise; only with
+            # EGAIN (without it the star's Poisson noise in the noise condition is undefined, so skipped conservatively)
+            if gain is not None:
+                nb_mean = ndimage.convolve(d, _NEIGHBOUR_MEAN8, mode='nearest')
+                nb_pos = np.clip(nb_mean, 0, None)
+                excess = d - nb_mean
+                if ((rr <= R) & (excess > _SPIKE_RATIO * nb_pos)
+                        & (excess > _SPIKE_SNR * np.sqrt(noise ** 2 + nb_pos / gain))).any():
+                    return None
+            # second peak (neighbour, galaxy, residue): a local maximum of the smoothed box away from the star
+            ds = ndimage.gaussian_filter(d, fwhm / 2.355)
+            local_max = ds == ndimage.maximum_filter(ds, size=3)
+            local_max[[0, -1], :] = False   # box border: the rising wing of a source outside the box
+            local_max[:, [0, -1]] = False
+            level = max(_PEAK2_SNR * mad_std(ds[rr > R + 4]), _PEAK2_FRACTION * ds[rr <= 1.5 * fwhm].max())
+            if (local_max & (rr > 1.5 * fwhm) & (rr <= R + 11) & (ds > level)).any():
+                return None
+            cx, cy = _centroid(d, x[k] - xa + half, y[k] - ya + half, fwhm / 2.355)
+            return stamp(d, cx, cy, noise)
 
-        cat_tbl['flux_radius'] = cat.fluxfrac_radius(0.5)
-        cat_tbl['ellipticity'] = cat.ellipticity
-        cat_tbl['fwhm_pixel'] = 2.3548 / 1.1774 * cat_tbl['flux_radius'] # From flux radius, gaussian approximation
-        coords = cat_tbl['sky_centroid']
-        cat_tbl['ra'] = coords.ra.value
-        cat_tbl['dec'] = coords.dec.value
-        
-        rename_map = {
-            'label': 'NUMBER',
-            'xcentroid': 'X_IMAGE',
-            'ycentroid': 'Y_IMAGE',
-            'ra': 'X_WORLD',
-            'dec': 'Y_WORLD',
-            'bbox_xmin': 'XMIN_IMAGE',
-            'bbox_xmax': 'XMAX_IMAGE',
-            'bbox_ymin': 'YMIN_IMAGE',
-            'bbox_ymax': 'YMAX_IMAGE',
-            'area': 'ISOAREA_IMAGE',
-            'semimajor_sigma': 'A_IMAGE',
-            'semiminor_sigma': 'B_IMAGE',
-            'orientation': 'THETA_IMAGE', 
-            'eccentricity': 'ECCENTRICITY',
-            'ellipticity': 'ELLIPTRICITY',
-            'min_value': 'FLUX_MIN',
-            'max_value': 'FLUX_MAX',
-            'segment_flux': 'FLUX_ISO',
-            'segment_fluxerr': 'FLUXERR_ISO',
-            'kron_flux': 'FLUX_AUTO',
-            'kron_fluxerr': 'FLUXERR_AUTO',
-            'kron_radius': 'KRON_RADIUS',
-            'flux_radius': 'FLUX_RADIUS',
-            'fwhm_pixel': 'FWHM_IMAGE',
-            'max_value': 'FLUX_MAX',
-        }
-        
-        new_objects = Table()#objects.copy()
+        def stamp(d, cx, cy, noise):
+            """(Cut-out of the sky-subtracted box d shifted to put (cx, cy) at the box centre, normalised to sum 1,
+            noise / sum, the sum S, then d (None with recenter_iter 0), cx, cy, noise for recenter_iter), or None when
+            S <= 0."""
+            shifted = ndimage.shift(d, (half - cy, half - cx), order=3, mode='constant')
+            cut = shifted[half - R:half + R + 1, half - R:half + R + 1]
+            s = cut.sum()
+            return (cut / s, noise / s, s, d if recenter_iter else None, cx, cy, noise) if s > 0 else None
 
-        # Modification of the catalog
-        for old, new in rename_map.items():
-            if old in cat_tbl.colnames:
-                new_objects[new] = cat_tbl[old]
-        
-        pixelscale = np.mean(target_img.pixelscale)
-        aperture_diameter_arcsec = np.atleast_1d(aperture_diameter_arcsec)
-        aperture_diameter_pixel = aperture_diameter_arcsec / pixelscale
-        aper_phot = cat.circular_photometry(radius=aperture_diameter_pixel/2)
-        new_objects['FLUX_APER'] = aper_phot[0]
-        new_objects['MAG_AUTO'] = -2.5 * np.log10(new_objects['FLUX_APER'])
-        new_objects['MAG_AUTO'] = -2.5 * np.log10(new_objects['FLUX_AUTO'])
-        if error is not None:
-            new_objects['FLUXERR_APER'] = aper_phot[1]
-            new_objects['MAGERR_APER'] = 2.5 / np.log(10) * new_objects['FLUXERR_APER'] / new_objects['FLUX_APER']
-            new_objects['MAGERR_AUTO'] = 2.5 / np.log(10) * new_objects['FLUXERR_AUTO'] / new_objects['FLUX_AUTO']
-        self.helper.print('Detected {} sources'.format(len(new_objects)), verbose)       
-        
-        if visualize:
-            self._visualize_objects(target_img, new_objects, size=1000)
-         
-        return new_objects, target_img
-    
-    # Deprecated, use build_epsf_model_psfex
-    def build_epsf_model(self,
-                         image_data: np.ndarray,
-                         sources: Table,
-                         num_grids: Optional[int] = None,
-                         fwhm_estimate_pixel: float = 4.0,
-                         oversampling: int = 4,
-                         min_stars_per_grid: int = 15,
-                         verbose: bool = True,
-                         visualize: bool = True,
-                         num_show: int = 9,
-                         **kwargs):
-        """
-        Build EPSF model from sources.
-        
-        Parameters
-        ----------
-        image_data : np.ndarray
-            The image data.
-        sources : Table
-            The sources to build the EPSF model from.
-        num_grids : int or None
-            If None or 0, apply selection globally instead of grid-by-grid.
-        fwhm_estimate_pixel : float, optional
-            The estimated FWHM of the stars in pixels. Defaults to 4.0.
-        oversampling : int, optional
-            The oversampling factor for the EPSF model. Defaults to 4.
-        min_stars_per_grid : int, optional
-            The minimum number of stars per grid. Defaults to 15.
-        verbose : bool, optional
-            Whether to print verbose output. Defaults to True.
-        visualize : bool, optional
-            Whether to visualize the EPSF model. Defaults to True.
-        num_show : int, optional
-            The number of stars to show in the visualization. Defaults to 9.
-        **kwargs : dict, optional
-            Additional keyword arguments.
+        def finish(p):
+            """Negative wings beyond 2 FWHM and everything beyond R set to 0, normalised to sum 1."""
+            p[(rr_psf > 2 * fwhm) & (p < 0)] = 0
+            p[rr_psf > R] = 0
+            return p / p.sum()
 
-        Returns
-        -------
-        epsf_model : EPSFModel
-            The EPSF model.
-        """
-        from astropy.nddata import NDData
-        from photutils.psf import extract_stars, EPSFBuilder
-        from astropy.visualization import simple_norm
-        from astropy.nddata import NDData
-        from photutils.psf import extract_stars, EPSFBuilder
-        from astropy.visualization import simple_norm
-        import matplotlib.pyplot as plt
-        from astropy.table import Table
-        import numpy as np
+        def anchor(p):
+            """p shifted (cubic spline) to put its first moment at the array centre, then finish()."""
+            my, mx = (np.indices((n, n)) * p).sum(axis=(1, 2)) / p.sum()
+            return finish(ndimage.shift(p, (R - my, R - mx), order=3, mode='constant'))
 
-        size = int(np.ceil(6 * fwhm_estimate_pixel)) | 1
-        stamp_size = (size, size)
-        nddata = NDData(image_data)
+        yn, xn = np.indices((n, n))
 
-        if num_grids is None or num_grids <= 1:
-            tbl = Table()
-            tbl['x'] = sources['X_IMAGE']
-            tbl['y'] = sources['Y_IMAGE']
+        def recentre(c, ref):
+            """(Cut-out tuple c re-made at the star centre fitted with the PSF ref (_fit_shift over r <= R of the
+            current centre, uniform weights), the move in px), or (c, NaN) when the fit fails or moves more than
+            _EPSF_RECENTER_LIMIT px."""
+            box, cx, cy, noise = c[3:]
+            ix, iy = int(round(cx)), int(round(cy))
+            if ix < R or iy < R or ix + R >= box.shape[1] or iy + R >= box.shape[0]:
+                return c, np.nan
+            dx, dy = cx - ix, cy - iy
+            w = (np.hypot(xn - R - dx, yn - R - dy) <= R).astype(float)
+            fit = _fit_shift(box[iy - R:iy + R + 1, ix - R:ix + R + 1], ref, w, dx, dy, limit=_EPSF_RECENTER_LIMIT)
+            new = None if fit is None else stamp(box, ix + fit[0], iy + fit[1], noise)
+            if new is None:
+                return c, np.nan
+            return new, float(np.hypot(new[4] - cx, new[5] - cy))
 
-            stars = extract_stars(nddata, tbl, size=stamp_size)
-            if len(stars) < min_stars_per_grid:
-                raise ValueError(f"Only {len(stars)} stars found, not enough to build global EPSF.")
+        def median_tile(cuts, where):
+            """(Median ePSF of the cut-outs, 'epsf'), or (the Moffat fallback, 'moffat') below min_stars (warning)."""
+            if len(cuts) >= min_stars:
+                return finish(np.median(np.array(cuts), axis=0)), 'epsf'
+            print(f"[WARNING] {target_img.path.name}: {len(cuts)} PSF stars (< {min_stars}) in {where}; "
+                  f"Moffat beta={beta} PSF of the header seeing used")
+            return self.moffat_psf(fwhm, R, beta), 'moffat'
 
-            builder = EPSFBuilder(oversampling=oversampling, maxiters=10, progress_bar=False)
-            epsf_model, fitted_stars = builder.build_epsf(stars)
-            ny, nx = epsf_model.data.shape
-            epsf_model.x_0 = nx / 2
-            epsf_model.y_0 = ny / 2
-            if verbose:
-                self.helper.print(f"Built global EPSF from {len(fitted_stars)} stars.", verbose)
-            if visualize:
-                self._visualize_epsf_stars_and_model(epsf_model, fitted_stars)
-                self._visualize_epsf_residuals(epsf_model, fitted_stars, num_show = num_show)
-            return epsf_model
-        else:
-            h, w = image_data.shape
-            x_step = w // num_grids
-            y_step = h // num_grids
-            epsf_model_dict = {}
-            epsf_stars_dict = {}
-            failed_grids = []
-            failed_stars = []
-
-            # First pass: Try building EPSF model for each grid
-            for i in range(num_grids):
-                for j in range(num_grids):
-                    x_min, x_max = j * x_step, (j + 1) * x_step
-                    y_min, y_max = i * y_step, (i + 1) * y_step
-
-                    in_cell = (sources['X_IMAGE'] >= x_min) & (sources['X_IMAGE'] < x_max) & \
-                            (sources['Y_IMAGE'] >= y_min) & (sources['Y_IMAGE'] < y_max)
-                    grid_sources = sources[in_cell]
-                    
-                    tbl = Table()
-                    tbl['x'] = grid_sources['X_IMAGE']
-                    tbl['y'] = grid_sources['Y_IMAGE']
-
-                    try:
-                        from photutils.psf import EPSFStars
-                        stars = extract_stars(nddata, tbl, size=stamp_size)
-                        stars = [star for star in stars if np.all(np.isfinite(star.data))]
-                        stars = EPSFStars(stars)
-                        builder = EPSFBuilder(oversampling=oversampling, maxiters=10, progress_bar=False)
-                        epsf_model, fitted_stars = builder.build_epsf(stars)
-                        ny, nx = epsf_model.data.shape
-                        epsf_model.x_0 = nx / 2
-                        epsf_model.y_0 = ny / 2
-                        
-                        if len(stars) < min_stars_per_grid:
-                            if verbose:
-                                self.helper.print(f"Grid ({i},{j}): Only {len(stars)} stars extracted, marking for fallback.", verbose)
-                            failed_grids.append((i, j))
-                            failed_stars.append(fitted_stars)
-                            continue
-                        
-                        epsf_model_dict[(i, j)] = epsf_model
-                        epsf_stars_dict[(i, j)] = fitted_stars
-
-                        if verbose:
-                            self.helper.print(f"Grid ({i},{j}): EPSF built from {len(fitted_stars)} stars.", verbose)
-
-                    except Exception as e:
-                        self.helper.print(f"Grid ({i},{j}) failed: {e}", verbose)
-                        failed_grids.append((i, j))
-                        failed_stars.append(fitted_stars)
-                        continue
-
-            # Second pass: fallback to adjacent grids
-            from math import sqrt
-
-            center_i, center_j = num_grids // 2, num_grids // 2
-
-            for (i, j), fitted_stars in zip(failed_grids, failed_stars):
-                # Generate all valid neighbors excluding (i, j) itself
-                neighbors = [
-                    (i + di, j + dj)
-                    for di in [-1, 0, 1]
-                    for dj in [-1, 0, 1]
-                    if not (di == 0 and dj == 0) and
-                    0 <= i + di < num_grids and
-                    0 <= j + dj < num_grids
-                ]
-
-                # Sort neighbors by distance from the center (prefer inner grids)
-                neighbors.sort(key=lambda ij: sqrt((ij[0] - center_i)**2 + (ij[1] - center_j)**2))
-
-                neighbor_found = False
-                for ni, nj in neighbors:
-                    if (ni, nj) in epsf_model_dict:
-                        epsf_model = epsf_model_dict[(ni, nj)]
-                        epsf_model_dict[(i, j)] = epsf_model
-                        epsf_stars_dict[(i, j)] = fitted_stars
-                        neighbor_found = True
-                        if verbose:
-                            self.helper.print(f"Grid ({i},{j}): Fallback to inner neighbor ({ni},{nj})", verbose)
+        def collect(idx, snr, limit):
+            """Cut-out tuples and positions of the stars idx (in that order) passing the cuts at peak S/N limit snr, at
+            most limit stars."""
+            cuts, xs, ys = [], [], []   # cuts: (cut-out, noise / S, S, box, cx, cy, noise)
+            for k in idx:
+                cut = cut_out(k, snr)
+                if cut is not None:
+                    cuts.append(cut)
+                    xs.append(x[k])
+                    ys.append(y[k])
+                    if len(cuts) >= limit:
                         break
+            return cuts, xs, ys
 
-                if not neighbor_found and verbose:
-                    self.helper.print(f"Grid ({i},{j}): No valid inner neighbors found for fallback.", verbose)
+        def collect_fallback(idx, limit, enough, where):
+            """collect() at snr_lower, repeated at snr_lower_fallback (warning) with fewer than enough stars; also the
+            peak S/N limit used (no repeat when every star of idx already passed)."""
+            cuts, xs, ys = collect(idx, snr_lower, limit)
+            if (len(cuts) >= enough or len(cuts) == len(idx) or snr_lower_fallback is None
+                    or not snr_lower_fallback < snr_lower):
+                return cuts, xs, ys, float(snr_lower)
+            n_first = len(cuts)
+            cuts, xs, ys = collect(idx, snr_lower_fallback, limit)
+            print(f"[WARNING] {target_img.path.name}: {n_first} PSF stars at peak S/N > {snr_lower:g} (< {enough}) in "
+                  f"{where}; selection repeated at peak S/N > {snr_lower_fallback:g}: {len(cuts)} stars")
+            return cuts, xs, ys, float(snr_lower_fallback)
 
-            from collections import OrderedDict
+        def need(order):
+            """Usable stars for a polynomial of this order: 5 x its coefficients."""
+            return 5 * (order + 1) * (order + 2) // 2
 
-            # Sort epsf_dict by grid keys (i, j)
-            epsf_model_dict = OrderedDict(sorted(epsf_model_dict.items(), key=lambda x: (x[0][0], x[0][1])))
-            epsf_stars_dict = OrderedDict(sorted(epsf_stars_dict.items(), key=lambda x: (x[0][0], x[0][1])))
-
-            if visualize:
-                self._visualize_epsf_stars_and_model_grid(epsf_model_dict= epsf_model_dict, epsf_stars_dict=epsf_stars_dict)
-                self._visualize_epsf_residuals_grid(epsf_model_dict= epsf_model_dict, epsf_stars_dict = epsf_stars_dict, num_show_each_grid=num_show)
-
-            return epsf_model_dict
-
-    def build_epsf_model_psfex(self,
-                               target_img: Union[ScienceImage, ReferenceImage],
-                               target_bkg: Optional[Background] = None,
-                               target_bkgrms: Optional[Errormap] = None,
-                               target_mask: Optional[Mask] = None,
-                            
-                               # Detection criteria
-                               detection_sigma: float = 5.0,
-                               minarea_pixels: int = 5,
-                               fwhm_estimate_pixel: float = 4.0,
-                               saturation_level: float = 20000,
-                                                    
-                               # PSFEx parameters 
-                               psf_size: int = None,
-                               num_grids: int = 1,
-                               oversampling: int = 1,
-                               eccentricity_upper: float = 0.4,
-                               verbose: bool = True,
-                               visualize: bool = True,
-                               **kwargs
-                               ):
-        """
-        Build EPSF models per grid using PSFEx with dynamic parameter handling.
-
-        Parameters
-        ----------
-        target_img : Union[ScienceImage, ReferenceImage]
-            The target image to run PSFEx on.
-        target_bkg : Optional[Background], optional
-            The background to subtract from the target image. Defaults to None.
-        target_bkgrms : Optional[Errormap], optional
-            The background RMS to use for the detection. Defaults to None.
-        target_mask : Optional[Mask], optional
-            The mask to use for the detection. Defaults to None.
-        detection_sigma : float, optional
-            Detection threshold in units of background RMS. Defaults to 5.0.
-        minarea_pixels : int, optional
-            The minimum area in pixels for the detection. Defaults to 5.
-        fwhm_estimate_pixel : float, optional
-            Estimated FWHM of stars in pixels. Defaults to 4.0.
-        saturation_level : float, optional
-            The saturation level for the detection. Defaults to 20000.
-        psf_size : int, optional
-            The size of the PSF model. Defaults to None.
-        num_grids : int, optional
-            The number of grids along one axis (e.g., 3 for 3x3). Defaults to 1.
-        oversampling : int, optional
-            Oversampling factor for subpixel modeling. Defaults to 1.
-        eccentricity_upper : float, optional
-            The maximum eccentricity for the stars. Defaults to 0.4.
-        verbose : bool, optional
-            Whether to print verbose output. Defaults to True.
-        visualize : bool, optional
-            Whether to visualize the EPSF model. Defaults to True.
-        **kwargs : dict, optional
-            Additional keyword arguments.
-
-        Returns
-        -------
-        epsf_model_dict : dict
-            The dictionary of EPSF models.
-        """
-
-        bkgrms_map = None
-        bkgrms = None
-        # mask_map = target_mask.data if target_mask is not None else None
-        # mask_map = self.to_native(mask_map)
-        # Step 1: Background subtraction
-        if target_bkg is not None:
-            target_img = self.background.subtract_background(
-                target_img=target_img,
-                target_bkg=target_bkg,
-                save= True,
-                overwrite=False,
-                visualize=False,
-                save_fig=False,
-            )
+        tile_cuts = {}   # model 'grid': (j, i) -> the cut-out tuples of the tile, for recenter_iter
+        snr_used = np.full((gy, gx), float(snr_lower))
+        if model == 'grid':
+            for j in range(gy):
+                for i in range(gx):
+                    in_tile = np.where((x >= xe[i]) & (x < xe[i + 1]) & (y >= ye[j]) & (y < ye[j + 1]))[0]
+                    cuts, _, _, snr_used[j, i] = collect_fallback(rng.permutation(in_tile), max_stars, min_stars,
+                                                                  f'tile ({j}, {i})')
+                    nstars[j, i] = len(cuts)
+                    psf[j, i], source[j, i] = median_tile([c[0] for c in cuts], f'tile ({j}, {i})')
+                    tile_cuts[j, i] = cuts
         else:
-            pass
-        
-        if target_mask is not None:
-            if not target_mask.is_exists:
-                target_mask.write(verbose = verbose)
+            cuts, xs, ys, snr_used[:] = collect_fallback(rng.permutation(len(x)), max_stars_total, need(poly_order),
+                                                         'the image')
 
-        # Step 2: Set error map
-        if target_bkgrms is not None:
-            if not target_bkgrms.is_exists:
-                target_bkgrms.write(verbose = verbose)
+            def zones(order):
+                """N of the N x N zones of an order >= 1."""
+                return _POLY_ZONES.get(order, _POLY_ZONES[3])
 
-        # FOR SExtractor
-        psfex_sexparams = dict()
-        psfex_sexparams['CATALOG_TYPE'] = 'FITS_LDAC' # Required format for PSFEx
-        psfex_sexparams['PARAMETERS_NAME'] = 'psfex.param' # Required format for PSFEx
-        psfex_sexparams['DETECT_MINAREA'] = '%d'%(minarea_pixels) # Minimum area for detection
-        psfex_sexparams["DETECT_THRESH"] = '%.1f'%(detection_sigma) # Detection threshold
-        psfex_sexparams["ANALYSIS_THRESH"] = '%.1f'%(detection_sigma) # Analysis threshold
-        if target_bkgrms is not None:
-            psfex_sexparams["WEIGHT_TYPE"] = 'MAP_RMS' # When target_bkgrms is given, this RMS map will be used for calculating SNR 
-            psfex_sexparams["WEIGHT_IMAGE"] = '%s'%target_bkgrms.path # Path of the RMS map
-            psfex_sexparams["WEIGHT_GAIN"] = 'N'
-        if target_mask is not None:
-            sex_params['FLAG_IMAGE'] = str(target_mask)
-            sex_params['PARAMETERS_NAME'] = 'sexflag.param'       
-        psfex_sexparams['PHOT_APERTURES'] = '%.1f'%(fwhm_estimate_pixel*3) # fwhm * 3
-        psfex_sexparams['SATUR_LEVEL'] = str(saturation_level)
-        if target_img.status.BKGSUB['status']:
-            psfex_sexparams['BACK_TYPE'] = 'MANUAL' # Disable background estimation
-        
-        # FOR PSFEx
-        def estimate_psf_size(fwhm: float, margin: float = 6.0) -> str:
-            size = int(np.ceil(margin * fwhm)) | 1  # ensure odd
-            return size
+            def n_empty(order):
+                """Zones of an order >= 1 with fewer than _POLY_ZONE_STARS stars."""
+                if not xs:   # no usable star: every zone is empty
+                    return zones(order) ** 2
+                _, _, zxe, zye = _tiles(data.shape, zones(order))
+                return int((np.histogram2d(ys, xs, bins=(zye, zxe))[0] < _POLY_ZONE_STARS).sum())
 
-        psfex_params = dict()
-        if psf_size is None:
-            psf_size = estimate_psf_size(fwhm_estimate_pixel) * oversampling
-            
-        ecc = np.clip(eccentricity_upper, 0, 0.999999)  # prevent sqrt of negative
-        sqrt_term = np.sqrt(1 - ecc**2)
-        ellipticity_upper = 0.4#(1 - sqrt_term) / (1 + sqrt_term)
-        psfex_params["PSF_SAMPLING"] = '%.3f'%(1 / oversampling) # Oversampling parameter
-        psfex_params['PSF_SIZE'] = f'%d,%d'%(psf_size,psf_size) # Size of the PSF model
-        psfex_params["PSFVAR_NSNAP"] = '%d'%num_grids # Dimension of the grid
-        if num_grids > 1:
-            psfex_params["PSFVAR_DEGREES"] = "1,1" # Polynomial degree for PSF model
-        else:
-            psfex_params["PSFVAR_DEGREES"] = "2,2" # Polynomial degree for PSF model
-        
-        # Sampling parameters
-        psfex_params['SAMPLE_AUTOSELECT'] = 'Y'
-        psfex_params["SAMPLE_FWHMRANGE"] = '%.1f,%.1f'%(0.5*fwhm_estimate_pixel, 2.5*fwhm_estimate_pixel) # FWHM range for sampling
-        psfex_params["SAMPLE_MINSN"] = '%.1f'%detection_sigma
-        psfex_params["SAMPLE_MAXELLIP"] = '%.4f'%ellipticity_upper
-        
-        psfex_params["CHECKIMAGE_TYPE"] = "SNAPSHOTS"
-        psfex_params["CHECKIMAGE_NAME"] = "snap.fits"
-        psfex_params["SAMPLE_MAXELLIP"] = str(ellipticity_upper)
+            # order ladder: poly_order down to 1 (0 only when asked); an order needs need(order) stars and, from
+            # order 1, >= _POLY_ZONE_STARS stars in each of its zones
+            order = next((k for k in (range(poly_order, 0, -1) if poly_order > 0 else [0])
+                          if len(cuts) >= need(k) and (k == 0 or n_empty(k) == 0)), None)
+            if order != poly_order:
+                why = [f"{len(cuts)} PSF stars (< {need(poly_order)})"] if len(cuts) < need(poly_order) else []
+                if poly_order > 0 and n_empty(poly_order):
+                    why.append(f"{n_empty(poly_order)} of {zones(poly_order) ** 2} zones ({zones(poly_order)} x "
+                               f"{zones(poly_order)}) without a PSF star")
+                print(f"[WARNING] {target_img.path.name}: polynomial PSF of order {poly_order} not usable "
+                      f"({'; '.join(why)}); " + (f"order {order} used" if order is not None else
+                                                 "one median ePSF of them used (model 'grid', grid 1)"))
+            if order is not None:
+                # terms x^a y^b with a + b <= order
+                powers = [(t - b, b) for t in range(int(order) + 1) for b in range(t + 1)]
 
-        # Run PSFEx
-        psfex_result, snapshot = self.helper.run_psfex(
-            target_path=target_img.path,
-            psfex_sexconfigfile=target_img.config['PSFEX_SEXCONFIG'],
-            psfex_configfile=target_img.config['PSFEX_CONFIG'],
-            psfex_sexparams=psfex_sexparams,
-            psfex_params=psfex_params,
-            target_outpath=target_img.savepath.savepath,
-            verbose=verbose
-        )[0]
+                def basis(px, py):
+                    """Polynomial terms at 0-based pixel positions, x and y scaled to [-1, 1] over the image."""
+                    u = 2 * np.asarray(px, dtype=float) / (nx - 1) - 1
+                    v = 2 * np.asarray(py, dtype=float) / (ny - 1) - 1
+                    return np.column_stack([u ** a * v ** b for a, b in powers])
 
-        from astropy.io import fits
-        psf_data = fits.getdata(snapshot)
+                def poly_fit(cuts):
+                    """Coefficients of the polynomial fit to the cut-outs at (xs, ys)."""
+                    A = basis(xs, ys)
+                    Y = np.array([c[0] for c in cuts]).reshape(len(cuts), -1)
+                    noise_s = np.array([c[1] for c in cuts])[:, None]
+                    flux = np.array([c[2] for c in cuts])[:, None]
+                    in_r = (rr_psf <= R).ravel()
+                    coef = np.linalg.lstsq(A, Y, rcond=None)[0]   # unweighted start
+                    # per-star inverse-variance weights from the start model, one refit: the mean of max(M, 0) over
+                    # r <= R is about the model flux inside R / the pixel count for any model, so more rounds barely
+                    # move them
+                    M = A @ coef
+                    var = noise_s ** 2 + (np.zeros_like(M) if gain is None else np.clip(M, 0, None) / (gain * flux))
+                    sw = np.sqrt(1 / np.mean(var[:, in_r], axis=1))[:, None]
+                    return np.linalg.lstsq(A * sw, Y * sw, rcond=None)[0]
 
-        epsf_model_dict = {}
-        epsf_stars_dict = {}
+                if gain is None:
+                    print(f"[WARNING] {target_img.path.name}: no positive EGAIN; the polynomial PSF fit leaves the "
+                          f"star Poisson noise out of its star weights")
+                coef = poly_fit(cuts)
+                tx, ty = np.meshgrid(xc, yc)   # (ny, nx) tile centres: row j, column i
+                basis_tiles = basis(tx.ravel(), ty.ravel())
+                p_tiles = (basis_tiles @ coef).reshape(gy, gx, n, n)
+                for j in range(gy):
+                    for i in range(gx):
+                        psf[j, i] = finish(p_tiles[j, i])
+                nstars[:] = len(cuts)
+                self.helper.print(f"[PSFPhotometry] ePSF R={R} px, FWHM={fwhm:.2f} px, polynomial order {order} "
+                                  f"from {len(cuts)} stars, evaluated on {gx} x {gy} (nx x ny) tiles", verbose)
+            else:   # no usable order: model 'grid' with grid 1 from the same stars
+                model, gx, gy = 'grid', 1, 1
+                p, src = median_tile([c[0] for c in cuts], 'the image')
+                psf = p[None, None]
+                source = np.full((1, 1), src, dtype='<U6')
+                nstars = np.full((1, 1), len(cuts), dtype=int)
+                snr_used = snr_used[:1, :1]
+                tile_cuts[0, 0] = cuts
+        if model == 'grid':
+            self.helper.print(f"[PSFPhotometry] ePSF R={R} px, FWHM={fwhm:.2f} px, stars per tile "
+                              f"{nstars.ravel().tolist()}", verbose)
 
-        for i in range(num_grids):
-            for j in range(num_grids):
-                y_start = i * psf_size
-                y_end = y_start + psf_size
-                x_start = j * psf_size
-                x_end = x_start + psf_size
-                psf_patch = psf_data[y_start:y_end, x_start:x_end]
-
-                epsf_model = EPSFModel(data=psf_patch, oversampling = oversampling)
-                ny, nx = epsf_model.data.shape
-                epsf_model.x_0 = nx / 2
-                epsf_model.y_0 = ny / 2
-                
-                epsf_model_dict[(i, j)] = epsf_model
-                epsf_stars_dict[(i, j)] = []
-
-        if verbose:
-            self.helper.print(f"Assigned PSFEx EPSF models from {num_grids}x{num_grids} grid (shape {psf_data.shape}).", verbose)
-            
-        if visualize:
-            self._visualize_epsf_stars_and_model_grid(epsf_model_dict=epsf_model_dict, epsf_stars_dict=epsf_stars_dict)
-
-        return epsf_model_dict
-    
-    def psf_photometry(self,
-                    target_img: Union[ScienceImage, ReferenceImage],
-                    epsf_model_dict: Union[EPSFModel, dict],
-                    target_bkg: Optional[Background] = None, 
-                    target_bkgrms: Optional[Errormap] = None,
-                    sources: Optional[Table] = None,
-                    target_mask: Optional[Mask] = None,
-                    
-                    # Detection parameters
-                    detection_sigma: float = 1.5,
-                    minarea_pixels: int = 5,
-                    deblend_nlevels: int = 32,
-                    deblend_contrast: float = 0.003,
-
-                    # PSF Photometry parameters
-                    fwhm_estimate_pixel: float = 5.0,
-                    n_iterations: int = 0,
-                                        
-                    visualize: bool = True,
-                    verbose: bool = True,
-                    save: bool = True,
-                    apply_aperture_correction: bool = True,
-                    **kwargs):
-        """
-        Perform PSF photometry on a target image using an EPSF model.
-
-        Parameters
-        ----------
-        target_img : Union[ScienceImage, ReferenceImage]
-            The target image to perform PSF photometry on.
-        epsf_model_dict : Union[EPSFModel, dict]
-            The EPSF model to use for the PSF photometry.
-        target_bkg : Optional[Background], optional
-            The background to subtract from the target image. Defaults to None.
-        target_bkgrms : Optional[Errormap], optional
-            The background RMS to use for the detection. Defaults to None.
-        sources : Optional[Table], optional
-            The sources to use for the PSF photometry. Defaults to None.
-        target_mask : Optional[Mask], optional
-            The mask to use for the detection. Defaults to None.
-        detection_sigma : float, optional
-            Detection threshold in units of background RMS. Defaults to 1.5.
-        minarea_pixels : int, optional
-            The minimum area in pixels for the detection. Defaults to 5.
-        deblend_nlevels : int, optional
-            The number of levels for the deblending. Defaults to 32.
-        deblend_contrast : float, optional
-            The contrast for the deblending. Defaults to 0.003.
-        fwhm_estimate_pixel : float, optional
-            Estimated FWHM of stars in pixels. Defaults to 5.0.
-        n_iterations : int, optional
-            The number of iterations for the PSF photometry. Defaults to 0.
-        visualize : bool, optional
-            Whether to visualize the PSF photometry. Defaults to True.
-        verbose : bool, optional
-            Whether to print verbose output. Defaults to True.
-        save : bool, optional
-            Whether to save the PSF photometry. Defaults to True.
-        apply_aperture_correction : bool, optional
-            Whether to apply aperture correction to the PSF photometry. Defaults to True.
-        **kwargs : dict, optional
-            Additional keyword arguments.
-
-        Returns
-        -------
-        result : Table
-            The PSF photometry results.
-        """
-        from photutils.psf import PSFPhotometry, SourceGrouper
-        from astropy.nddata import NDData
-        from astropy.modeling.fitting import LevMarLSQFitter
-        from photutils.utils import calc_total_error
-        from collections import defaultdict
-        import numpy as np
-
-        # Background subtraction
-        if target_bkg is not None:
-            target_img_sub = self.background.subtract_background(
-                target_img=target_img,
-                target_bkg=target_bkg,
-                save=False,
-                overwrite=False,
-                visualize = False
-            )
-        else:
-            target_img_sub = target_img
-        
-        # Background RMS map
-        if target_bkgrms is None:
-            # Use sigma-clipped std if no error map available
-            target_bkgrms, _, _ = self.errormap.calculate_errormap_from_image(
-                target_img=target_img,
-                target_mask=None,
-                mode='sep',
-                errormap_type='bkgrms',
-                save=False,
-                visualize=visualize,
-                **kwargs
-            )
-        
-        # Errormap calculation 
-        error = calc_total_error(data=target_img_sub.data,
-                                bkg_error=target_bkgrms.data,
-                                effective_gain=target_img_sub.egain)
-        
-        # Invalid pixel mask
-        invalid_mask = self.masking.mask_invalidpixel(target_img = target_img_sub)
-        if target_mask is not None:
-            target_mask.combine_mask(invalid_mask.data)
-        else:
-            target_mask = invalid_mask
-        
-        if sources is None:
-            #TODO CHANGE THIS PART TO FIND PEAKS RATHER THAN FIND SOURCES
-            sources, _ = self.extract_sources(
-                target_img=target_img_sub,
-                target_bkg=None,
-                target_bkgrms=target_bkgrms,
-                target_mask=target_mask,
-                detection_sigma=detection_sigma,
-                minarea_pixels= minarea_pixels,
-                deblend_nlevels=deblend_nlevels,
-                deblend_contrast=deblend_contrast,
-                fwhm_estimate_pixel=fwhm_estimate_pixel,
-                visualize=visualize,
-                save=False,
-                verbose=verbose
-            )
-            sources = self._match_catalog_format(sources)
-        else:
-            sources = self._match_catalog_format(sources)
-            if 'X_IMAGE' not in sources.colnames or 'Y_IMAGE' not in sources.colnames or 'segment_flux' not in sources.colnames:
-                raise ValueError("Sources table must contain 'X_IMAGE' and 'Y_IMAGE' and 'segment_flux' columns.")
-            if apply_aperture_correction and 'FLUX_APER' not in sources.colnames:
-                raise ValueError("Sources table must contain 'FLUX_APER' column for aperture correction.")
-        
-        # Check if sources are within the image bounds
-        def cut_edge_sources(sources, edge_buffer=100):
-            edge_buffer = int(100)
-            image_edge_mask = (
-                (sources['X_IMAGE'] > edge_buffer) & 
-                (sources['X_IMAGE'] < target_img.naxis1 - edge_buffer) &
-                (sources['Y_IMAGE'] > edge_buffer) & 
-                (sources['Y_IMAGE'] < target_img.naxis2 - edge_buffer)
-            )
-            # mask edge region of the invalidemask
-            from scipy.ndimage import binary_dilation
-            dilated_mask = binary_dilation(invalid_mask.data, iterations=100)
-            # Convert source coordinates to integer pixel indices
-            y_pix = np.clip(np.round(sources['Y_IMAGE']).astype(int), 0, invalid_mask.data.shape[0] - 1)
-            x_pix = np.clip(np.round(sources['X_IMAGE']).astype(int), 0, invalid_mask.data.shape[1] - 1)
-
-            # Identify sources landing on or near invalid pixels
-            invalid_edge_mask = dilated_mask[y_pix, x_pix]
-            edge_mask = image_edge_mask & ~invalid_edge_mask
-            
-            self.helper.print(f'{len(sources[~edge_mask])} sources filtered out due to edge mask.', verbose)
-            filtered_sources = sources[edge_mask]
-            return filtered_sources
-        
-        filtered_sources = cut_edge_sources(sources, edge_buffer=100)
-
-        # PSF Photometry
-        self.helper.print('Starting PSF photometry...', verbose)
-        fitter = LevMarLSQFitter()
-        group_maker = SourceGrouper(min_separation=3.0 * fwhm_estimate_pixel)
-        def run_psf_photometry(data, sources):
-            # Prepare full-size model and residual images
-            sigma = target_img.info.SKYSIG if target_img.info.SKYSIG is not None else 10
-            model_image = np.random.normal(loc = 0, scale = sigma, size = data.shape)
-            residual_image = np.random.normal(loc = 0, scale = sigma, size = data.shape)
-            if isinstance(epsf_model_dict, EPSFModel):
-                self.helper.print('Using global EPSF model for photometry.', verbose)
-                epsf_model = epsf_model_dict
-
-                psf_phot = PSFPhotometry(
-                    psf_model=epsf_model,
-                    fit_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1),
-                    grouper=group_maker,
-                    fitter=fitter,
-                    xy_bounds = (3,3),
-                    progress_bar=verbose
-                )
-                phot = psf_phot(data = data, mask = None, error = error, init_params = sources)
-                self.helper.print('Start generating model images...', verbose)
-                model_image += psf_phot.make_model_image(shape=data.shape, psf_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1), include_localbkg = False)
-                self.helper.print('Start generating residual images...', verbose)
-                residual_image += psf_phot.make_residual_image(data=data, psf_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1), include_localbkg = False)
-                
-                result = sources.copy()
-                for col in phot.colnames:
-                    result[col] = phot[col]
-
-            elif isinstance(epsf_model_dict, dict):
-                self.helper.print('Using grid-based EPSF models for photometry.', verbose)
-                h, w = data.shape
-                num_grids = int(np.sqrt(len(epsf_model_dict)))
-                x_step = w // num_grids
-                y_step = h // num_grids
-            
-                result = Table()
-                for (i, j), epsf_model in epsf_model_dict.items():
-                    self.helper.print(f'Processing grid ({i},{j}) with EPSF model shape {epsf_model.data.shape}', verbose)
-                    x_min, x_max = j * x_step, (j + 1) * x_step
-                    y_min, y_max = i * y_step, (i + 1) * y_step
-
-                    in_cell = (sources['X_IMAGE'] >= x_min) & (sources['X_IMAGE'] < x_max) & \
-                            (sources['Y_IMAGE'] >= y_min) & (sources['Y_IMAGE'] < y_max)
-                    sources_grid = sources[in_cell]
-                    if len(sources_grid) == 0:
+        # recenter_iter: star centres fitted with the current PSF (first moment at the array centre), PSF re-made
+        recenter = []
+        for it in range(recenter_iter):
+            moves = []
+            if model == 'poly':
+                A = basis(xs, ys)
+                for m, c in enumerate(cuts):
+                    cuts[m], move = recentre(c, anchor(finish((A[m] @ coef).reshape(n, n))))
+                    moves.append(move)
+                coef = poly_fit(cuts)
+                p_tiles = (basis_tiles @ coef).reshape(gy, gx, n, n)
+                for j in range(gy):
+                    for i in range(gx):
+                        psf[j, i] = anchor(finish(p_tiles[j, i]))
+            else:
+                for (j, i), tcuts in tile_cuts.items():
+                    if source[j, i] != 'epsf':   # Moffat tile: not re-made
                         continue
-                    psf_phot = PSFPhotometry(
-                        psf_model=epsf_model,
-                        fit_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1),
-                        grouper=group_maker,
-                        fitter=fitter,
-                        xy_bounds = (3,3),
-                        progress_bar=verbose
-                    )
-                    phot_tbl = psf_phot(data =  data, mask = None, error = error, init_params = sources_grid)
-                    result = vstack([result, hstack([sources_grid, phot_tbl])])
-                    
-                    # Generate model and residual for *this grid only*
-                    self.helper.print('Start generating model images...:', verbose)
-                    model_patch = psf_phot.make_model_image(shape=data.shape, psf_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1), include_localbkg = False)
-                    self.helper.print('Start generating residual images...:', verbose)
-                    residual_patch = psf_phot.make_residual_image(data=data, psf_shape=(int(epsf_model.x_0*2)|1, int(epsf_model.y_0*2)|1), include_localbkg = False)
-
-                    # Fill only the current grid region in model and residual
-                    model_image[y_min:y_max, x_min:x_max] += model_patch[y_min:y_max, x_min:x_max]
-                    residual_image[y_min:y_max, x_min:x_max] += residual_patch[y_min:y_max, x_min:x_max]
-
-            else:
-                raise ValueError("epsf_model_dict must be either an EPSFModel or a dict of EPSFModels.")
-            
-            return result, model_image, residual_image
-        result, model_image, residual_image = run_psf_photometry(data=target_img_sub.data, sources = filtered_sources)
-        
-        # Apply aperture correction if requested
-        aper_correction = False
-        if apply_aperture_correction and 'FLUX_APER' in result.colnames:
-            self.helper.print('Applying aperture correction...', verbose)
-            
-            # Filter high-quality stars for aperture correction calculation
-            
-            good_stars = self.select_psfstars(
-                target_catalog = result,
-                image_shape = target_img.data.shape,
-                num_grids = 1,
-                max_per_grid = 500,
-                snr_lower = 30,
-                verbose = True,
-                visualize = False)
-        
-            #good_stars_mask = (result['QFIT_PSF'] < 0.05) & (result['FLUX_APER'] > 0) & (result['FLUX_PSF'] > 0)
-            if len(good_stars) > 10:
-                from numpy.polynomial.polynomial import Polynomial
-
-                #good_stars = result[good_stars_mask]
-                
-                # Calculate correction factor as median ratio of aperture flux to PSF flux
-                good_stars['MAG_PSF'] = -2.5 * np.log10(good_stars['flux_fit'])
-                ap_corrections = good_stars['MAG_APER'] - good_stars['MAG_PSF']
-                fit_poly = Polynomial.fit(good_stars['MAG_PSF'], ap_corrections, deg=3)
-                fit_poly = fit_poly.convert()
-                coefs = fit_poly.coef
-                #ap_corrections = good_stars['FLUX_APER'] / good_stars['FLUX_PSF']
-                
-                # Use sigma-clipped median for robust correction factor
-                from astropy.stats import sigma_clipped_stats
-                mean, median, std = sigma_clipped_stats(ap_corrections, sigma=3.0)
-                ap_corr_factor = median
-                
-                # Apply correction to PSF magnitude and error
-                delta_mag_per_star = fit_poly(-2.5 * np.log10(result['flux_fit']))
-
-                flux_scale = 10 ** (-0.4 * delta_mag_per_star)
-                aper_correction = True
-            else:
-                aper_correction = False
-                self.helper.print('No aperture correction applied due to lack of the good stars', verbose)
-        
-        # Visualize residual with original image
-        def visualize_residual(target_img_sub, model_image, residual_image, downsample_factor=6, visualize_apercorr: bool = True):
-            target_img_sub_smalldata = target_img_sub.data[::downsample_factor, ::downsample_factor]
-            model_img_smalldata = model_image[::downsample_factor, ::downsample_factor]
-            residual_image_smalldata = residual_image[::downsample_factor, ::downsample_factor]
-            fig, axes = plt.subplots(1,3, figsize=(24, 8), dpi = 300)
-            yticks = np.linspace(0, target_img_sub_smalldata.shape[0]-1, num=6, dtype=int)
-            xticks = np.linspace(0, target_img_sub_smalldata.shape[1]-1, num=6, dtype=int)
-            norm = simple_norm(target_img_sub_smalldata, stretch='sqrt', percent=99)
-            ax = axes[0]
-            ax.imshow(target_img_sub_smalldata, origin='lower', cmap='viridis', norm=norm)
-            ax.set_title("Original Image")
-            plt.colorbar(ax.imshow(target_img_sub_smalldata, origin='lower', cmap='viridis', norm=norm), ax=ax, fraction=0.046, pad=0.04)
-            ax.set_yticks(yticks)
-            ax.set_yticklabels((yticks * downsample_factor).astype(int))
-            ax.set_xticks(xticks)
-            ax.set_xticklabels((xticks * downsample_factor).astype(int))
-            ax = axes[1]
-            norm = simple_norm(model_img_smalldata, stretch='sqrt', percent=99)
-            ax.imshow(model_img_smalldata, origin='lower', cmap='viridis', norm=norm)
-            ax.set_title("Model Image")
-            plt.colorbar(ax.imshow(model_img_smalldata, origin='lower', cmap='viridis', norm=norm), ax=ax, fraction=0.046, pad=0.04)
-            ax.set_yticks(yticks)
-            ax.set_yticklabels((yticks * downsample_factor).astype(int))
-            ax.set_xticks(xticks)
-            ax.set_xticklabels((xticks * downsample_factor).astype(int))
-            ax = axes[2]
-            norm = simple_norm(residual_image_smalldata, stretch='sqrt', percent=99)
-            ax.imshow(residual_image_smalldata, origin='lower', cmap='viridis', norm=norm)
-            ax.set_title("Residual Image")
-            plt.colorbar(ax.imshow(residual_image_smalldata, origin='lower', cmap='viridis', norm=norm), ax=ax, fraction=0.046, pad=0.04)
-            ax.set_yticks(yticks)
-            ax.set_yticklabels((yticks * downsample_factor).astype(int))
-            ax.set_xticks(xticks)
-            ax.set_xticklabels((xticks * downsample_factor).astype(int))
-            plt.tight_layout()
-            plt.show()
-            
-            # If aperture correction was applied, also visualize the correction factor
-            if visualize_apercorr and apply_aperture_correction and 'MAG_PSF_CORR' in result.colnames:
-                fig, ax = plt.subplots(figsize=(10, 8))
-                x = np.linspace(np.min(good_stars['MAG_PSF']) - 0.5, np.max(good_stars['MAG_PSF']) + 0.5, 100)
-                y = fit_poly(x)
-                ax.scatter(good_stars['MAG_PSF'], ap_corrections, alpha=0.7, label=f'Stars used for correction')
-                ax.plot(x, y, color='orange', label='Aperture Correction Fit')
-                #ax.axhline(ap_corr_factor, color='r', linestyle='-', label=f'Correction factor: {ap_corr_factor:.4f}')
-                #ax.axhline(ap_corr_factor + std, color='r', linestyle='--', alpha=0.5)
-                #ax.axhline(ap_corr_factor - std, color='r', linestyle='--', alpha=0.5, label='%.3f±%.3f'%(ap_corr_factor,std))
-                ax.set_xlabel('PSF Magnitude')
-                ax.set_ylabel('MAG_APER - MAG_PSF')
-                ax.set_title('Aperture Correction')
-                ax.legend()
-                ax.grid(True, alpha=0.3)
-                ax.set_ylim(ap_corr_factor -1, ap_corr_factor +1)
-                #ax.set_xlim(np.min(good_stars['MAG_PSF']) - 0.5, np.max(good_stars['MAG_PSF']) + 0.5)
-                plt.tight_layout()
-                plt.show()
-        
-        if visualize:
-            visualize_residual(target_img_sub, model_image, residual_image)
-            
-        result_final = result
-        model_final = model_image
-        residual_final = residual_image
-        residual_img = target_img_sub.copy()
-        if n_iterations > 0:
-            result_final['ITERATION'] = 0
-            residual_img.data = residual_final
-            for i in range(n_iterations):
-                self.helper.print(f'Running {i+1}/{n_iterations} iterations of PSF photometry...', verbose)
-
-                sources_iter, _ = self.extract_sources(
-                    target_img=residual_img,
-                    target_bkg=None,
-                    target_bkgrms=target_bkgrms,
-                    target_mask=target_mask,
-                    detection_sigma=detection_sigma,
-                    minarea_pixels= minarea_pixels,
-                    deblend_nlevels=deblend_nlevels,
-                    deblend_contrast=deblend_contrast,
-                    fwhm_estimate_pixel=fwhm_estimate_pixel,
-                    visualize=False,
-                    save=False,
-                    verbose=verbose
-                )
-                sources_iter = self._match_catalog_format(sources_iter)
-                # Cross-match with previous iteration results
-                previous_coord = SkyCoord(result_final['X_WORLD'], result_final['Y_WORLD'], unit='deg', frame='icrs')
-                new_coord = SkyCoord(sources_iter['X_WORLD'], sources_iter['Y_WORLD'], unit='deg', frame='icrs')
-                separation_in_arcsec = 2* np.mean(target_img.pixelscale)*fwhm_estimate_pixel
-                new_matched, prev_matched, new_unmatched = self.helper.cross_match(new_coord, previous_coord, max_distance_second = separation_in_arcsec)
-                sources_iter = sources_iter[new_unmatched]
-                self.helper.print(f'{len(new_matched)} are filtered out due to cross-match with small separation.', verbose)
-                
-                # Check if sources are within the image bounds
-                filtered_sources_iter = cut_edge_sources(sources_iter, edge_buffer=100)
-                self.helper.print(f'{len(filtered_sources_iter)} source are detected in iteration {i+1}.', verbose)
-                if visualize:
-                    self._visualize_objects(residual_img, filtered_sources_iter, size=1000)
-                
-                result_iter, model_iter, residual_iter = run_psf_photometry(residual_img.data, filtered_sources_iter)
-                result_iter['ITERATION'] = i + 1
-                result_final = vstack([result_final, result_iter])
-                model_final += model_iter
-                residual_final = residual_iter
-                residual_img.data = residual_final
-                
-                if visualize:
-                    visualize_residual(residual_img, model_iter, residual_iter, visualize_apercorr = False)
-        
-        result_final = self._match_catalog_format(result_final)
-        # Add standard PSF photometry columns
-        result_final['FLUX_PSF'] = result_final['flux_fit']
-        result_final['FLUXERR_PSF'] = result_final['flux_err']
-        result_final['MAG_PSF'] = -2.5 * np.log10(result_final['flux_fit'])
-        result_final['MAGERR_PSF'] = 2.5/np.log(10) * (result_final['flux_err']/result_final['flux_fit'])
-        result_final['X_IMAGE_PSF'] = result_final['x_fit']
-        result_final['Y_IMAGE_PSF'] = result_final['y_fit']
-        wcs = target_img_sub.wcs
-        if wcs:
-            x_arr = result_final['X_IMAGE_PSF']
-            y_arr = result_final['Y_IMAGE_PSF']
-            skycoord = pixel_to_skycoord(x_arr, y_arr, wcs)
-            result_final['X_WORLD_PSF'] = skycoord.ra.value
-            result_final['Y_WORLD_PSF'] = skycoord.dec.value
-        result_final['QFIT_PSF'] = result_final['qfit']
-        result_final['CFIT_PSF'] = result_final['cfit']
-        #Apply aperture correction if requested
-        if apply_aperture_correction:
-                delta_mag_per_star = fit_poly((result_final['MAG_PSF']))
-                flux_scale = 10 ** (-0.4 * delta_mag_per_star)
-                result_final['MAG_PSF_CORR'] = result_final['MAG_PSF'] + delta_mag_per_star
-                result_final['MAGERR_PSF_CORR'] = result_final['MAGERR_PSF']  # optionally add scatter term
-                result_final['FLUX_PSF_CORR'] = result_final['FLUX_PSF'] * flux_scale
-                result_final['FLUXERR_PSF_CORR'] = result_final['FLUXERR_PSF'] * flux_scale
-                result_final['AP_CORR_FACTOR'] = delta_mag_per_star
+                    ref = anchor(psf[j, i])
+                    for m, c in enumerate(tcuts):
+                        tcuts[m], move = recentre(c, ref)
+                        moves.append(move)
+                    psf[j, i] = anchor(finish(np.median(np.array([c[0] for c in tcuts]), axis=0)))
+            moves = np.array(moves, dtype=float)
+            fitted = moves[np.isfinite(moves)]
+            recenter.append(dict(n_fit=len(fitted), n_kept=len(moves) - len(fitted),
+                                 median_shift=float(np.median(fitted)) if len(fitted) else np.nan,
+                                 max_shift=float(fitted.max()) if len(fitted) else np.nan))
+            self.helper.print(f"[PSFPhotometry] ePSF recentring round {it + 1}/{recenter_iter}: {len(fitted)} star "
+                              f"centres fitted (shift median {recenter[-1]['median_shift']:.3f}, max "
+                              f"{recenter[-1]['max_shift']:.3f} px), {len(moves) - len(fitted)} kept", verbose)
+        if model == 'poly':
+            psf_model = f'poly{order}'
         else:
-            result_final['MAG_PSF_CORR'] = result_final['MAG_PSF']
-            result_final['MAGERR_PSF_CORR'] = result_final['MAGERR_PSF']
-            result_final['FLUX_PSF_CORR'] = result_final['FLUX_PSF']
-            result_final['FLUXERR_PSF_CORR'] = result_final['FLUXERR_PSF']
-            result_final['AP_CORR_FACTOR'] = 0.0
-        
-        if save:
-            fits.writeto(target_img.savepath.savepath.with_suffix('.residual'), residual_final, overwrite=True)
-            fits.writeto(target_img.savepath.savepath.with_suffix('.model'), model_final, overwrite=True)
-            result_final.write(str(target_img.savepath.psfcatalogpath), format = 'ascii', overwrite=True)
-            
-        return result_final
+            psf_model = 'moffat' if (source == 'moffat').all() else 'grid'
+        info = dict(source=source, nstars=nstars, fwhm_pixel=fwhm, radius_pixel=R,
+                    grid=grid if np.ndim(grid) == 0 and (gx, gy) == _grid_xy(grid) else (gx, gy), model=model,
+                    poly_order=order if model == 'poly' else None, psf_model=psf_model,
+                    recenter_iter=int(recenter_iter), recenter=recenter, snr_lower_used=snr_used)
+        return (psf[0, 0] if (gx, gy) == (1, 1) else psf), info
 
-    def _visualize_objects(self, 
-                           target_img: Union[ScienceImage, ReferenceImage],
-                           objects: Table,
-                           size: int = 1000):
+    def psf_photometry(self,
+                       target_img: Union[ScienceImage, ReferenceImage],
+                       x_arr: Union[float, list, np.ndarray],
+                       y_arr: Union[float, list, np.ndarray],
+                       psf: np.ndarray = None,
+                       psf_info: dict = None,
+                       unit: str = 'coord',
+                       target_bkg: Optional[Background] = None,
+                       target_bkgrms: Optional[Errormap] = None,
+                       target_mask: Optional[Mask] = None,
+                       variance: np.ndarray = None,
+                       noise_ratio: float = None,
+                       host_img: Union[ScienceImage, ReferenceImage] = None,
+                       background: str = 'annulus',
+                       annulus_radii_arcsec: tuple = None,
+                       fit_radius_fwhm: float = 2.5,
+                       weighting: str = 'uniform',
+                       zp_psf: float = None,
+                       zperr_psf: float = None,
+                       save: bool = True,
+                       verbose: bool = True,
+                       recenter: Union[bool, str] = False,
+                       recenter_snr: float = 50.0,
+                       recenter_max_shift: float = 0.5):
         """
-        Visualize detected sources on the full and zoomed image using circles.
-        """
-        data = target_img.data
-        h, w = data.shape
+        Forced PSF photometry: at each fixed position, a linear least-squares fit of the PSF amplitude, i.e. the total
+        flux of the PSF array (normalised to sum 1 after the sub-pixel shift).
 
-        # Define zoom-in center box
-        center_x, center_y = w // 2, h // 2
-        half_box = size // 2
-        x_min, x_max = max(0, center_x - half_box), min(w, center_x + half_box)
-        y_min, y_max = max(0, center_y - half_box), min(h, center_y + half_box)
+        Per position (x, y): the PSF at (x, y) (tiles blended with tent weights), shifted by the sub-pixel offset from
+        the nearest pixel (scipy.ndimage.shift, order 3) and normalised to sum 1 = P. Fit pixels: within
+        fit_radius_fwhm x FWHM (header seeing) of (x, y) and within the PSF array; pixels off the image, masked
+        (target_mask), invalid (not finite or nonzero with |value| < 1e-20; an exact 0 is valid; ADU-scale values
+        assumed) or without a positive finite weighting variance get weight 0.
+        Model d = F P (+ C with background='fit'), solved by the weighted normal
+        equations with w = 1 (weighting 'uniform': F = sum(P d) / sum(P^2), the PSF-weighted flux of a
+        constant-variance fit; the variance only enters the errors and CHI2) or w = 1 / V_w ('inverse_variance').
+        V_w leaves out the Poisson noise of the measured source itself (default variance): weights taken from the
+        noisy data would down-weight pixels that fluctuate up and bias the flux low. Error from the per-pixel
+        variance V:
+        Var(F) = sum(w^2 P^2 V) / (sum(w P^2))^2 (the general weighted least-squares covariance with C).
+        Negative fluxes are kept.
 
-        cropped_data = data[y_min:y_max, x_min:x_max]
+        recenter='offset': the positions of the sources at or above recenter_snr are fitted as with 'each' (below,
+        a first pass) and a smooth offset over the image is fitted to those offsets (per axis a + b u + c v, u, v = x, y
+        scaled to [-1, 1] over the image, one 3-sigma (MAD) clipping and a refit; from >= 10 sources, the median from
+        >= 3, else no offset with a warning); that offset is added to every position (all sources, whatever their
+        S/N), and the fit above runs at the shifted positions (fit pixels, tile blend and annulus there).
+        X_IMAGE/Y_IMAGE and X_WORLD/Y_WORLD stay the input positions; DX_PSF, DY_PSF hold the applied offset (px) of
+        every source; FLAG_PSF bit 16 when it exceeds recenter_max_shift px. In this mode bit 16 is an image-level
+        warning, not a bad fit: the offset is one model for the image, so the bit is set on many rows of that image
+        at once, and keeping only FLAG_PSF == 0 can drop most of its sources. The meta RECENTER line has the
+        coefficients, the sources used and the residual rms. No S/N step between sources: all positions move by the
+        same smooth model. The offset is that of the PSF centres from the input positions of the measured sources:
+        a smooth difference of centre definition or coordinate round trip; it includes a WCS error only when the
+        input positions are sky-catalog coordinates and so are those of the measured sources (input positions
+        measured on this image, e.g. its own source catalog, already hold the WCS error, which then stays).
+        recenter='each' (or True): a source with F / FLUXERR_PSF >= recenter_snr from the fit above also gets its
+        position fitted with the same PSF (Gauss-Newton on F, the sub-pixel offset (and C with 'fit'), same pixels
+        and weights, at most the fit radius away), and the fit above is redone at the fitted position (all columns
+        from it; the fit pixels stay those around the input position, the PSF tile blend that of the input position).
+        X_IMAGE/Y_IMAGE and X_WORLD/Y_WORLD stay the input positions; DX_PSF, DY_PSF hold the fitted offset (px). A
+        move of more than recenter_max_shift px keeps the fitted-position values and sets FLAG_PSF bit 16; a failed
+        position fit keeps the input-position values, DX_PSF/DY_PSF NaN and bit 16. Sources below recenter_snr (or
+        without a fit): DX_PSF/DY_PSF NaN.
 
-        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
-
-        # Full frame
-        m, s = np.mean(data), np.std(data)
-        im0 = axes[0].imshow(data, cmap='gray', origin='lower', vmin=m - s, vmax=m + s)
-        axes[0].set_title("Full Background-Subtracted Image")
-        plt.colorbar(im0, ax=axes[0], fraction=0.03, pad=0.04)
-
-        # Mark zoom box
-        zoom_box = Rectangle((x_min, y_min), size, size, linewidth=2, edgecolor='red', facecolor='none')
-        axes[0].add_patch(zoom_box)
-
-        # Cropped region
-        m_crop, s_crop = np.mean(cropped_data), np.std(cropped_data)
-        im1 = axes[1].imshow(cropped_data, cmap='gray', origin='lower', vmin=m_crop - s_crop, vmax=m_crop + s_crop)
-        axes[1].set_title(f"{size}×{size} Center Region")
-
-        # Get best x/y key names
-        if 'X_IMAGE' in objects.colnames and 'Y_IMAGE' in objects.colnames:
-            x_key, y_key = 'X_IMAGE', 'Y_IMAGE'
-        else:
-            raise ValueError("No recognized x/y keys found in catalog")
-
-        for obj in objects:
-            x, y = float(obj[x_key]), float(obj[y_key])
-            if x_min <= x <= x_max and y_min <= y <= y_max:
-                circ = Circle((x - x_min, y - y_min), radius=size * 0.005, edgecolor='red', facecolor='none', lw=1.5)
-                axes[1].add_patch(circ)
-
-        plt.tight_layout()
-        plt.show()
-        plt.close()
-        
-    def _visualize_epsf_stars_and_model_grid(self, epsf_model_dict, epsf_stars_dict):
-        max_i = max(key[0] for key in epsf_model_dict.keys()) + 1
-        max_j = max(key[1] for key in epsf_model_dict.keys()) + 1
-
-        fig, axes = plt.subplots(max_i, max_j, figsize=(3 * max_j, 3 * max_i), squeeze=False)
-
-        for (i, j), epsf_model in epsf_model_dict.items():
-            epsf_stars = epsf_stars_dict.get((i, j), [])
-            
-            # Flip vertical index to put (0,0) at bottom-left
-            flipped_i = max_i - 1 - i
-            ax = axes[flipped_i][j]
-
-            norm = simple_norm(epsf_model.data, stretch='sqrt', percent=99)
-            ax.imshow(epsf_model.data, origin='lower', cmap='viridis', norm=norm)
-            ax.set_title(f"Grid ({i},{j})\nN={len(epsf_stars)}")
-            ax.axis('off')
-
-        plt.suptitle("EPSF Models per Grid", fontsize=16)
-        plt.tight_layout()
-        plt.show()
-
-    def _visualize_epsf_stars_and_model(self, epsf_model, epsf_stars):
-        nstars = len(epsf_stars)
-        nrows = min(4, nstars)
-        ncols = int(np.ceil(nstars / nrows))
-        fig1, axes = plt.subplots(nrows, ncols, figsize=(3 * ncols, 3 * nrows))
-        axes = np.array(axes).reshape(-1)
-
-        for i, star in enumerate(epsf_stars):
-            norm = simple_norm(star.data, stretch='sqrt', percent=99)
-            axes[i].imshow(star.data, origin='lower', cmap='viridis', norm=norm)
-            axes[i].set_title(f"Star {i+1}")
-            axes[i].axis('off')
-
-        for i in range(nstars, len(axes)):
-            axes[i].axis('off')
-
-        fig1.suptitle("Stars Used for EPSF Modeling", fontsize=16)
-        plt.tight_layout()
-        plt.show()
-
-        fig2, ax = plt.subplots(1, 1, figsize=(6, 6))
-        norm_epsf = simple_norm(epsf_model.data, stretch='sqrt', percent=99)
-        im = ax.imshow(epsf_model.data, origin='lower', cmap='viridis', norm=norm_epsf)
-        ax.set_title("Final EPSF Model")
-        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        plt.tight_layout()
-        plt.show()
-        
-    def _visualize_epsf_residuals(self, epsf_model, epsf_stars, num_show: int = 9):
-
-
-        fitter = LevMarLSQFitter()  
-
-        n = min(len(epsf_stars), num_show)
-        stars = epsf_stars[:n]
-        ncols = 3
-        model = epsf_model.copy()
-        fig, axes = plt.subplots(n, ncols, figsize=(3 * ncols, 3 * n), squeeze=False)
-
-        for i in range(n):
-            data = stars[i].data
-            ny, nx = data.shape
-            model.flux = np.sum(data)
-            model.x_0 = nx / 2
-            model.y_0 = ny / 2
-            y, x = np.mgrid[:ny, :nx]
-
-            # Use EPSFModel like a function
-            fit_model = fitter(model, x, y, data)
-            model_vals = fit_model(x,y)
-
-            # Residual
-            residual = data - model_vals
-
-            # Common normalization for data and model
-            norm = simple_norm(data, stretch='log', percent=99.0)
-
-            # Separate linear scale for residual (centered at 0)
-            vres = np.nanpercentile(np.abs(residual), 99)  # robust vmax
-            res_norm = plt.Normalize(vmin=-vres, vmax=vres)
-
-            # Data
-            axes[i, 0].imshow(data, origin='lower', cmap='gray', norm=norm)
-            axes[i, 0].set_title('Data')
-
-            # Model
-            axes[i, 1].imshow(model_vals, origin='lower', cmap='gray', norm=norm)
-            axes[i, 1].set_title('Model')
-
-            # Residual (RdBu diverging colormap centered at 0)
-            im_res = axes[i, 2].imshow(residual, origin='lower', cmap='RdBu_r', norm=res_norm)
-            axes[i, 2].set_title('Residual')
-
-            # Optional: Add colorbar to residual
-            cbar = plt.colorbar(im_res, ax=axes[i, 2], fraction=0.046, pad=0.04)
-            cbar.set_label('Flux Difference')
-
-
-            for ax in axes[i]:
-                ax.set_xticks([])
-                ax.set_yticks([])
-
-        plt.tight_layout()
-        plt.show()
-        
-    def _visualize_epsf_residuals_grid(self, epsf_model_dict, epsf_stars_dict, num_show_each_grid: int = 3):
-        """
-        Visualize residuals of EPSF fits for each grid.
+        Background (the data minus target_bkg first, when given):
+            'annulus' (default): minus the 5-sigma-clipped mean (5 iterations) of an annulus around the position
+                (the estimator of AperturePhotometry.circular_photometry with annulus_width_arcsec; here masked and
+                invalid pixels are left out of it), then F alone.
+            'fit': F and a constant C together.
+            'none': no local background. Without target_bkg the sky then stays in d and is not in the default
+                variance's Poisson term (which uses the fitted PSF model), only in bkgrms^2.
+        Variance (ADU^2 per pixel):
+            variance given: V = V_w = variance (e.g. the variance plane of the image, or a difference-image noise map
+                squared). With weighting 'inverse_variance' a variance that holds the measured source's own Poisson
+                noise (a variance plane made from the image itself) weights by the data and biases the flux low.
+            else: V_w = noise_ratio^2 x bkgrms^2 (+ max(host net, 0) / EGAIN with host_img) and
+                V = V_w + max(F P, 0) / EGAIN: the Poisson noise of the source from the fitted PSF model, not from
+                the data. (max(d - background, 0) / EGAIN, the calc_total_error form, adds sigma_pix / (sqrt(2 pi)
+                EGAIN) per pixel from clipping pure noise at 0, which inflates the error of background-limited
+                sources: +13 % variance at EGAIN 0.256, sigma_pix 12 ADU.) bkgrms = target_bkgrms, or computed
+                from the image (ErrormapGenerator, not saved).
 
         Parameters
         ----------
-        epsf_dict : dict
-            Dictionary with keys (i,j) and values (epsf_model, fitted_stars)
-        num_grids : int
-            Number of grid divisions (assumes square layout)
-        num_show : int
-            Number of stars to visualize per grid
-        """
-        import matplotlib.pyplot as plt
-        from astropy.visualization import simple_norm
-        from astropy.modeling.fitting import LevMarLSQFitter
-        from photutils.psf import EPSFModel
-        import numpy as np
+        target_img : ScienceImage or ReferenceImage
+            The image to measure (header SEEING; EGAIN for the default variance). Its files are only read; without
+            target_bkgrms the in-memory header gets TGTPATH from ErrormapGenerator (pre-existing behaviour).
+        x_arr, y_arr : float or array-like
+            Positions: RA/Dec in deg (unit 'coord') or 0-based pixel (unit 'pixel').
+        psf : np.ndarray, optional
+            PSF of the image, (n, n) or (ny, nx, n, n) with n odd (see the class docstring). None: build_epsf
+            with its defaults (and target_mask).
+        psf_info : dict, optional
+            The info of build_epsf for this PSF: FLAG_PSF bit 1 and the catalog meta use its 'source' (and 'model',
+            'poly_order').
+        unit : str, optional
+            'coord' (default) or 'pixel'.
+        target_bkg : Background, optional
+            Subtracted from the data first (in memory; no file is written).
+        target_bkgrms : Errormap, optional
+            Background RMS for the default variance.
+        target_mask : Mask, optional
+            Nonzero pixels get weight 0 and stay out of the annulus (an exact 0 is valid data: pass 0-filled empty
+            areas, e.g. the SWarp no-weight edges of DIA sci_ images written before 0.9.0, here; from 0.9.0 the
+            reprojection sets them to NaN).
+        variance : np.ndarray, optional
+            Per-pixel variance (ADU^2) with the image's shape. None (default): the bkgrms and Poisson model above.
+        noise_ratio : float, optional
+            Default variance only: bkgrms^2 x noise_ratio^2 (e.g. a measured / predicted empty-aperture noise
+            ratio). None: 1.
+        host_img : ScienceImage or ReferenceImage, optional
+            Default variance only: an image on the same grid and flux scale holding the light under the sources that
+            target_img lacks (for a difference image the convolved reference); max(its pixel value minus its own
+            annulus mean (background 'annulus' and 'fit'), 0) / EGAIN is added to V and V_w.
+        background : str, optional
+            'annulus' (default), 'fit' or 'none'.
+        annulus_radii_arcsec : tuple, optional
+            (inner, outer) annulus radius in arcsec. Defaults to the difference-image annulus of the forced_photometry
+            recipe with its default apertures: inner = (max(15", 3.5 seeing) + 1.5 seeing) / 2, outer = inner + 30".
+        fit_radius_fwhm : float, optional
+            Fit radius in units of the FWHM (capped at the PSF array radius). Defaults to 2.5.
+        weighting : str, optional
+            'uniform' (default) or 'inverse_variance'.
+        zp_psf, zperr_psf : float, optional
+            PSF zero point to apply (e.g. calibrate_zp of the science image, for its difference image): adds
+            MAGSKY_PSF, ZP_PSF, ZPERR_PSF (NaN without zperr_psf), UL3SKY_PSF, UL5SKY_PSF.
+        save : bool, optional
+            Write the catalog (default). False: nothing is written and no file is removed.
+        verbose : bool, optional
+            Whether to print.
+        recenter : bool or str, optional
+            False (default, fixed positions), 'offset' (one smooth offset of all positions from the position fits of
+            the sources at or above recenter_snr) or 'each' (= True; the position of each source at or above
+            recenter_snr fitted on its own) (see above).
+        recenter_snr : float, optional
+            S/N (F / FLUXERR_PSF of the fixed-position fit) from which a source's position is fitted. Defaults to 50.
+        recenter_max_shift : float, optional
+            Fitted move (px) beyond which FLAG_PSF bit 16 is set. Defaults to 0.5.
+            With 'offset' the applied offset is compared instead (an image-level warning on many rows, see above).
 
-        fitter = LevMarLSQFitter()
-        models_dict_copy = epsf_model_dict.copy()
-        for (i, j), epsf_model in models_dict_copy.items():
-            epsf_stars = epsf_stars_dict[(i, j)]
-            n = min(len(epsf_stars), num_show_each_grid)
-            if n == 0:
+        Returns
+        -------
+        target_catalog : Catalog
+            <img>.fits.psf.cat in the image's savedir (target_img.savepath.catalogpath with suffix .psf.cat), one row
+            per position in the given order: X_IMAGE, Y_IMAGE (0-based pixel), X_WORLD, Y_WORLD (deg), FLUX_PSF,
+            FLUXERR_PSF (ADU), MAG_PSF, MAGERR_PSF (instrumental; NaN unless FLUX_PSF > 0), UL3_PSF, UL5_PSF
+            (instrumental 3 / 5 sigma of the V_w part of the error), BACKGROUND (local level per pixel subtracted or
+            fitted, ADU), CHI2_PSF (sum((d - model)^2 / V) / (NPIX_PSF - fitted parameters); about 1 for a point
+            source the PSF fits, values >~ 3 are worth a look (an empirical guide, not a flag): a blend, an extended
+            source, a PSF mismatch or a position offset), NPIX_PSF (fit pixels used), NMASK_PSF (fit-radius pixels with
+            weight 0), PSF_EE (sum of P over the fit pixels used), FLAG_PSF (bits: 1 Moffat fallback, 2 pixels with
+            weight 0, 4 image edge, 8 no fit: the values NaN, 16 recenter: moved > recenter_max_shift or position fit
+            failed; 'offset': applied offset > recenter_max_shift, an image-level warning on many rows at once, see
+            above), with recenter also DX_PSF, DY_PSF (px).
+            The table meta 'comments' (written as '#' lines) records the settings.
+        """
+        if background not in ('annulus', 'fit', 'none'):
+            raise ValueError(f"background must be 'annulus', 'fit' or 'none', got {background!r}")
+        if weighting not in ('uniform', 'inverse_variance'):
+            raise ValueError(f"weighting must be 'uniform' or 'inverse_variance', got {weighting!r}")
+        if unit not in ('pixel', 'coord'):
+            raise ValueError("unit must be either 'pixel' or 'coord'")
+        mode = ('each' if recenter else False) if isinstance(recenter, (bool, np.bool_)) else recenter
+        if mode not in (False, 'offset', 'each'):
+            raise ValueError(f"recenter must be False, 'offset', 'each' or True, got {recenter!r}")
+        if psf is None:
+            psf, psf_info = self.build_epsf(target_img, target_mask=target_mask, verbose=verbose)
+        psf = np.asarray(psf, dtype=float)
+        _check_psf(psf, 'psf')
+        R = psf.shape[-1] // 2
+        fwhm, scale = self._fwhm_pixel(target_img)
+        fit_radius = min(fit_radius_fwhm * fwhm, R)
+
+        # Data, invalid pixels (judged before any background subtraction) and mask
+        raw = self.helper.to_native(target_img.data)
+        bad = _bad_pixels(raw)
+        if target_mask is not None:
+            bad |= np.asarray(self.helper.to_native(target_mask.data)).astype(bool)
+        data = raw if target_bkg is None else raw - self.helper.to_native(target_bkg.data)
+        ny, nx = raw.shape
+
+        # Variance inputs
+        egain = target_img.egain
+        bkgrms = host = None
+        if variance is not None:
+            variance = np.asarray(variance)
+            if variance.shape != raw.shape:
+                raise ValueError(f"variance has shape {variance.shape}, the image {raw.shape}")
+        else:
+            if egain is None or not egain > 0:
+                raise ValueError(f"{target_img.path.name}: no positive EGAIN for the Poisson term; give variance=")
+            if target_bkgrms is None:
+                target_bkgrms, _, _ = self.errormap.calculate_errormap_from_image(
+                    target_img = target_img,
+                    errormap_type = 'bkgrms',
+                    save = False,
+                    verbose = verbose,
+                    visualize = False,
+                    save_fig = False
+                )
+            bkgrms = self.helper.to_native(target_bkgrms.data)
+            if host_img is not None:
+                host = self.helper.to_native(host_img.data)
+        ratio2 = 1.0 if noise_ratio is None else float(noise_ratio) ** 2
+
+        # Positions
+        x_arr = np.atleast_1d(np.asarray(x_arr, dtype=float))
+        y_arr = np.atleast_1d(np.asarray(y_arr, dtype=float))
+        skycoord = None
+        if unit == 'pixel':
+            x_pix, y_pix = x_arr, y_arr
+            if target_img.wcs:
+                skycoord = pixel_to_skycoord(x_pix, y_pix, target_img.wcs, origin=0)
+        else:
+            skycoord = SkyCoord(ra=x_arr, dec=y_arr, unit='deg')
+            x_pix, y_pix = skycoord_to_pixel(skycoord, target_img.wcs, origin=0)
+            x_pix, y_pix = np.atleast_1d(np.asarray(x_pix, dtype=float)), np.atleast_1d(np.asarray(y_pix, dtype=float))
+        nsrc = len(x_pix)
+        x_in, y_in = x_pix, y_pix   # X_IMAGE/Y_IMAGE of the catalog: the input positions
+        if mode == 'offset':
+            # first pass: position fits of the sources at or above recenter_snr ('each'), then one smooth offset of all
+            measured = self.psf_photometry(
+                target_img, x_pix, y_pix, psf=psf, psf_info=psf_info, unit='pixel', target_bkg=target_bkg,
+                target_bkgrms=target_bkgrms, target_mask=target_mask, variance=variance, noise_ratio=noise_ratio,
+                host_img=host_img, background=background, annulus_radii_arcsec=annulus_radii_arcsec,
+                fit_radius_fwhm=fit_radius_fwhm, weighting=weighting, save=False, verbose=False, recenter='each',
+                recenter_snr=recenter_snr).data
+            off_x, off_y, n_off, n_meas, off_rms = _offset_model(x_pix, y_pix, np.asarray(measured['DX_PSF']),
+                                                                 np.asarray(measured['DY_PSF']), raw.shape)
+            if n_off == 0:
+                print(f"[WARNING] {target_img.path.name}: {n_meas} sources with a position fit (< "
+                      f"{_OFFSET_MIN_CONST}); no recenter offset applied")
+            u, v = 2 * x_pix / (nx - 1) - 1, 2 * y_pix / (ny - 1) - 1
+            offset = np.array([off_x[0] + off_x[1] * u + off_x[2] * v, off_y[0] + off_y[1] * u + off_y[2] * v])
+            x_pix, y_pix = x_pix + offset[0], y_pix + offset[1]
+        # The PSF array overlaps the image
+        on_image = np.isfinite(x_pix) & np.isfinite(y_pix)
+        on_image &= (x_pix > -R - 0.5) & (x_pix < nx - 0.5 + R) & (y_pix > -R - 0.5) & (y_pix < ny - 0.5 + R)
+
+        # Local background (and the host image's own level)
+        local = np.zeros(nsrc)
+        host_local = np.zeros(nsrc)
+        r_in = r_out = None
+        if background == 'annulus' or (host is not None and background == 'fit'):
+            seeing = fwhm * scale
+            if annulus_radii_arcsec is None:
+                r_in = (max(15.0, 3.5 * seeing) + 1.5 * seeing) / 2
+                r_out = r_in + 30.0
+            else:
+                r_in, r_out = (float(r) for r in annulus_radii_arcsec)
+            idx = np.where(on_image)[0]
+            if len(idx):
+                annulus = CircularAnnulus(np.column_stack([x_pix[idx], y_pix[idx]]),
+                                          r_in=r_in / scale, r_out=r_out / scale)
+                sigma_clip = SigmaClip(sigma=5.0, maxiters=5)
+                if background == 'annulus':
+                    local[idx] = np.atleast_1d(ApertureStats(data, annulus, sigma_clip=sigma_clip, mask=bad).mean)
+                if host is not None:
+                    host_local[idx] = np.atleast_1d(ApertureStats(host, annulus, sigma_clip=sigma_clip, mask=bad).mean)
+
+        # Fit
+        cols = {key: np.full(nsrc, np.nan) for key in
+                ('FLUX_PSF', 'FLUXERR_PSF', 'FLUXERR_BKG', 'BACKGROUND', 'CHI2_PSF', 'PSF_EE')}
+        npix_used = np.zeros(nsrc, dtype=int)
+        nmask = np.zeros(nsrc, dtype=int)
+        flags = np.zeros(nsrc, dtype=int)
+        n_par = 2 if background == 'fit' else 1
+        n_box = 2 * R + 1
+        yy, xx = np.indices((n_box, n_box))
+        fallback = None
+        if psf_info is not None and 'source' in psf_info:
+            fallback = np.atleast_2d(np.asarray(psf_info['source'])) == 'moffat'
+        if psf.ndim == 4:
+            txc, tyc, _, _ = _tiles(raw.shape, (psf.shape[1], psf.shape[0]))
+        dxy = np.full((2, nsrc), np.nan)   # recenter: fitted offset from the input position (px)
+
+        def flux_fit(P, D, W, Vw):
+            """Weighted linear fit of D = F P (+ C): theta, V, cov, cov_bkg, resid (LinAlgError when singular)."""
+            X = np.column_stack([P, np.ones_like(P)]) if background == 'fit' else P[:, None]
+            Minv = np.linalg.inv(X.T @ (W[:, None] * X))
+            theta = Minv @ (X.T @ (W * D))
+            # Source Poisson from the fitted model: clipping the noisy data at 0 would bias V up for faint sources
+            V = Vw if variance is not None else Vw + np.clip(theta[0] * P, 0, None) / egain
+            cov = Minv @ (X.T @ ((W ** 2 * V)[:, None] * X)) @ Minv
+            cov_bkg = Minv @ (X.T @ ((W ** 2 * Vw)[:, None] * X)) @ Minv
+            return theta, V, cov, cov_bkg, D - X @ theta
+
+        for k in range(nsrc):
+            if not on_image[k]:
+                flags[k] |= FLAG_FAILED
+                continue
+            # PSF at the position, shifted by the sub-pixel offset from the nearest pixel
+            if psf.ndim == 4:
+                wy, wx = _tent_weights(y_pix[k], tyc), _tent_weights(x_pix[k], txc)
+                p = np.einsum('j,i,jimn->mn', wy, wx, psf)
+                if (fallback is not None and fallback.shape == (len(wy), len(wx))
+                        and (fallback & (np.outer(wy, wx) > 0)).any()):
+                    flags[k] |= FLAG_FALLBACK
+            else:
+                p = psf
+                if fallback is not None and fallback.any():
+                    flags[k] |= FLAG_FALLBACK
+            xi, yi = int(np.round(x_pix[k])), int(np.round(y_pix[k]))
+            dx, dy = x_pix[k] - xi, y_pix[k] - yi
+            p0 = p   # unshifted, for recenter
+            p = ndimage.shift(p, (dy, dx), order=3, mode='constant')
+            p = p / p.sum()
+
+            # Stamp around (xi, yi); pixels off the image are invalid
+            x0, y0 = xi - R, yi - R
+            sx = slice(max(x0, 0), min(x0 + n_box, nx))
+            sy = slice(max(y0, 0), min(y0 + n_box, ny))
+            ix = slice(sx.start - x0, sx.stop - x0)
+            iy = slice(sy.start - y0, sy.stop - y0)
+            inside = np.zeros((n_box, n_box), dtype=bool)
+            inside[iy, ix] = True
+            d = np.zeros((n_box, n_box))
+            d[iy, ix] = data[sy, sx]
+            b = np.ones((n_box, n_box), dtype=bool)
+            b[iy, ix] = bad[sy, sx]
+            vw = np.full((n_box, n_box), np.nan)
+            if variance is not None:
+                vw[iy, ix] = variance[sy, sx]
+            else:
+                vw[iy, ix] = ratio2 * np.asarray(bkgrms[sy, sx], dtype=float) ** 2
+                if host is not None:
+                    hv = np.zeros((n_box, n_box))
+                    hv[iy, ix] = host[sy, sx]
+                    vw = vw + np.clip(hv - host_local[k], 0, None) / egain
+            footprint = np.hypot(xx - R - dx, yy - R - dy) <= fit_radius
+            with np.errstate(invalid='ignore'):
+                good = footprint & ~b & np.isfinite(vw) & (vw > 0)
+            nmask[k] = int((footprint & ~good).sum())
+            if nmask[k]:
+                flags[k] |= FLAG_MASKED
+            if (footprint & ~inside).any():
+                flags[k] |= FLAG_EDGE
+            npix_used[k] = int(good.sum())
+            if npix_used[k] <= n_par or not np.isfinite(local[k]) or not np.isfinite(host_local[k]):
+                flags[k] |= FLAG_FAILED
                 continue
 
-            stars = epsf_stars[:n]
+            P = p[good]
+            D = d[good] - local[k]
+            Vw = vw[good]
+            W = np.ones_like(P) if weighting == 'uniform' else 1.0 / Vw
+            try:
+                theta, V, cov, cov_bkg, resid = flux_fit(P, D, W, Vw)
+            except np.linalg.LinAlgError:
+                flags[k] |= FLAG_FAILED
+                continue
+            dof = npix_used[k] - n_par
+            if (mode == 'each' and npix_used[k] > n_par + 2 and cov[0, 0] > 0
+                    and theta[0] / np.sqrt(cov[0, 0]) >= recenter_snr):
+                # position fit with the same PSF, pixels and weights; then the linear fit above at that position
+                w_fit = np.zeros((n_box, n_box))
+                w_fit[good] = W
+                fit = _fit_shift(d - local[k], p0, w_fit, dx, dy, fit_const=background == 'fit', limit=fit_radius)
+                if fit is not None:
+                    p1 = ndimage.shift(p0, (fit[1], fit[0]), order=3, mode='constant')
+                    P1 = (p1 / p1.sum())[good]
+                    try:
+                        theta, V, cov, cov_bkg, resid = flux_fit(P1, D, W, Vw)
+                        P, dof = P1, dof - 2
+                        dxy[:, k] = fit[0] - dx, fit[1] - dy
+                    except np.linalg.LinAlgError:   # keep the input-position fit
+                        fit = None
+                if fit is None or np.hypot(dxy[0, k], dxy[1, k]) > recenter_max_shift:
+                    flags[k] |= FLAG_RECENTER
+            level = theta[1] if background == 'fit' else 0.0
+            cols['FLUX_PSF'][k] = theta[0]
+            cols['FLUXERR_PSF'][k] = np.sqrt(cov[0, 0])
+            cols['FLUXERR_BKG'][k] = np.sqrt(cov_bkg[0, 0])
+            cols['BACKGROUND'][k] = local[k] + level
+            cols['CHI2_PSF'][k] = float(np.sum(resid ** 2 / V)) / dof
+            cols['PSF_EE'][k] = float(P.sum())
 
-            # Layout: 5 rows x 2 stars per row = 10 total
-            ncols_stars = 2
-            nrows_stars = (n + ncols_stars - 1) // ncols_stars  # ceil(n / 2), max 5
-            nrows_stars = min(nrows_stars, np.ceil(num_show_each_grid/ncols_stars))
+        # Catalog
+        flux, flux_err, flux_err_bkg = cols['FLUX_PSF'], cols['FLUXERR_PSF'], cols['FLUXERR_BKG']
+        results = Table()
+        results['X_IMAGE'] = x_in
+        results['Y_IMAGE'] = y_in
+        if skycoord is not None:
+            results['X_WORLD'] = np.atleast_1d(skycoord.ra.value)
+            results['Y_WORLD'] = np.atleast_1d(skycoord.dec.value)
+        results['FLUX_PSF'] = flux
+        results['FLUXERR_PSF'] = flux_err
+        mag = np.full(nsrc, np.nan)
+        magerr = np.full(nsrc, np.nan)
+        valid = flux > 0
+        mag[valid] = -2.5 * np.log10(flux[valid])
+        valid &= flux_err > 0
+        magerr[valid] = 2.5 / np.log(10) * flux_err[valid] / flux[valid]
+        results['MAG_PSF'] = mag
+        results['MAGERR_PSF'] = magerr
+        for n_sigma in (3, 5):
+            ul = np.full(nsrc, np.nan)
+            valid = flux_err_bkg > 0
+            ul[valid] = -2.5 * np.log10(n_sigma * flux_err_bkg[valid])
+            results[f'UL{n_sigma}_PSF'] = ul
+        results['BACKGROUND'] = cols['BACKGROUND']
+        results['CHI2_PSF'] = cols['CHI2_PSF']
+        results['NPIX_PSF'] = npix_used
+        results['NMASK_PSF'] = nmask
+        results['PSF_EE'] = cols['PSF_EE']
+        if mode == 'offset':   # the applied offset, for every source
+            dxy = offset
+            flags[np.hypot(offset[0], offset[1]) > recenter_max_shift] |= FLAG_RECENTER
+        results['FLAG_PSF'] = flags
+        if mode:
+            results['DX_PSF'] = dxy[0]
+            results['DY_PSF'] = dxy[1]
+        psf_source = 'given'
+        if psf_info is not None and 'source' in psf_info:
+            src = np.asarray(psf_info['source'])
+            model = psf_info.get('model', 'grid')
+            if model == 'grid' and (src.ndim < 2 or src.shape[0] == src.shape[1]):
+                psf_source = ' '.join(src.ravel().tolist())   # N x N tiles: one word per tile
+            else:   # tiles per source, e.g. 'epsf x 228 (12 x 19 tiles, ny x nx; model poly order 3)'
+                names, counts = np.unique(src, return_counts=True)
+                if model == 'poly':
+                    model = f"poly order {psf_info.get('poly_order')}"
+                psf_source = (', '.join(f'{w} x {c}' for w, c in zip(names.tolist(), counts.tolist()))
+                              + f' ({src.shape[0]} x {src.shape[1]} tiles, ny x nx; model {model})')
+        results.meta['comments'] = [
+            'ezphot PSFPhotometry.psf_photometry: X_IMAGE/Y_IMAGE are 0-based pixel coordinates',
+            f'PSF_SHAPE = {psf.shape}',
+            f'PSF_SOURCE = {psf_source}',
+            f'FIT_RADIUS_PIX = {fit_radius:.3f}',
+            f'BACKGROUND_MODE = {background}' + (f' {r_in:.2f}-{r_out:.2f} arcsec' if background == 'annulus' else ''),
+            f'WEIGHTING = {weighting}',
+            'VARIANCE = ' + ('given' if variance is not None else
+                             f'bkgrms^2 x {ratio2:.4f} + Poisson' + (' + host' if host is not None else '')),
+        ]
+        if mode == 'offset':
+            results.meta['comments'].append(
+                f'RECENTER = offset: DX_PSF = {off_x[0]:+.4f} {off_x[1]:+.4f} u {off_x[2]:+.4f} v, DY_PSF = '
+                f'{off_y[0]:+.4f} {off_y[1]:+.4f} u {off_y[2]:+.4f} v px (u, v = X/Y_IMAGE scaled to [-1, 1] over the '
+                f'image) from {n_off} of {n_meas} position fits at S/N >= {recenter_snr:g} (residual rms '
+                f'{off_rms[0]:.3f} {off_rms[1]:.3f} px), added to all positions (X/Y_IMAGE, X/Y_WORLD are the input '
+                f'positions), FLAG_PSF {FLAG_RECENTER} beyond {recenter_max_shift:g} px')
+        elif mode == 'each':
+            results.meta['comments'].append(
+                f'RECENTER = S/N >= {recenter_snr:g}: position fitted for {int(np.isfinite(dxy[0]).sum())} of {nsrc} '
+                f'(DX_PSF/DY_PSF px; X/Y_IMAGE, X/Y_WORLD are the input positions), FLAG_PSF {FLAG_RECENTER} beyond '
+                f'{recenter_max_shift:g} px or position fit failed')
+        if zp_psf is not None:
+            self._add_zp_columns(results, zp_psf, zperr_psf)
 
-            fig, axes = plt.subplots(nrows_stars, ncols_stars * 3,
-                                    figsize=(3 * ncols_stars * 3, 3 * nrows_stars),
-                                    squeeze=False)
-            fig.suptitle(f"EPSF Residuals - Grid ({i},{j})", fontsize=14)
+        cat_path = target_img.savepath.catalogpath.with_suffix('.psf.cat')
+        target_catalog = Catalog(path = cat_path, catalog_type = 'all', load = False, target_img = target_img)
+        target_catalog.data = results
+        if save:
+            target_catalog.write(verbose = verbose)
+        return target_catalog
 
-            for idx in range(n):
-                data = stars[idx].data
-                ny, nx = data.shape
+    @staticmethod
+    def _add_zp_columns(results: Table, zp: float, zperr: float):
+        """MAGSKY_PSF, ZP_PSF, ZPERR_PSF, UL3SKY_PSF, UL5SKY_PSF columns for a given zero point and a meta line."""
+        zp = float(zp)
+        zperr = np.nan if zperr is None else float(zperr)
+        results['MAGSKY_PSF'] = results['MAG_PSF'] + zp
+        results['ZP_PSF'] = np.full(len(results), zp)
+        results['ZPERR_PSF'] = np.full(len(results), zperr)
+        for n_sigma in (3, 5):
+            results[f'UL{n_sigma}SKY_PSF'] = results[f'UL{n_sigma}_PSF'] + zp
+        results.meta.setdefault('comments', []).append(f'ZP_PSF = {zp:.5f} ZPERR_PSF = {zperr:.5f} (given)')
 
-                epsf_model.flux = np.sum(data)
-                epsf_model.x_0 = nx / 2
-                epsf_model.y_0 = ny / 2
+    def calibrate_zp(self,
+                     target_img: Union[ScienceImage, ReferenceImage],
+                     target_catalog: Catalog,
+                     save: bool = True,
+                     verbose: bool = True,
+                     visualize: bool = False,
+                     **kwargs):
+        """
+        PSF zero point from the reference stars measured in a psf_photometry catalog of the same image.
 
-                y, x = np.mgrid[:ny, :nx]
-                fit_model = fitter(epsf_model, x, y, data)
-                model_vals = fit_model(x, y)
-                residual = data - model_vals
+        target_catalog must hold the reference stars (e.g. psf_photometry at the targets and at the X_WORLD/Y_WORLD
+        of <img>.fits.refcat in one call). PhotometricCalibration.photometric_calibration runs on it with
+        magnitude_key='MAG_PSF', magnitudeerr_key='MAGERR_PSF': the same reference catalog matching, star
+        selection (cuts on columns the catalog lacks are skipped, as for a forced aperture catalog) and ZP rule
+        (3-sigma clipping, 5 iterations; ZP_PSF = median, ZPERR_PSF = std of the kept stars). It adds MAGSKY_PSF,
+        ZP_PSF, ZPERR_PSF and, from UL3_PSF/UL5_PSF, UL3SKY_PSF/UL5SKY_PSF to every row. The image header and FITS
+        are not changed (update_header=False, save_image=False) and no reference catalog is written
+        (save_refcat=False).
 
-                norm = simple_norm(data, stretch='log', percent=99.0)
-                vres = np.nanpercentile(np.abs(residual), 99)
-                res_norm = plt.Normalize(vmin=-vres, vmax=vres)
+        Parameters
+        ----------
+        target_img : ScienceImage or ReferenceImage
+            The image of the catalog.
+        target_catalog : Catalog
+            psf_photometry catalog of target_img.
+        save : bool, optional
+            Write the catalog afterwards (default).
+        verbose : bool, optional
+            Whether to print.
+        visualize : bool, optional
+            Passed to photometric_calibration (its own default is True: figures shown). Defaults to False.
+        **kwargs : dict
+            Further photometric_calibration arguments (catalog_type, catalog_version, mag_lower, mag_upper,
+            isolation_radius_arcsec, inner_fraction, ...). magnitude_key, magnitudeerr_key, update_header,
+            save_image, save_refcat and save are fixed here (passing them raises ValueError).
 
-                row = idx // ncols_stars
-                star_col = idx % ncols_stars
-
-                for k, img, title, norm_ in zip(
-                    range(3), [data, model_vals, residual], ['Data', 'Model', 'Residual'], [norm, norm, res_norm]
-                ):
-                    ax = axes[row, star_col * 3 + k]
-                    im = ax.imshow(img, origin='lower', cmap='gray' if k < 2 else 'RdBu_r', norm=norm_)
-                    ax.set_title(title)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-
-                    if k == 2:
-                        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-                        cbar.set_label('Flux Diff')
-
-            plt.tight_layout()
-            plt.show()
-
-
-    def _match_catalog_format(self, catalog: Table):
-        import numpy as np
-
-        column_set = dict(
-            xcentroid='X_IMAGE',
-            ycentroid='Y_IMAGE',
-            segment_flux='FLUX_ISO',
-            segment_flux_err='FLUXERR_ISO'
-        )
-
-        # Check if any key or value exists in catalog
-        if any(col in catalog.colnames for col in column_set.keys()) or any(col in catalog.colnames for col in column_set.values()):
-            for new_key, old_key in column_set.items():
-                if new_key in catalog.colnames:
-                    # Already exists, skip
-                    continue
-                elif old_key in catalog.colnames:
-                    catalog[new_key] = catalog[old_key]
-                else:
-                    catalog[new_key] = np.full(len(catalog), np.nan)
-        catalog = Table({name: catalog[name].value for name in catalog.colnames})
-        return catalog
+        Returns
+        -------
+        target_catalog : Catalog
+            The catalog with the ZP columns.
+        zp : float
+            ZP_PSF (NaN when none could be computed).
+        zperr : float
+            ZPERR_PSF.
+        n_ref : int
+            Reference stars that passed the selection.
+        """
+        fixed = ('magnitude_key', 'magnitudeerr_key', 'update_header', 'save_image', 'save_refcat', 'save')
+        given = [k for k in fixed if k in kwargs]
+        if given:
+            raise ValueError(f"calibrate_zp fixes {given}")
+        _, target_catalog, used, _ = PhotometricCalibration().photometric_calibration(
+            target_img = target_img,
+            target_catalog = target_catalog,
+            magnitude_key = 'MAG_PSF',
+            magnitudeerr_key = 'MAGERR_PSF',
+            update_header = False,
+            save_image = False,
+            save_refcat = False,
+            save = False,
+            verbose = verbose,
+            visualize = visualize,
+            **kwargs)
+        data = target_catalog.data
+        zp = float(data['ZP_PSF'][0]) if 'ZP_PSF' in data.colnames and len(data) else np.nan
+        zperr = float(data['ZPERR_PSF'][0]) if 'ZPERR_PSF' in data.colnames and len(data) else np.nan
+        n_ref = int(used.nsources or 0)
+        data.meta.setdefault('comments', []).append(
+            f'ZP_PSF = {zp:.5f} ZPERR_PSF = {zperr:.5f} (reference stars: photometric_calibration on MAG_PSF, '
+            f'NREF_PSF = {n_ref})')
+        if save:
+            target_catalog.write(verbose = verbose)
+        return target_catalog, zp, zperr, n_ref

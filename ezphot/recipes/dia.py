@@ -6,6 +6,10 @@ dia: difference imaging of calibrated images (single frames or stacks) against a
     -> apply_zp on the difference catalog -> forced photometry at (ra, dec) on the difference image
        (recipes.forced_photometry.forced_image, calibrate='header')
 
+Hotpants picks its stamps itself, away from (ra, dec) and config['dia']['exclude_coords'] (radius
+exclude_radius_arcsec, default 10"); each difference image gets sub_<name>.fits.hotpants.json (hotpants command, used
+stamps, noise options) next to it.
+
 Input is one or more summary CSVs of process_images or stack (success rows). One row per image:
 reference path, difference image, number of candidates/transients and, if ra/dec are given, the
 target's forced MAGSKY/MAGERR/ZPERR/UL5SKY in the 10" aperture (*_APER_3) on the difference image (local annulus
@@ -93,8 +97,9 @@ def _star_ratios(target_img: ScienceImage, subtracted_img: ScienceImage) -> np.n
     <img>.fits.refcat next to it, written by process_images/stack; none without it) on sub_<name> and sci_<name> (the
     reprojected science frame of the DIA, same grid), each with its own 3-sigma-clipped mean in 15-25" subtracted; only
     stars whose box (half-width 25" + 2 px) lies inside both images with finite, valid pixels (|value| >= 1e-20, ADU
-    scale assumed: sci_ has 0, sub_ the hotpants fill 1e-30 where invalid, e.g. above the DIA iu/tu) and with a positive
-    science flux.
+    scale assumed: the empty areas of sci_ (SWarp weight 0 of the reprojection) are 0 before 0.9.0 and NaN from
+    0.9.0, sub_ has the hotpants fill 1e-30 where invalid, e.g. above the DIA iu/tu) and with a positive science
+    flux.
     Reads the files (read-only memory maps), writes nothing."""
     refcat = Path(f'{target_img.path}.refcat')
     sub = Path(subtracted_img.path)
@@ -118,7 +123,7 @@ def _star_ratios(target_img: ScienceImage, subtracted_img: ScienceImage) -> np.n
                 continue
             box = (slice(ya - b, ya + b + 1), slice(xa - b, xa + b + 1))
             cuts = [np.array(h[0].data[box], dtype=float) for h in (hdul_sub, hdul_sci)]
-            if not all(np.all(np.isfinite(c) & ~((c > -1e-20) & (c < 1e-20))) for c in cuts):   # 0 sci_, 1e-30 sub_
+            if not all(np.all(np.isfinite(c) & ~((c > -1e-20) & (c < 1e-20))) for c in cuts):   # NaN (0 before 0.9.0) sci_, 1e-30 sub_
                 continue
             rr = np.hypot(xx - (xi - xa), yy - (yi - ya))
             annulus = (rr >= r_in) & (rr < r_out)
@@ -184,8 +189,11 @@ def dia_image(target_img: ScienceImage,
             reference_img = result[0]
         row['reference'] = str(reference_img.path)
         row['step'] = 'DIA'
+        dia_kwargs = dict(cfg['dia'])   # the target (ra, dec) and config['dia'] exclude_coords stay out of the stamps
+        if ra is not None and dec is not None:
+            dia_kwargs['exclude_coords'] = [(ra, dec)] + list(dia_kwargs.get('exclude_coords') or [])
         all_catalogs, candidate_catalogs, transient_catalogs, _, _, subtract_imglist = target_img.DIA(
-            reference_img=reference_img, target_bkg=None, **cfg['dia'])
+            reference_img=reference_img, target_bkg=None, **dia_kwargs)
         subtracted_img = subtract_imglist[0]
         candidate_catalog, transient_catalog = candidate_catalogs[0], transient_catalogs[0]
         row['subtracted'] = str(subtracted_img.path)

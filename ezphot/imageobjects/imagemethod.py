@@ -1292,7 +1292,8 @@ class ImageMethod:
                   overwrite: bool = False,
                   save: bool = True,
                   return_ivpmask: bool = False,
-                  fill_zero_tonan: bool = True):
+                  fill_zero_tonan: bool = True,
+                  weight0_tonan: bool = True):
         """
         Reproject the image with SWarp.
         
@@ -1325,7 +1326,10 @@ class ImageMethod:
         return_ivpmask : bool
             Whether to return the invalid pixel mask.
         fill_zero_tonan : bool
-            Whether to fill the zero to nan.
+            Whether to fill the zero to nan (exact 0 pixels of 3x3 or larger all-zero blocks, in input copies;
+            Reproject.reproject).
+        weight0_tonan : bool
+            NaN where the SWarp output weight is <= 0 or not finite (Reproject.reproject).
         """
         from ezphot.methods import Reproject
         reproject = Reproject()
@@ -1344,7 +1348,8 @@ class ImageMethod:
             overwrite = overwrite,
             save = save,
             return_ivpmask = return_ivpmask,
-            fill_zero_tonan = fill_zero_tonan)
+            fill_zero_tonan = fill_zero_tonan,
+            weight0_tonan = weight0_tonan)
         return result
     
     def DIA(self,
@@ -1384,7 +1389,10 @@ class ImageMethod:
             # Other parameters
             save: bool = True,
             verbose: bool = True,
-            visualize: bool = False
+            visualize: bool = False,
+            # Positions (ra, dec in deg) kept out of the hotpants stamps, radius in arcsec (Subtract.find_transients)
+            exclude_coords: list = None,
+            exclude_radius_arcsec: float = 10.0
             ):
         
         from ezphot.methods import Subtract
@@ -1429,5 +1437,7 @@ class ImageMethod:
             save = save,
             verbose = verbose,
             visualize = visualize,
+            exclude_coords = exclude_coords,
+            exclude_radius_arcsec = exclude_radius_arcsec,
         )
         return result

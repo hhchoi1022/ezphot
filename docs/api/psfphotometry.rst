@@ -6,10 +6,8 @@ PSFPhotometry
 Methods
 -------
 
-.. autofunction:: ezphot.methods.PSFPhotometry.select_psfstars
-.. autofunction:: ezphot.methods.PSFPhotometry.extract_sources
-.. autofunction:: ezphot.methods.PSFPhotometry.build_epsf_model
-.. autofunction:: ezphot.methods.PSFPhotometry.build_epsf_model_psfex
+.. autofunction:: ezphot.methods.PSFPhotometry.build_epsf
+.. autofunction:: ezphot.methods.PSFPhotometry.moffat_psf
+.. autofunction:: ezphot.methods.PSFPhotometry.effective_psf
 .. autofunction:: ezphot.methods.PSFPhotometry.psf_photometry
-
-
+.. autofunction:: ezphot.methods.PSFPhotometry.calibrate_zp

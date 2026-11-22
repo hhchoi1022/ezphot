@@ -193,6 +193,7 @@ class Reproject:
                   save: bool = True,
                   return_ivpmask: bool = False,
                   fill_zero_tonan: bool = True,
+                  weight0_tonan: bool = True,
                   ):
         """
         Reproject the image with SWarp.
@@ -224,9 +225,20 @@ class Reproject:
         save : bool, optional
             Whether to save the reprojected image.
         return_ivpmask : bool, optional
-            Whether to return the invalid pixel mask.
+            Whether to return the invalid pixel mask: True where the reprojected image is not finite (NaN, inf), no
+            other rule (from 0.9.0; MaskGenerator.mask_invalidpixel also masked 0 areas over 100000 px). With
+            weight0_tonan False the empty area stays 0 and is then not in the mask.
         fill_zero_tonan : bool, optional
-            Whether to fill the zero to nan.
+            Whether to fill the zero to nan: SWarp reads input copies in which exact 0 pixels of 3x3 or larger all-zero
+            blocks are NaN (scattered zeros stay 0; from 0.9.0, before every exact 0). The input is only read.
+        weight0_tonan : bool, optional
+            Set the reprojected image to NaN where the SWarp output weight of the image resampling is <= 0 or not
+            finite (no input pixel, e.g. outside the input frame; SWarp writes 0 there; also where the errormap weight
+            is 0 or where fill_zero_tonan made input zeros NaN, if SWarp gives them weight 0). The weight file is
+            unchanged. Done on the output file before it is loaded, so the return_ivpmask mask sees the NaN. Skipped
+            with a warning when the weight output is missing, its shape differs or the image is not floating point.
+            Without target_errormap the weight output (<output stem>.weight.fits, kept before 0.9.0) is then deleted
+            (not when skipped). False: output as before 0.9.0, weight output kept.
         **kwargs : dict, optional
         """
         # If target_img is not saved, save it to the savepath
@@ -266,7 +278,7 @@ class Reproject:
         swarp_configfile = target_img.config['SWARP_CONFIG']
         keep_header_dict = {key: original_header[key] for key in keep_header_keys}
         
-        swarp_result, target_outpathlist, _ = self.helper.run_swarp(
+        swarp_result, target_outpathlist, weight_outpathlist = self.helper.run_swarp(
             target_path = target_path,
             swarp_configfile = swarp_configfile,
             swarp_params = swarp_params,
@@ -286,6 +298,29 @@ class Reproject:
             verbose = verbose,
             fill_zero_tonan = fill_zero_tonan,
             ) 
+        
+        # Pixels without SWarp weight are NaN in the image, not 0. Weight output: errormap_outpath_tmp with an
+        # errormap (deleted below), else <target_outpath stem>.weight.fits (deleted here once the NaN are written: the
+        # empty area is then in the image and its invalid-pixel mask; kept when skipped or with weight0_tonan False)
+        if weight0_tonan:
+            weight_path = Path(weight_outpathlist[0])
+            if not weight_path.is_file():
+                print(f"[Reproject] Warning: weight0_tonan skipped: SWarp weight output {weight_path} not found", flush = True)
+            else:
+                weight0_done = False
+                weight = fits.getdata(weight_path)
+                with fits.open(target_outpath, mode = 'update', memmap = False) as hdul:
+                    data = hdul[0].data
+                    if data is None or weight.shape != data.shape or data.dtype.kind != 'f':
+                        print(f"[Reproject] Warning: weight0_tonan skipped for {target_outpath}: image "
+                              f"{None if data is None else (data.shape, data.dtype)} vs weight {weight.shape}", flush = True)
+                    else:
+                        data[~(np.isfinite(weight) & (weight > 0))] = np.nan
+                        hdul.flush()
+                        weight0_done = True
+                del weight
+                if weight0_done and target_errormap is None:
+                    weight_path.unlink()   # the SWarp weight output of this run only
         
         os.remove(errormap_outpath_tmp) if errormap_outpath_tmp is not None else None
         
@@ -342,18 +377,16 @@ class Reproject:
         if is_errormap_bkgrms:
             target_errormap.remove(verbose = verbose, remove_main = True, remove_connected_files = True, skip_patterns = [])
                 
+        # Invalid-pixel mask = not finite pixels of the reprojected image only (no 0-area rule of
+        # MaskGenerator.mask_invalidpixel; the empty area is NaN with weight0_tonan). Same path, header and type as
+        # mask_invalidpixel writes (the header object is shared with the image, as there: TGTPATH, MASKTYPE added to both)
         reprojected_ivpmask = None
         if return_ivpmask:
-            from ezphot.methods import MaskGenerator
-            T = MaskGenerator()
-            reprojected_img.data
-            reprojected_ivpmask = T.mask_invalidpixel(
-                target_img = reprojected_img,
-                save = save,
-                verbose = verbose,
-                visualize = False,
-                save_fig = False
-            )
+            reprojected_ivpmask = Mask(reprojected_img.savepath.invalidmaskpath, masktype = 'invalid', load = False)
+            reprojected_ivpmask.data = ~np.isfinite(reprojected_img.data)
+            self.helper.print(f"Masked {np.sum(reprojected_ivpmask.data)} not finite pixels.", verbose)
+            reprojected_ivpmask.header = reprojected_img.header
+            reprojected_ivpmask.header.update(dict(TGTPATH = str(reprojected_img.path), MASKTYPE = 'InvalidPixel'))
             if save:
                 reprojected_ivpmask.write(verbose = verbose)
             

@@ -1,11 +1,13 @@
 
 #%%
 import inspect
+import json
+import re
 from typing import Union, List
 from pathlib import Path
 from astropy.table import Table
 from astropy.time import Time
-from astropy.io import ascii
+from astropy.io import ascii, fits
 from tqdm import tqdm
 import numpy as np
 from shapely.geometry import Polygon
@@ -103,13 +105,23 @@ class Subtract:
                  nsx: int = 10,
                  nsy: int = 10,
                  r: int = 10,
-                 ng: str = '3 6 0.70 4 1.50 2 3.00'
+                 ng: str = '3 6 0.70 4 1.50 2 3.00',
+                 ig: float = None,
+                 tg: float = None,
+                 tp: float = None,
+                 exclude_coords: list = None,
+                 exclude_radius_arcsec: float = 10.0,
+                 hotpants_notes: dict = None
                  ):
         """
         Subtract the target_img from reference-img. 
         It will prepare the subtracted region by trimming both images to the overlapping region.
         Then, run HOTPANTS subtraction.
-        
+        The trimmed images (returned and saved; sci_/ref_ after find_transients) keep the input values, NaN included
+        (e.g. the no-weight edges of a Reproject.reproject output). Hotpants reads temporary copies with NaN set to 0
+        (<subframe>.hotpantsin / .hotpantsref, deleted after the run), so the TARGET / TEMPLATE cards hotpants writes
+        into the difference image name those copies. target_img and reference_img data are not changed.
+
         Parameters
         ----------
         target_img : ScienceImage
@@ -121,11 +133,16 @@ class Subtract:
         reference_ivpmask : Mask, optional
             The mask for the reference image.
         target_stamp : str, optional
-            The stamp for the target image.
+            File of stamp centres for hotpants -ssf: "x y" per line, 0-based pixels of the full target_img grid
+            (as Catalog.to_stamp writes them). Shifted into the subframe and written 1-based for hotpants.
+            None (default): hotpants picks the stamps itself.
         id_ : int, optional
             The id for the target image.
         save : bool, optional
-            Whether to save the subtracted image.
+            Whether to save the subtracted image. With save, a sidecar sub_<name>.fits.hotpants.json is written next
+            to it (hotpants command and version, the stamps hotpants used (-savexy), subframe origin, exclusion
+            positions, ig/tg/tp or why each was left out) and the header gets HPJSON, HPSTAMP, HPNSTAMP, HPXMIN,
+            HPYMIN, HPEXCLN, HPEXCLR.
         verbose : bool, optional
             Whether to print verbose output.
         visualize : bool, optional
@@ -164,6 +181,21 @@ class Subtract:
                 : sigma  = width of gaussian #
                         (0.70 1.50 3.00)
                 : N = 0 .. ngauss - 1
+        ig, tg : float, optional
+            Gain (e-/ADU) of target_img and reference_img for hotpants -ig / -tg. None: not given (hotpants default).
+        tp : float, optional
+            ADU pedestal of reference_img for hotpants -tp (noise model). With convim 't' (reference convolved, conv_
+            header CONVOL00 TEMPLATE) hotpants writes conv_ with kernel sum x |tp| added; with convim 'i' the background
+            term of sub_ takes it up. None: not given.
+        exclude_coords : list of (ra, dec), optional
+            Sky positions (deg) kept out of the hotpants stamps: a disc of exclude_radius_arcsec around each is set
+            in a copy of the target invalid-pixel mask given to hotpants as -imi only (deleted after the run; the
+            invalid-pixel masks themselves are unchanged). Hotpants takes no stamp whose box touches such a pixel and
+            does not blank them in its output. None or empty: no exclusion.
+        exclude_radius_arcsec : float, optional
+            Radius of the exclusion discs in arcsec.
+        hotpants_notes : dict, optional
+            Why ig, tg or tp is None ({'tp': reason, ...}), written to the sidecar.
         Returns
         -------
         (subframe_target_img, subframe_reference_img, subframe_subtract_img, fullframe_subtract_mask, subframe_subtract_mask) : Tuple[ScienceImage, ReferenceImage, ScienceImage, Mask, Mask]
@@ -174,7 +206,7 @@ class Subtract:
             self.helper.print(f"Using target stamp from {target_stamp}", verbose)
         
         # Trim images
-        subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp = self._prepare_subtract_region(
+        subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp, region_info = self._prepare_subtract_region(
             target_img = target_img,
             reference_img = reference_img,
             target_ivpmask = target_ivpmask,
@@ -183,34 +215,57 @@ class Subtract:
             id_ = id_,
             save = True,
             verbose = verbose,
-            visualize = visualize
+            visualize = visualize,
+            exclude_coords = exclude_coords,
+            exclude_radius_arcsec = exclude_radius_arcsec
         )
             
-        # Run HOTPANTS subtraction
-        result_hotpants, subtracted_path = self.helper.run_hotpants(
-            target_path = subframe_target_img.savepath.savepath,
-            reference_path = subframe_reference_img.savepath.savepath,
-            convolve_path = subframe_target_img.savepath.convolvepath,
-            target_mask = subframe_target_ivpmask.savepath.savepath,
-            reference_mask = subframe_reference_ivpmask.savepath.savepath,
-            stamp = subframe_target_stamp,
-            target_outpath = subframe_target_img.savepath.subtractpath,
-            verbose = verbose,
-            convim = convim,
-            normim = normim,
-            nrx = nrx,
-            nry = nry,
-            iu = iu,
-            il = il,
-            tu = tu,
-            tl = tl,
-            ko = ko,
-            bgo = bgo,
-            nsx = nsx,
-            nsy = nsy,
-            r = r,
-            ng = ng
-            )            
+        # Run HOTPANTS subtraction. -imi is the mask copy with the exclusion discs when there is one.
+        # -inim / -tmplim are NaN -> 0 copies of the subframes (the saved subframes keep NaN).
+        # -savexy files (<sub_ path>.hotpants.xy, .all, .skipped), the mask copy and the input copies are temporary.
+        savexy_path = Path(str(subframe_target_img.savepath.subtractpath) + '.hotpants.xy')
+        try:
+            result_hotpants, subtracted_path = self.helper.run_hotpants(
+                target_path = region_info['hotpants_target'],
+                reference_path = region_info['hotpants_reference'],
+                convolve_path = subframe_target_img.savepath.convolvepath,
+                target_mask = region_info['target_mask'] or subframe_target_ivpmask.savepath.savepath,
+                reference_mask = subframe_reference_ivpmask.savepath.savepath,
+                stamp = subframe_target_stamp,
+                target_outpath = subframe_target_img.savepath.subtractpath,
+                verbose = verbose,
+                convim = convim,
+                normim = normim,
+                nrx = nrx,
+                nry = nry,
+                iu = iu,
+                il = il,
+                tu = tu,
+                tl = tl,
+                ko = ko,
+                bgo = bgo,
+                nsx = nsx,
+                nsy = nsy,
+                r = r,
+                ng = ng,
+                ig = ig,
+                tg = tg,
+                tp = tp,
+                savexy = savexy_path
+                )
+            # Used stamps: "image;box(x,y,w,h) # color=green" per stamp
+            stamps_used, stamp_box = [], None
+            if savexy_path.exists():
+                for line in savexy_path.read_text().splitlines():
+                    m = re.search(r'box\(\s*(-?\d+),\s*(-?\d+),\s*(\d+),\s*(\d+)\)', line)
+                    if m:
+                        stamps_used.append([int(m.group(1)), int(m.group(2))])
+                        stamp_box = int(m.group(3))
+        finally:
+            for p in (savexy_path, Path(f'{savexy_path}.all'), Path(f'{savexy_path}.skipped'), region_info['target_mask'],
+                      region_info['hotpants_target'], region_info['hotpants_reference']):
+                if p is not None:
+                    Path(p).unlink(missing_ok = True)
         
         subframe_convolve_img = type(subframe_target_img)(subframe_target_img.savepath.convolvepath, telinfo = subframe_target_img.telinfo, load = True)
         #subframe_convolve_img.remove()
@@ -219,6 +274,40 @@ class Subtract:
         subframe_subtract_mask.path = subframe_subtract_img.savepath.invalidmaskpath
         
         if save:
+            # Record of this hotpants run: sidecar sub_<name>.fits.hotpants.json + a few header cards
+            hotpants_json_path = Path(str(subframe_subtract_img.savepath.savepath) + '.hotpants.json')
+            notes = hotpants_notes or {}
+            noise = dict(ig = ig, tg = tg, tp = tp)
+            n_excluded = sum(1 for e in region_info['exclude'] if e['n_pix'] > 0)
+            hotpants_record = dict(
+                hotpants_command = self.helper.last_hotpants_command,   # argv; the -savexy file is deleted after reading
+                hotpants_inputs_note = '-inim / -tmplim: temporary copies of the saved subframes with NaN -> 0 '
+                                       '(*.hotpantsin / *.hotpantsref, deleted after the run); the saved subframes '
+                                       '(sci_ / ref_ after find_transients) keep NaN (rerun: fill the NaN with 0)',
+                hotpants_version = subframe_subtract_img.header.get('SOFTVERS'),
+                convim = convim,
+                subframe_origin = dict(x_min = region_info['x_min'], y_min = region_info['y_min'],
+                                       note = 'subframe 0-based pixel (i, j) = full target_img grid 0-based pixel (i + x_min, j + y_min)'),
+                stamps = dict(source = 'auto' if subframe_target_stamp is None else 'ssf',
+                              ssf_file = None if subframe_target_stamp is None else str(subframe_target_stamp),
+                              n_ssf = region_info['n_ssf'],
+                              used = stamps_used,
+                              box_px = stamp_box,
+                              note = 'used = hotpants -savexy as written: 1-based subframe pixels for convim t; hotpants 5.1.11 writes them 1 px larger for convim i (offset pixMin = rXBMin + 1)'),
+                exclude = dict(radius_arcsec = exclude_radius_arcsec, radius_pix = region_info['exclude_radius_pix'],
+                               positions = region_info['exclude'],
+                               note = 'x, y: 1-based subframe pixels (hotpants frame); n_pix: disc pixels inside the subframe set in the hotpants -imi copy'),
+                noise = dict(**noise, omitted = {k: notes.get(k, 'not given') for k, v in noise.items() if v is None}),
+            )
+            with open(hotpants_json_path, 'w') as f:
+                json.dump(hotpants_record, f, indent = 2, default = float)   # numpy scalars given by the caller
+            subframe_subtract_img.header['HPJSON'] = (hotpants_json_path.name, 'hotpants run record (sidecar)')
+            subframe_subtract_img.header['HPSTAMP'] = (hotpants_record['stamps']['source'], 'hotpants stamps: auto or ssf list')
+            subframe_subtract_img.header['HPNSTAMP'] = (len(stamps_used), 'number of stamps hotpants used')
+            subframe_subtract_img.header['HPXMIN'] = (region_info['x_min'], 'subframe origin x (0-based, full grid)')
+            subframe_subtract_img.header['HPYMIN'] = (region_info['y_min'], 'subframe origin y (0-based, full grid)')
+            subframe_subtract_img.header['HPEXCLN'] = (n_excluded, 'positions kept out of the hotpants stamps')
+            subframe_subtract_img.header['HPEXCLR'] = (exclude_radius_arcsec, '[arcsec] radius kept out of the stamps')
             subframe_subtract_img.write(verbose = verbose)
             fullframe_subtract_mask.write(verbose = verbose)
             subframe_subtract_mask.write(verbose = verbose)
@@ -266,7 +355,9 @@ class Subtract:
                         ng: str = 'auto',
                         save: bool = True,
                         verbose: bool = True,
-                        visualize: bool = False):
+                        visualize: bool = False,
+                        exclude_coords: list = None,
+                        exclude_radius_arcsec: float = 10.0):
         """
         Find transients in the subtracted image.
         
@@ -333,6 +424,20 @@ class Subtract:
             The number of regions for subtraction.
         r : int, optional
             The number of regions for subtraction.
+        exclude_coords : list of (ra, dec), optional
+            Sky positions (deg), e.g. the target and known transients, kept out of the hotpants stamps (see
+            Subtract.subtract). Hotpants picks the stamps itself (no -ssf list).
+        exclude_radius_arcsec : float, optional
+            Radius in arcsec around each exclude_coords position.
+
+        Hotpants noise model per reference: -ig = EGAIN of the reprojected science, -tg = EGAIN of the reprojected
+        reference, -tp = -SKYSIG_ref**2 x EGAIN_ref (the sky taken out of a sky-subtracted reference, in ADU), with
+        SKYSIG_ref and SKYVAL_ref from the reprojected reference header, else the photometric calibration of it.
+        An option is left out (hotpants default) with a printed warning, and the reason in the sidecar, when its
+        EGAIN is missing, not a number, not finite or not positive; -tp also when SKYSIG_ref is not measured, not
+        finite or not positive, SKYVAL_ref is not measured or not finite, or |SKYVAL_ref| > SKYSIG_ref (reference sky
+        not subtracted). Reverse subtraction: -ig EGAIN_ref, -tg EGAIN_sci, no -tp (template =
+        science, sky not subtracted).
             
         Returns
         -------
@@ -469,9 +574,7 @@ class Subtract:
             transient_criteria['flux_lower_target'] = il
         is_criteria_determined = True
         
-        reprojected_target_stamp = None
-        if len(reprojected_target_ref_catalog.data) > 10:
-            reprojected_target_stamp = reprojected_target_ref_catalog.to_stamp(reprojected_target_img)
+        # No -ssf list: hotpants picks the stamps itself, away from exclude_coords
             
         final_subtraction_mask = Mask(path = target_img.savepath.submaskpath, masktype = 'subtraction', load = False)
         final_subtraction_mask.data = np.zeros_like(reprojected_target_img.data, dtype=bool)
@@ -569,6 +672,7 @@ class Subtract:
                 else:
                     saturation_level_reference = 60000
                     
+            skyval_reference_measured = skysig_reference_measured = True
             if 'SKYVAL' in reprojected_reference_img.header:
                 skyval_reference = float(reprojected_reference_img.header['SKYVAL'])
             else:
@@ -576,6 +680,7 @@ class Subtract:
                     skyval_reference = update_kwargs['SKYVAL'][0]
                 else:
                     skyval_reference = 0
+                    skyval_reference_measured = False
                 
             if 'SKYSIG' in reprojected_reference_img.header:
                 skysig_reference = float(reprojected_reference_img.header['SKYSIG'])
@@ -584,6 +689,45 @@ class Subtract:
                     skysig_reference = update_kwargs['SKYSIG'][0]
                 else:
                     skysig_reference = 50
+                    skysig_reference_measured = False
+
+            # HOTPANTS noise model: gains and the template pedestal (the sky taken out of a sky-subtracted reference).
+            # An option without a trustworthy value is left out (hotpants default), with a warning and the reason.
+            def _egain(img, name):
+                try:
+                    gain = img.egain
+                except (TypeError, ValueError):   # EGAIN that does not parse as a number
+                    return None, f'{name} EGAIN not a number'
+                if gain is None:
+                    return None, f'no EGAIN in the {name} header'
+                if not (np.isfinite(gain) and gain > 0):
+                    return None, f'{name} EGAIN not finite/positive ({gain})'
+                return float(gain), None
+            hotpants_noise, hotpants_notes = dict(ig = None, tg = None, tp = None), dict()
+            egain_target, reason_target = _egain(reprojected_target_img, 'science')
+            egain_reference, reason_reference = _egain(reprojected_reference_img, 'reference')
+            if egain_target is None:
+                hotpants_notes['ig'] = reason_target
+            else:
+                hotpants_noise['ig'] = egain_target
+            if egain_reference is None:
+                hotpants_notes['tg'] = hotpants_notes['tp'] = reason_reference
+            else:
+                hotpants_noise['tg'] = egain_reference
+                if not skysig_reference_measured:
+                    hotpants_notes['tp'] = 'reference SKYSIG not measured (default 50)'
+                elif not (np.isfinite(skysig_reference) and skysig_reference > 0):
+                    hotpants_notes['tp'] = f'reference SKYSIG not finite/positive ({skysig_reference})'
+                elif not skyval_reference_measured:
+                    hotpants_notes['tp'] = 'reference SKYVAL not measured'
+                elif not np.isfinite(skyval_reference):
+                    hotpants_notes['tp'] = f'reference SKYVAL not finite ({skyval_reference})'
+                elif abs(skyval_reference) > skysig_reference:
+                    hotpants_notes['tp'] = f'reference sky not subtracted (|SKYVAL| {abs(skyval_reference):.3g} > SKYSIG {skysig_reference:.3g})'
+                else:
+                    hotpants_noise['tp'] = float(-skysig_reference**2 * egain_reference)
+            for key, reason in hotpants_notes.items():
+                print(f"[Subtract] Warning: hotpants -{key} left out: {reason}", flush = True)
             
             # If target seeing is larger, convolve template to target image.
             # Then the subtraction image will have the worse seeing.
@@ -656,7 +800,6 @@ class Subtract:
                 reference_img = reprojected_reference_img,
                 target_ivpmask = reprojected_target_ivpmask,
                 reference_ivpmask = reprojected_reference_ivpmask,
-                target_stamp = reprojected_target_stamp,
                 id_ = i,
                 save = save,
                 verbose = verbose,
@@ -676,13 +819,17 @@ class Subtract:
                 bgo = bgo,
                 nsx = nsx,
                 nsy = nsy,
-                r = r)
+                r = r,
+                **hotpants_noise,
+                exclude_coords = exclude_coords,
+                exclude_radius_arcsec = exclude_radius_arcsec,
+                hotpants_notes = hotpants_notes)
                             
             
             reprojected_reference_img.remove(remove_main = True, remove_connected_files = True, verbose = verbose)
             subframe_target_img.remove(remove_main = False, remove_connected_files = True, verbose = verbose)
             subframe_reference_img.remove(remove_main = False, remove_connected_files = True, verbose = verbose)
-            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_patterns = ['*.invalidmask'], verbose = verbose)
+            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_patterns = ['*.invalidmask', '*.hotpants.json'], verbose = verbose)
             final_subtraction_mask.combine_mask(fullframe_subtract_mask.data, operation='add')
             
             output_name = subframe_target_img.savepath.savepath.name
@@ -737,7 +884,7 @@ class Subtract:
             
             candidate_catalog = selected_catalog.copy()
 
-            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_patterns = ['*.invalidmask', '*.transient', '*.candidate', '*.cat'], verbose = verbose)
+            subframe_subtract_img.remove(remove_main = False, remove_connected_files = True, skip_patterns = ['*.invalidmask', '*.hotpants.json', '*.transient', '*.candidate', '*.cat'], verbose = verbose)
 
             # Step 7: negative image & Photometry
             if negative_detection:
@@ -796,7 +943,6 @@ class Subtract:
                     reference_img = reprojected_target_img,
                     target_ivpmask = reprojected_reference_ivpmask,
                     reference_ivpmask = reprojected_target_ivpmask,
-                    target_stamp = reprojected_target_stamp,
                     id_ = i,
                     save = save,
                     verbose = verbose,
@@ -816,6 +962,13 @@ class Subtract:
                     nsx = nsx,
                     nsy = nsy,
                     r = r,
+                    # Swapped gains; no -tp: the template is now the science (sky not subtracted)
+                    ig = hotpants_noise['tg'],
+                    tg = hotpants_noise['ig'],
+                    exclude_coords = exclude_coords,
+                    exclude_radius_arcsec = exclude_radius_arcsec,
+                    hotpants_notes = dict(ig = hotpants_notes.get('tg'), tg = hotpants_notes.get('ig'),
+                                          tp = 'reverse: template = science (sky not subtracted)'),
                     )
                 
                 tbl_third = reverse_subframe_subtract_img.photometry_sex(
@@ -1833,15 +1986,28 @@ class Subtract:
                                  id_: int = 0,
                                  save: bool = True,
                                  verbose: bool = True,
-                                 visualize: bool = True):
+                                 visualize: bool = True,
+                                 exclude_coords: list = None,
+                                 exclude_radius_arcsec: float = 10.0):
         """
         target_img: should be reprojected
         reference_img: should be reprojected
         So, both images should have the same WCS.
         target_ivpmask: Mask for the target image, if None, will be created
         reference_ivpmask: Mask for the reference image, if None, will be created
+        target_stamp: "x y" per line, 0-based pixels of the full target_img grid; written for hotpants -ssf as
+            1-based subframe pixels (<stamp stem>_subframe_<id_><suffix>)
+        exclude_coords: (ra, dec) deg; with save, a copy of the subframe target invalid-pixel mask with value 1 in a
+            disc of exclude_radius_arcsec around each is written to <subframe target>.hotpantsmask (for hotpants -imi)
         This will create the subtracted region by trimming both images to the overlapping region.
         fullframe (of target_img) subtraction region also will be returned 
+        The last element returned is a dict: x_min, y_min (subframe origin, 0-based full grid), target_mask (the mask
+        copy path or None when no disc pixel falls in the subframe), exclude (per position: ra, dec, 1-based subframe
+        x, y, n_pix), exclude_radius_pix, n_ssf (rows of the -ssf file or None), hotpants_target, hotpants_reference.
+        The subframes keep NaN (in memory and saved; their data are views of target_img / reference_img data, which
+        are not changed). With save, hotpants_target / hotpants_reference are copies of the saved subframes with NaN
+        set to 0 (<subframe>.hotpantsin / <subframe reference>.hotpantsref, same header; for hotpants -inim / -tmplim,
+        deleted by subtract() after the run); None without save.
         """
         
         # If wcs is not equal, reproject target to reference
@@ -1912,6 +2078,7 @@ class Subtract:
         
         # If target_stamp is provided, trim the subframe_target_img to the target_stamp
         subframe_target_stamp_path = None
+        n_ssf = None
         if target_stamp is not None:
             target_stamp = Path(target_stamp)
             if not target_stamp.exists():
@@ -1929,21 +2096,51 @@ class Subtract:
                     (y_full >= y_min) & (y_full < y_max)
                 )
 
-                # Shift coordinates to subframe system
-                x_sub = x_full[in_cutout] - x_min
-                y_sub = y_full[in_cutout] - y_min
+                # Shift coordinates to subframe system, 1-based as hotpants -ssf reads them
+                x_sub = x_full[in_cutout] - x_min + 1
+                y_sub = y_full[in_cutout] - y_min + 1
                 
                 subframe_target_stamp = Table()
                 subframe_target_stamp[x_key] = x_sub
                 subframe_target_stamp[y_key] = y_sub
                 subframe_target_stamp_path = target_stamp.parent / (target_stamp.stem + f'_subframe_{id_}' + target_stamp.suffix)
                 subframe_target_stamp.write(subframe_target_stamp_path, format='ascii', overwrite=True)
+                n_ssf = len(subframe_target_stamp)
+
+        # Exclusion discs for the hotpants stamp search, in a copy of the target invalid-pixel mask (value 1) given to
+        # hotpants as -imi only. Hotpants (5.1.11) marks -imi pixels > 0 as FLAG_INPUT_MASK: no stamp centre or stamp box
+        # may contain one, and they are not filled in its output (only mask bits 0x80/0x8000 are).
+        exclude_info = []
+        exclude_radius_pix = None
+        hotpants_target_mask_path = None
+        if exclude_coords is not None and len(exclude_coords) > 0:
+            coords = np.atleast_2d(np.asarray(exclude_coords, dtype=float))
+            exclude_radius_pix = float(exclude_radius_arcsec / np.mean(target_img.pixelscale))
+            x_ex, y_ex = cutout_target.wcs.all_world2pix(coords[:, 0], coords[:, 1], 0)
+            hotpants_mask_data = subframe_target_ivpmask.data.astype(np.int16)
+            ny_sub, nx_sub = hotpants_mask_data.shape
+            rr = exclude_radius_pix
+            for (ra_ex, dec_ex), xc, yc in zip(coords, x_ex, y_ex):
+                n_pix = 0
+                if np.isfinite(xc) and np.isfinite(yc):
+                    x0, x1 = max(int(np.floor(xc - rr)), 0), min(int(np.ceil(xc + rr)) + 1, nx_sub)
+                    y0, y1 = max(int(np.floor(yc - rr)), 0), min(int(np.ceil(yc + rr)) + 1, ny_sub)
+                    if x0 < x1 and y0 < y1:
+                        yy, xx = np.mgrid[y0:y1, x0:x1]
+                        disc = (xx - xc)**2 + (yy - yc)**2 <= rr**2
+                        hotpants_mask_data[y0:y1, x0:x1][disc] = 1
+                        n_pix = int(disc.sum())
+                exclude_info.append(dict(ra = float(ra_ex), dec = float(dec_ex), x = float(xc) + 1, y = float(yc) + 1, n_pix = n_pix))
+            if save and sum(e['n_pix'] for e in exclude_info) > 0:   # written last (below), deleted by subtract() after hotpants
+                hotpants_target_mask_path = subframe_target_img.savepath.savedir / (subframe_target_img.savepath.savepath.name + '.hotpantsmask')
+        region_info = dict(x_min = int(x_min), y_min = int(y_min), target_mask = hotpants_target_mask_path,
+                           exclude = exclude_info, exclude_radius_pix = exclude_radius_pix, n_ssf = n_ssf)
         
-        # Fill nan value to 0
+        # NaN (e.g. the no-weight edges of the reprojection) stays NaN in the subframes (saved below; sci_/ref_ after
+        # find_transients). Their data are views of target_img/reference_img data, so they are not filled: hotpants
+        # reads NaN -> 0 copies written last (below)
         #subframe_target_img.data += 10* subframe_target_img.header['SKYSIG']
         #subframe_reference_img.data += 10* subframe_reference_img.header['SKYSIG']
-        subframe_target_img.data[np.isnan(subframe_target_img.data)] = 0
-        subframe_reference_img.data[np.isnan(subframe_reference_img.data)] = 0  
 
         if visualize:
             subframe_target_img.show()
@@ -1955,7 +2152,19 @@ class Subtract:
             subframe_target_ivpmask.write(verbose = verbose) 
             subframe_reference_ivpmask.write(verbose = verbose)
         
-        return subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp_path
+        if hotpants_target_mask_path is not None:
+            fits.PrimaryHDU(data = hotpants_mask_data, header = subframe_target_ivpmask.header).writeto(hotpants_target_mask_path, overwrite = True)
+        # Hotpants -inim / -tmplim: copies of the saved subframes with NaN -> 0 (same header), deleted by subtract()
+        region_info['hotpants_target'] = region_info['hotpants_reference'] = None
+        if save:
+            for key, img, suffix in (('hotpants_target', subframe_target_img, '.hotpantsin'),
+                                     ('hotpants_reference', subframe_reference_img, '.hotpantsref')):
+                data_filled = img.data.copy()
+                data_filled[np.isnan(data_filled)] = 0
+                region_info[key] = img.savepath.savedir / (img.savepath.savepath.name + suffix)
+                fits.writeto(region_info[key], data_filled, img.header, overwrite = True)
+                del data_filled
+        return subframe_target_img, subframe_reference_img, subframe_target_ivpmask, subframe_reference_ivpmask, fullframe_subtract_mask, subframe_subtract_mask, subframe_target_stamp_path, region_info
 
 # %%
 if __name__ == '__main__':

@@ -70,7 +70,9 @@ DIA = dict(reject_variable_sources=True, negative_detection=True, reverse_subtra
            nrx=1, nry=1, nsx=10, nsy=10, ko=2, bgo=1, r=10,
            verbose=False, visualize=False, save=True,
            save_transient_figure=True, save_candidate_figure=True,
-           show_transient_numbers=100, show_candidate_numbers=100)
+           show_transient_numbers=100, show_candidate_numbers=100,
+           # Kept out of the hotpants stamps: (ra, dec) deg positions besides the dia --ra/--dec target, radius arcsec
+           exclude_coords=None, exclude_radius_arcsec=10.0)
 
 FORCED_PHOTOMETRY = dict(aperture_diameter_arcsec=[3, 5, 7, 10, 15], aperture_diameter_seeing=[2.5, 3.5],
                          annulus_width_arcsec=None, verbose=False, visualize=False, save=True, save_fig=True)
@@ -81,6 +83,21 @@ FORCED_PHOTOMETRY = dict(aperture_diameter_arcsec=[3, 5, 7, 10, 15], aperture_di
 # - SKYSIG/UL3/UL5 and the background part of FLUXERR x the measured/predicted noise of 500 random empty apertures;
 # - host_poisson: Poisson noise of the convolved reference (conv_, CONVOL00 TEMPLATE) added to FLUXERR/MAGERR only.
 FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_empty_apertures=500, host_poisson=True)
+
+# Forced PSF photometry next to the aperture one (forced_photometry; off by default, not for difference images):
+# ePSF of the image (PSFPhotometry.build_epsf: grid N or (nx, ny) tiles, model 'grid' per tile or 'poly' polynomial of
+# order <= poly_order in the position; max_stars_total, snr_lower, snr_lower_fallback, recenter_iter may be added),
+# PSF amplitude fit (psf_photometry: background, fit radius fit_radius_fwhm x FWHM, weighting, recenter) and ZP_PSF from
+# the image's reference stars (calibrate_zp).
+# Default: 'poly' of order 3, evaluated on the automatic ~512 px tiling (grid 1); order ladder of build_epsf: order 3
+# (>= 50 stars) needs a star in each of the 3 x 3 image zones, orders 2 (>= 30) and 1 (>= 15) in each of 2 x 2 zones,
+# else one median ePSF (grid 1; Moffat below 20 stars); fewer than 50 stars at peak S/N 50: selection repeated at 30.
+# recenter='offset': one smooth offset of the PSF centres from the measured positions of the reference stars
+# (.refcat: positions measured on the image; PSF position fits of the sources at S/N >= 50) - a difference of centre
+# definition or coordinate round trip - added to every target and reference-star position alike (no S/N step between
+# sources). A WCS error of catalog-coordinate targets is in the reference-star positions too and is not corrected.
+FORCED_PHOTOMETRY_PSF = dict(enabled=False, grid=1, model='poly', poly_order=3, fit_radius_fwhm=2.5,
+                             background='annulus', weighting='uniform', recenter='offset')
 
 # dia normalisation QA: norm_flag when |median 10" difference/science flux ratio of the field stars| exceeds this.
 DIA_NORM_RESID_MAX = 0.035

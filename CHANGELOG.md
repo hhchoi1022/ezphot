@@ -1,5 +1,260 @@
 # Changelog
 
+## 0.10.0 (2026-11-22)
+### 파괴적
+- **`ezphot.methods.psfphotometry.PSFPhotometry`를 새로 작성해 교체**(같은 모듈·클래스 이름). 옛 메서드 `select_psfstars`, `extract_sources`,
+  `build_epsf_model`, `build_epsf_model_psfex`, `psf_photometry`(옛 시그니처)와 옛 출력(`<img>.fits.psfcat` 카탈로그, 모델·잔차 영상 `<img>.model`·`<img>.residual`)이 없어진다. 새 `psf_photometry`는 이름만 같고
+  인자·반환·출력 파일(`.psf.cat`)이 다르다.
+  - deprecation 기간 없이 바꾸는 이유: 옛 클래스는 패키지가 export하지 않았고(`ezphot.methods`에 없음) 패키지 안 호출처도 없었다.
+    PSFEx 경로는 `mask`를 주면 정의되지 않은 `sex_params`로 실패했고(알려진 버그), 내부 ePSF 경로는 코드에 obsolete로 표시돼 있었다.
+  - **사용처 영향**: `from ezphot.methods.psfphotometry import PSFPhotometry`로 옛 메서드를 부르던 코드는 `AttributeError`/`TypeError`가 난다.
+    옛 동작이 필요하면 0.9.0 이하를 쓰거나 git 이력의 파일을 가져간다. `ScienceImage.savepath.psfcatalogpath`(`.psfcat`)는 그대로 있지만 이제 ezphot이 쓰지 않는다.
+### 추가
+- `PSFPhotometry`(이제 `ezphot.methods`에서 export): forced PSF 측광.
+  - `build_epsf(target_img, ...)` → `(psf, info)`: 영상의 고립·비포화 Gaia 별(기본 `GAIAXP`, 12.5 < G < 15.5, 15″ 안에 다른 카탈로그 별 없음,
+    순 피크 < 0.5 `SATURATE`, 피크 S/N > 50)의 잘라낸 영상을 부픽셀 재중심(3차 spline)·정규화해 중앙값. 반경 R = max(3 FWHM, 8″)(FWHM = 헤더 seeing),
+    `grid=N`이면 N×N, `grid=(nx, ny)`면 x로 nx·y로 ny개 타일마다(반환 `(ny, nx, n, n)`, 타일 [j, i] = 행 j·열 i; 타일 하나면 2-D). 별이 20개 미만인 타일은
+    Moffat β=3(`info['source']`가 `'moffat'`, 경고 출력). 영상·파일은 읽기만 한다.
+    - 별 상자(하늘을 뺀 반폭 R+11)에 두 번째 봉우리나 뾰족점이 있는 별은 뺀다(`grid`·`poly` 공통, 공개 인자 없음, 모듈 상수).
+      두 번째 봉우리: 상자를 FWHM 가우스로 평활한 영상의 지역 최대가 1.5 FWHM < r ≤ R+11(하늘 고리 포함, 상자 테두리 제외)에서
+      max(5 × 평활 영상의 R+4 밖 MAD std, 0.05 × 1.5 FWHM 안 평활 최고값)을 넘으면(이웃 별·은하·남은 흔적, 별의 5 % 이상).
+      뾰족점: r ≤ R의 화소가 8이웃 평균 a보다 a(즉 a의 2배 초과)와 8 × √(noise² + a/EGAIN)을 모두 넘으면(우주선·불량 화소).
+      헤더 seeing과 무관한 고정 비율이다: PSF 화소가 이웃 평균을 넘는 곳은 오목한 중심부뿐이고, FWHM ≳ 3 px 별의 중심은 이웃 평균의 2배보다
+      작다(2.5 px에서는 정상 별이 몇 % 빠짐; 7DT 0.505″/px에서 시상 ≥ 1.5″). 이웃 중앙값은 가파른 날개에서 낮은 쪽으로 치우쳐 쓰지 않는다.
+      그보다 심하게 언더샘플된 영상에서는 정상 별도 빠질 수 있다. **EGAIN이 없거나 양의 유한값이 아니면 뾰족점 컷은 하지 않고 경고한다**
+      (EGAIN 없이는 잡음 조건에 들어갈 별 Poisson 잡음을 정의할 수 없어 보수적으로 생략한다). 고립 15″ 검사는 G ≲ 17.6 카탈로그(기본 GAIAXP) 별만 보고 상자(R+11)가 15″보다 클 수 있으며,
+      DIA 격자로 재표본화한 우주선은 최고값 S/N 컷을 쉽게 통과하기 때문이다.
+      두 컷이 빼는 별의 비율(7DT 한 필드 실측, 컷 전에 통과하던 별 대비): DIA 격자로 재표본화한 12장(0.8.0 DIA `sci_`)에서 1–21 %(합계 5.7 %), 원 검출기 격자 2장에서
+      15 %·32 %. 거의 모두 뾰족점 컷(12장 230개 중 201개)이고, 대부분 별 날개나 하늘의 8–16σ 한 화소가 걸린 정상 별이다. 다양한 7DT 필드에서는
+      단일 프레임 9장 6–42 %(합 14 %, 409개 중 뾰족점 318개), 스택 9장 0–14 %(합 7.6 %, 373개 중 두 번째 봉우리 362개)였다. 탈락률은 상자 면적
+      (∝ 헤더 FWHM²)과 검출기 불량 화소 밀도에 따라 커지며, 별이 적은 영상은 다항식 하한(50)에 더 빨리 닿는다.
+    - `model='poly'`(기본 `'grid'`): PSFEx·Piff식 픽셀 기저 다항식. 같은 별 선택·컷으로 이미지 전체에서 최대 `max_stars_total`(기본 1000)개를 모아,
+      잘라낸 영상의 픽셀마다 위치(x, y를 영상 첫·끝 픽셀 → −1·+1로 변환)의 `poly_order`(기본 3)차 다항식(x^a·y^b, a+b ≤ 차수)을 선형 최소제곱으로 적합한다
+      (중앙값이 아니라 평균형, 모은 별을 모두 쓰고 이상치 제거는 없다). 첫 적합은 가중 없이 하고, 그 모형 M에서 별마다 정규화 컷의 분산
+      var = (noise/S)² + max(M, 0)/(EGAIN·S)(noise = 별 상자 바깥 MAD std, S = 컷 합; EGAIN이 없거나 양의 유한값이 아니면 Poisson 항을 빼고 경고)를 구해
+      별마다 가중 1/mean_{r≤R}(var)로 한 번 다시 적합한다. 결과를 `grid` 타일 중심에서 평가해
+      격자와 같은 후처리(2 FWHM 밖 음수 0, R 밖 0, 합 1)를 한 `(ny, nx, n, n)`을 돌려주므로 `psf_photometry`·`effective_psf`가 그대로 받는다(타일 사이는 같은
+      tent 보간). `grid`가 1이면 타일 약 512 px 자동 격자(축마다 round(크기/512), 7DT 9522×6393 px → 19×12).
+      `info['nstars']`는 적합에 쓴 별 수(전 타일 같은 값), 가장 바깥 별 밖은 외삽(플래그 없음).
+    - **차수 사다리**(`model='poly'`, 공개 인자 없음, 모듈 상수 `_POLY_ZONES = {1: 2, 2: 2, 3: 3}`·`_POLY_ZONE_STARS = 1`): `poly_order`는 상한이다.
+      k차(k ≥ 1)는 쓸 수 있는 별이 5 × 계수 수(3차 50, 2차 30, 1차 15, 4차 75; `min_stars`는 쓰지 않는다) 이상이고, 구역마다 별이 1개 이상일 때만 쓴다
+      — 3차(와 그 위)는 영상을 x·y로 3등분한 3×3 구역, 2차·1차는 2등분한 2×2 구역. 못 맞추면 한 단계씩 내려가고(3 → 2 → 1), 어느 차수도 안 되면 같은 별로
+      `model='grid'`, grid 1 결과(중앙값 ePSF 하나, **2-D 반환**, 별 < `min_stars`(20)면 Moffat)를 낸다. 0차는 `poly_order=0`일 때만(별 5개 이상, 구역 조건 없음).
+      내려가면 `poly_order` 차수의 이유(별 수·빈 구역 수)를 담은 경고 한 줄을 찍는다.
+      **수치에 영향(이 절의 이전 작업본은 3차 고정 + 별 50개 미만이면 중앙값 ePSF)**: 별 30–49개 영상은 2차(2×2 구역이 덮일 때), 15–29개는 1차(2×2 구역이 덮일 때),
+      별이 50개 이상이어도 3×3 구역에 빈 곳이 있으면 2×2가 덮이는 한 2차, 그것도 안 되면 중앙값 ePSF(별 15–19개면 Moffat)가 된다. 크기(7DT 시험 30장, 2차에도 3×3을 걸었던 작업본 대비, 아래 S/N 폴백 포함):
+      26장은 3차로 값이 같고, 4장(T14459 m661·m725, T10796 m825·m875)이 바뀌어 모두 2차다(T10796 m875는 그 전에도 2차, 별 수만 바뀜).
+      사다리만으로 바뀐 T14459 m661은 1차 → 2차로 hold-out 산포 0.052 → 0.019 mag, ZPERR_PSF 0.036 → 0.016.
+      (근거: 3×3을 2차에도 걸었던 작업본에서 7DT 30장 중 4장이 사다리로 바뀌었고, 그중 왼쪽 위 칸에 후보 별이 없던 T14459 m661이 3차 → 1차로
+      산포 0.018 → 0.052, ZPERR_PSF 0.011 → 0.036으로 나빠져 2차는 2×2로 정했다.)
+    - **S/N 문턱 폴백**: `build_epsf(..., snr_lower_fallback=30.0)`(시그니처 끝, None이면 끔). `snr_lower`(기본 50)로 고른 별이 `poly_order` 차수의
+      별 수(3차 50, 모형 `'poly'`) 또는 타일의 `min_stars`(모형 `'grid'`)에 못 미치면 같은 별 순서로 `snr_lower_fallback` 문턱으로 다시 고르고(경고 한 줄),
+      그 별로 사다리를 진행한다. `info['snr_lower_used']`(타일마다 쓴 문턱, `nstars`와 같은 모양). 50으로 충분한 영상은 이전과 같다.
+      근거(7DT 30장): 문턱을 일괄 30·20으로 낮추면 전체로는 변화가 없고(18장 산포 0.0216 → 0.0222, ZPERR 0.0207 → 0.0205) 이득은 별이 모자란 영상(T10796 m825
+      0.131 → 0.063 → 0.038)에 몰리고 다른 영상(T14250 i·T11579 m825·sci_ m400)은 손해라, 모자랄 때만 낮춘다. 이 규칙의 크기: 바뀌는 것은 S/N 50 별이 3차 문턱(50)에 못 미친
+      영상뿐이다. 시험 30장 중 3장(T10796 m825 23 → 46, T10796 m875 31 → 46, T14459 m725 48 → 90개; 시험의 별 수는 hold-out 별을 뺀 수),
+      레시피 T10796 2장(m825 24 → 51, m875 36 → 57개, 둘 다 3차). ZPERR_PSF는 T10796 m825 0.13 → 0.06(시험)·0.13 → 0.03(레시피, 기본 `recenter='offset'` 포함),
+      T14459 m725 0.013 → 0.008, T10796 m875 0.048 → 0.045(시험)·0.047 → 0.050(레시피, 기본 `recenter='offset'` 포함).
+    - **`SATURATE`가 없을 때 5e4 ADU 가정**은 그대로다(7DT 단일 9장 중 8장은 피크 컷이 걸리지 않고, T14250 i만 749개 중 19개).
+    - `info`에 `'model'`(사다리가 끝까지 내려가면 `'grid'`), `'poly_order'`(실제로 쓴 차수, 격자는 None), `'psf_model'`(`'poly3'`·`'poly2'`·`'poly1'`
+      (`poly_order=0`이면 `'poly0'`)·`'grid'`(중앙값 ePSF, 타일 하나 이상이 `'epsf'`)·`'moffat'`(모든 타일 Moffat)), `'recenter_iter'`, `'recenter'` 키가 늘었다.
+  - `build_epsf(..., recenter_iter=0)`(시그니처 끝, 기본 0 = 지금과 같은 결과): n > 0이면 PSF를 만든 뒤 n회 반복한다. 매 회 지금 PSF(격자: 그 타일,
+    다항식: 그 별 위치의 다항식 PSF)를 1차 모멘트(무게중심)가 배열 중심에 오도록 옮기고, 별마다 그 PSF로 위치·플럭스를 Gauss-Newton으로 맞춰(r ≤ R,
+    균일 가중) 중심을 갱신해 잘라 낸 영상을 다시 만든 뒤, 같은 별로 PSF를 다시 만들고 다시 무게중심을 배열 중심에 둔다(중심 표류 방지).
+    별 컷 판정은 처음 한 번뿐이고, 다항식 기저 위치는 카탈로그 위치 그대로다. 맞춤이 실패하거나 한 회에 1 px(`_EPSF_RECENTER_LIMIT`) 넘게
+    움직인 별은 그 회에서 이전 중심을 유지한다. Moffat 타일은 다시 만들지 않는다. `info['recenter']`는 회마다
+    `n_fit`(새 중심), `n_kept`(이전 중심 유지), `median_shift`·`max_shift`(px). **기본 0**: 7DT 실측(16장)에서 2회에 수렴하지만 16장 중 9장은
+    PSF−개구 산포가 나빠지고 ZPERR_PSF는 약 0.001 좋아지는 데 그치며 시간이 2.4배라 켜지 않는다(켠다면 2회).
+  - `moffat_psf(fwhm_pixel, radius_pixel, beta=3.0)`, `effective_psf(psf, psi)`: 필터 커널(예: 차영상 decorrelation 필터 ψ)을 거친 영상의 실효 PSF
+    = psf ⊗ ψ(`fftconvolve` 'full', 타일 배열끼리는 타일별; 둘 다 타일이면 `(ny, nx)`가 같아야 한다).
+  - `psf_photometry(target_img, x_arr, y_arr, psf=None, ...)`: 위치 고정(좌표 또는 0-기반 픽셀), PSF 진폭 선형 최소제곱(기본 균일 가중 = Σ P·d / Σ P²,
+    선택 `weighting='inverse_variance'`), 기본 배경 = 차영상 forced와 같은 고리 5σ 클립 평균(선택 `'fit'` 진폭+상수 동시 적합, `'none'`), 마스크·무효
+    (NaN·inf, 0이 아닌 |값| < 1e-20) 픽셀 가중 0, 음수 플럭스 허용. 분산은 `variance=` 배열(예: 영상의 분산 평면) 또는 기본 bkgrms² × `noise_ratio`² + 소스 Poisson
+    (+ `host_img` Poisson). 기본 모형의 소스 Poisson은 적합한 PSF 모형으로 계산한다: max(F·P, 0)/EGAIN.
+    개구 측광의 `calc_total_error`처럼 잘린 데이터 max(d, 0)/EGAIN을 쓰지 않는 이유가 있다. 그 방식은 빈 하늘에서 잡음을
+    0에서 자르기 때문에 픽셀마다 σ_pix/(√(2π)·EGAIN)만큼 분산이 늘어 어두운 소스의 오차를 키운다(EGAIN 0.256, σ_pix 12 ADU에서
+    분산 +13 %). 그래서 `FLUXERR_PSF`와 `FLUXERR_APER_k`는 분산 정의가 다르다. 출력 `<img>.fits.psf.cat`: `FLUX_PSF`, `FLUXERR_PSF`, `MAG_PSF`, `MAGERR_PSF`, `UL3_PSF`, `UL5_PSF`, `BACKGROUND`,
+    `CHI2_PSF`, `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`, `FLAG_PSF`, `X_IMAGE`/`Y_IMAGE`(0-기반), `X_WORLD`/`Y_WORLD`; `zp_psf=`를 주면(차영상에 science 영상의
+    ZP_PSF) `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF`. 메타 `PSF_SOURCE`는 N×N 격자면 타일마다 한 단어,
+    비정사각 격자나 다항식이면 개수 요약(예: `epsf x 228 (12 x 19 tiles, ny x nx; model poly order 3)`).
+    `CHI2_PSF`는 PSF가 맞는 점광원이면 약 1이고, ≳ 3이면 확인해 볼 만하다(겹친 소스, 퍼진 소스, PSF 불일치, 위치 어긋남; 경험값, 플래그 아님).
+  - `psf_photometry(..., recenter=False, recenter_snr=50.0, recenter_max_shift=0.5)`(시그니처 끝; `recenter`는 `False` | `'offset'` | `'each'` | `True`(= `'each'`)):
+    기본 False면 열·값·메타가 지금과 같다. 켜면 `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 새 열 `DX_PSF`·`DY_PSF`(px)를
+    `FLAG_PSF` 뒤에 두며, 메타에 `RECENTER = ...` 줄이 붙는다.
+    - `'offset'`(레시피 기본): 고정 위치 적합의 S/N(`FLUX_PSF`/`FLUXERR_PSF`) ≥ `recenter_snr`인 소스마다 위치를 맞춘 뒤(아래 `'each'`의 첫 단계),
+      그 이동량으로 영상 전체의 부드러운 오프셋(축마다 a + b·u + c·v, u·v = x·y를 영상 −1…+1로, MAD 3σ 클립 한 번 뒤 남은 소스로 재맞춤; 맞춘 소스 10개 이상이면 평면,
+      3개 이상이면 중앙값 상수, 그보다 적으면 오프셋 0과 경고)을 맞추고, 그 오프셋을 **모든 소스**(대상·기준성, S/N과 무관)의 위치에 더해 보통의
+      선형 적합을 한다(적합 픽셀·타일 보간·고리 배경 모두 새 위치). `DX_PSF`·`DY_PSF` = 적용한 오프셋(모든 소스에 값), 그 크기가
+      `recenter_max_shift`보다 크면 `FLAG_PSF` 비트 16(`FLAG_RECENTER`). 이 모드의 비트 16은 맞춤이 나쁘다는 뜻이 아닌 **장 단위 경고**다: 오프셋이
+      영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로, `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다. 메타에 계수·쓴 소스 수·잔차 rms. 소스마다 S/N 문턱을 넘나드는 계단이 없다.
+      보정하는 것은 측정 소스의 입력 위치에 대한 PSF 중심의 부드러운 어긋남(중심 정의·좌표 왕복 차이)이다. 입력 좌표가 하늘 목록 좌표이고 측정 소스의
+      좌표도 목록 좌표면 WCS 어긋남도 포함되지만, 측정 소스 위치를 그 영상에서 잰 경우(레시피: `.refcat` = 영상 카탈로그 위치) 목록 좌표 대상의 WCS
+      자체 오차는 기준성 위치에도 들어 있어 보정되지 않는다. 크기(7DT 시험 30장, 위치 고정 대비): 영상별 적용 오프셋 중앙값은 29장에서 x·y 모두
+      0.15 px 미만, 1장(T12809 m825) y −0.49 px. `ZP_PSF` −0.0004…+0.011 mag(`'each'`와 차 ≤ 0.005), `ZPERR_PSF` 중앙값 0.0190 → 0.0176(단일 프레임 18장)·
+      0.0193 → 0.0195(DIA `sci_` 12장), 오프셋이 큰 T12809 m825는 0.062 → 0.034. hold-out PSF−개구 산포는 짝 비교 중앙 −0.0003(18장 중 값이 있는 16장)·−0.0001 mag(12장)로
+      그대로이고, 한 장(T24282 m675)은 0.014 → 0.023으로 나빠졌다(ZP 영향 없음, 원인 미확정). 비트 16은 30장 중 28장에서 0행, 2장에서 12 %·53 %, 레시피 T10796 m825 2/27행.
+    - `'each'`: S/N ≥ `recenter_snr`인 소스만 같은 PSF·픽셀·가중으로 위치와 플럭스를 함께 맞추고(Gauss-Newton, `build_epsf` 반복과 같은 함수,
+      적합 반경 안), 그 위치에서 선형 적합을 다시 해 모든 값 열을 낸다(적합 픽셀은 입력 위치 둘레, 타일 보간은 입력 위치 것, `CHI2_PSF` 자유도에서
+      위치 2개를 뺀다). `DX_PSF`·`DY_PSF` = 맞춘 위치 − 입력 위치(맞추지 않은 소스 NaN). 이동이 `recenter_max_shift`보다 크면 맞춘 위치 값과 비트 16,
+      위치 맞춤이 실패하면 입력 위치 값·NaN·비트 16.
+      7DT 실측(28장): PSF−개구 산포가 24장에서 줄고(0.0216 → 0.0181) PSF 등급이 위치 어긋남 손실만큼 밝아지지만(중앙 +0.004, 최대 +0.048 mag),
+      기준성은 거의 모두 맞춰져 `ZP_PSF`가 0…+0.016 커지고 S/N < 50 대상은 위치 고정이라 그만큼 어둡게 보정된다 — 광도곡선이 S/N 50을 넘나들면
+      계단이 생기므로 한 광도곡선에서 섞지 않는다. 비트 16은 4–57 %. 그래서 레시피 기본은 `'offset'`이다.
+  - `calibrate_zp(target_img, catalog, **photcal_kwargs)` → `(catalog, zp, zperr, n_ref)`: 카탈로그에 함께 잰 기준성에서 `photometric_calibration`을
+    `MAG_PSF`로 돌려 `ZP_PSF`(3σ 클립 중앙값)·`ZPERR_PSF`를 구한다. 헤더·FITS는 바꾸지 않는다.
+  - `ZP_PSF`는 `ZP_APER_k`와 다르다(PSF 진폭 = PSF 배열 안 총 플럭스). PSF 등급은 `ZP_PSF`로만 보정한다.
+  - 무효 픽셀(`build_epsf`는 별 상자에 하나라도 있으면 그 별을 빼고, `psf_photometry`는 가중 0·`FLAG_PSF` 비트 2) = NaN·inf와 0이 아닌
+    |값| < 1e-20(hotpants가 무효 픽셀에 쓰는 1e-30). **정확히 0인 픽셀은 정상 데이터로 쓴다**: 정수값 master bias·dark로 보정한 하늘이 낮은 프레임에는
+    raw − bias − dark가 정확히 0인 픽셀이 흩어져 있다(7DT 2025 단일 100 s 프레임에서 0.2–2.5 %, 덩어리 ≤ 5 px; 7DT `coadd_scaled_subbkg_*` 스택에도
+    있다). 0은 잘라 낸 하한이 아니다(같은 프레임에 음수 픽셀이 있다). 0까지 무효로 두면 별 상자(반폭 R+11, 한 변 약 55–63 px)에 하나만 있어도 별이 빠져,
+    다양한 7DT 필드 18장 중 8장(단일 100 s 프레임, 2025–2026)에서 PSF 별이 0–13개로 줄어 Moffat으로 폴백했다(ZPERR_PSF 0.03–0.14, 개구 0.01–0.04).
+    확인한 7DT coadd(`coadd_scaled_subbkg_*.com.fits` 9장)의 빈 곳은 NaN, hotpants 차영상의 빈 곳은 1e-30이라 계속 무효다.
+    이 규칙에서 그 8장은 모두 ePSF다(별 24–544개; 6장은 3차, T10796 m825·m875는 50개 미만이라 중앙값 ePSF — 차수 사다리 이전 측정). ZPERR_PSF는 m675·m700·m775 4장
+    0.015–0.023(개구 0.011–0.020), m825·m875 4장 0.047–0.134(개구 0.017–0.042)다. 붉은 쪽이 큰 것은 0 픽셀이 아니라 붉은 단일 프레임의 별 부족
+    (피크 S/N 컷)과 시야 PSF 변화 때문이다. ZP_PSF − ZP_APER_3는 Moffat 때 −0.05…+0.26에서 +0.04…+0.09가 됐다.
+    차영상 forced의 빈 구멍 위치 판정과 dia photcal 스탬프 규칙은 0도 무효로 보는 그대로다.
+    빈 곳이 0인 영상(예: 0.8.0 이하 재투영 출력과 DIA `sci_`·`ref_` 영상 — SWarp 가중치 0 영역; 0.9.0부터 `Reproject.reproject`는 기본으로 NaN,
+    `weight0_tonan=False`·`run_swarp(fill_zero_tonan=False)` 결과, 다른 소프트웨어 산출물)은 그 영역이 데이터로 쓰이므로 `build_epsf`·`psf_photometry`에 그 영역을 `target_mask`로 넘겨야 한다.
+- forced_photometry 레시피: config 섹션 `forced_photometry_psf`(`defaults.FORCED_PHOTOMETRY_PSF`: `enabled=False`, `grid=1`, `model='poly'`,
+  `poly_order=3`, `fit_radius_fwhm=2.5`, `background='annulus'`, `weighting='uniform'`, `recenter='offset'`; `grid`·`model`·`poly_order`·
+  `max_stars_total`·`snr_lower`·`snr_lower_fallback`·`recenter_iter`는 `build_epsf`로, 나머지(`recenter`·`recenter_snr`·`recenter_max_shift` 포함)는
+  `psf_photometry`로 간다; 기본값에 없는 키는 라이브러리 기본: `snr_lower` 50, `snr_lower_fallback` 30, `recenter_iter` 0), CLI `--psf`(격자·모형 CLI 옵션은 없음). 켜면 차영상이 아닌 영상마다 ePSF → 타겟 + `.refcat` 기준성 PSF 측광 → `ZP_PSF`
+  (`reference_stars`와 같은 photcal 규칙)을 해서 `<img>.fits.psf.cat`을 쓰고, 요약에 `psf_catalog`, `psf_source`, `psf_model`(`build_epsf` `info['psf_model']`, 영상마다 하나), `psf_nstars`, `n_ref_psf`,
+  `MAGSKY_PSF`, `MAGERR_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL5SKY_PSF`, `CHI2_PSF`, `FLAG_PSF`, `DX_PSF`, `DY_PSF`(그 대상에 적용한 recenter 오프셋, px) 열을 더한다. PSF 단계 실패는 그 영상 행을 `success=False`
+  (`step` `psf_refcat`·`psf_epsf`·`psf_photometry`·`psf_zp`)로 만든다(개구 값은 남음). `sub_` 영상은 `step='psf'`로 실패(science 영상의 PSF·ZP_PSF가 필요).
+  레시피는 `target_mask`를 넘기지 않으므로 빈 곳이 0인 영상(0.8.0 이하 DIA가 쓴 `sci_` 등 — SWarp 가중치 0 영역; 0.9.0부터 재투영의 가중치 0 픽셀은 NaN)은
+  `--psf` 입력에 쓰지 않는다(그 0 영역이 데이터로 쓰인다).
+  - 켰을 때 기본 PSF는 위치 3차 다항식(`model='poly'`, `poly_order=3`, `grid=1` = 약 512 px 자동 평가 격자)이다. 별이 50개(3차 계수 10 × 5) 미만이거나
+    구역에 빈 곳이 있는 영상은 위 차수 사다리로 2차·1차·중앙값 ePSF 하나(grid 1)로 내려가고(그 전에 별이 50개 미만이면 S/N 30으로 다시 고른다),
+    어느 것인지는 `psf_model` 열에 있다. 라이브러리 `build_epsf`의 기본은 그대로 `model='grid'`, `grid=1`이다.
+    근거(격리 HOME, 7DT 실측 sci_ 12장(0.8.0 DIA `sci_`), 적합에서 뺀 별로 평가): PSF−개구 등급 차의 로버스트 산포 중앙값이 중앙값 ePSF 하나 0.052 → 3차 다항식
+    0.017 mag, 모서리 편향(묶음) −0.037 → 0.000, ZPERR_PSF 중앙값 0.074 → 0.020. 3차는 2차보다 12장 중 11장에서 작다. 4차(0.016)는 별 75개가
+    필요해 기본으로 두지 않는다.
+    3×2보다 촘촘한 격자(4×3, 6×4)는 7DT 별 밀도로 Moffat 타일이 많아 쓰지 않는다.
+  - **레시피 기본 `recenter='offset'`(수치에 영향, `--psf` 결과)**: 모든 대상·기준성 위치에 같은 영상 오프셋 모형을 더하므로 `MAGSKY_PSF`·`ZP_PSF`가
+    이전 작업본(위치 고정)과 달라진다. 오프셋은 `.refcat` 기준성의 영상 측정 위치에 대한 PSF 중심의 어긋남이다(목록 좌표 대상의 WCS 자체 오차는
+    보정되지 않는다). 위치 고정이 필요하면 config `recenter=False`. 크기(레시피 T10796 m825·m875 2장): 대상에 적용한
+    오프셋 성분 0.15–0.22 px. 장 전체에 공통인 성분은 기준성에도 같이 더해져 `ZP_PSF`와 상쇄되므로, 대상 등급에 남는 차이는 장 안에서
+    오프셋이 달라지는 성분(기울기)에서만 온다(T10796 m825 dy 장 끝↔끝 약 0.9 px). 등급 영향 크기는 위 `'offset'` 항목의 시험 값 참고;
+    레시피 T10796 대상은 비검출이라 등급 변화는 측정하지 않았다.
+  - **기본 꺼짐: 켜지 않으면 요약 열·카탈로그·값이 0.9.0과 같다.** `FORCED_CONFIG_KEYS`에 섹션이 하나 늘었을 뿐이다. dia는 이 섹션을 넘기지 않는다.
+- target_photometry: DataBrowser 검색(`load_catalogs`)이 forced PSF 카탈로그 `*.psf.cat`도 `*.circ.cat`처럼 버린다(`--pattern`이 `.psf.cat`으로 끝나면 남김).
+  그러지 않으면 새 `.psf.cat`이 단일 영상 카탈로그로 섞여 같은 epoch가 두 번 들어가고, `--dedupe`가 진짜 `.cat`을 버릴 수 있다. `.psf.cat`이 없는 아카이브에서는 결과가 같다.
+### 수정
+- `CODEBASE_GUIDE.md` 알려진 버그 목록에서 `build_epsf_model_psfex()`의 `sex_params` 항목을 뺐다(메서드 삭제).
+
+## 0.9.0 (2026-11-22)
+### 수치 변경
+- **DIA hotpants stamp**(`Subtract.find_transients`, `ImageMethod.DIA`, dia 레시피): hotpants에 `-ssf` stamp 목록을 주지 않고 hotpants가 stamp를 스스로 고른다.
+  0.8.0까지는 재격자 science에 `photometric_calibration`을 돌려 고른 기준별(G 12.5–15.5, 영상 안쪽 70 %, 10개 넘을 때)을 `Catalog.to_stamp`로 목록에 써서 줬다.
+  이 목록이 0.8.0 T08635 DIA의 정규화 실패 3장(m650 f0, m675 f1·f2; `norm_flag`, norm_resid 약 −4 %/+6 %/+5.5 %)의 원인이었다: 같은 목록으로 KSUM00 6/6을
+  헤더 4자리까지 재현했고, 목록 없이(자동 stamp) 또는 다른 목록이면 정상(KSUM 비 약 0.99)이었다. photcal 호출은 남는다(후보 선택 기준이 그 카탈로그에서 온다).
+  - 대상 보호: 자동 stamp가 변광 천체를 stamp로 고르지 않도록, 새 인자 `exclude_coords`(`[(ra, dec), ...]` deg)·`exclude_radius_arcsec`(기본 10″)의 원판에 닿는
+    stamp를 쓰지 않는다(hotpants 전용 `-imi` 마스크 **사본**에 값 1로 넣고 실행 뒤 지운다; `.invalidmask`·차영상 마스크는 그대로). hotpants 5.1.11은 `-imi` 값 > 0
+    픽셀이 들어간 stamp 상자를 거부하고, 그 픽셀을 출력에서 채움값으로 바꾸지 않는다(채움은 마스크 비트 0x80/0x8000일 때만). dia 레시피는 `ra`/`dec`를 주면
+    그 좌표를 자동으로 넣고, `config['dia']['exclude_coords']`의 좌표를 더한다. `ra`/`dec`가 없으면(그리고 config에 없으면) 제외 없음.
+    hotpants 헤더 통계 중 "good pixel" 기준(`DMEAN00`·`DSIG00`·`X2NRM00` 등)은 원판 픽셀을 빼고 센다.
+  - 바뀌는 것: `sub_*`·`conv_*` 픽셀 값, hotpants 헤더 지표(`KSUM00` 등), dia의 후보·트랜지언트 카탈로그, dia 요약의 forced 값(`MAGSKY_APER_3` 등)과
+    정규화 QA 열(`norm_resid`, `ksum`, `ksum_ratio`, `norm_flag`). 크기는 T08635 DIA 60장 격리 검증(0.8.0 대비)으로 채운다: **(V3 실측 후 기입)**.
+- **hotpants 잡음 모형**(`Subtract.find_transients`): `-ig` = 재투영 science의 `EGAIN`, `-tg` = 재투영 reference의 `EGAIN`,
+  `-tp` = −`SKYSIG_ref`² × `EGAIN_ref`(하늘을 뺀 reference에서 빠진 하늘, ADU). `SKYSIG_ref`·`SKYVAL_ref`는 재투영 reference 헤더, 없으면 그 영상의 photcal 측정값.
+  0.8.0까지는 셋 다 주지 않아(hotpants 기본 gain 1) X2NRM이 시험에서 5.7–21이었고, 주면 1.4–4.9(KSUM·배경·지표는 시험에서 그대로).
+  - 값을 믿을 수 없으면 그 옵션만 빼고(hotpants 기본) 경고 한 줄(`[Subtract] Warning: hotpants -tp left out: …`)을 출력하고 이유를 사이드카 `noise.omitted`에 남긴다:
+    `EGAIN`이 없거나 숫자로 읽히지 않거나 유한한 양수가 아니면 `-ig`(science) 또는 `-tg`·`-tp`(reference); `-tp`는 `SKYSIG_ref`가 측정값이 아닐 때
+    (헤더·photcal 둘 다 없어 기본 50)나 유한한 양수가 아닐 때, `SKYVAL_ref`가 측정값이 아니거나 유한하지 않을 때,
+    |`SKYVAL_ref`| > `SKYSIG_ref`(하늘을 빼지 않은 reference — pedestal을 주면 하늘 잡음을 두 번 센다)일 때도 뺀다.
+  - 역방향 차감(`reverse_subtraction=True`, 기본 꺼짐): `-ig` = `EGAIN_ref`, `-tg` = `EGAIN_sci`, `-tp` 없음(template이 하늘을 빼지 않은 science).
+  - **convim `t`(reference를 convolve, `conv_` 헤더 `CONVOL00=TEMPLATE`)일 때 `-tp`는 hotpants가 `conv_*`에 상수 KSUM × |tp|(ADU/pix)를 더한 채로 쓴다**
+    (되돌리지 않음; `sub_*`에서는 배경 항이 흡수). convim `i`(science를 convolve)에서는 `conv_`에 더해지지 않고 `sub_`의 배경 항이 흡수한다. 그래서
+    `conv_`를 읽는 차영상 forced의 호스트 Poisson 항: 기본 `forced_photometry_sub`(고리 60″)는 호스트 플럭스에서 자기 고리 평균을 빼므로 상쇄되지만,
+    **`annulus_width_arcsec=None`에 `host_poisson=True`인 설정**(고리 없이 호스트 항만 쓰는 경우)에서는 상수 × 개구 면적이 `HOST_FLUX_APER_k`와
+    `FLUXERR`/`MAGERR`에 들어가 오차가 커진다(크기: V3 실측 후 기입). 0.7.12 값을 내는 설정(`host_poisson=False`)은 `conv_`를 읽지 않아 해당 없다.
+    빈 개구 소스 회피는 중앙값 기준이라 상수에 영향받지 않는다. 갤러리 `conv_` 패널은 그만큼 밝게 보인다.
+- `Subtract.subtract(target_stamp=...)`를 직접 주는 호출: `-ssf` 목록을 hotpants가 읽는 1-기반 subframe 픽셀로 쓴다(0.8.0까지 0-기반이라 stamp 중심이 1 px
+  어긋났다). `target_stamp` 파일의 뜻(전체 격자의 0-기반 픽셀, `Catalog.to_stamp` 출력)은 그대로다. dia·`find_transients`는 이제 목록을 주지 않으므로 해당 없다.
+- **재투영의 빈 곳: 0 → NaN**(`Reproject.reproject`·`ImageMethod.reproject` 기본 동작 — DIA의 science·reference 재투영(`Subtract.find_transients`,
+  `ImageMethod.DIA`, dia 레시피)과 stack의 프레임 재투영(`Stack`, stack 레시피) 모두). SWarp가 영상을 재표본화하며 쓰는 가중치 출력이 0 이하이거나
+  유한하지 않은 픽셀의 **영상 값**을 NaN으로 고쳐 쓴다(가중치 파일은 그대로, errormap 재투영 출력도 그대로, dtype 유지). 그런 픽셀은 주로 입력 영상이
+  덮지 않는 곳이지만, errormap 입력의 가중치가 0인 곳이나 `fill_zero_tonan`(기본 True)이 NaN으로 바꾼 입력의 0 덩어리(아래) 위치도 SWarp 가중치가 0이 되면 포함될 수 있다.
+  출력 영상이 실수형이 아니면(또는 가중치 출력이 없거나 shape가 다르면) 그 영상은 건너뛰고 경고한다.
+  0.8.0까지는 SWarp가 그 픽셀에 쓴 0이 그대로 남아, 빈 곳이 정상 데이터의 정확한 0(정수값 master bias·dark로 보정한 프레임)과 구별되지 않았다
+  (T08635 7DT11 m650 한 장: DIA `sci_`의 0 139,725개가 모두 가중치 0 위치, 가중치 0이면서 값이 0이 아닌 경계 픽셀 11,118개, NaN 0개).
+  끄려면 새 인자 `weight0_tonan=False`(아래 `### 추가`). 이 인자는 `Reproject.reproject`·`ImageMethod.reproject`를 직접 부를 때만 줄 수 있고,
+  DIA(`find_transients`·`ImageMethod.DIA`)·`Stack`·레시피에는 넘기는 통로가 없다(늘 켜짐).
+  - DIA: 재투영 science·reference를 자른 `sci_<name>`·`ref_<name>`의 빈 곳이 NaN이다. hotpants `-inim`/`-tmplim`에는 같은 폴더의 임시 사본
+    (`<subframe>.hotpantsin`·`<subframe reference>.hotpantsref`: NaN → 0, 같은 헤더)을 주고 실행 직후 지운다. 호출자가 넘긴 `target_img`·`reference_img`의
+    data를 더는 바꾸지 않는다(0.8.0은 subframe이 그 배열의 view라 그 배열의 NaN을 0으로 바꿨다).
+  - 무효 픽셀 마스크: `Reproject.reproject(return_ivpmask=True)`가 돌려주고 쓰는 `<재투영>.invalidmask`는 이제 재투영 영상이 유한하지 않은 픽셀(NaN·inf)만이다.
+    0.8.0은 `MaskGenerator.mask_invalidpixel`(NaN + 10만 px 넘게 이어진 0 영역)이었다. 그래서 정상 데이터의 큰 0 영역은 더 무효가 아니고, `weight0_tonan=False`면
+    빈 곳(0)이 마스크에 들어가지 않는다. DIA의 hotpants `-imi`/`-tmi` 마스크와 subframe 범위도 이 마스크에서 온다. 경로·헤더(`TGTPATH`, `MASKTYPE`)·
+    형식은 그대로다. `MaskGenerator.mask_invalidpixel` 자체는 바뀌지 않았다.
+  - **DIA 결과도 바뀔 수 있다**: 경계 픽셀(가중치 0인데 값 ≠ 0)이 무효(위 마스크가 NaN을 모두 무효로 봄)가 되어 subframe 범위
+    (`subframe_origin`)와 hotpants 입력·stamp 격자가 달라질 수 있고, 재투영 영상의 SExtractor 측광·`SKYVAL`/`SKYSIG`(hotpants `-ig`/`-tg`/`-tp`, 후보 기준)도
+    빈 곳이 NaN인 영상에서 계산된다. 그래서 `sub_*`·`conv_*` 픽셀, `KSUM00` 등 hotpants 지표, 후보·트랜지언트 카탈로그, 차영상 forced 값, 정규화 QA 열이
+    바뀔 수 있다. 크기(격리 HOME, T08635 7DT m650 3장, 이 변경 전 0.9.0 코드 대비): 3장 모두 성공, `sci_`의 빈 곳 NaN 약 14만 px(남은 0 픽셀 0),
+    `*.weight.fits`·임시 사본 0개, 무효 마스크와 subframe 원점 x +5 px(subframe 각 축 −5 px), 대상 `MAGSKY_APER_3` 변화 ≤ 0.0008 mag,
+    `MAGERR_APER_3` ≤ 0.0005, `KSUM00` ±0.0003, `UL5SKY_APER_3`·`noise_ratio` ±0.02(원점이 옮겨져 같은 시드의 빈 개구 위치가 바뀜),
+    `norm_resid` ≤ 0.0006. 이전 가중치 0에는 옛 `fill_zero_tonan`이 흩어진 입력 0마다 만든 구멍 약 1.1만 px가 들어 있었고 이제는 없다(아래).
+  - stack: 일부 프레임만 덮는 가장자리에서 덮지 않는 프레임의 0이 결합에 섞이지 않는다. 그러려면 결합이 NaN을 건너뛰어야 해서 `combine_patch`
+    (`Stack.stack_multiprocess`, `ImageSet.stack`, stack 레시피)를 픽셀마다 유한값만 쓰도록 바꿨다(그대로 두면 0.8.0의 `bn.median`이 NaN을 퍼뜨려
+    덮는 영역이 모든 프레임의 교집합으로 줄어든다). 결합 방식·기본값(레시피 median + extrema 1/1, `ImageSet.stack` median,
+    `Stack.stack_multiprocess` mean + 클립 없음)은 그대로다. `combine_patch`를 쓰는 `Combiner.combine_images_parallel`과
+    `Preprocess.generate_masterframe`(master bias·dark·flat, 기본 median + extrema)도 같은 규칙을 따른다(아래 mean 규칙은 mean을 고를 때).
+    - median: NaN을 무시하는 중앙값. 0.8.0의 median + `sigma` 클립은 클립된 값이 하나라도 있는 픽셀이 NaN이었다 — 이제 남은 값의 중앙값.
+    - mean: 클립 설정과 무관하게 늘 NaN을 무시하는 시그마 클립 평균(`sigma`, 기본 3; 유한값의 평균·표준편차로 |x − 평균| < sigma × 표준편차만 남김,
+      extrema를 함께 주면 extrema 뒤에 시그마). **모든 프레임이 덮는 곳에서도 mean 결과가 바뀐다**(의도). `Stack.stack_multiprocess`의 기본
+      (mean, 클립 없음)도 이제 시그마 클립 평균이다. 클립 없는 단순 평균이 필요하면 `sigma=np.inf`를 준다.
+    - extrema: 픽셀마다 유한값만 정렬해 아래 `nlow`·위 `nhigh`개를 버린다. 유한값이 `nlow + nhigh + 1`개보다 적으면 그 픽셀은 클립하지 않고 유한값을 모두 쓴다
+      (0.8.0은 모든 픽셀에서 같은 개수를 버렸다).
+    - 시그마 클립이 한 픽셀의 값을 모두 버리게 되면(표준편차 0, 값 하나) 그 픽셀의 유한값을 모두 쓴다(0.8.0은 NaN).
+    - weighted: 영상이 NaN인 프레임의 가중치를 합에서 뺀다(0.8.0은 그 가중치가 분모에 남아 값이 작아졌다). 가중치 합이 0인 픽셀은 0이 아니라 NaN.
+    - 결합 rms의 장수 N은 픽셀마다 결합에 쓴 유한값 수 n이다: mean √(Σσ²)/n, median nanmedian(σ)/√n(0.8.0은 전체 장수, extrema면 N − nlow − nhigh;
+      mean + sigma 클립은 클립된 장도 셌다). 결합에 쓴 값이 없는 픽셀(n = 0, 어떤 프레임도 덮지 않음)은 영상·rms 모두 NaN. 값의 inf도 NaN처럼 뺀다.
+    - 모든 프레임이 덮고 유한한 곳에서 median(클립 없음·extrema)·weighted·sum은 0.8.0과 같은 값이어야 한다. 단위 시험(`combine_patch`, N 3·5·8, 결합·클립 조합)에서
+      모든 장이 덮는 픽셀은 옛 코드와 영상·rms가 같았고, 가장자리는 덮는 장만으로 결합됐다(합성 40×40 띠 예: 유효 픽셀 옛 median 880 → 새 1360 px).
+      빅엔디언 입력·정수 합·inf 처리도 확인했다. 실제 스택의 가장자리 값 변화는 실측 없음(시험대 입력에 `.bkgrms` 사이드카가 없어 stack 레시피가
+      옛·새 모두 `AttributeError` — 이 변경 전부터 있던 문제).
+  - 바뀌는 기록: 차영상 헤더에서 hotpants가 쓰는 `TARGET`·`TEMPLATE` 카드와 `hotpants.json` `hotpants_command`의 `-inim`/`-tmplim`은 이제 실행 직후 지운
+    임시 사본(`*.hotpantsin`/`*.hotpantsref`)을 가리킨다(사이드카 `hotpants_inputs_note`가 그 사실을 적는다). `find_transients`·DIA 경로에서는 0.8.0에도
+    `sci_`/`ref_`로 이름이 바뀌기 전 subframe 경로라 남지 않는 파일이었지만, `Subtract.subtract`를 직접 부르면 0.8.0 카드는 남아 있는 subframe을
+    가리켰다. 같은 hotpants 명령을 다시 돌리려면 `sci_`/`ref_`(또는 남은 subframe)의 NaN을 0으로 채운 파일을 그 자리에 쓴다.
+  - **입력 쪽 `fill_zero_tonan`(기본 True, `PhotometryHelper.run_swarp`·`Reproject.reproject`·`ImageMethod.reproject`)은 이제 정확히 0인 픽셀 중
+    3×3 이상 모인 덩어리만 NaN으로 바꾼 사본을 SWarp에 준다**(`data == 0`을 3×3 정사각형으로 binary opening). 흩어진 0과 폭 3 px 미만의 선은 0 그대로다.
+    0.8.0은 모든 0을 NaN으로 바꿔, 흩어진 정상 0(정수값 master bias·dark로 보정한 7DT 단일 프레임에서 0.2–2.5 %)마다 출력에 SWarp 가중치 0 픽셀이
+    생겼고, 위 가중치 0 → NaN과 함께 NaN 구멍이 됐다(합성: 흩어진 0 2 % + 8×8 0 블록, 같은 격자 정수 이동 재투영에서 출력 가중치 0 픽셀
+    102,105 → 169(8×8 블록 주변만), 영상 값은 옛 = 새).
+    이제 그 0은 정상 데이터로 재표본화된다. 인자 이름·기본값은 그대로다. 정수형 입력(스케일 없음)은 이전처럼 NaN 대입에서 `ValueError`가 난다.
+  - 남지 않는 파일: errormap 없는 재투영(DIA science·reference 등)이 남기던 SWarp 가중치 출력 `coadd_*.weight.fits`(7DT 한 장 약 277 MB)는 NaN을
+    쓴 직후 지운다 — 빈 곳은 영상의 NaN과 invalidmask에 있다. `weight0_tonan=False`이거나 NaN 쓰기를 건너뛴 경우(경고)에는 이전처럼 남는다.
+  - **사용처 영향**: 재투영 출력·DIA `sci_`·`ref_`·스택 가장자리의 0을 빈 곳으로 읽던 코드는 `np.isfinite`로도 걸러야 한다(NaN과의 비교는 늘 거짓).
+    0.8.0 이하 산출물은 여전히 빈 곳이 0이다. DIA는 실행 중 subframe 크기 사본 두 개를 잠시 더 쓴다.
+### 추가
+- 차영상 사이드카 `sub_<name>.fits.hotpants.json`(`Subtract.subtract`, `save=True`일 때): `hotpants_command`(argv), `hotpants_inputs_note`(`-inim`/`-tmplim`이
+  저장 subframe의 NaN → 0 임시 사본이라는 설명), `hotpants_version`(헤더 `SOFTVERS`), `convim`,
+  `subframe_origin`(`x_min`, `y_min`: subframe 0-기반 픽셀 (i, j) = 전체 격자 (i + x_min, j + y_min)), `stamps`(`source` `auto`|`ssf`, `ssf_file`, `n_ssf`,
+  `used` = hotpants `-savexy`가 적은 실제 stamp 중심 — convim `t`면 1-기반 subframe 픽셀, hotpants 5.1.11은 convim `i`에서 1 px 크게 적는다 —, `box_px`),
+  `exclude`(`radius_arcsec`, `radius_pix`, `positions`: ra·dec·1-기반 subframe x·y·`n_pix`), `noise`(`ig`, `tg`, `tp`, `omitted`).
+  차영상 헤더 카드 `HPJSON`(사이드카 파일 이름), `HPSTAMP`, `HPNSTAMP`, `HPXMIN`, `HPYMIN`, `HPEXCLN`(원판이 subframe에 걸린 위치 수), `HPEXCLR`(″).
+  DIA의 정리 단계는 이 파일을 지우지 않는다. hotpants `-savexy` 임시 파일(`*.hotpants.xy`, `.all`, `.skipped`), 마스크 사본(`*.hotpantsmask`)과
+  입력 사본(`*.hotpantsin`, `*.hotpantsref`)은 실행 직후 지운다.
+  - 이유: 0.8.0 차감은 stamp 목록이 지워지고 명령도 남지 않아 재현할 수 없었다. 헤더 `DIFFCMD`는 hotpants 5.1.11에서 마지막 인자 하나만 담는다
+    (그래서 0.9.0 차영상의 `DIFFCMD`는 지워진 `-savexy` 경로다) — 명령은 사이드카에서 읽는다.
+  - **사용처 영향**: `sub_*` 옆에 파일 하나가 늘고 헤더 카드 7장이 늘어난다. `sub_*`를 지우거나 옮길 때 함께 다룬다. 차영상 하나에 마스크 사본 하나
+    (subframe 크기 int16, `.invalidmask`와 같은 크기)를 잠시 더 쓴다.
+- `PhotometryHelper.run_hotpants(..., ig=None, tg=None, tp=None, savexy=None)`(맨 끝): None이면 명령에 넣지 않으므로 기존 호출의 명령은 바이트 단위로 같다.
+  마지막 호출의 argv는 `last_hotpants_command` 속성에 남는다.
+- `Subtract.subtract(..., ig=None, tg=None, tp=None, exclude_coords=None, exclude_radius_arcsec=10.0, hotpants_notes=None)`(맨 끝),
+  `Subtract.find_transients(..., exclude_coords=None, exclude_radius_arcsec=10.0)`·`ImageMethod.DIA(..., exclude_coords=None, exclude_radius_arcsec=10.0)`(맨 끝),
+  `defaults.DIA`에 같은 이름의 키 `exclude_coords=None`, `exclude_radius_arcsec=10.0`(config `dia` 섹션으로 바꾼다).
+  `Subtract.subtract`는 이제 hotpants에 늘 `-savexy`를 준다(출력 전용 옵션, 계산에 영향 없음).
+- `Reproject.reproject(..., weight0_tonan=True)`·`ImageMethod.reproject(..., weight0_tonan=True)`(맨 끝): 위 `### 수치 변경`의 가중치 0 → NaN.
+  `False`면 0.8.0과 같은 출력. SWarp 가중치 출력이 없거나 영상과 shape가 다르거나 영상이 실수형이 아니면 그 영상은 건너뛰고 경고 한 줄
+  (`[Reproject] Warning: weight0_tonan skipped …`)을 출력한다.
+### 변경
+- `Subtract._prepare_subtract_region`(비공개)이 원소 하나(subframe 원점·마스크 사본·hotpants 입력 사본·제외 위치 dict)를 더 돌려주고, subframe의 NaN을 0으로 채우지 않는다.
+- `ScienceImage.remove`의 DIA 정리 skip 목록에 `*.hotpants.json`을 넣었다(`find_transients` 안, 차영상 두 곳).
+- 0.8.0 항목의 T08635 정규화 실패 3장 설명은 0.8.0 결과로 그대로 둔다(원인과 0.9.0 결과는 위 `### 수치 변경`).
+
 ## 0.8.0 (2026-11-16)
 ### 파괴적
 - dia(`ra`/`dec`를 준 실행): 차영상 헤더에 유한한 `ZP_APER_3`가 없으면 그 행은 이제 `success=False`, `step='apply_zp'`(오류 문구는 forced_photometry와 같음)이고

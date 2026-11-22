@@ -26,6 +26,26 @@ process_images/stack photometry that set the header ZP (stacks: the propagated b
 from the image in memory, without a source mask (sources only sigma-clipped, so it may differ from process_images);
 bkg_source / bkgrms_source say which.
 
+PSF (config forced_photometry_psf, defaults.FORCED_PHOTOMETRY_PSF; off by default, CLI --psf): after the aperture
+values, on images that are not difference images, PSFPhotometry.build_epsf (grid, model, poly_order, max_stars_total,
+snr_lower, snr_lower_fallback, recenter_iter; default model 'poly' of order <= 3 (order ladder) on the automatic tiling
+of grid 1; stars of the photcal section's catalog)
+-> psf_photometry at (ra, dec) and the reference stars of <img>.fits.refcat (same background map/bkgrms as the
+aperture photometry, then the local annulus by default; fit_radius_fwhm, background, weighting, recenter (default
+'offset': one smooth position offset of the image, from the position fits at S/N >= recenter_snr, added to the targets
+and the reference stars alike), recenter_snr, recenter_max_shift and the other psf_photometry arguments) -> calibrate_zp
+(ZP_PSF from those reference stars on MAG_PSF with the reference_stars rules above, also with calibrate='header').
+Writes <img>.fits.psf.cat (+ .info) next to the image only with a finite ZP_PSF; the header and the aperture catalog
+do not change. Summary columns only then: psf_catalog, psf_source (epsf | moffat | mixed), psf_model (build_epsf
+info 'psf_model', one per image: poly3 | poly2 | poly1 | grid | moffat), psf_nstars (fewest ePSF
+stars of a tile; model 'poly': stars of the fit, or with no usable polynomial order the usable stars of its
+grid-1 fallback), n_ref_psf, then
+per target MAGSKY_PSF, MAGERR_PSF, ZP_PSF, ZPERR_PSF, UL5SKY_PSF, CHI2_PSF, FLAG_PSF, DX_PSF, DY_PSF (px; recenter
+'offset': the offset applied at the target, 'each': its fitted move, NaN when not fitted; empty with recenter False)
+(psf_catalog only once the
+.psf.cat is written). A PSF failure fails the image's rows at step psf (a sub_ image), psf_refcat (no .refcat),
+psf_epsf, psf_photometry or psf_zp (no finite ZP_PSF or n_ref_psf 0); the aperture values stay in them.
+
 Products next to each image (its own folder, not the config archive layout): <img>.fits.circ.cat (+ .info), an ASCII
 table with X_WORLD/Y_WORLD and the per-aperture MAGSKY/MAGERR/ZP/ZPERR/UL5SKY_APER[_k] columns; with
 'reference_stars' also <img>.fits.circ.refcat. A second run on the same image overwrites them (a 'header' run leaves
@@ -44,7 +64,7 @@ Python:
 
 CLI (images: FITS paths and/or process_images/stack summary CSVs, whose successful rows are used):
     python -m ezphot.recipes.forced_photometry <image.fits | summary.csv> [...] --ra 76.3 [76.4 ...] \
-        --dec -68.0 [-68.1 ...] [--calibrate header|reference_stars] [--n-proc 4] [--out forced.csv]
+        --dec -68.0 [-68.1 ...] [--calibrate header|reference_stars] [--psf] [--n-proc 4] [--out forced.csv]
 """
 from __future__ import annotations
 
@@ -58,22 +78,31 @@ import pandas as pd
 
 from ezphot.dataobjects import Catalog
 from ezphot.imageobjects import ScienceImage
+from ezphot.methods import PSFPhotometry
 from ezphot.recipes import defaults as D
 from ezphot.recipes._common import NothingToDo
 from ezphot.recipes._progress import run_tasks
 from ezphot.recipes.stack import load_summary
 
-FORCED_CONFIG_KEYS = ('forced_photometry', 'forced_photometry_sub', 'photcal')
+FORCED_CONFIG_KEYS = ('forced_photometry', 'forced_photometry_sub', 'photcal', 'forced_photometry_psf')
 CALIBRATE = ('header', 'reference_stars')
 FORCED_KEYS = [f'{p}_{D.APER10_KEY}' for p in ('MAGSKY', 'MAGERR', 'ZP', 'ZPERR', 'UL5SKY')]
 ROW_KEYS = ('path', 'target', 'ra', 'dec', 'telname', 'filter', 'obsdate', 'exptime', 'calibrate', 'success', 'step',
             'error', 'n_ref', 'bkg_source', 'bkgrms_source', 'catalog')   # summary columns before FORCED_KEYS
 NOISE_KEYS = ['noise_ratio', 'host_source']   # summary columns after FORCED_KEYS (difference images), per target
+# Summary columns after NOISE_KEYS, only with forced_photometry_psf enabled: per image, then per target
+PSF_ROW_KEYS = ['psf_catalog', 'psf_source', 'psf_model', 'psf_nstars', 'n_ref_psf']
+PSF_KEYS = ['MAGSKY_PSF', 'MAGERR_PSF', 'ZP_PSF', 'ZPERR_PSF', 'UL5SKY_PSF', 'CHI2_PSF', 'FLAG_PSF', 'DX_PSF', 'DY_PSF']
 # Processing recipes make no figures. Forced catalogs have no MAG_AUTO (the photcal section's key): reference
 # stars are picked on the 10" aperture; photcal still fits the ZP of every aperture.
 RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False), 'forced_photometry_sub': {},
                    'photcal': dict(visualize=False, save_fig=False, magnitude_key=f'MAG_{D.APER10_KEY}',
-                                   magnitudeerr_key=f'MAGERR_{D.APER10_KEY}')}
+                                   magnitudeerr_key=f'MAGERR_{D.APER10_KEY}'),
+                   'forced_photometry_psf': {}}
+# photcal keys that PSFPhotometry.calibrate_zp sets itself
+PSF_ZP_FIXED = ('magnitude_key', 'magnitudeerr_key', 'update_header', 'save_image', 'save_refcat', 'save')
+# forced_photometry_psf keys for PSFPhotometry.build_epsf (the others go to psf_photometry)
+PSF_EPSF_KEYS = ('grid', 'model', 'poly_order', 'max_stars_total', 'snr_lower', 'snr_lower_fallback', 'recenter_iter')
 
 
 def _config(overrides: dict = None) -> dict:
@@ -128,14 +157,17 @@ def forced_image(target_img: ScienceImage,
                  clear: bool = True) -> List[dict]:
     """Forced photometry at every (ra, dec) on one image, in one call; one summary row per target.
     Processing errors do not raise (rows with success=False); bad arguments (config section, calibrate, ra/dec) do.
-    Sets target_img.savedir to the image's folder, where the .circ.cat is written."""
+    Sets target_img.savedir to the image's folder, where the .circ.cat (and with forced_photometry_psf the .psf.cat)
+    is written."""
     cfg = _config(config)
     if calibrate not in CALIBRATE:
         raise ValueError(f"calibrate must be one of {CALIBRATE}, got {calibrate!r}")
     ra, dec = _targets(ra, dec)
+    psf_cfg = dict(cfg['forced_photometry_psf'])
+    psf_on = bool(psf_cfg.pop('enabled', False))
     row = dict(dict.fromkeys(ROW_KEYS), path=str(target_img.path), calibrate=calibrate, success=False)
-    values = [dict.fromkeys(FORCED_KEYS + NOISE_KEYS) for _ in ra]
-    bkg = bkgrms = refcat = catalog = used = host_img = None
+    values = _empty_values(ra, psf_on)
+    bkg = bkgrms = refcat = catalog = used = host_img = psf_catalog = None
     try:
         row['step'] = 'load'   # header values that do not parse (DATE-OBS, EXPTIME) fail this image only
         row.update(telname=target_img.telname, filter=target_img.filter, obsdate=target_img.obsdate,
@@ -194,13 +226,56 @@ def forced_image(target_img: ScienceImage,
             for k in FORCED_KEYS:
                 if k in data.colnames:
                     v[k] = float(data[k][i])
+        if psf_on:   # after the aperture values: a failure here keeps them in the (failed) rows
+            row['step'] = 'psf'
+            if target_img.path.name.startswith('sub_'):
+                raise NotImplementedError("PSF photometry of a difference image needs the PSF and ZP_PSF of its science "
+                                          "image: PSFPhotometry.psf_photometry(psf=..., zp_psf=...)")
+            row['step'] = 'psf_refcat'
+            if refcat is None:
+                refcat = Catalog(target_img.savepath.refcatalogpath, catalog_type='reference', load=False,
+                                 target_img=target_img)
+            if not refcat.is_exists:
+                raise FileNotFoundError(f"no reference-star catalog {refcat.path} for ZP_PSF")
+            psfphot = PSFPhotometry()
+            row['step'] = 'psf_epsf'
+            epsf_kwargs = {k: psf_cfg.pop(k) for k in PSF_EPSF_KEYS if k in psf_cfg}
+            psf, psf_info = psfphot.build_epsf(target_img, **epsf_kwargs,
+                                               catalog_type=cfg['photcal']['catalog_type'],
+                                               catalog_version=cfg['photcal']['catalog_version'], verbose=False)
+            sources = set(np.asarray(psf_info['source']).ravel().tolist())
+            psf_row = dict(psf_source=sources.pop() if len(sources) == 1 else 'mixed', psf_model=psf_info['psf_model'],
+                           psf_nstars=int(np.min(psf_info['nstars'])))
+            row['step'] = 'psf_photometry'   # targets first, then the reference stars of ZP_PSF
+            psf_catalog = psfphot.psf_photometry(
+                target_img, np.concatenate([ra, np.asarray(refcat.data['X_WORLD'], dtype=float)]),
+                np.concatenate([dec, np.asarray(refcat.data['Y_WORLD'], dtype=float)]), psf=psf, psf_info=psf_info,
+                unit='coord', target_bkg=bkg, target_bkgrms=bkgrms, save=False, verbose=False, **psf_cfg)
+            row['step'] = 'psf_zp'
+            # ZP_PSF: the reference_stars rules (photcal section, no region cut, defaults.MAG_RANGE) on MAG_PSF
+            zp_kwargs = {k: v for k, v in cfg['photcal'].items() if k not in PSF_ZP_FIXED}
+            zp_kwargs.update(ra_deg=None, dec_deg=None, inner_fraction=1.0)
+            zp_kwargs['mag_lower'], zp_kwargs['mag_upper'] = D.MAG_RANGE.get(target_img.filter, D.MAG_RANGE_DEFAULT)
+            psf_catalog, zp_psf, _, psf_row['n_ref_psf'] = psfphot.calibrate_zp(target_img, psf_catalog, save=False,
+                                                                                **zp_kwargs)
+            for v in values:
+                v.update(psf_row)
+            if not np.isfinite(zp_psf) or psf_row['n_ref_psf'] == 0:   # no .psf.cat is written then
+                raise RuntimeError(f"no finite ZP_PSF: {psf_row['n_ref_psf']} reference stars")
+            psf_catalog.write(verbose=False)
+            data = psf_catalog.data
+            for i, v in enumerate(values):
+                v['psf_catalog'] = str(psf_catalog.path)   # only once written: empty in failed rows
+                for k in PSF_KEYS:
+                    if k in data.colnames:
+                        v[k] = int(data[k][i]) if k == 'FLAG_PSF' else float(data[k][i])
         row['success'] = True
         row['step'] = 'done'
     except Exception as e:
         row['error'] = f"{type(e).__name__}: {e}"
     finally:
         if clear:
-            for obj in (target_img, bkg, bkgrms, refcat, catalog, used, host_img):
+            for obj in (target_img, bkg, bkgrms, refcat, catalog, used, host_img, psf_catalog):
                 if obj is not None:
                     try:
                         obj.clear(verbose=False)
@@ -209,8 +284,12 @@ def forced_image(target_img: ScienceImage,
     return _target_rows(row, ra, dec, values)
 
 
-def _target_rows(row: dict, ra, dec, values: List[dict] = None) -> List[dict]:
-    values = values or [dict.fromkeys(FORCED_KEYS + NOISE_KEYS) for _ in ra]
+def _empty_values(ra, psf: bool = False) -> List[dict]:
+    return [dict.fromkeys(FORCED_KEYS + NOISE_KEYS + (PSF_ROW_KEYS + PSF_KEYS if psf else [])) for _ in ra]
+
+
+def _target_rows(row: dict, ra, dec, values: List[dict] = None, psf: bool = False) -> List[dict]:
+    values = values or _empty_values(ra, psf)
     return [dict(row, target=i, ra=float(r), dec=float(d), **v) for i, (r, d, v) in enumerate(zip(ra, dec, values))]
 
 
@@ -230,7 +309,7 @@ def _worker(args):
     except Exception as e:   # missing file, unreadable header, unknown telescope: failed rows, the run goes on
         row = dict(dict.fromkeys(ROW_KEYS), path=path, calibrate=calibrate, success=False, step='load',
                    error=f"{type(e).__name__}: {e}")
-        rows = _target_rows(row, ra, dec)
+        rows = _target_rows(row, ra, dec, psf=bool(_config(config)['forced_photometry_psf'].get('enabled')))
     else:
         rows = forced_image(target_img, ra, dec, calibrate, config, True)
     return dict(success=rows[0]['success'], rows=rows)   # one progress step per image
@@ -263,6 +342,9 @@ def forced_photometry(images: Union[str, Path, List],
     rows = [row for result in run_tasks(_worker, tasks, n_proc, out) for row in result['rows']]
     summary = pd.DataFrame(rows)
     summary['n_ref'] = summary['n_ref'].astype('Int64')   # integer also when failed rows (empty) are mixed in
+    for k in ('psf_nstars', 'n_ref_psf', 'FLAG_PSF'):   # forced_photometry_psf enabled
+        if k in summary.columns:
+            summary[k] = summary[k].astype('Int64')
     summary.to_csv(out, index=False)
     if verbose:
         n_ok = int(summary['success'].sum())
@@ -283,8 +365,12 @@ def main(argv=None):
     ap.add_argument('--calibrate', choices=CALIBRATE, default='header')
     ap.add_argument('--n-proc', type=int, default=4)
     ap.add_argument('--out', help='summary CSV path')
+    ap.add_argument('--psf', action='store_true',
+                    help='also forced PSF photometry (config forced_photometry_psf enabled; not for difference images)')
     a = ap.parse_args(argv)
-    summary = forced_photometry(a.images, a.ra, a.dec, calibrate=a.calibrate, n_proc=a.n_proc, out=a.out)
+    config = {'forced_photometry_psf': dict(enabled=True)} if a.psf else None
+    summary = forced_photometry(a.images, a.ra, a.dec, calibrate=a.calibrate, config=config, n_proc=a.n_proc,
+                                out=a.out)
     return 0 if summary['success'].all() else 1
 
 

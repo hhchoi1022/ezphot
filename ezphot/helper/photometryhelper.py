@@ -1760,9 +1760,22 @@ class PhotometryHelper(Configuration):
                      nsx: int = 10,
                      nsy: int = 10,
                      r: int = 10,
-                     ng: str = '3 6 0.70 4 1.50 2 3.00') -> str:
+                     ng: str = '3 6 0.70 4 1.50 2 3.00',
+                     ig: Optional[float] = None,
+                     tg: Optional[float] = None,
+                     tp: Optional[float] = None,
+                     savexy: Optional[Union[str, Path]] = None) -> str:
         """
         Run Hotpants for image subtraction.
+
+        ig, tg : gain (e-/ADU) of the input (target) and template (reference) image, hotpants -ig / -tg.
+        tp : ADU pedestal of the template, hotpants -tp (noise model only; with convim 't' hotpants adds kernel sum
+            x |tp| to the convolved template it writes with -oci).
+        savexy : file for hotpants -savexy: the stamp centres it used (ds9 box regions, 1-based pixels of the
+            -inim frame), plus <savexy>.all and <savexy>.skipped.
+        Each is left out of the command when None (hotpants defaults), so the command is unchanged without them.
+        The command (argv list) of the last call is kept in self.last_hotpants_command (the DIFFCMD card hotpants
+        5.1.11 writes holds only its last argument).
         """
         from pathlib import Path
 
@@ -1825,7 +1838,16 @@ class PhotometryHelper(Configuration):
         if stamp:
             stamp = Path(stamp)
             command.extend(['-ssf', str(stamp)])
+        if ig is not None:
+            command.extend(['-ig', str(ig)])
+        if tg is not None:
+            command.extend(['-tg', str(tg)])
+        if tp is not None:
+            command.extend(['-tp', str(tp)])
+        if savexy:
+            command.extend(['-savexy', str(Path(savexy))])
 
+        self.last_hotpants_command = list(command)
         self.print(f"RUN COMMAND: {' '.join(command)}", verbose)
         result = self.run_command(command, cwd = target_path.parent, timeout = 900)
         return True, target_outpath
@@ -2440,6 +2462,10 @@ class PhotometryHelper(Configuration):
             box_size: int = 512
             filter_size: int = 3
             
+            # fill_zero_tonan: bool = True — SWarp reads copies of the inputs in which exact 0 pixels that belong to a
+            # 3x3 (or larger) all-zero block (binary opening of data == 0 with a 3x3 square) are NaN; scattered zeros
+            # and lines thinner than 3 px stay 0. The inputs are only read. Integer data (not scaled) raise ValueError
+            # on the NaN assignment, as before.
             verbose: bool = True
             
             
@@ -2558,8 +2584,10 @@ class PhotometryHelper(Configuration):
             swarp_params['BACK_FILTERSIZE'] = filter_size 
         
         # Command to run SWARP
-        # fill_zero_tonan: SWarp reads 0 -> NaN copies of the inputs, written under the same file names (resampled outputs
-        # are named after them) to a unique temporary subdirectory of the output directory and removed afterwards.
+        # fill_zero_tonan: SWarp reads copies of the inputs with the exact-0 pixels of 3x3 or larger all-zero blocks set to
+        # NaN (empty areas; scattered zeros are valid data, e.g. raw - integer master bias - dark, and as NaN they would
+        # leave weight-0 holes about 5 px wide in the output), written under the same file names (resampled outputs are
+        # named after them) to a unique temporary subdirectory of the output directory and removed afterwards.
         # The input files are only read.
         tmp_dir = Path(tempfile.mkdtemp(prefix='.swarp_input_', dir=output_dir)) if fill_zero_tonan else None
         swarp_inputs = [tmp_dir / img.name for img in target_path] if fill_zero_tonan else target_path
@@ -2575,10 +2603,12 @@ class PhotometryHelper(Configuration):
         
         try:
             if fill_zero_tonan:
+                from scipy.ndimage import binary_opening
                 header_suffix = str(swarp_params.get('HEADER_SUFFIX', all_params.get('HEADER_SUFFIX', '.head')))
                 for path, copy_path in zip(target_path, swarp_inputs):
                     with fits.open(path) as image:
-                        image[0].data[image[0].data == 0] = np.nan
+                        zero_block = binary_opening(image[0].data == 0, structure = np.ones((3, 3), dtype = bool))
+                        image[0].data[zero_block] = np.nan
                         image.writeto(copy_path)   # no overwrite: two inputs with the same file name raise here
                     # SWarp also reads an external header <name><HEADER_SUFFIX> next to each image
                     external_header = Path(str(path.with_suffix('')) + header_suffix)

@@ -28,34 +28,60 @@ from ezphot.methods import Reproject
 from ezphot.methods import BackgroundGenerator
 #%%
 helper = Helper()
+def _sigma_clip_mask(stack, sigma):
+    """Per pixel, True for the finite values with |x - mean| < sigma x std (NaN-ignoring mean and std). Where that keeps
+    none (std 0, e.g. a single value), all finite values are kept."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning)   # pixels no frame covers (all NaN)
+        mean = np.nanmean(stack, axis=0)
+        std = np.nanstd(stack, axis=0)
+    keep = np.abs(stack - mean) < sigma * std
+    return np.where(keep.any(axis=0), keep, np.isfinite(stack))
+
 def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma=3.0, nlow=1, nhigh=1):
+    """Combine a tile of frames per pixel over the finite values only (a frame that does not cover a pixel is NaN there,
+    see Reproject.reproject weight0_tonan; inf counts as NaN). clip 'sigma': _sigma_clip_mask. clip 'extrema': drop the
+    nlow lowest and nhigh highest finite values of each pixel (all its finite values when fewer than nlow + nhigh + 1).
+    combine 'mean' is always a sigma-clipped mean (after the extrema clip if one is given). n = finite values left per
+    pixel: rms 'mean' sqrt(sum sigma_i^2) / n, 'median' nanmedian(sigma_i) / sqrt(n), 'weighted' sqrt(1 / sum w_i).
+    Pixels with n = 0 are NaN in the image and rms."""
     (i_start, i_end, j_start, j_end, tile_stack, bkgrms_stack) = patch_tuple
 
     if combine_method.lower() in ['weight', 'weighted'] and bkgrms_stack is None:
         raise ValueError("combine_method='weight' requires bkgrms_stack to be provided.")
+    if np.isinf(tile_stack).any():
+        tile_stack = np.where(np.isinf(tile_stack), np.nan, tile_stack)   # a copy: the tile may be shared memory
 
     # --- Clipping ---
     if clip_method is None or clip_method.lower() == 'none':
         clipped = tile_stack
         clipped_rms = bkgrms_stack
     elif clip_method.lower() == 'sigma':
-        mean = np.nanmean(tile_stack, axis=0)
-        std = np.nanstd(tile_stack, axis=0)
-        mask = np.abs(tile_stack - mean) < sigma * std
+        mask = _sigma_clip_mask(tile_stack, sigma)
         clipped = np.where(mask, tile_stack, np.nan)
-        clipped_rms = np.where(mask, bkgrms_stack, np.nan)
+        clipped_rms = np.where(mask, bkgrms_stack, np.nan) if bkgrms_stack is not None else None
     elif clip_method.lower() == 'extrema':
-        sorted_idx = np.argsort(tile_stack, axis=0)
-        valid_idx = sorted_idx[nlow:len(tile_stack) - nhigh]
+        sorted_idx = np.argsort(tile_stack, axis=0)   # NaN last
+        rank = np.arange(tile_stack.shape[0]).reshape(-1, 1, 1)
+        n_finite = np.isfinite(tile_stack).sum(axis=0)
+        keep = np.where(n_finite - nlow - nhigh >= 1, (rank >= nlow) & (rank < n_finite - nhigh), rank < n_finite)
 
         # Apply indices to both image and RMS
-        clipped = np.take_along_axis(tile_stack, valid_idx, axis=0)
+        clipped = np.where(keep, np.take_along_axis(tile_stack, sorted_idx, axis=0), np.nan)
         if bkgrms_stack is not None:
-            clipped_rms = np.take_along_axis(bkgrms_stack, valid_idx, axis=0)
+            clipped_rms = np.where(keep, np.take_along_axis(bkgrms_stack, sorted_idx, axis=0), np.nan)
         else:
             clipped_rms = None
     else:
         raise ValueError(f"Unknown clip_method: {clip_method}")
+    if combine_method.lower() == 'mean' and (clip_method is None or clip_method.lower() != 'sigma'):
+        mask = _sigma_clip_mask(clipped, sigma)
+        clipped = np.where(mask, clipped, np.nan)
+
+    valid = np.isfinite(clipped)
+    n = valid.sum(axis=0)
+    if clipped_rms is not None:
+        clipped_rms = np.where(valid, clipped_rms, np.nan)   # rms of the values combined only
 
     # -- Combine image ---
     if combine_method.lower() in ['weight', 'weighted']:
@@ -68,39 +94,42 @@ def combine_patch(patch_tuple, combine_method='mean', clip_method='sigma', sigma
         # Weighted average
         weighted_sum = np.nansum(clipped * weights, axis=0)
         weight_total = np.nansum(weights, axis=0)
-        combined = np.divide(weighted_sum, weight_total, out=np.zeros_like(weight_total), where=weight_total > 0)
+        combined = np.divide(weighted_sum, weight_total, out=np.full_like(weight_total, np.nan), where=weight_total > 0)
 
     elif combine_method.lower() == 'mean':
         combined = bn.nanmean(clipped, axis=0)
 
     elif combine_method.lower() == 'median':
-        combined = bn.median(clipped, axis=0)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', RuntimeWarning)   # all-NaN pixels (numpy fallback for non-native byte order)
+            combined = bn.nanmedian(clipped, axis=0)
 
     elif combine_method.lower() == 'sum':
         combined = np.nansum(clipped, axis=0)
 
     else:
         raise ValueError(f"Unknown combine_method: {combine_method}")
+    combined = np.where(n == 0, np.nan, combined)
     
     # --- Combine RMS ---
     if clipped_rms is not None:
-        N = clipped_rms.shape[0]
+        with np.errstate(invalid='ignore', divide='ignore'), warnings.catch_warnings():   # n = 0 -> NaN
+            warnings.simplefilter('ignore', RuntimeWarning)   # all-NaN pixels in np.nanmedian
+            if combine_method.lower() == 'mean':
+                # Combine assuming uncorrelated noise: ?_combined = sqrt(sum ?_i^2) / N
+                combined_rms = np.sqrt(np.nansum(clipped_rms**2, axis=0)) / n.astype(clipped_rms.dtype)
 
-        if combine_method.lower() == 'mean':
-            # Combine assuming uncorrelated noise: ?_combined = sqrt(sum ?_i^2) / N
-            combined_rms = np.sqrt(np.nansum(clipped_rms**2, axis=0)) / N
+            elif combine_method.lower() in ['weight', 'weighted']:
+                # Already computed weights in image combination block
+                # combined_rms = sqrt(1 / sum w_i)
+                combined_rms = np.sqrt(1.0 / np.where(weight_total > 0, weight_total, np.nan))
 
-        elif combine_method.lower() in ['weight', 'weighted']:
-            # Already computed weights in image combination block
-            # combined_rms = sqrt(1 / sum w_i)
-            combined_rms = np.sqrt(1.0 / np.where(weight_total > 0, weight_total, np.nan))
+            elif combine_method.lower() == 'median':
+                # Approximation for standard error of median: ?_combined ? 1.253 / sqrt(N) * median(?_i)
+                combined_rms = 1 / np.sqrt(n.astype(np.float64)) * np.nanmedian(clipped_rms, axis=0)
 
-        elif combine_method.lower() == 'median':
-            # Approximation for standard error of median: ?_combined ? 1.253 / sqrt(N) * median(?_i)
-            combined_rms = 1 / np.sqrt(N) * np.nanmedian(clipped_rms, axis=0)
-
-        else:
-            combined_rms = None
+            else:
+                combined_rms = None
     else:
         combined_rms = None
 
@@ -679,7 +708,8 @@ class Stack:
         n_proc : int
             The number of processes to use for the stacking.
         combine_type : str
-            The type of combination to use for the stacking.
+            The type of combination to use for the stacking. 'mean' is always a sigma-clipped mean (sigma), after
+            extrema if given; NaN/inf ignored per pixel.
         clip_type : str
             The type of clipping to use for the stacking. [sigma, extrema]
         sigma : float

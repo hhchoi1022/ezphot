@@ -235,7 +235,7 @@ For a science/reference file named `image.fits`, the save-path namespace defines
 | Generic/invalid/source/cosmic/bad-pixel/subtraction masks | `.mask`, `.invalidmask`, `.srcmask`, `.crmask`, `.bpmask`, `.submask` |
 | Background and noise | `.bkgmap`, `.bkgrms`, `.srcrms` |
 | Weights | `.bkgweight`, `.srcweight` |
-| Catalogs | `.cat`, `.psfcat`, `.refcat`, `.stampcat` |
+| Catalogs | `.cat`, `.refcat`, `.stampcat`; forced photometry `.circ.cat` (aperture), `.psf.cat` (PSF); `.psfcat` (`savepath.psfcatalogpath`, written only by the pre-0.10.0 PSFPhotometry) |
 | Aligned/combined/coadded | `align_`, `com_`, `coadd_` prefixes |
 | Scaled/convolved/subtracted/inverted | `scale_`, `conv_`, `sub_`, `inv_` prefixes |
 
@@ -307,7 +307,9 @@ catalog-based refinement. SCAMP application removes stale SIP keywords before
 installing the new TPV-style solution.
 
 `Reproject.align()` uses astroalign. `Reproject.reproject()` uses SWarp, can carry
-an error/weight map, and produces invalid-pixel masks for uncovered areas.
+an error/weight map, and produces invalid-pixel masks for uncovered areas. From
+0.9.0 it sets image pixels with SWarp output weight <= 0 (uncovered) to NaN instead
+of SWarp's 0 (`weight0_tonan=True`; DIA and stack reprojections both).
 
 ### Aperture and PSF photometry
 
@@ -316,10 +318,36 @@ photometry, and forced circular or elliptical apertures in pixel or sky
 coordinates. Inputs may include a background, RMS map, and mask. Outputs are
 `Catalog` objects.
 
-`PSFPhotometry` extracts sources, chooses isolated PSF stars, builds either an
-internal photutils ePSF or a PSFEx model, fits sources, applies aperture
-corrections, and can emit model/residual images. The internal ePSF path is marked
-as obsolete in code; the PSFEx path is the intended external-tool route.
+`PSFPhotometry` (rewritten in 0.10.0, exported from `ezphot.methods`) is forced
+PSF photometry at given positions. `build_epsf()` makes an empirical PSF from
+isolated, unsaturated Gaia stars of the image (stars whose box has a second
+peak, e.g. a neighbour, or with EGAIN a one-pixel spike above twice the mean
+of its 8 neighbours, e.g. a cosmic ray, are dropped; median of re-centred
+cut-outs, optionally per tile of an N x N or nx x ny grid, or with
+`model='poly'` a per-pixel polynomial (order 3 by default)
+in the position fitted to all stars of the whole image (no outlier rejection;
+per-star inverse-variance weights from an unweighted start, one refit) and
+evaluated at the tile centres; Moffat beta 3 fallback below 20 stars in a tile;
+for `'poly'` `poly_order` is the highest order: an order needs 5 x coefficients
+stars and a star in each of the 3 x 3 (order 3) or 2 x 2 (orders 2, 1) zones of
+the image, else the next lower order, else the single median ePSF
+(`info['psf_model']`); too few stars at `snr_lower` are re-selected at
+`snr_lower_fallback`; optional
+`recenter_iter` rounds of PSF-fitted star centres with the PSF first moment kept
+at the array centre),
+`effective_psf()` convolves a PSF with a filter kernel (e.g. a decorrelation
+filter of a difference image), `psf_photometry()` fits the PSF amplitude at fixed
+positions (local annulus background by default, uniform or inverse-variance
+weights, a given variance plane or bkgrms + Poisson; optional `recenter`:
+`'offset'` one smooth image offset from the position fits of the sources above
+an S/N, added to all positions (recipe default), or `'each'` per source;
+`DX_PSF`/`DY_PSF`, `FLAG_PSF` bit 16) and writes
+`<img>.fits.psf.cat` (0-based `X_IMAGE`/`Y_IMAGE`), and `calibrate_zp()` derives
+`ZP_PSF` from the image's reference stars with `photometric_calibration` on
+`MAG_PSF` without touching the header. The forced_photometry recipe runs it with
+the `forced_photometry_psf` config section (off by default; not for `sub_` images;
+default `model='poly'` of order 3 on the automatic tiling, `recenter='offset'`).
+The pre-0.10.0 class (SExtractor/photutils ePSF and PSFEx paths) is in git history.
 
 ### Photometric calibration
 
@@ -668,9 +696,6 @@ of writing this guide.
 - `ErrormapGenerator.calculate_sourcerms_from_propagation()` contains a malformed
   numexpr expression around the flat-field term (`/fcf mflat_map`). That path is
   expected to fail when evaluated.
-- `PSFPhotometry.build_epsf_model_psfex()` writes mask options into an undefined
-  `sex_params` variable instead of the local PSFEx SExtractor parameter mapping.
-  The failure is reached when a target mask is supplied.
 - `Errormap.target_img` imports `ScienceImage` from `tippy.imageobjects` instead of
   `ezphot.imageobjects`.
 - `skycatalog/conversion.py` defines `PANSTARRS1_to_SDSS` twice; the second
@@ -705,6 +730,7 @@ or configuration:
 ### Mutation and deletion hazards
 
 - `PhotometryHelper.run_swarp(fill_zero_tonan=True)` changes zero-valued pixels
+  (from 0.9.0 only those in 3x3 or larger all-zero blocks; scattered zeros stay 0)
   to NaN in same-name copies of the inputs, written to a temporary `.swarp_input_*`
   directory under the output directory and removed after SWarp; the inputs are only
   read. Versions up to 0.7.10 rewrote the inputs in place, so files processed by
