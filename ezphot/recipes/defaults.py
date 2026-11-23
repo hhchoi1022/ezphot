@@ -100,8 +100,14 @@ FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_em
 # (.refcat: positions measured on the image; PSF position fits of the sources at S/N >= 50) - a difference of centre
 # definition or coordinate round trip - added to every target and reference-star position alike (no S/N step between
 # sources). A WCS error of catalog-coordinate targets is in the reference-star positions too and is not corrected.
+# neighbors (off by default): the sources of the measured image's SExtractor catalog <img>.fits.cat (sub_: its own) are
+# fitted together with each target and reference star (psf_photometry neighbor_x/y, fixed 0-based X_IMAGE/Y_IMAGE,
+# FLUX_AUTO > 0, brightest max_neighbors (default 6) within the fit radius + 2 FWHM but the nearest within 1 FWHM, the
+# target's own detection, and those within 0.5 FWHM, not separable); extended ones (FWHM_IMAGE >
+# neighbor_extended_seeing x the header seeing in pixels) are not fitted, only flagged (FLAG_PSF 32).
 FORCED_PHOTOMETRY_PSF = dict(enabled=False, grid=1, model='poly', poly_order=3, fit_radius_fwhm=2.5,
-                             background='annulus', weighting='uniform', recenter='offset')
+                             background='annulus', weighting='uniform', recenter='offset',
+                             neighbors=False, neighbor_extended_seeing=1.5)
 
 # dia normalisation QA: norm_flag when |median 10" difference/science flux ratio of the field stars| exceeds this.
 DIA_NORM_RESID_MAX = 0.035

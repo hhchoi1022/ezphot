@@ -180,7 +180,8 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   제 위치를 맞추므로 기준성(밝음)과 어두운 대상의 처리가 달라 광도곡선이 S/N 50을 넘나들면 계단이 생긴다(한 광도곡선에서 섞지 않는다); False는 위치 고정.
   `calibrate_zp`는 `FLAG_PSF`로 기준성을 거르지 않는다) → `calibrate_zp`(그 기준성의 `MAG_PSF`에
   `reference_stars`와 같은 photcal 규칙: photcal 섹션, 영역 컷 없음, `defaults.MAG_RANGE`; `calibrate='header'`여도 이 방식)로 `ZP_PSF`를 구한다.
-  헤더·FITS·`.circ.cat`은 바꾸지 않는다. 섹션의 다른 키는 `psf_photometry` 인자로 넘어간다(`build_epsf` 인자는 `grid`·`model`·`poly_order`·`max_stars_total`·`snr_lower`·`snr_lower_fallback`·`recenter_iter`뿐).
+  헤더·FITS·`.circ.cat`은 바꾸지 않는다. 섹션의 다른 키는 `psf_photometry` 인자로 넘어간다(`build_epsf` 인자는 `grid`·`model`·`poly_order`·`max_stars_total`·`snr_lower`·`snr_lower_fallback`·`recenter_iter`뿐,
+  레시피의 이웃 목록 키는 `neighbors`·`neighbor_extended_seeing`뿐).
   격자·모형을 고르는 CLI 옵션은 없다(config로만).
   꺼져 있으면(기본) 열·파일·값 모두 0.9.0과 같다. dia는 이 섹션을 넘기지 않으므로 늘 꺼져 있다.
 - 차영상 PSF(0.12.1; 0.12.0까지는 `sub_`에 `--psf`를 주면 `step='psf'` 실패): `sub_<name>`이면 위 ePSF·기준성 측광·`ZP_PSF` 세 단계를 같은 폴더의
@@ -208,6 +209,23 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   - 차영상 `.psf.cat`(`sub_<name>.fits.psf.cat`)은 대상 행만 있고, `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 요청한 위치(차영상 WCS),
     `DX_PSF`/`DY_PSF`(PSF 영상에 `recenter`가 있을 때)는 적용한 오프셋, `FLAG_PSF` 비트 16은 PSF 영상 측광의 그 대상 비트 16, 메타 `PSF_IMAGE = …` 줄에 PSF 영상
     이름과 잡음비. PSF 영상의 측광표(대상 + 기준성)는 쓰지 않는다.
+- 이웃 동시 맞춤(Unreleased, 섹션 `neighbors`, **기본 꺼짐** `False`): 켜면 잰 영상 옆의 SExtractor 카탈로그 `<img>.fits.cat`(`savepath.catalogpath`;
+  `.circ.cat`·`.psf.cat`·`.refcat`이 아님)의 소스를 대상·기준성과 함께 맞춘다(`psf_photometry`의 `neighbor_x`/`neighbor_y` 등). 이웃 = `X_IMAGE`/`Y_IMAGE`
+  (0-based, 그 영상에서 잰 위치, 고정 — `recenter` 오프셋을 더하지 않는다)가 유한하고 `FLUX_AUTO` > 0인 소스 중 그 소스의 적합 위치에서 적합 픽셀 반경
+  + 2 FWHM 안인 것(1 FWHM 안에서 가장 가까운 하나는 소스 자신의 검출로 보고 뺀다 — 확장 소스여도 같고, 대상이 `.cat`에 검출되지 않았으면 1 FWHM 안에서
+  가장 가까운 다른 소스가 자기로 빠진다; 그 밖에 0.5 FWHM보다 가까운 소스는 분리되지 않는 거리라 맞추지도 플래그하지도 않는다(`.cat` 중복 항목·deblend 조각,
+  이웃 꺼짐과 같은 결과); 0.5–1 FWHM의 다른 소스는 이웃),
+  `FLUX_AUTO`가 밝은 순으로 `max_neighbors`(기본 6, 섹션에 줄 수 있음)개.
+  `FWHM_IMAGE` > `neighbor_extended_seeing`(기본 1.5) × 헤더 seeing(px)인 이웃은 확장 소스로 보고 맞추지 않으며 그 소스에 `FLAG_PSF` 비트 32를 세운다.
+  맞춤: 소스 + 이웃 진폭 + 배경(섹션 `background` 그대로)을 한 최소제곱으로, 적합 픽셀 = 소스와 맞춘 이웃의 적합 원 합집합(`NPIX_PSF`), Poisson 분산에
+  이웃 모형 포함, `FLUXERR_PSF`는 이웃과의 공분산을 담은 소스 오차. `NMASK_PSF`와 비트 2·4는 소스 자신의 적합 원 기준. 이웃 진폭은 쓰지 않는다.
+  목록에 없는 이웃은 플래그하지 않는다 — `CHI2_PSF`로 본다.
+  확장 판정은 실제 `.cat`에서 주로 어두운 소스(S/N < 10의 절반 안팎)에 걸려, 붐비는 필드에서 비트 32가 무작위 위치의 약 10 %에 선다 — `FLAG_PSF == 0`으로 거를 때 주의.
+  같은 밝기 이상의 이웃이 1.5 FWHM 안(1.5 FWHM 포함)이면 `FLUXERR_PSF`가 이웃 위치 오차를 담지 않아 실제 산포보다 작다. 크기는 CHANGELOG 6회차(Unreleased) 검증.
+  차영상은 `psf_sub` 단계에서 `sub_` 자신의 `.cat`(DIA가 쓴 양의 잔차 소스)으로 대상과 잡음비 빈 자리에만 쓰고, `sci_`/`conv_`의 `ZP_PSF` 기준성은 이웃 없이 잰다.
+  `.cat`이 없으면 경고 한 줄을 출력하고 이웃 없이 잰다(요약 `psf_neighbors='missing'`). 0.12.1과 같은 결과를 내려면 `neighbors=False`(기본).
+  `.cat`에 `X_IMAGE`·`Y_IMAGE`·`FLUX_AUTO`·`FWHM_IMAGE` 열이 없으면 그 PSF 단계(`psf_photometry`, 차영상은 `psf_sub`)가 실패한다(개구 값은 행에 남는다).
+  2025-07(`3e98510`) 전 ezphot이 쓴 `.cat`은 `X_IMAGE`/`Y_IMAGE`가 1-based라 이웃이 1 px 어긋난다 — 그런 `.cat`이면 다시 만든 뒤 쓴다.
   PSF 단계는 `target_mask`를 넘기지 않고 정확히 0인 픽셀을 정상 데이터로 쓰므로(무효는 NaN·inf와 0이 아닌 |값| < 1e-20), 빈 곳이 0인 영상(0.8.0 이하 DIA가
   쓴 `sci_` 등 — SWarp 가중치 0 영역; 0.9.0부터 재투영의 가중치 0 픽셀은 NaN)은 `--psf` 입력에 쓰지 않는다(그 0 영역이 데이터로 쓰인다).
 - 열(영상 × 타겟 한 행): `path`, `target`(ra/dec 안의 번호), `ra`, `dec`, `telname`, `filter`, `obsdate`, `exptime`, `calibrate`, `success`, `step`, `error`,
@@ -217,7 +235,8 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   `psf_nstars`(타일 중 가장 적은 ePSF 별 수 — 상자에 이웃 봉우리·뾰족점이 있는 별을 뺀 뒤; `model='poly'`는 적합에 쓴 별 수, 위 폴백이면 그 별 수), `n_ref_psf`(ZP_PSF 기준성 수), 타겟별 `MAGSKY_PSF`, `MAGERR_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL5SKY_PSF`,
   `CHI2_PSF`, `FLAG_PSF`, `DX_PSF`, `DY_PSF`(px; `recenter='offset'`이면 그 대상에 적용한 오프셋, `'each'`면 맞춘 이동으로 맞추지 않은 대상은 NaN; `recenter=False`면 빈 칸;
   차영상은 PSF 영상에서 잰 값)(4절 아래 `.psf.cat`), 0.12.1부터 그 뒤에 영상별 `psf_image`(`sci` | `conv`, 차영상의 PSF 영상)와 `noise_ratio_psf`(차영상 PSF 잡음비,
-  자리가 모자라면 빈 칸)(둘 다 차영상만, 그 밖은 빈 칸).
+  자리가 모자라면 빈 칸)(둘 다 차영상만, 그 밖은 빈 칸), Unreleased부터 그 뒤에 영상별 `psf_neighbors`(`cat` | `missing`)와 타겟별 `NNEIGHBOR_PSF`
+  (함께 맞춘 이웃 수, 정수)(둘 다 `neighbors`를 켰을 때만, 그 밖은 빈 칸).
 - 실패 표현: 한 영상의 타겟 행들은 `success`·`step`·`error`가 같다. 성공 판정은 두 방식 모두 카탈로그의 `ZP_APER_3`가 있고 유한한가이고,
   `reference_stars`는 `n_ref > 0`도 필요하다. 아니면 `success=False`이고 `step='apply_zp'`(header: 헤더에 `ZP_APER_3`가 없거나 유한하지 않음; dia도 같다) 또는 `step='photometric_calibration'`(reference_stars: 기준성 0개 등). 영상을 열 수 없으면 `step='load'`, refcat이 없으면 `step='refcat'`.
   `UL5SKY_APER_3`만 빈 칸이면 한계 등급을 구할 수 없었다는 뜻이고 성공은 그대로다. 99 같은 센티널은 쓰지 않는다(재지 못한 값은 NaN).
@@ -311,7 +330,7 @@ qa(summary, zperr_max=0.1, nref_min=10, seeing_max=5.0, depth_min=None, color_ma
 | --- | --- |
 | 파일 | `<img>.fits.psf.cat`(+ `.info`), forced_photometry에서는 원본 FITS와 같은 폴더. `PSFPhotometry.psf_photometry`를 직접 부르면 그 영상의 `savedir`(설정하지 않으면 config 아카이브 배치) |
 | 형식 | `.circ.cat`과 같은 ASCII 표, 맨 위 `#` 줄(표 meta `comments`)에 설정(PSF 크기·출처, 적합 반경, 배경 방식, 가중, 분산 모형, ZP_PSF 출처·`NREF_PSF`) |
-| 컬럼 | `X_IMAGE`/`Y_IMAGE`(**0-based**), `X_WORLD`/`Y_WORLD`(deg), `FLUX_PSF`/`FLUXERR_PSF`(ADU, PSF 배열 합 = 1로 정규화한 진폭 = 배열 안 총 플럭스), `MAG_PSF`/`MAGERR_PSF`(기기 등급, `FLUX_PSF` > 0일 때만), `UL3_PSF`/`UL5_PSF`, `BACKGROUND`(픽셀당 뺀/맞춘 국소 배경), `CHI2_PSF`(reduced), `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`(쓴 픽셀의 PSF 합), `FLAG_PSF`(비트 1 Moffat 폴백, 2 마스크·무효 픽셀, 4 영상 가장자리, 8 적합 없음 → 값 NaN, 16 `recenter`: `'offset'`이면 적용한 오프셋 > `recenter_max_shift`(기본 0.5 px) — 맞춤이 나쁘다는 뜻이 아닌 장 단위 경고로, 오프셋이 영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로 `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다; `'each'`면 이동 > `recenter_max_shift`이거나 위치 맞춤 실패), `recenter`일 때만 `DX_PSF`·`DY_PSF`(px; `'offset'`은 적용한 오프셋으로 모든 행에 값, `'each'`는 맞춘 위치 − 입력 위치로 맞추지 않은 소스 NaN; `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 값은 옮긴·맞춘 위치 것; 메타 `RECENTER = offset: …` 줄에 오프셋 계수·쓴 소스 수·잔차 rms), 보정 뒤 `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF` |
+| 컬럼 | `X_IMAGE`/`Y_IMAGE`(**0-based**), `X_WORLD`/`Y_WORLD`(deg), `FLUX_PSF`/`FLUXERR_PSF`(ADU, PSF 배열 합 = 1로 정규화한 진폭 = 배열 안 총 플럭스), `MAG_PSF`/`MAGERR_PSF`(기기 등급, `FLUX_PSF` > 0일 때만), `UL3_PSF`/`UL5_PSF`, `BACKGROUND`(픽셀당 뺀/맞춘 국소 배경), `CHI2_PSF`(reduced), `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`(쓴 픽셀의 PSF 합), `FLAG_PSF`(비트 1 Moffat 폴백, 2 마스크·무효 픽셀, 4 영상 가장자리, 8 적합 없음 → 값 NaN, 16 `recenter`: `'offset'`이면 적용한 오프셋 > `recenter_max_shift`(기본 0.5 px) — 맞춤이 나쁘다는 뜻이 아닌 장 단위 경고로, 오프셋이 영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로 `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다; `'each'`면 이동 > `recenter_max_shift`이거나 위치 맞춤 실패; 이웃을 켰을 때만 32 맞추지 않은 확장 이웃), 이웃을 켰을 때만 `NMASK_PSF` 뒤에 `NNEIGHBOR_PSF`(함께 맞춘 이웃 수; 이때 `NPIX_PSF`는 합집합 적합 픽셀, 메타 `NEIGHBORS = …` 줄), `recenter`일 때만 `DX_PSF`·`DY_PSF`(px; `'offset'`은 적용한 오프셋으로 모든 행에 값, `'each'`는 맞춘 위치 − 입력 위치로 맞추지 않은 소스 NaN; `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 값은 옮긴·맞춘 위치 것; 메타 `RECENTER = offset: …` 줄에 오프셋 계수·쓴 소스 수·잔차 rms), 보정 뒤 `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF` |
 | 값 | `FLUXERR_PSF`는 기본 분산 r²·bkgrms² + max(F·P, 0)/EGAIN(+ host)로 구한다. 소스 Poisson은 적합한 PSF 모형으로 계산하고 잘린 데이터를 쓰지 않으므로, 개구의 `calc_total_error`식 소스 항과 정의가 다르다(어두운 소스에서는 이 소스 항 때문에 개구 오차가 더 크다). 음수 플럭스를 그대로 둔다(등급은 NaN). 센티널 없음. `ZP_PSF`는 `ZP_APER_k`와 다른 값이다(PSF 진폭은 배열 안 총 플럭스): `MAGSKY_PSF`와 `MAGSKY_APER_3`를 섞지 않는다. `MAGERR_PSF`에 ZP 오차는 없다. `CHI2_PSF`는 PSF가 맞는 점광원이면 약 1이고 ≳ 3이면 확인해 볼 만하다(겹친 소스·퍼진 소스·PSF 불일치·위치 어긋남; 경험값이고 플래그가 아니다) |
 | 행 | 타겟, 그 뒤 기준성(차영상 `sub_<name>.fits.psf.cat`은 타겟만, 2절 forced_photometry 차영상 PSF). `.circ.cat`처럼 행 순서는 계약이 아니다 — 좌표로 매칭 |
 

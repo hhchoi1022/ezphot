@@ -342,7 +342,8 @@ with the amplitude within the fit radius (or `bkg_radius_fwhm`); uniform or
 inverse-variance weights, a given variance plane or bkgrms + Poisson; optional `recenter`:
 `'offset'` one smooth image offset from the position fits of the sources above
 an S/N, added to all positions (recipe default), or `'each'` per source;
-`DX_PSF`/`DY_PSF`, `FLAG_PSF` bit 16) and writes
+`DX_PSF`/`DY_PSF`, `FLAG_PSF` bit 16; optional neighbours at fixed 0-based positions
+fitted together over the union of fit circles, `NNEIGHBOR_PSF`, bit 32) and writes
 `<img>.fits.psf.cat` (0-based `X_IMAGE`/`Y_IMAGE`), and `calibrate_zp()` derives
 `ZP_PSF` from the image's reference stars with `photometric_calibration` on
 `MAG_PSF` without touching the header. The forced_photometry recipe runs it with

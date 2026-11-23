@@ -4,6 +4,7 @@ from typing import Union, Optional
 
 import numpy as np
 from scipy import ndimage, signal
+from scipy.spatial import cKDTree
 from astropy.table import Table, vstack, unique
 from astropy.coordinates import SkyCoord
 from astropy.stats import SigmaClip, mad_std
@@ -27,6 +28,7 @@ FLAG_EDGE = 4       # the fit radius crosses the image edge
 FLAG_FAILED = 8     # no fit: position not finite or off the image, background not finite, too few usable pixels
 FLAG_RECENTER = 16  # psf_photometry recenter: the position fit moved more than recenter_max_shift, or failed
 #                     ('offset': the applied offset exceeds recenter_max_shift, an image-level warning, not a bad fit)
+FLAG_NEIGHBOR_EXT = 32   # psf_photometry neighbours: an extended neighbour (neighbor_extended) nearby, not fitted
 
 # build_epsf model='poly' with grid 1: evaluation tiles of about this size (pixels) along x and y
 _POLY_TILE_PIXEL = 512
@@ -42,6 +44,12 @@ _EPSF_RECENTER_LIMIT = 1.0
 _OFFSET_MIN_PLANE = 10
 _OFFSET_MIN_CONST = 3
 _OFFSET_CLIP = 3.0
+# psf_photometry neighbours: the neighbour_x/y sources within the fit-pixel radius + _NEIGHBOR_RADIUS_FWHM x FWHM of a
+# source are fitted with it, except the nearest one within _NEIGHBOR_SELF_FWHM x FWHM (the source's own detection) and
+# any closer than _NEIGHBOR_MIN_FWHM x FWHM (not separable: duplicate entries, deblending pieces)
+_NEIGHBOR_RADIUS_FWHM = 2.0
+_NEIGHBOR_SELF_FWHM = 1.0
+_NEIGHBOR_MIN_FWHM = 0.5
 
 # build_epsf star cuts on the sky-subtracted star box (FWHM = header seeing):
 # second peak: a local maximum of the box smoothed with a Gaussian of the FWHM, 1.5 FWHM < r <= R + 11 from the star
@@ -211,7 +219,7 @@ class PSFPhotometry:
     2. Effective PSF of a filtered image: the PSF convolved with the filter kernel (effective_psf).
 
     3. Forced PSF photometry at fixed positions: linear least-squares fit of the PSF amplitude (psf_photometry),
-       catalog <img>.fits.psf.cat.
+       optionally together with neighbours at given fixed positions, catalog <img>.fits.psf.cat.
 
     4. PSF zero point ZP_PSF from the reference stars of the image (calibrate_zp).
 
@@ -826,7 +834,12 @@ class PSFPhotometry:
                        recenter: Union[bool, str] = False,
                        recenter_snr: float = 50.0,
                        recenter_max_shift: float = 0.5,
-                       bkg_radius_fwhm: float = None):
+                       bkg_radius_fwhm: float = None,
+                       neighbor_x: Union[list, np.ndarray] = None,
+                       neighbor_y: Union[list, np.ndarray] = None,
+                       neighbor_flux: Union[list, np.ndarray] = None,
+                       neighbor_extended: Union[list, np.ndarray] = None,
+                       max_neighbors: int = 6):
         """
         Forced PSF photometry: at each fixed position, a linear least-squares fit of the PSF amplitude, i.e. the total
         flux of the PSF array (normalised to sum 1 after the sub-pixel shift).
@@ -870,6 +883,22 @@ class PSFPhotometry:
         move of more than recenter_max_shift px keeps the fitted-position values and sets FLAG_PSF bit 16; a failed
         position fit keeps the input-position values, DX_PSF/DY_PSF NaN and bit 16. Sources below recenter_snr (or
         without a fit): DX_PSF/DY_PSF NaN.
+
+        Neighbours (neighbor_x, neighbor_y given; off by default): other sources (e.g. the image's own SExtractor
+        catalog, 0-based X_IMAGE/Y_IMAGE) at fixed positions (recenter offsets are not added to them) are fitted
+        together with a source. Per source (at its fit position): the given positions within the fit-pixel radius + 2
+        FWHM of it except the nearest one within 1 FWHM (taken as the source's own detection, extended or not; if the
+        source itself is not in the list, the nearest other source within 1 FWHM is dropped so) and any other closer
+        than 0.5 FWHM (not separable: left out, neither fitted nor flagged; between 0.5 and 1 FWHM they are neighbours);
+        extended ones (neighbor_extended) are not fitted and set FLAG_PSF bit 32; of the others the max_neighbors
+        brightest (neighbor_flux; without it the nearest) get a PSF column (the PSF at their position, sub-pixel
+        shifted, sum 1) in the same linear fit, after the background terms, with their own fitted amplitudes (not
+        written out; NNEIGHBOR_PSF counts them). Fit pixels: the union of the fit circles (fit-pixel radius) of the
+        source and its fitted neighbours (NPIX_PSF; CHI2_PSF counts the neighbour amplitudes as fitted parameters);
+        NMASK_PSF and bits 2 and 4 stay those of the source's own circle; the default variance's Poisson term uses the
+        source and neighbour models; FLUXERR_PSF is the source's marginal error (neighbour covariance included). With
+        recenter 'each' the neighbour columns stay at their positions in the position fit; with 'offset' the first pass
+        fits them too. A source missing from the list shows in CHI2_PSF. Without neighbours the results do not change.
 
         Background (the data minus target_bkg first, when given):
             'annulus' (default): minus the 5-sigma-clipped mean (5 iterations) of an annulus around the position
@@ -966,6 +995,16 @@ class PSFPhotometry:
             array (P = 0) constrain the background only. NPIX_PSF, NMASK_PSF, FLAG_PSF bits 2 and 4 and the position
             fit of recenter use these pixels; the recenter move limit stays the fit radius. None (default):
             fit_radius_fwhm (the same results as without it).
+        neighbor_x, neighbor_y : array-like, optional
+            0-based pixel positions of other sources on target_img (whatever unit) to fit with each source (see
+            Neighbours above). None (default): no neighbours, the results as without them. Non-finite positions are
+            dropped.
+        neighbor_flux : array-like, optional
+            Brightness of those sources (e.g. FLUX_AUTO), for choosing the max_neighbors brightest; None: the nearest.
+        neighbor_extended : array-like of bool, optional
+            True for an extended source: not fitted, FLAG_PSF bit 32 on the sources near it. None: all point sources.
+        max_neighbors : int, optional
+            Neighbours fitted per source at most. Defaults to 6.
 
         Returns
         -------
@@ -981,7 +1020,8 @@ class PSFPhotometry:
             weight 0, 4 image edge, 8 no fit: the values NaN ('plane': also when the used pixels span fewer than 2
             columns or rows), 16 recenter: moved > recenter_max_shift or position fit
             failed; 'offset': applied offset > recenter_max_shift, an image-level warning on many rows at once, see
-            above), with recenter also DX_PSF, DY_PSF (px).
+            above; with neighbours 32 an extended neighbour not fitted), with recenter also DX_PSF, DY_PSF (px), with
+            neighbours NNEIGHBOR_PSF (neighbours fitted, after NMASK_PSF).
             The table meta 'comments' (written as '#' lines) records the settings.
         """
         if background not in ('annulus', 'fit', 'plane', 'none'):
@@ -1009,6 +1049,32 @@ class PSFPhotometry:
         pix_radius = fit_radius if bkg_radius_fwhm is None else bkg_radius_fwhm * fwhm
         Rb = max(R, int(np.floor(pix_radius + 0.5)))
         pad = Rb - R
+
+        # Neighbours (0-based pixel positions of other sources, fixed): fitted with a source within nb_radius of it
+        nb_on = neighbor_x is not None
+        nb_tree = None
+        if nb_on:
+            if neighbor_y is None:
+                raise ValueError("neighbor_x needs neighbor_y")
+            nb_x = np.atleast_1d(np.asarray(neighbor_x, dtype=float))
+            nb_y = np.atleast_1d(np.asarray(neighbor_y, dtype=float))
+            nb_ext = (np.zeros(nb_x.shape, dtype=bool) if neighbor_extended is None
+                      else np.atleast_1d(np.asarray(neighbor_extended, dtype=bool)))
+            nb_flux = None if neighbor_flux is None else np.atleast_1d(np.asarray(neighbor_flux, dtype=float))
+            if (nb_x.ndim != 1 or nb_y.shape != nb_x.shape or nb_ext.shape != nb_x.shape
+                    or (nb_flux is not None and nb_flux.shape != nb_x.shape)):
+                raise ValueError("neighbor_x, neighbor_y (and neighbor_flux, neighbor_extended) need the same length")
+            if int(max_neighbors) != max_neighbors or max_neighbors < 0:
+                raise ValueError(f"max_neighbors must be an int >= 0, got {max_neighbors!r}")
+            ok = np.isfinite(nb_x) & np.isfinite(nb_y)
+            nb_x, nb_y, nb_ext = nb_x[ok], nb_y[ok], nb_ext[ok]
+            nb_flux = None if nb_flux is None else nb_flux[ok]
+            nb_radius, nb_self = pix_radius + _NEIGHBOR_RADIUS_FWHM * fwhm, _NEIGHBOR_SELF_FWHM * fwhm
+            nb_min = _NEIGHBOR_MIN_FWHM * fwhm
+            if len(nb_x):
+                nb_tree = cKDTree(np.column_stack([nb_x, nb_y]))
+        nb_kwargs = dict(neighbor_x=neighbor_x, neighbor_y=neighbor_y, neighbor_flux=neighbor_flux,
+                         neighbor_extended=neighbor_extended, max_neighbors=max_neighbors)
 
         # Data, invalid pixels (judged before any background subtraction) and mask
         raw = self.helper.to_native(target_img.data)
@@ -1063,7 +1129,7 @@ class PSFPhotometry:
                 target_bkgrms=target_bkgrms, target_mask=target_mask, variance=variance, noise_ratio=noise_ratio,
                 host_img=host_img, background=background, annulus_radii_arcsec=annulus_radii_arcsec,
                 fit_radius_fwhm=fit_radius_fwhm, weighting=weighting, save=False, verbose=False, recenter='each',
-                recenter_snr=recenter_snr, bkg_radius_fwhm=bkg_radius_fwhm).data
+                recenter_snr=recenter_snr, bkg_radius_fwhm=bkg_radius_fwhm, **nb_kwargs).data
             off_x, off_y, n_off, n_meas, off_rms = _offset_model(x_pix, y_pix, np.asarray(measured['DX_PSF']),
                                                                  np.asarray(measured['DY_PSF']), raw.shape)
             if n_off == 0:
@@ -1112,15 +1178,28 @@ class PSFPhotometry:
         if psf.ndim == 4:
             txc, tyc, _, _ = _tiles(raw.shape, (psf.shape[1], psf.shape[0]))
         dxy = np.full((2, nsrc), np.nan)   # recenter: fitted offset from the input position (px)
+        nneigh = np.zeros(nsrc, dtype=int)   # neighbours fitted with each source
 
-        def flux_fit(P, D, W, Vw, B):
-            """Weighted linear fit of D = F P (+ B @ c, background columns B): theta, V, cov, cov_bkg, resid
-            (LinAlgError when singular)."""
+        def psf_at(x, y):
+            """The (unshifted) PSF at (x, y): tiles blended with tent weights."""
+            if psf.ndim == 2:
+                return psf
+            return np.einsum('j,i,jimn->mn', _tent_weights(y, tyc), _tent_weights(x, txc), psf)
+
+        def flux_fit(P, D, W, Vw, B, N=None):
+            """Weighted linear fit of D = F P (+ B @ c, background columns B) (+ N @ f, neighbour PSF columns N, last):
+            theta, V, cov, cov_bkg, resid (LinAlgError when singular)."""
             X = np.column_stack([P, B]) if B is not None else P[:, None]
+            if N is not None:
+                X = np.column_stack([X, N])
             Minv = np.linalg.inv(X.T @ (W[:, None] * X))
             theta = Minv @ (X.T @ (W * D))
             # Source Poisson from the fitted model: clipping the noisy data at 0 would bias V up for faint sources
-            V = Vw if variance is not None else Vw + np.clip(theta[0] * P, 0, None) / egain
+            if N is None:
+                V = Vw if variance is not None else Vw + np.clip(theta[0] * P, 0, None) / egain
+            else:   # the neighbours' fitted models too
+                V = Vw if variance is not None else Vw + np.clip(theta[0] * P + N @ theta[-N.shape[1]:], 0,
+                                                                 None) / egain
             cov = Minv @ (X.T @ ((W ** 2 * V)[:, None] * X)) @ Minv
             cov_bkg = Minv @ (X.T @ ((W ** 2 * Vw)[:, None] * X)) @ Minv
             return theta, V, cov, cov_bkg, D - X @ theta
@@ -1145,31 +1224,53 @@ class PSFPhotometry:
             p0 = p   # unshifted, for recenter
             p = ndimage.shift(p, (dy, dx), order=3, mode='constant')
             p = p / p.sum()
-            if pad:   # pixels beyond the PSF array: P = 0
-                p = np.pad(p, pad)
+            # Neighbours of this source (within nb_radius but the nearest within nb_self, its own detection, and those
+            # closer than nb_min; extended ones only flagged), the brightest (or nearest) max_neighbors; the stamp
+            # (half-width Rk) grows to hold their PSF arrays
+            sel = []
+            if nb_tree is not None:
+                near = np.asarray(nb_tree.query_ball_point([x_pix[k], y_pix[k]], nb_radius), dtype=int)
+                dist = np.hypot(nb_x[near] - x_pix[k], nb_y[near] - y_pix[k])
+                if len(near) and dist.min() <= nb_self:   # extended or not: that one is the source itself
+                    near = np.delete(near, np.argmin(dist))
+                near = near[np.hypot(nb_x[near] - x_pix[k], nb_y[near] - y_pix[k]) >= nb_min]   # closer: not separable
+                if nb_ext[near].any():
+                    flags[k] |= FLAG_NEIGHBOR_EXT
+                near = near[~nb_ext[near]]
+                order = (np.argsort(-nb_flux[near], kind='stable') if nb_flux is not None else
+                         np.argsort(np.hypot(nb_x[near] - x_pix[k], nb_y[near] - y_pix[k]), kind='stable'))
+                sel = near[order][:int(max_neighbors)]
+                nneigh[k] = len(sel)
+            Rk, xk, yk = Rb, xx, yy
+            if len(sel):
+                Rk = Rb + int(np.ceil(np.max(np.abs(np.concatenate([nb_x[sel] - x_pix[k], nb_y[sel] - y_pix[k]]))))) + 1
+                yk, xk = np.indices((2 * Rk + 1, 2 * Rk + 1))
+            padk, nbox = Rk - R, 2 * Rk + 1
+            if padk:   # pixels beyond the PSF array: P = 0
+                p = np.pad(p, padk)
 
             # Stamp around (xi, yi); pixels off the image are invalid
-            x0, y0 = xi - Rb, yi - Rb
-            sx = slice(max(x0, 0), min(x0 + n_box, nx))
-            sy = slice(max(y0, 0), min(y0 + n_box, ny))
+            x0, y0 = xi - Rk, yi - Rk
+            sx = slice(max(x0, 0), min(x0 + nbox, nx))
+            sy = slice(max(y0, 0), min(y0 + nbox, ny))
             ix = slice(sx.start - x0, sx.stop - x0)
             iy = slice(sy.start - y0, sy.stop - y0)
-            inside = np.zeros((n_box, n_box), dtype=bool)
+            inside = np.zeros((nbox, nbox), dtype=bool)
             inside[iy, ix] = True
-            d = np.zeros((n_box, n_box))
+            d = np.zeros((nbox, nbox))
             d[iy, ix] = data[sy, sx]
-            b = np.ones((n_box, n_box), dtype=bool)
+            b = np.ones((nbox, nbox), dtype=bool)
             b[iy, ix] = bad[sy, sx]
-            vw = np.full((n_box, n_box), np.nan)
+            vw = np.full((nbox, nbox), np.nan)
             if variance is not None:
                 vw[iy, ix] = variance[sy, sx]
             else:
                 vw[iy, ix] = ratio2 * np.asarray(bkgrms[sy, sx], dtype=float) ** 2
                 if host is not None:
-                    hv = np.zeros((n_box, n_box))
+                    hv = np.zeros((nbox, nbox))
                     hv[iy, ix] = host[sy, sx]
                     vw = vw + np.clip(hv - host_local[k], 0, None) / egain
-            footprint = np.hypot(xx - Rb - dx, yy - Rb - dy) <= pix_radius
+            footprint = np.hypot(xk - Rk - dx, yk - Rk - dy) <= pix_radius
             with np.errstate(invalid='ignore'):
                 good = footprint & ~b & np.isfinite(vw) & (vw > 0)
             nmask[k] = int((footprint & ~good).sum())
@@ -1177,9 +1278,23 @@ class PSFPhotometry:
                 flags[k] |= FLAG_MASKED
             if (footprint & ~inside).any():
                 flags[k] |= FLAG_EDGE
+            n_own, N = int(good.sum()), None   # NMASK_PSF, bits 2 and 4: the source's own fit circle
+            if len(sel):   # neighbour PSF stamps; fit pixels = the union of the fit circles of the source and them
+                N = np.zeros((len(sel), nbox, nbox))
+                union = footprint.copy()
+                for j, n in enumerate(sel):
+                    xn, yn = int(np.round(nb_x[n])), int(np.round(nb_y[n]))
+                    pn = ndimage.shift(psf_at(nb_x[n], nb_y[n]), (nb_y[n] - yn, nb_x[n] - xn), order=3,
+                                       mode='constant')
+                    cy, cx = Rk + yn - yi, Rk + xn - xi
+                    N[j, cy - R:cy + R + 1, cx - R:cx + R + 1] = pn / pn.sum()
+                    union |= np.hypot(xk - Rk - (nb_x[n] - xi), yk - Rk - (nb_y[n] - yi)) <= pix_radius
+                with np.errstate(invalid='ignore'):
+                    good = union & ~b & np.isfinite(vw) & (vw > 0)
             npix_used[k] = int(good.sum())
-            if (npix_used[k] <= n_par or not np.isfinite(local[k]) or not np.isfinite(host_local[k])
-                    or (background == 'plane' and (np.ptp(xx[good]) == 0 or np.ptp(yy[good]) == 0))):
+            if (npix_used[k] <= n_par + len(sel) or n_own <= n_par or not np.isfinite(local[k])
+                    or not np.isfinite(host_local[k])
+                    or (background == 'plane' and (np.ptp(xk[good]) == 0 or np.ptp(yk[good]) == 0))):
                 # ('plane': pixels in one column or row make the x or y term a multiple of the constant)
                 flags[k] |= FLAG_FAILED
                 continue
@@ -1192,27 +1307,30 @@ class PSFPhotometry:
             if background == 'fit':
                 B = np.ones_like(P)[:, None]
             elif background == 'plane':
-                B = np.column_stack([np.ones_like(P), (xx - Rb - dx)[good], (yy - Rb - dy)[good]])
+                B = np.column_stack([np.ones_like(P), (xk - Rk - dx)[good], (yk - Rk - dy)[good]])
+            Ng = None if N is None else N[:, good].T   # neighbour columns, after the background ones
             try:
-                theta, V, cov, cov_bkg, resid = flux_fit(P, D, W, Vw, B)
+                theta, V, cov, cov_bkg, resid = flux_fit(P, D, W, Vw, B, Ng)
             except np.linalg.LinAlgError:
                 flags[k] |= FLAG_FAILED
                 continue
-            dof = npix_used[k] - n_par
-            if (mode == 'each' and npix_used[k] > n_par + 2 and cov[0, 0] > 0
+            dof = npix_used[k] - n_par - len(sel)
+            if (mode == 'each' and npix_used[k] > n_par + len(sel) + 2 and cov[0, 0] > 0
                     and theta[0] / np.sqrt(cov[0, 0]) >= recenter_snr):
-                # position fit with the same PSF, pixels and weights; then the linear fit above at that position
-                w_fit = np.zeros((n_box, n_box))
+                # position fit with the same PSF, pixels and weights (neighbours as fixed-position linear columns);
+                # then the linear fit above at that position
+                w_fit = np.zeros((nbox, nbox))
                 w_fit[good] = W
-                fit = _fit_shift(d - local[k], p0, w_fit, dx, dy, bkg=B, limit=fit_radius)
+                lin = B if Ng is None else (Ng if B is None else np.column_stack([B, Ng]))
+                fit = _fit_shift(d - local[k], p0, w_fit, dx, dy, bkg=lin, limit=fit_radius)
                 if fit is not None:
                     p1 = ndimage.shift(p0, (fit[1], fit[0]), order=3, mode='constant')
                     p1 = p1 / p1.sum()
-                    P1 = (np.pad(p1, pad) if pad else p1)[good]
+                    P1 = (np.pad(p1, padk) if padk else p1)[good]
                     if background == 'plane':   # C at the fitted position
                         B = B - np.array([0.0, fit[0] - dx, fit[1] - dy])
                     try:
-                        theta, V, cov, cov_bkg, resid = flux_fit(P1, D, W, Vw, B)
+                        theta, V, cov, cov_bkg, resid = flux_fit(P1, D, W, Vw, B, Ng)
                         P, dof = P1, dof - 2
                         dxy[:, k] = fit[0] - dx, fit[1] - dy
                     except np.linalg.LinAlgError:   # keep the input-position fit
@@ -1254,6 +1372,8 @@ class PSFPhotometry:
         results['CHI2_PSF'] = cols['CHI2_PSF']
         results['NPIX_PSF'] = npix_used
         results['NMASK_PSF'] = nmask
+        if nb_on:
+            results['NNEIGHBOR_PSF'] = nneigh
         results['PSF_EE'] = cols['PSF_EE']
         if mode == 'offset':   # the applied offset, for every source
             dxy = offset
@@ -1285,6 +1405,14 @@ class PSFPhotometry:
             'VARIANCE = ' + ('given' if variance is not None else
                              f'bkgrms^2 x {ratio2:.4f} + Poisson' + (' + host' if host is not None else '')),
         ]
+        if nb_on:
+            results.meta['comments'].append(
+                f'NEIGHBORS = {len(nb_x)} given positions (0-based px, fixed, not moved by recenter): those within '
+                f'{nb_radius:.2f} px of a source but the nearest within {nb_self:.2f} px (its own detection) and '
+                f'those within {nb_min:.2f} px (not separable) fitted with it, up to {int(max_neighbors)} '
+                f'({"brightest neighbor_flux" if nb_flux is not None else "nearest"}; NNEIGHBOR_PSF), extended ones '
+                f'not fitted (FLAG_PSF {FLAG_NEIGHBOR_EXT}); fit pixels the union of their fit circles (NPIX_PSF; '
+                f'NMASK_PSF, FLAG_PSF {FLAG_MASKED} and {FLAG_EDGE} the source\'s own)')
         if mode == 'offset':
             results.meta['comments'].append(
                 f'RECENTER = offset: DX_PSF = {off_x[0]:+.4f} {off_x[1]:+.4f} u {off_x[2]:+.4f} v, DY_PSF = '

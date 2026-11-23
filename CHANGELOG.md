@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.12.2 (2026-11-23)
+기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: 새 인자·설정 키는 기본 꺼짐이고, 꺼져 있으면 `psf_photometry`의 연산은 이전과 같다
+(PSF를 켠 forced_photometry 요약에 빈 열 두 개가 붙을 뿐).
+### 추가
+- `PSFPhotometry.psf_photometry(..., neighbor_x=None, neighbor_y=None, neighbor_flux=None, neighbor_extended=None, max_neighbors=6)`
+  (시그니처 끝): 겹친 별 동시 맞춤. 주어진 0-based 픽셀 위치(예: 그 영상의 SExtractor `.cat` `X_IMAGE`/`Y_IMAGE`; `unit`과 무관, 고정 — `recenter` 오프셋을
+  더하지 않는다) 가운데 소스마다 적합 위치에서 적합 픽셀 반경 + 2 FWHM 안인 것(1 FWHM 안에서 가장 가까운 하나는 소스 자신의 검출로 보고 뺀다 — 확장이어도
+  같음; 그 밖에 0.5 FWHM보다 가까운 것은 분리되지 않는 거리라 맞추지도 플래그하지도 않는다(.cat 중복 항목·deblend 조각); 0.5–1 FWHM의 다른 것은 이웃)을, `neighbor_flux`가 밝은 순(없으면 가까운 순)으로
+  `max_neighbors`개까지 PSF 열로 같은 선형 최소제곱에 넣는다(배경 항 뒤; 이웃 진폭은 출력하지 않음). 적합 픽셀 = 소스와 이웃의 적합 원 합집합(`NPIX_PSF`,
+  `CHI2_PSF` 자유도에서 이웃 수만큼 뺌), 기본 분산의 Poisson 항에 이웃 모형 포함, `FLUXERR_PSF`는 이웃 공분산을 담은 소스 오차, `NMASK_PSF`·비트 2·4는 소스 자신의 원.
+  `recenter='each'`의 위치 맞춤에서 이웃은 고정 선형 열, `'offset'`의 첫 단계에도 같은 이웃. `neighbor_extended`가 참인 이웃은 맞추지 않고 `FLAG_PSF` 비트 32.
+  목록에 없는 이웃은 플래그하지 않는다 — `CHI2_PSF`로 본다. 이웃을 켜면 `NMASK_PSF` 뒤에 `NNEIGHBOR_PSF`(맞춘 이웃 수) 열과 메타 `NEIGHBORS` 줄.
+  **꺼져 있으면(기본, `neighbor_x=None`) 이전과 같은 연산이다.**
+  - 크기(11-21 주입 시험, 같은 밝기 이웃): 독립 맞춤의 대상 치우침 0.5 FWHM +58–72 %, 1.0 FWHM +15 %, 1.5 FWHM +4 %, 3 FWHM 0; 동시 맞춤 ≤ 1 %(그 시험의 드라이버 구현).
+  - 검증(라이브러리 구현, 실제 영상 6장(|은하 위도| 12–79°, `.cat` 572–4.1만 소스) × 60곳, 대상 S/N 100, 주성분·동반성 모두 목록, 목록 위치 지터 0.2 px):
+    동반성 ≥ 1 FWHM에서 대상 치우침 영상별 |≤ 1.6 %|(밝기비 ≤ 1)·|≤ 3.2 %|(5배); 꺼짐은 1 FWHM +35 %·+176 %, 1.5 FWHM +14 %·+73 %(같은 밝기·5배),
+    0.75 FWHM +53 % → +0.1 %(같은 밝기), 5배 +2.3 %(영상별 ≤ +5.7 %). 0.5 FWHM 근처는 맞춤 경계(0.5 FWHM보다 가까우면 뺀다)라 값이 불안정하다(치우침이
+    꺼짐에 가깝거나 일부만 줄고 `FLUXERR_PSF`가 크게 과소). 고립 별은 켬/끔이 같고(비 1.000), 실제 기준성은 이웃 0이라(고립 컷) `ZP_PSF` 변화 0(기준성에 이웃이
+    붙는 경우는 실데이터로 확인하지 않음); 꺼짐은 0.12.1과 바이트 단위로 같다.
+    `FLUXERR_PSF`는 고립 별보다 1.5 FWHM +2–14 %, 2 FWHM 이상 ≤ +5 % 크고, 이웃 위치 오차를 담지 않아 같은 밝기 이상 이웃이 1.5 FWHM 안이면 실제 산포보다
+    작다(영상별 pull: 1 FWHM 같은 밝기 1.6–2.3, 5배 1 FWHM 3.9–7.4·1.5 FWHM 1.9–4.0). SExtractor `.cat`은 1 FWHM보다 가까운 쌍을 거의 나누지 않는다
+    (6장 7.4만 소스 중 28개, 0.5–0.75 FWHM 2개) — 그런 쌍은 한 소스로 빠져 맞추지 않는다.
+  - 주의: 확장 이웃은 맞추지 않아 치우침이 남는다(2 FWHM 같은 밝기 +10–14 %; 점광원으로 맞춰도 +9–11 %). 레시피의 확장 판정(`FWHM_IMAGE` > 1.5 × seeing)은 실제 `.cat`에서 주로 어두운
+    소스에 걸려(S/N < 10의 44–65 %) 붐비는 필드에서는 무작위 위치의 9–12 %에 비트 32가 선다. 대상이 `.cat`에 없으면(어두운 transient) 1 FWHM 안 가장 가까운
+    다른 소스가 자기로 빠져 그 이웃은 맞추지 않는다(다른 이웃이 없으면 꺼짐과 같은 값; 설계상 동작이며 시험하지 않음). 목록에 없는 이웃은 시험하지 않았다(`CHI2_PSF`로 본다).
+- forced_photometry `forced_photometry_psf` 새 키 `neighbors`(기본 False)·`neighbor_extended_seeing`(기본 1.5; `psf_photometry`로 넘기지 않음), `max_neighbors`는
+  `psf_photometry`로 그대로. 켜면 잰 영상 옆 SExtractor `<img>.fits.cat`의 `FLUX_AUTO` > 0 소스를 이웃으로(`FWHM_IMAGE` > 1.5 × 헤더 seeing(px)이면 확장),
+  과학 영상은 대상과 `ZP_PSF` 기준성 같은 호출, 차영상은 `psf_sub` 단계에서 `sub_` 자신의 `.cat`으로 대상과 잡음비 빈 자리에만(`sci_`/`conv_` 기준성은 이웃 없이).
+  `.cat`이 없으면 경고 한 줄 + 이웃 없이. 요약 열(PSF를 켰을 때, `noise_ratio_psf` 뒤): 영상별 `psf_neighbors`(`cat` | `missing`, 꺼져 있으면 빈 칸),
+  타겟별 `NNEIGHBOR_PSF`. 기존 열의 순서·뜻은 그대로다.
+
 ## 0.12.1 (2026-11-23)
 기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: `forced_photometry_psf`는 기본 꺼짐이고 dia는 그 섹션을 넘기지 않는다. 차영상이 아닌 영상의
 `--psf` 연산·값은 그대로다(요약에 빈 열 두 개가 붙을 뿐).

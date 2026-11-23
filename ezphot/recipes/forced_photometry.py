@@ -44,6 +44,13 @@ that image at the target (NaN: none) fixed (recenter False), the annulus radii o
 _psf_noise_ratio) and the host Poisson term of conv_ (host_poisson, CONVOL00 TEMPLATE); with IMAGE sub_ is measured
 through a second object with that SEEING (the given target_img does not change). Correlated noise enters through
 the empirical ratio only (no decorrelation).
+Neighbours (forced_photometry_psf neighbors, off by default): the sources of the measured image's SExtractor catalog
+<img>.fits.cat next to it (_neighbors; sub_: its own .cat, for the targets and the empty positions of the noise ratio;
+the sci_/conv_ reference stars without) are fitted with each target and reference star (psf_photometry neighbor_x/y:
+fixed 0-based X_IMAGE/Y_IMAGE of FLUX_AUTO > 0, the max_neighbors brightest within the fit radius + 2 FWHM but the
+nearest within 1 FWHM (the source's own detection) and those within 0.5 FWHM (not separable); FWHM_IMAGE >
+neighbor_extended_seeing x seeing (px): extended, not fitted, FLAG_PSF 32); without the .cat a warning and no neighbours
+(psf_neighbors 'missing').
 Writes <img>.fits.psf.cat (+ .info) next to the image only with a finite ZP_PSF (sub_: the targets, with DX_PSF/DY_PSF
 and FLAG_PSF bit 16 of the PSF image); the header and the aperture catalog
 do not change. Summary columns only then: psf_catalog, psf_source (epsf | moffat | mixed), psf_model (build_epsf
@@ -53,7 +60,8 @@ grid-1 fallback), n_ref_psf, then
 per target MAGSKY_PSF, MAGERR_PSF, ZP_PSF, ZPERR_PSF, UL5SKY_PSF, CHI2_PSF, FLAG_PSF, DX_PSF, DY_PSF (px; recenter
 'offset': the offset applied at the target, 'each': its fitted move, NaN when not fitted; empty with recenter False;
 sub_: those of the PSF image), then per image psf_image (sci | conv) and noise_ratio_psf (empty when too few empty
-positions: no scaling) for difference images, else empty (psf_catalog only once the
+positions: no scaling) for difference images, else empty, then psf_neighbors (cat | missing) and NNEIGHBOR_PSF
+(neighbours fitted with the target) with neighbors on, else empty (psf_catalog only once the
 .psf.cat is written). A PSF failure fails the image's rows at step psf (sub_: no sci_/conv_, CONVOL00, ref_ SEEING,
 background of that image), psf_refcat (no .refcat; sub_: no sci_<name>.fits.refcat, e.g. a dia before 0.12.1),
 psf_epsf, psf_photometry, psf_zp (no finite ZP_PSF or n_ref_psf 0) or psf_sub (the measurement on sub_); the aperture
@@ -114,6 +122,9 @@ PSF_KEYS = ['MAGSKY_PSF', 'MAGERR_PSF', 'ZP_PSF', 'ZPERR_PSF', 'UL5SKY_PSF', 'CH
 # Summary columns after PSF_KEYS, with forced_photometry_psf enabled (difference images, else empty), per image: the
 # image of the ePSF, ZP_PSF and recenter offset (sci | conv, _psf_image) and the PSF noise ratio (_psf_noise_ratio)
 PSF_SUB_KEYS = ['psf_image', 'noise_ratio_psf']
+# Summary columns after PSF_SUB_KEYS, with forced_photometry_psf enabled (neighbors on, else empty): per image the
+# neighbour list (cat | missing, _neighbors), per target the neighbours fitted with it
+PSF_NB_KEYS = ['psf_neighbors', 'NNEIGHBOR_PSF']
 # Processing recipes make no figures. Forced catalogs have no MAG_AUTO (the photcal section's key): reference
 # stars are picked on the 10" aperture; photcal still fits the ZP of every aperture.
 RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False), 'forced_photometry_sub': {},
@@ -124,6 +135,8 @@ RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False), '
 PSF_ZP_FIXED = ('magnitude_key', 'magnitudeerr_key', 'update_header', 'save_image', 'save_refcat', 'save')
 # forced_photometry_psf keys for PSFPhotometry.build_epsf (the others go to psf_photometry)
 PSF_EPSF_KEYS = ('grid', 'model', 'poly_order', 'max_stars_total', 'snr_lower', 'snr_lower_fallback', 'recenter_iter')
+# forced_photometry_psf keys of the recipe's neighbour list (_neighbors), not psf_photometry arguments
+PSF_NEIGHBOR_KEYS = ('neighbors', 'neighbor_extended_seeing')
 
 
 def _config(overrides: dict = None) -> dict:
@@ -193,6 +206,23 @@ def _psf_image(target_img: ScienceImage):
             raise ValueError(f"no SEEING in the header of ref_{name} for the PSF of {path.name}")
         img.header['SEEING'] = seeing
     return img, ('sci' if convol == 'TEMPLATE' else 'conv'), seeing
+
+
+def _neighbors(img: ScienceImage, extended_seeing: float):
+    """(psf_photometry neighbour arguments, 'cat') from the SExtractor catalog of img next to it
+    (img.savepath.catalogpath, <img>.fits.cat; savedir = its folder): finite 0-based X_IMAGE/Y_IMAGE of the sources with
+    FLUX_AUTO > 0, neighbor_flux FLUX_AUTO, neighbor_extended FWHM_IMAGE > extended_seeing x the header seeing in
+    pixels. Without the catalog ({}, 'missing') and a warning: no neighbours."""
+    cat = Catalog(img.savepath.catalogpath, catalog_type='all', load=False, target_img=img)
+    if not cat.is_exists:
+        print(f"[WARNING] no {cat.path.name}: PSF photometry of {img.path.name} without neighbours", flush=True)
+        return {}, 'missing'
+    x, y, flux, fwhm = (np.ma.filled(np.ma.asarray(cat.data[k], dtype=float), np.nan)
+                        for k in ('X_IMAGE', 'Y_IMAGE', 'FLUX_AUTO', 'FWHM_IMAGE'))
+    keep = np.isfinite(x) & np.isfinite(y) & (flux > 0)
+    seeing_pixel = img.seeing / float(np.mean(img.pixelscale))
+    return dict(neighbor_x=x[keep], neighbor_y=y[keep], neighbor_flux=flux[keep],
+                neighbor_extended=fwhm[keep] > extended_seeing * seeing_pixel), 'cat'
 
 
 def _sub_annulus_arcsec(target_img: ScienceImage, phot: dict):
@@ -281,6 +311,7 @@ def forced_image(target_img: ScienceImage,
     ra, dec = _targets(ra, dec)
     psf_cfg = dict(cfg['forced_photometry_psf'])
     psf_on = bool(psf_cfg.pop('enabled', False))
+    nb_cfg = {k: psf_cfg.pop(k) for k in PSF_NEIGHBOR_KEYS if k in psf_cfg}
     row = dict(dict.fromkeys(ROW_KEYS), path=str(target_img.path), calibrate=calibrate, success=False)
     values = _empty_values(ra, psf_on)
     bkg = bkgrms = refcat = catalog = used = host_img = psf_catalog = None
@@ -374,10 +405,16 @@ def forced_image(target_img: ScienceImage,
             psf_row = dict(psf_source=sources.pop() if len(sources) == 1 else 'mixed', psf_model=psf_info['psf_model'],
                            psf_nstars=int(np.min(psf_info['nstars'])))
             row['step'] = 'psf_photometry'   # targets first, then the reference stars of ZP_PSF
+            nb_kwargs = {}   # neighbours of the image's own catalog (sub_: on sub_ below; sci_/conv_ stars without)
+            if nb_cfg.get('neighbors') and not is_sub:
+                nb_kwargs, nb_source = _neighbors(target_img, nb_cfg['neighbor_extended_seeing'])
+                for v in values:
+                    v['psf_neighbors'] = nb_source
             psf_catalog = psfphot.psf_photometry(
                 psf_img, np.concatenate([ra, np.asarray(psf_refcat.data['X_WORLD'], dtype=float)]),
                 np.concatenate([dec, np.asarray(psf_refcat.data['Y_WORLD'], dtype=float)]), psf=psf, psf_info=psf_info,
-                unit='coord', target_bkg=psf_bkg, target_bkgrms=psf_bkgrms, save=False, verbose=False, **psf_cfg)
+                unit='coord', target_bkg=psf_bkg, target_bkgrms=psf_bkgrms, save=False, verbose=False, **psf_cfg,
+                **nb_kwargs)
             row['step'] = 'psf_zp'
             # ZP_PSF: the reference_stars rules (photcal section, no region cut, defaults.MAG_RANGE) on MAG_PSF
             zp_kwargs = {k: v for k, v in cfg['photcal'].items() if k not in PSF_ZP_FIXED}
@@ -406,6 +443,11 @@ def forced_image(target_img: ScienceImage,
                 sub_kwargs = dict(psf_cfg, recenter=False)
                 if sub_kwargs.get('annulus_radii_arcsec') is None:
                     sub_kwargs['annulus_radii_arcsec'] = _sub_annulus_arcsec(target_img, phot)
+                if nb_cfg.get('neighbors'):   # sub_'s own catalog, also for the empty positions of the noise ratio
+                    nb_kwargs, nb_source = _neighbors(sub_img, nb_cfg['neighbor_extended_seeing'])
+                    sub_kwargs.update(nb_kwargs)
+                    for v in values:
+                        v['psf_neighbors'] = nb_source
                 sub_bkgrms, _, _ = psfphot.errormap.calculate_errormap_from_image(
                     target_img=sub_img, errormap_type='bkgrms', save=False, verbose=False, visualize=False,
                     save_fig=False)
@@ -440,9 +482,9 @@ def forced_image(target_img: ScienceImage,
             data = psf_catalog.data
             for i, v in enumerate(values):
                 v['psf_catalog'] = str(psf_catalog.path)   # only once written: empty in failed rows
-                for k in PSF_KEYS:
+                for k in PSF_KEYS + PSF_NB_KEYS[1:]:
                     if k in data.colnames:
-                        v[k] = int(data[k][i]) if k == 'FLAG_PSF' else float(data[k][i])
+                        v[k] = int(data[k][i]) if k in ('FLAG_PSF', 'NNEIGHBOR_PSF') else float(data[k][i])
         row['success'] = True
         row['step'] = 'done'
     except Exception as e:
@@ -460,8 +502,8 @@ def forced_image(target_img: ScienceImage,
 
 
 def _empty_values(ra, psf: bool = False) -> List[dict]:
-    return [dict.fromkeys(FORCED_KEYS + NOISE_KEYS + (PSF_ROW_KEYS + PSF_KEYS + PSF_SUB_KEYS if psf else []))
-            for _ in ra]
+    psf_keys = PSF_ROW_KEYS + PSF_KEYS + PSF_SUB_KEYS + PSF_NB_KEYS if psf else []
+    return [dict.fromkeys(FORCED_KEYS + NOISE_KEYS + psf_keys) for _ in ra]
 
 
 def _target_rows(row: dict, ra, dec, values: List[dict] = None, psf: bool = False) -> List[dict]:
@@ -518,7 +560,7 @@ def forced_photometry(images: Union[str, Path, List],
     rows = [row for result in run_tasks(_worker, tasks, n_proc, out) for row in result['rows']]
     summary = pd.DataFrame(rows)
     summary['n_ref'] = summary['n_ref'].astype('Int64')   # integer also when failed rows (empty) are mixed in
-    for k in ('psf_nstars', 'n_ref_psf', 'FLAG_PSF'):   # forced_photometry_psf enabled
+    for k in ('psf_nstars', 'n_ref_psf', 'FLAG_PSF', 'NNEIGHBOR_PSF'):   # forced_photometry_psf enabled
         if k in summary.columns:
             summary[k] = summary[k].astype('Int64')
     summary.to_csv(out, index=False)
