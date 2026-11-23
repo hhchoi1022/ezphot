@@ -84,7 +84,9 @@ FORCED_PHOTOMETRY = dict(aperture_diameter_arcsec=[3, 5, 7, 10, 15], aperture_di
 # - host_poisson: Poisson noise of the convolved reference (conv_, CONVOL00 TEMPLATE) added to FLUXERR/MAGERR only.
 FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_empty_apertures=500, host_poisson=True)
 
-# Forced PSF photometry next to the aperture one (forced_photometry; off by default, not for difference images):
+# Forced PSF photometry next to the aperture one (forced_photometry; off by default; difference images sub_: ePSF, ZP_PSF
+# and recenter offset from sci_ (CONVOL00 TEMPLATE) or conv_ (IMAGE), then the targets on sub_ at fixed positions with
+# the FORCED_PHOTOMETRY_SUB annulus radii, PSF noise ratio of n_empty_apertures empty positions and host Poisson):
 # ePSF of the image (PSFPhotometry.build_epsf: grid N or (nx, ny) tiles, model 'grid' per tile or 'poly' polynomial of
 # order <= poly_order in the position; max_stars_total, snr_lower, snr_lower_fallback, recenter_iter may be added),
 # PSF amplitude fit (psf_photometry: background, fit radius fit_radius_fwhm x FWHM, weighting, recenter) and ZP_PSF from

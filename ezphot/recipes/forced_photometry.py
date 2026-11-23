@@ -27,7 +27,7 @@ from the image in memory, without a source mask (sources only sigma-clipped, so 
 bkg_source / bkgrms_source say which.
 
 PSF (config forced_photometry_psf, defaults.FORCED_PHOTOMETRY_PSF; off by default, CLI --psf): after the aperture
-values, on images that are not difference images, PSFPhotometry.build_epsf (grid, model, poly_order, max_stars_total,
+values, PSFPhotometry.build_epsf (grid, model, poly_order, max_stars_total,
 snr_lower, snr_lower_fallback, recenter_iter; default model 'poly' of order <= 3 (order ladder) on the automatic tiling
 of grid 1; stars of the photcal section's catalog)
 -> psf_photometry at (ra, dec) and the reference stars of <img>.fits.refcat (same background map/bkgrms as the
@@ -35,16 +35,29 @@ aperture photometry, then the local annulus by default; fit_radius_fwhm, backgro
 'offset': one smooth position offset of the image, from the position fits at S/N >= recenter_snr, added to the targets
 and the reference stars alike), recenter_snr, recenter_max_shift and the other psf_photometry arguments) -> calibrate_zp
 (ZP_PSF from those reference stars on MAG_PSF with the reference_stars rules above, also with calibrate='header').
-Writes <img>.fits.psf.cat (+ .info) next to the image only with a finite ZP_PSF; the header and the aperture catalog
+A difference image sub_<name> (hotpants output of dia) takes these three steps on the image of its PSF and flux scale
+in its folder, by header CONVOL00: TEMPLATE -> sci_<name>, IMAGE -> conv_<name> with SEEING of ref_<name> (in memory),
+with sci_<name>.fits.refcat (the science image's .refcat, copied by dia) and that image's background as above; then
+psf_photometry on sub_ at the targets only: that ePSF, ZP_PSF/ZPERR_PSF, positions (sub_ WCS) + the DX_PSF/DY_PSF of
+that image at the target (NaN: none) fixed (recenter False), the annulus radii of the aperture photometry of sub_
+(forced_photometry_sub), the PSF noise ratio of up to n_empty_apertures random empty positions (noise_ratio,
+_psf_noise_ratio) and the host Poisson term of conv_ (host_poisson, CONVOL00 TEMPLATE); with IMAGE sub_ is measured
+through a second object with that SEEING (the given target_img does not change). Correlated noise enters through
+the empirical ratio only (no decorrelation).
+Writes <img>.fits.psf.cat (+ .info) next to the image only with a finite ZP_PSF (sub_: the targets, with DX_PSF/DY_PSF
+and FLAG_PSF bit 16 of the PSF image); the header and the aperture catalog
 do not change. Summary columns only then: psf_catalog, psf_source (epsf | moffat | mixed), psf_model (build_epsf
 info 'psf_model', one per image: poly3 | poly2 | poly1 | grid | moffat), psf_nstars (fewest ePSF
 stars of a tile; model 'poly': stars of the fit, or with no usable polynomial order the usable stars of its
 grid-1 fallback), n_ref_psf, then
 per target MAGSKY_PSF, MAGERR_PSF, ZP_PSF, ZPERR_PSF, UL5SKY_PSF, CHI2_PSF, FLAG_PSF, DX_PSF, DY_PSF (px; recenter
-'offset': the offset applied at the target, 'each': its fitted move, NaN when not fitted; empty with recenter False)
-(psf_catalog only once the
-.psf.cat is written). A PSF failure fails the image's rows at step psf (a sub_ image), psf_refcat (no .refcat),
-psf_epsf, psf_photometry or psf_zp (no finite ZP_PSF or n_ref_psf 0); the aperture values stay in them.
+'offset': the offset applied at the target, 'each': its fitted move, NaN when not fitted; empty with recenter False;
+sub_: those of the PSF image), then per image psf_image (sci | conv) and noise_ratio_psf (empty when too few empty
+positions: no scaling) for difference images, else empty (psf_catalog only once the
+.psf.cat is written). A PSF failure fails the image's rows at step psf (sub_: no sci_/conv_, CONVOL00, ref_ SEEING,
+background of that image), psf_refcat (no .refcat; sub_: no sci_<name>.fits.refcat, e.g. a dia before 0.12.1),
+psf_epsf, psf_photometry, psf_zp (no finite ZP_PSF or n_ref_psf 0) or psf_sub (the measurement on sub_); the aperture
+values stay in them.
 
 Products next to each image (its own folder, not the config archive layout): <img>.fits.circ.cat (+ .info), an ASCII
 table with X_WORLD/Y_WORLD and the per-aperture MAGSKY/MAGERR/ZP/ZPERR/UL5SKY_APER[_k] columns; with
@@ -75,10 +88,15 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from astropy.coordinates import SkyCoord
+from astropy.stats import SigmaClip, sigma_clipped_stats
+from astropy.wcs.utils import skycoord_to_pixel
+from photutils.aperture import ApertureStats, CircularAnnulus, CircularAperture, aperture_photometry
 
 from ezphot.dataobjects import Catalog
 from ezphot.imageobjects import ScienceImage
 from ezphot.methods import PSFPhotometry
+from ezphot.methods.psfphotometry import FLAG_RECENTER, _bad_pixels
 from ezphot.recipes import defaults as D
 from ezphot.recipes._common import NothingToDo
 from ezphot.recipes._progress import run_tasks
@@ -93,6 +111,9 @@ NOISE_KEYS = ['noise_ratio', 'host_source']   # summary columns after FORCED_KEY
 # Summary columns after NOISE_KEYS, only with forced_photometry_psf enabled: per image, then per target
 PSF_ROW_KEYS = ['psf_catalog', 'psf_source', 'psf_model', 'psf_nstars', 'n_ref_psf']
 PSF_KEYS = ['MAGSKY_PSF', 'MAGERR_PSF', 'ZP_PSF', 'ZPERR_PSF', 'UL5SKY_PSF', 'CHI2_PSF', 'FLAG_PSF', 'DX_PSF', 'DY_PSF']
+# Summary columns after PSF_KEYS, with forced_photometry_psf enabled (difference images, else empty), per image: the
+# image of the ePSF, ZP_PSF and recenter offset (sci | conv, _psf_image) and the PSF noise ratio (_psf_noise_ratio)
+PSF_SUB_KEYS = ['psf_image', 'noise_ratio_psf']
 # Processing recipes make no figures. Forced catalogs have no MAG_AUTO (the photcal section's key): reference
 # stars are picked on the 10" aperture; photcal still fits the ZP of every aperture.
 RECIPE_DEFAULTS = {'forced_photometry': dict(visualize=False, save_fig=False), 'forced_photometry_sub': {},
@@ -149,6 +170,101 @@ def _host(target_img: ScienceImage):
     return ScienceImage(path=conv, telinfo=target_img.telinfo, load=True), 'conv'
 
 
+def _psf_image(target_img: ScienceImage):
+    """(image, 'sci' | 'conv', seeing) for the ePSF, ZP_PSF and recenter offset of a difference image sub_<name>, by its
+    header CONVOL00 (hotpants): TEMPLATE (reference convolved; sub_ has the PSF and flux scale of the science) ->
+    sci_<name>, seeing None; IMAGE (science convolved; sub_ has those of conv_) -> conv_<name> with its in-memory header
+    SEEING set to that of ref_<name> (the PSF it was matched to), seeing = that value. Same folder and pixel grid as
+    sub_; opened read-only, no file is written."""
+    name = target_img.path.name[len('sub_'):]
+    convol = str(target_img.header.get('CONVOL00', '')).strip().upper()
+    if convol not in ('TEMPLATE', 'IMAGE'):
+        raise ValueError(f"header CONVOL00 is {convol!r}, not TEMPLATE or IMAGE: no image for the PSF of the difference")
+    path = target_img.path.with_name(('sci_' if convol == 'TEMPLATE' else 'conv_') + name)
+    if not path.exists():
+        raise FileNotFoundError(f"no {path.name} for the PSF of the difference image")
+    img = ScienceImage(path=path, telinfo=target_img.telinfo, load=True)
+    img.savedir = path.parent
+    seeing = None
+    if convol == 'IMAGE':
+        seeing = ScienceImage(path=target_img.path.with_name('ref_' + name), telinfo=target_img.telinfo,
+                              load=True).seeing
+        if seeing is None:
+            raise ValueError(f"no SEEING in the header of ref_{name} for the PSF of {path.name}")
+        img.header['SEEING'] = seeing
+    return img, ('sci' if convol == 'TEMPLATE' else 'conv'), seeing
+
+
+def _sub_annulus_arcsec(target_img: ScienceImage, phot: dict):
+    """(inner, outer) radius (arcsec) of the local annulus of the aperture photometry of a difference image with the
+    settings phot (forced_photometry + forced_photometry_sub): the rule of AperturePhotometry.circular_photometry
+    (inner diameter = largest aperture + 1.5 seeing, 1.5 x largest aperture without seeing; outer = inner +
+    annulus_width_arcsec); None without annulus_width_arcsec."""
+    width = phot.get('annulus_width_arcsec')
+    if width is None:
+        return None
+    seeing = target_img.seeing
+    apertures = list(np.atleast_1d(phot.get('aperture_diameter_arcsec', [3, 5, 7, 10, 15])))   # its defaults
+    ratios = phot.get('aperture_diameter_seeing', [2.5, 3.5])
+    if ratios is not None and seeing is not None:
+        apertures += [seeing * k for k in np.atleast_1d(ratios)]
+    inner = max(apertures) * 1.5 if seeing is None else max(apertures) + seeing * 1.5
+    return inner / 2, (inner + width) / 2
+
+
+def _psf_noise_ratio(psfphot: PSFPhotometry, sub_img: ScienceImage, psf, psf_info, bkgrms, host_img, kwargs: dict,
+                     n: int, seed: int = 0) -> float:
+    """Measured / predicted background noise of the PSF flux on a difference image (the PSF version of
+    AperturePhotometry._empty_aperture_ratios, same position rules): up to n random empty positions (fixed seed),
+    PSF fit radius r (kwargs fit_radius_fwhm x FWHM capped at the PSF array radius, or bkg_radius_fwhm x FWHM, as
+    psf_photometry) and the annulus (kwargs annulus_radii_arcsec, if given) inside the image; no invalid pixel
+    (psfphotometry._bad_pixels: not finite or nonzero |value| < 1e-20) within r; with host_img (first 2n such
+    positions) its sum within r minus its own annulus mean x area not more than 3 x sqrt(sum of bkgrms^2 within r)
+    above the median of those positions. psf_photometry there (unit pixel, recenter False, noise_ratio and host_img
+    None, the other kwargs as for the targets); z = FLUX_PSF / FLUXERR_BKG, the background-only error that the ratio
+    scales (FLUXERR_BKG = 10**(-0.4 UL5_PSF) / 5); ratio = 4-sigma-clipped (5 iterations) std of the finite z.
+    NaN with fewer than max(n // 4, 10) usable positions or finite z."""
+    n_min = max(n // 4, 10)
+    native = psfphot.helper.to_native
+    data = native(sub_img.data)
+    ny, nx = data.shape
+    fwhm, scale = psfphot._fwhm_pixel(sub_img)
+    if kwargs.get('bkg_radius_fwhm') is None:
+        r = min(kwargs.get('fit_radius_fwhm', 2.5) * fwhm, np.asarray(psf).shape[-1] // 2)   # psf_photometry default 2.5
+    else:
+        r = kwargs['bkg_radius_fwhm'] * fwhm
+    annulus = kwargs.get('annulus_radii_arcsec')
+    annulus = None if annulus is None else (float(annulus[0]) / scale, float(annulus[1]) / scale)
+    edge = int(np.ceil(max(r, annulus[1] if annulus is not None else 0))) + 1
+    if nx <= 2 * edge + 1 or ny <= 2 * edge + 1:
+        return np.nan
+    rng = np.random.default_rng(seed)
+    pos = np.column_stack([rng.uniform(edge, nx - 1 - edge, 4 * n), rng.uniform(edge, ny - 1 - edge, 4 * n)])
+    bad = _bad_pixels(data)
+    pos = pos[np.asarray(aperture_photometry(bad.astype(np.uint8), CircularAperture(pos, r=r),
+                                             method='center')['aperture_sum']) == 0]
+    if host_img is not None and len(pos):
+        pos = pos[:2 * n]
+        aperture = CircularAperture(pos, r=r)
+        pred = np.sqrt(np.asarray(aperture_photometry(native(bkgrms.data) ** 2, aperture)['aperture_sum']))
+        host = native(host_img.data)
+        host_sum = np.asarray(aperture_photometry(host, aperture)['aperture_sum'])
+        if annulus is not None:
+            host_sum = host_sum - aperture.area * np.array(ApertureStats(
+                host, CircularAnnulus(pos, r_in=annulus[0], r_out=annulus[1]),
+                sigma_clip=SigmaClip(sigma=5.0, maxiters=5)).mean)
+        pos = pos[host_sum - np.nanmedian(host_sum) <= 3 * pred]
+    pos = pos[:n]
+    if len(pos) < n_min:
+        return np.nan
+    cat = psfphot.psf_photometry(sub_img, pos[:, 0], pos[:, 1], psf=psf, psf_info=psf_info, unit='pixel',
+                                 target_bkgrms=bkgrms, save=False, verbose=False,
+                                 **dict(kwargs, noise_ratio=None, host_img=None, recenter=False)).data
+    z = np.asarray(cat['FLUX_PSF'], dtype=float) / (10 ** (-0.4 * np.asarray(cat['UL5_PSF'], dtype=float)) / 5)
+    z = z[np.isfinite(z)]
+    return float(sigma_clipped_stats(z, sigma=4.0, maxiters=5)[2]) if len(z) >= n_min else np.nan
+
+
 def forced_image(target_img: ScienceImage,
                  ra,
                  dec,
@@ -168,6 +284,7 @@ def forced_image(target_img: ScienceImage,
     row = dict(dict.fromkeys(ROW_KEYS), path=str(target_img.path), calibrate=calibrate, success=False)
     values = _empty_values(ra, psf_on)
     bkg = bkgrms = refcat = catalog = used = host_img = psf_catalog = None
+    psf_img = psf_bkg = psf_bkgrms = psf_refcat = psf_catalog_img = sub_img = sub_bkgrms = None   # PSF of sub_
     try:
         row['step'] = 'load'   # header values that do not parse (DATE-OBS, EXPTIME) fail this image only
         row.update(telname=target_img.telname, filter=target_img.filter, obsdate=target_img.obsdate,
@@ -228,19 +345,29 @@ def forced_image(target_img: ScienceImage,
                     v[k] = float(data[k][i])
         if psf_on:   # after the aperture values: a failure here keeps them in the (failed) rows
             row['step'] = 'psf'
-            if target_img.path.name.startswith('sub_'):
-                raise NotImplementedError("PSF photometry of a difference image needs the PSF and ZP_PSF of its science "
-                                          "image: PSFPhotometry.psf_photometry(psf=..., zp_psf=...)")
+            is_sub = target_img.path.name.startswith('sub_')
+            # The image of the ePSF, ZP_PSF and recenter offset: the image itself, for a difference image sci_ or conv_
+            psf_img, psf_bkg, psf_bkgrms, seeing = target_img, bkg, bkgrms, None
+            if is_sub:
+                psf_img, psf_image, seeing = _psf_image(target_img)
+                for v in values:
+                    v['psf_image'] = psf_image
+                psf_bkg, psf_bkgrms, _, _ = _background(psf_img)   # as for other images: sidecars, else in memory
             row['step'] = 'psf_refcat'
-            if refcat is None:
-                refcat = Catalog(target_img.savepath.refcatalogpath, catalog_type='reference', load=False,
-                                 target_img=target_img)
-            if not refcat.is_exists:
-                raise FileNotFoundError(f"no reference-star catalog {refcat.path} for ZP_PSF")
+            if is_sub:   # the science image's ZP stars next to sci_<name> (dia copies them), also for conv_ (same grid)
+                psf_refcat = Catalog(target_img.path.with_name('sci_' + target_img.path.name[len('sub_'):] + '.refcat'),
+                                     catalog_type='reference', load=False, target_img=psf_img)
+            else:
+                if refcat is None:
+                    refcat = Catalog(target_img.savepath.refcatalogpath, catalog_type='reference', load=False,
+                                     target_img=target_img)
+                psf_refcat = refcat
+            if not psf_refcat.is_exists:
+                raise FileNotFoundError(f"no reference-star catalog {psf_refcat.path} for ZP_PSF")
             psfphot = PSFPhotometry()
             row['step'] = 'psf_epsf'
             epsf_kwargs = {k: psf_cfg.pop(k) for k in PSF_EPSF_KEYS if k in psf_cfg}
-            psf, psf_info = psfphot.build_epsf(target_img, **epsf_kwargs,
+            psf, psf_info = psfphot.build_epsf(psf_img, **epsf_kwargs,
                                                catalog_type=cfg['photcal']['catalog_type'],
                                                catalog_version=cfg['photcal']['catalog_version'], verbose=False)
             sources = set(np.asarray(psf_info['source']).ravel().tolist())
@@ -248,20 +375,67 @@ def forced_image(target_img: ScienceImage,
                            psf_nstars=int(np.min(psf_info['nstars'])))
             row['step'] = 'psf_photometry'   # targets first, then the reference stars of ZP_PSF
             psf_catalog = psfphot.psf_photometry(
-                target_img, np.concatenate([ra, np.asarray(refcat.data['X_WORLD'], dtype=float)]),
-                np.concatenate([dec, np.asarray(refcat.data['Y_WORLD'], dtype=float)]), psf=psf, psf_info=psf_info,
-                unit='coord', target_bkg=bkg, target_bkgrms=bkgrms, save=False, verbose=False, **psf_cfg)
+                psf_img, np.concatenate([ra, np.asarray(psf_refcat.data['X_WORLD'], dtype=float)]),
+                np.concatenate([dec, np.asarray(psf_refcat.data['Y_WORLD'], dtype=float)]), psf=psf, psf_info=psf_info,
+                unit='coord', target_bkg=psf_bkg, target_bkgrms=psf_bkgrms, save=False, verbose=False, **psf_cfg)
             row['step'] = 'psf_zp'
             # ZP_PSF: the reference_stars rules (photcal section, no region cut, defaults.MAG_RANGE) on MAG_PSF
             zp_kwargs = {k: v for k, v in cfg['photcal'].items() if k not in PSF_ZP_FIXED}
             zp_kwargs.update(ra_deg=None, dec_deg=None, inner_fraction=1.0)
             zp_kwargs['mag_lower'], zp_kwargs['mag_upper'] = D.MAG_RANGE.get(target_img.filter, D.MAG_RANGE_DEFAULT)
-            psf_catalog, zp_psf, _, psf_row['n_ref_psf'] = psfphot.calibrate_zp(target_img, psf_catalog, save=False,
-                                                                                **zp_kwargs)
+            psf_catalog, zp_psf, zperr_psf, psf_row['n_ref_psf'] = psfphot.calibrate_zp(psf_img, psf_catalog,
+                                                                                        save=False, **zp_kwargs)
             for v in values:
                 v.update(psf_row)
             if not np.isfinite(zp_psf) or psf_row['n_ref_psf'] == 0:   # no .psf.cat is written then
                 raise RuntimeError(f"no finite ZP_PSF: {psf_row['n_ref_psf']} reference stars")
+            if is_sub:
+                # The targets on sub_ with that ePSF and ZP_PSF at their positions there (sub_ WCS) plus the recenter
+                # offset measured on psf_img (DX_PSF/DY_PSF: added to the input position, NaN = not moved), fixed;
+                # background and annulus radii of the aperture photometry of sub_, noise ratio of empty positions,
+                # host Poisson of conv_ (CONVOL00 TEMPLATE, host_poisson).
+                row['step'] = 'psf_sub'
+                psf_catalog_img, sci = psf_catalog, psf_catalog.data[:len(ra)]
+                shift = [np.asarray(sci[k], dtype=float) if k in sci.colnames else np.full(len(ra), np.nan)
+                         for k in ('DX_PSF', 'DY_PSF')]
+                sub_img = target_img
+                if seeing is not None:   # IMAGE: sub_ has the PSF of conv_; a separate object, target_img unchanged
+                    sub_img = ScienceImage(path=target_img.path, telinfo=target_img.telinfo, load=True)
+                    sub_img.header['SEEING'] = seeing
+                    sub_img.savedir = target_img.savedir
+                sub_kwargs = dict(psf_cfg, recenter=False)
+                if sub_kwargs.get('annulus_radii_arcsec') is None:
+                    sub_kwargs['annulus_radii_arcsec'] = _sub_annulus_arcsec(target_img, phot)
+                sub_bkgrms, _, _ = psfphot.errormap.calculate_errormap_from_image(
+                    target_img=sub_img, errormap_type='bkgrms', save=False, verbose=False, visualize=False,
+                    save_fig=False)
+                n_empty = cfg['forced_photometry_sub'].get('n_empty_apertures')
+                ratio = np.nan
+                if n_empty:
+                    ratio = _psf_noise_ratio(psfphot, sub_img, psf, psf_info, sub_bkgrms, host_img, sub_kwargs,
+                                             int(n_empty))
+                    if not np.isfinite(ratio):
+                        print(f"[WARNING] too few empty PSF positions in {target_img.path.name}: "
+                              "FLUXERR_PSF/UL5SKY_PSF not scaled (noise_ratio_psf empty)")
+                x_t, y_t = skycoord_to_pixel(SkyCoord(ra=ra, dec=dec, unit='deg'), target_img.wcs, origin=0)
+                x_t, y_t = np.atleast_1d(np.asarray(x_t, dtype=float)), np.atleast_1d(np.asarray(y_t, dtype=float))
+                psf_catalog = psfphot.psf_photometry(
+                    sub_img, x_t + np.nan_to_num(shift[0]), y_t + np.nan_to_num(shift[1]), psf=psf,
+                    psf_info=psf_info, unit='pixel', target_bkgrms=sub_bkgrms, save=False, verbose=False,
+                    **dict(sub_kwargs, zp_psf=zp_psf, zperr_psf=zperr_psf, host_img=host_img,
+                           noise_ratio=ratio if np.isfinite(ratio) else None))
+                data = psf_catalog.data   # as other .psf.cat: the requested positions, the applied offset, its bit 16
+                data['X_IMAGE'], data['Y_IMAGE'], data['X_WORLD'], data['Y_WORLD'] = x_t, y_t, ra, dec
+                flags = [np.ma.filled(np.ma.asarray(t['FLAG_PSF']), 0).astype(int) for t in (data, sci)]
+                data['FLAG_PSF'] = flags[0] | (flags[1] & FLAG_RECENTER)
+                if 'DX_PSF' in sci.colnames:
+                    i = data.colnames.index('FLAG_PSF') + 1
+                    data.add_columns(shift, names=['DX_PSF', 'DY_PSF'], indexes=[i, i])
+                data.meta['comments'].append(
+                    f'PSF_IMAGE = {psf_img.path.name}: ePSF, ZP_PSF and recenter offset (DX_PSF/DY_PSF, FLAG_PSF '
+                    f'{FLAG_RECENTER}) from it, fixed positions here; NOISE_RATIO_PSF = {ratio:.4f} (empty positions)')
+                for v in values:
+                    v['noise_ratio_psf'] = ratio
             psf_catalog.write(verbose=False)
             data = psf_catalog.data
             for i, v in enumerate(values):
@@ -275,7 +449,8 @@ def forced_image(target_img: ScienceImage,
         row['error'] = f"{type(e).__name__}: {e}"
     finally:
         if clear:
-            for obj in (target_img, bkg, bkgrms, refcat, catalog, used, host_img, psf_catalog):
+            for obj in (target_img, bkg, bkgrms, refcat, catalog, used, host_img, psf_catalog, psf_img, psf_bkg,
+                        psf_bkgrms, psf_refcat, psf_catalog_img, sub_img, sub_bkgrms):
                 if obj is not None:
                     try:
                         obj.clear(verbose=False)
@@ -285,7 +460,8 @@ def forced_image(target_img: ScienceImage,
 
 
 def _empty_values(ra, psf: bool = False) -> List[dict]:
-    return [dict.fromkeys(FORCED_KEYS + NOISE_KEYS + (PSF_ROW_KEYS + PSF_KEYS if psf else [])) for _ in ra]
+    return [dict.fromkeys(FORCED_KEYS + NOISE_KEYS + (PSF_ROW_KEYS + PSF_KEYS + PSF_SUB_KEYS if psf else []))
+            for _ in ra]
 
 
 def _target_rows(row: dict, ra, dec, values: List[dict] = None, psf: bool = False) -> List[dict]:
@@ -366,7 +542,8 @@ def main(argv=None):
     ap.add_argument('--n-proc', type=int, default=4)
     ap.add_argument('--out', help='summary CSV path')
     ap.add_argument('--psf', action='store_true',
-                    help='also forced PSF photometry (config forced_photometry_psf enabled; not for difference images)')
+                    help='also forced PSF photometry (config forced_photometry_psf enabled; difference images sub_: '
+                         'ePSF and ZP_PSF of sci_/conv_ next to them, needs sci_<name>.fits.refcat from dia)')
     a = ap.parse_args(argv)
     config = {'forced_photometry_psf': dict(enabled=True)} if a.psf else None
     summary = forced_photometry(a.images, a.ra, a.dec, calibrate=a.calibrate, config=config, n_proc=a.n_proc,

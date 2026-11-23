@@ -88,6 +88,8 @@ dia_image(target_img, ra=None, dec=None, reference=None, config=None, clear=True
 - 차영상 옆에 남는 주요 파일: `sub_<name>`(차영상), `sci_<name>`·`ref_<name>`(같은 격자로 자른 science·reference; 빈 곳(SWarp 재투영의 가중치 0 픽셀)은
   0.8.0까지 0, 0.9.0부터 재투영이 NaN으로 쓴다 — hotpants에는 NaN → 0 임시 사본을 준다), `conv_<name>`(hotpants가 convolve한 영상;
   convim `t`(`CONVOL00=TEMPLATE`)에서 `-tp`를 주면 hotpants가 커널 합 × |tp| 상수를 더한 채로 쓴다; convim `i`에서는 `sub_`의 배경 항이 흡수), `sub_<name>.fits.invalidmask`, `sub_<name>.fits.circ.cat`(forced, 4절),
+  0.12.1부터 `sci_<name>.fits.refcat`(science 영상 옆 `<img>.fits.refcat`(process_images/stack의 ZP 기준성)을 DIA 직후 그대로 복사, 있던 것은 덮어씀;
+  원본이 없거나 복사가 실패하면(OSError) 경고 한 줄만 출력하고 계속 — forced_photometry `--psf`가 차영상의 `ZP_PSF` 기준성으로 읽는다. `X_WORLD`/`Y_WORLD` 말고 픽셀 열은 원본 영상 격자 값),
   그리고 0.9.0부터 `sub_<name>.fits.hotpants.json`(hotpants 실행 기록: `hotpants_command`(argv), `hotpants_version`, `convim`,
   `subframe_origin`(`x_min`, `y_min`: 재투영 science 격자의 0-기반 원점), `stamps`(`source` `auto`|`ssf`, `used` = hotpants `-savexy`가 적은 실제 stamp 중심,
   convim `t`면 1-기반 subframe 픽셀 — hotpants 5.1.11은 convim `i`에서 1 px 크게 적는다, `box_px`), `exclude`(`radius_arcsec`, `positions`의 ra·dec·1-기반
@@ -159,7 +161,7 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   사이드카(헤더 ZP를 정한 process_images/stack 측광의 배경, 스택은 전파 bkgrms). 사이드카가 없으면 영상에서 메모리로 계산한다 —
   소스 마스크 없이 시그마 클리핑으로만 소스를 빼므로 process_images 값과 다를 수 있다. 영상 옆에 마스크·배경 파일을 쓰거나 지우지 않는다.
 - PSF(0.10.0, `forced_photometry_psf` 섹션 = `defaults.FORCED_PHOTOMETRY_PSF`, **기본 꺼짐** `enabled=False`, CLI `--psf`): 켜면 개구 값을 다 구한 뒤
-  차영상이 아닌 영상에서 `PSFPhotometry.build_epsf`(섹션 `grid`(N 또는 `(nx, ny)`; 기본 1 = `'poly'`에서는 약 512 px 자동 평가 격자)·
+  `PSFPhotometry.build_epsf`(섹션 `grid`(N 또는 `(nx, ny)`; 기본 1 = `'poly'`에서는 약 512 px 자동 평가 격자)·
   `model`(기본 `'poly'` = 위치 다항식, 이상치 제거 없음; `'grid'`면 타일별 중앙값 — 타일별 중앙값 ePSF를 원하면 `grid`와 함께 `model='grid'`를 준다)·
   `poly_order`(기본 3, 상한: 별이 5 × 계수 수(3차 50·2차 30·1차 15) 이상이고 영상 구역(3차 3×3, 2차·1차 2×2)마다 별이 있는 가장 높은 차수, 없으면
   중앙값 ePSF 하나(별 20개 미만이면 Moffat))·
@@ -181,6 +183,31 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   헤더·FITS·`.circ.cat`은 바꾸지 않는다. 섹션의 다른 키는 `psf_photometry` 인자로 넘어간다(`build_epsf` 인자는 `grid`·`model`·`poly_order`·`max_stars_total`·`snr_lower`·`snr_lower_fallback`·`recenter_iter`뿐).
   격자·모형을 고르는 CLI 옵션은 없다(config로만).
   꺼져 있으면(기본) 열·파일·값 모두 0.9.0과 같다. dia는 이 섹션을 넘기지 않으므로 늘 꺼져 있다.
+- 차영상 PSF(0.12.1; 0.12.0까지는 `sub_`에 `--psf`를 주면 `step='psf'` 실패): `sub_<name>`이면 위 ePSF·기준성 측광·`ZP_PSF` 세 단계를 같은 폴더의
+  **PSF 영상**에서 한다 — 차영상 헤더 `CONVOL00`이 `TEMPLATE`(reference를 convolve; 차영상의 PSF·플럭스 단위 = science)면 `sci_<name>`, `IMAGE`(science를
+  convolve; 차영상의 PSF·단위 = `conv_`)면 `conv_<name>`(메모리 헤더 `SEEING`을 `ref_<name>` 헤더 값으로 바꿔서; 파일은 그대로). 그 밖의 `CONVOL00`이면 실패.
+  기준성은 `sci_<name>.fits.refcat`(dia가 복사, 위 dia; `conv_`도 같은 격자라 같은 파일), 배경은 그 영상의 사이드카(없으면 메모리 계산, 위 규칙),
+  섹션 설정(`recenter` 포함)은 직접 영상과 같다. 그다음 `sub_`에서 **대상만** `psf_photometry`: 같은 ePSF, `zp_psf`/`zperr_psf` = 그 `ZP_PSF`/`ZPERR_PSF`,
+  위치 = 차영상 WCS의 대상 픽셀 + PSF 영상 측광의 그 대상 `DX_PSF`/`DY_PSF`(옮긴 위치 = 입력 + DX; NaN·`recenter=False`면 0) 고정(`recenter=False`; 차영상에는
+  기준성이 지워져 있어 거기서 오프셋을 잴 수 없다), 배경 맵 없음(bkgrms는 차영상에서 계산), 고리 반경 = 같은 차영상 개구 측광의 고리
+  (`forced_photometry_sub`의 `annulus_width_arcsec` 규칙: 안쪽 지름 가장 큰 개구 + 1.5 seeing, 바깥 = 안쪽 + 폭; 섹션에 `annulus_radii_arcsec`를 주면 그 값;
+  폭이 None이면 `psf_photometry` 기본 고리), `host_img` = 개구와 같은 `conv_`(`CONVOL00=TEMPLATE`, `host_poisson`), `noise_ratio` = 아래 PSF 잡음비.
+  `IMAGE`면 차영상도 따로 연 객체(메모리 `SEEING` = `ref_` 값)로 재므로 대상·빈 자리·기준성이 같은 FWHM(적합 반경)을 쓰고, 넘겨받은 `target_img`·개구 값은 바뀌지 않는다.
+  - PSF 잡음비(`noise_ratio_psf`): 개구 3절 r_k의 PSF판. 같은 차영상의 무작위 빈 자리 최대 N = `n_empty_apertures`(기본 500)개, 고정 시드 0, 적합 픽셀 반경
+    (`fit_radius_fwhm` × FWHM, PSF 배열 반경 상한; `bkg_radius_fwhm`이면 그 반경)과 고리가 영상 안, 적합 반경 안에 무효 픽셀(NaN·inf, 0이 아닌 |값| < 1e-20;
+    정확히 0은 정상 — 개구판은 0도 무효로 본다) 없음, `host_img`가 있으면 그런 위치 처음 2N개에서 `conv_`의 적합 반경 합 − 자기 고리 평균 × 면적이
+    중앙값보다 √(Σ bkgrms²)의 3배 넘게 밝은 곳을 뺀다. 거기서 대상과 같은 설정으로 `psf_photometry`(위치 고정, `noise_ratio`·`host_img` 없음) →
+    z = `FLUX_PSF` / 배경만의 오차(`FLUXERR_BKG` = 10^(−0.4 `UL5_PSF`)/5, r이 곱해지는 bkgrms² 항과 같은 양; 소스 Poisson 항은 넣지 않는다) → 4σ 클립
+    (5회) 표준편차. 쓸 수 있는 자리가 max(N/4, 10)개 미만이면 빈 칸(NaN)이고 비를 곱하지 않는다(경고 한 줄). `n_empty_apertures`가 None·0이면 빈 칸.
+    `FLUXERR_PSF`·`MAGERR_PSF`·`UL3`/`UL5(SKY)_PSF`의 bkgrms 항에 r²로 들어간다. 상관 잡음(재투영·convolve)은 이 경험적 비로만 반영한다(디코릴레이션은 하지 않는다).
+    PSF와 개구는 잡음을 다른 가중으로 모으므로 `noise_ratio_psf`와 `noise_ratio`(10″ 개구)는 다를 수 있다.
+    무작위 자리에는 별 근처 차감 잔차도 들어가는 것으로 보이며, 정말 빈 하늘 위 대상의 오차는 이 비로 약 10 % 보수적이었다(0.12.1 검증, TEMPLATE).
+  - `CONVOL00=IMAGE`이면 호스트 Poisson 항이 없다(`conv_`가 convolve된 science). 호스트 위 대상의 `MAGERR_PSF`·UL은 과소일 수 있다(`CHI2_PSF`가 크면 의심).
+    `convim`을 IMAGE로 강제하지 않는다 — 강제한 sharpening 방향(science 시상 > reference; auto라면 TEMPLATE)은 호스트 중심에 작은 규모의 잔차를 남길 수 있다.
+    auto가 고른 IMAGE(science가 더 선명)는 시험하지 않았다.
+  - 차영상 `.psf.cat`(`sub_<name>.fits.psf.cat`)은 대상 행만 있고, `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 요청한 위치(차영상 WCS),
+    `DX_PSF`/`DY_PSF`(PSF 영상에 `recenter`가 있을 때)는 적용한 오프셋, `FLAG_PSF` 비트 16은 PSF 영상 측광의 그 대상 비트 16, 메타 `PSF_IMAGE = …` 줄에 PSF 영상
+    이름과 잡음비. PSF 영상의 측광표(대상 + 기준성)는 쓰지 않는다.
   PSF 단계는 `target_mask`를 넘기지 않고 정확히 0인 픽셀을 정상 데이터로 쓰므로(무효는 NaN·inf와 0이 아닌 |값| < 1e-20), 빈 곳이 0인 영상(0.8.0 이하 DIA가
   쓴 `sci_` 등 — SWarp 가중치 0 영역; 0.9.0부터 재투영의 가중치 0 픽셀은 NaN)은 `--psf` 입력에 쓰지 않는다(그 0 영역이 데이터로 쓰인다).
 - 열(영상 × 타겟 한 행): `path`, `target`(ra/dec 안의 번호), `ra`, `dec`, `telname`, `filter`, `obsdate`, `exptime`, `calibrate`, `success`, `step`, `error`,
@@ -188,15 +215,19 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   `catalog`(`.circ.cat` 경로), `MAGSKY_APER_3`, `MAGERR_APER_3`, `ZP_APER_3`, `ZPERR_APER_3`, `UL5SKY_APER_3`, `noise_ratio`, `host_source`
   (뒤 둘은 차영상만, 그 밖은 빈 칸). PSF를 켰을 때만 그 뒤에 `psf_catalog`(쓴 `.psf.cat` 경로; PSF 단계가 실패한 행은 빈 칸), `psf_source`(`epsf` | `moffat`(별 20개 미만 폴백) | `mixed`(타일별로 섞임; `'poly'`에는 없음)), `psf_model`(영상마다 하나, 실제로 쓴 PSF 모형: `poly3` | `poly2` | `poly1` | `grid`(중앙값 ePSF; `model='poly'`의 차수 사다리가 끝까지 내려간 경우 포함) | `moffat`(모든 타일 Moffat); `.psf.cat`의 `PSF_SOURCE` 메타에도 다항식이면 `model poly order k`가 붙는다),
   `psf_nstars`(타일 중 가장 적은 ePSF 별 수 — 상자에 이웃 봉우리·뾰족점이 있는 별을 뺀 뒤; `model='poly'`는 적합에 쓴 별 수, 위 폴백이면 그 별 수), `n_ref_psf`(ZP_PSF 기준성 수), 타겟별 `MAGSKY_PSF`, `MAGERR_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL5SKY_PSF`,
-  `CHI2_PSF`, `FLAG_PSF`, `DX_PSF`, `DY_PSF`(px; `recenter='offset'`이면 그 대상에 적용한 오프셋, `'each'`면 맞춘 이동으로 맞추지 않은 대상은 NaN; `recenter=False`면 빈 칸)(4절 아래 `.psf.cat`).
+  `CHI2_PSF`, `FLAG_PSF`, `DX_PSF`, `DY_PSF`(px; `recenter='offset'`이면 그 대상에 적용한 오프셋, `'each'`면 맞춘 이동으로 맞추지 않은 대상은 NaN; `recenter=False`면 빈 칸;
+  차영상은 PSF 영상에서 잰 값)(4절 아래 `.psf.cat`), 0.12.1부터 그 뒤에 영상별 `psf_image`(`sci` | `conv`, 차영상의 PSF 영상)와 `noise_ratio_psf`(차영상 PSF 잡음비,
+  자리가 모자라면 빈 칸)(둘 다 차영상만, 그 밖은 빈 칸).
 - 실패 표현: 한 영상의 타겟 행들은 `success`·`step`·`error`가 같다. 성공 판정은 두 방식 모두 카탈로그의 `ZP_APER_3`가 있고 유한한가이고,
   `reference_stars`는 `n_ref > 0`도 필요하다. 아니면 `success=False`이고 `step='apply_zp'`(header: 헤더에 `ZP_APER_3`가 없거나 유한하지 않음; dia도 같다) 또는 `step='photometric_calibration'`(reference_stars: 기준성 0개 등). 영상을 열 수 없으면 `step='load'`, refcat이 없으면 `step='refcat'`.
   `UL5SKY_APER_3`만 빈 칸이면 한계 등급을 구할 수 없었다는 뜻이고 성공은 그대로다. 99 같은 센티널은 쓰지 않는다(재지 못한 값은 NaN).
   PSF를 켰으면 개구 쪽이 성공한 뒤 PSF 단계 실패도 그 영상 행을 `success=False`로 만들고(개구 값 열은 채워진 채로 남는다) `step`은
-  `psf`(`sub_` 차영상 — PSF 모델·ZP_PSF는 science 영상 것이어야 하므로 레시피는 하지 않는다), `psf_refcat`(`.refcat` 없음), `psf_epsf`, `psf_photometry`,
-  `psf_zp`(유한한 `ZP_PSF`가 없거나 `n_ref_psf` 0) 중 하나다. 타겟 하나의 `FLAG_PSF`(가장자리·마스크·적합 실패)는 성공 판정에 쓰지 않는다.
+  `psf`(차영상: `sci_`/`conv_` 없음, `CONVOL00`이 `TEMPLATE`·`IMAGE`가 아님, `ref_` 헤더에 `SEEING` 없음, 그 영상의 배경 계산 실패), `psf_refcat`(`.refcat` 없음;
+  차영상은 `sci_<name>.fits.refcat` 없음 — 0.12.1 전 dia가 만든 차영상 등), `psf_epsf`, `psf_photometry`,
+  `psf_zp`(유한한 `ZP_PSF`가 없거나 `n_ref_psf` 0), `psf_sub`(차영상에서 잡음비·대상 측광) 중 하나다. 타겟 하나의 `FLAG_PSF`(가장자리·마스크·적합 실패)는 성공 판정에 쓰지 않는다.
 - 입력 FITS는 다시 쓰지 않는다. 영상 옆에 쓰는 파일: `<img>.fits.circ.cat`(+ `.info`), `reference_stars`면 `<img>.fits.circ.refcat`(+ `.info`),
-  PSF를 켜고 `ZP_PSF`를 구했으면 `<img>.fits.psf.cat`(+ `.info`, 있던 것은 덮어씀; PSF 단계가 실패하면 쓰지 않는다).
+  PSF를 켜고 `ZP_PSF`를 구했으면 `<img>.fits.psf.cat`(+ `.info`, 있던 것은 덮어씀; PSF 단계가 실패하면 쓰지 않는다; 차영상은 `sub_<name>.fits.psf.cat`,
+  `sci_`/`conv_` 옆에는 아무것도 쓰지 않는다).
   같은 영상에 이미 있는 `.circ.cat`(+ `.info`, 다른 도구가 만든 것 포함)은 덮어쓴다. `header`로 다시 돌려도 이전 `reference_stars`의 `.circ.refcat`은
   지우지 않고 남는다(새 `.circ.cat`과 무관한 낡은 파일).
   배경을 빼는 동안 임시 `subbkg_<img>` 영상 객체를 만들고 지우는데(파일로 쓰지 않음), 그 이름으로 시작하는 파일(`subbkg_<img>*`)이 영상 폴더에 남아 있으면
@@ -282,7 +313,7 @@ qa(summary, zperr_max=0.1, nref_min=10, seeing_max=5.0, depth_min=None, color_ma
 | 형식 | `.circ.cat`과 같은 ASCII 표, 맨 위 `#` 줄(표 meta `comments`)에 설정(PSF 크기·출처, 적합 반경, 배경 방식, 가중, 분산 모형, ZP_PSF 출처·`NREF_PSF`) |
 | 컬럼 | `X_IMAGE`/`Y_IMAGE`(**0-based**), `X_WORLD`/`Y_WORLD`(deg), `FLUX_PSF`/`FLUXERR_PSF`(ADU, PSF 배열 합 = 1로 정규화한 진폭 = 배열 안 총 플럭스), `MAG_PSF`/`MAGERR_PSF`(기기 등급, `FLUX_PSF` > 0일 때만), `UL3_PSF`/`UL5_PSF`, `BACKGROUND`(픽셀당 뺀/맞춘 국소 배경), `CHI2_PSF`(reduced), `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`(쓴 픽셀의 PSF 합), `FLAG_PSF`(비트 1 Moffat 폴백, 2 마스크·무효 픽셀, 4 영상 가장자리, 8 적합 없음 → 값 NaN, 16 `recenter`: `'offset'`이면 적용한 오프셋 > `recenter_max_shift`(기본 0.5 px) — 맞춤이 나쁘다는 뜻이 아닌 장 단위 경고로, 오프셋이 영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로 `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다; `'each'`면 이동 > `recenter_max_shift`이거나 위치 맞춤 실패), `recenter`일 때만 `DX_PSF`·`DY_PSF`(px; `'offset'`은 적용한 오프셋으로 모든 행에 값, `'each'`는 맞춘 위치 − 입력 위치로 맞추지 않은 소스 NaN; `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 값은 옮긴·맞춘 위치 것; 메타 `RECENTER = offset: …` 줄에 오프셋 계수·쓴 소스 수·잔차 rms), 보정 뒤 `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF` |
 | 값 | `FLUXERR_PSF`는 기본 분산 r²·bkgrms² + max(F·P, 0)/EGAIN(+ host)로 구한다. 소스 Poisson은 적합한 PSF 모형으로 계산하고 잘린 데이터를 쓰지 않으므로, 개구의 `calc_total_error`식 소스 항과 정의가 다르다(어두운 소스에서는 이 소스 항 때문에 개구 오차가 더 크다). 음수 플럭스를 그대로 둔다(등급은 NaN). 센티널 없음. `ZP_PSF`는 `ZP_APER_k`와 다른 값이다(PSF 진폭은 배열 안 총 플럭스): `MAGSKY_PSF`와 `MAGSKY_APER_3`를 섞지 않는다. `MAGERR_PSF`에 ZP 오차는 없다. `CHI2_PSF`는 PSF가 맞는 점광원이면 약 1이고 ≳ 3이면 확인해 볼 만하다(겹친 소스·퍼진 소스·PSF 불일치·위치 어긋남; 경험값이고 플래그가 아니다) |
-| 행 | 타겟, 그 뒤 기준성. `.circ.cat`처럼 행 순서는 계약이 아니다 — 좌표로 매칭 |
+| 행 | 타겟, 그 뒤 기준성(차영상 `sub_<name>.fits.psf.cat`은 타겟만, 2절 forced_photometry 차영상 PSF). `.circ.cat`처럼 행 순서는 계약이 아니다 — 좌표로 매칭 |
 
 ## 5. `calibrate='reference_stars'`의 한계
 

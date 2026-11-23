@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.12.1 (2026-11-23)
+기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: `forced_photometry_psf`는 기본 꺼짐이고 dia는 그 섹션을 넘기지 않는다. 차영상이 아닌 영상의
+`--psf` 연산·값은 그대로다(요약에 빈 열 두 개가 붙을 뿐).
+### 추가
+- forced_photometry `--psf`(`forced_photometry_psf`)가 차영상 `sub_<name>`도 잰다(0.12.0까지는 `step='psf'`에서 `NotImplementedError`로 실패).
+  ePSF·`ZP_PSF`·recenter 오프셋은 차영상과 PSF·플럭스 단위가 같은, 같은 폴더의 영상에서 구한다: 헤더 `CONVOL00=TEMPLATE`면 `sci_<name>`,
+  `IMAGE`면 `conv_<name>`(메모리 헤더 `SEEING`을 `ref_<name>` 값으로; 파일은 그대로). 기준성은 `sci_<name>.fits.refcat`(아래 dia), 배경·설정은 직접 영상의
+  `--psf`와 같다. 그다음 `sub_`에서 대상만 같은 ePSF로 잰다: 위치 = 차영상 WCS 위치 + 그 영상에서 잰 `DX_PSF`/`DY_PSF`(고정, `recenter=False`; 차영상에는
+  기준성이 지워져 오프셋을 잴 수 없다), 고리 반경 = 같은 차영상 개구 측광(`forced_photometry_sub`)의 고리, 호스트 Poisson = 개구와 같은 `conv_`(TEMPLATE),
+  오차 = 아래 PSF 잡음비를 곱한 bkgrms 항. `IMAGE`면 차영상도 메모리 `SEEING` = `ref_` 값인 별도 객체로 재서 대상과 기준성이 같은 FWHM(적합 반경)을 쓴다
+  (넘겨받은 `target_img`와 개구 값은 그대로).
+  - 산출물: `sub_<name>.fits.psf.cat`(대상 행만; `X/Y_IMAGE`·`X/Y_WORLD` = 요청 위치, `DX_PSF`/`DY_PSF` = 적용한 오프셋, `FLAG_PSF` 비트 16 = PSF 영상
+    측광의 그 비트, 메타 `PSF_IMAGE` 줄). PSF 영상의 측광표는 쓰지 않는다.
+  - 요약 열: PSF를 켜면 `DY_PSF` 뒤에 영상별 `psf_image`(`sci` | `conv`)와 `noise_ratio_psf`(차영상만, 그 밖은 빈 칸). 기존 열의 순서·뜻은 그대로다.
+  - 새 실패 단계 `psf_sub`(차영상 잡음비·대상 측광). `psf`는 이제 차영상의 PSF 영상을 고르거나 열지 못한 경우(`sci_`/`conv_` 없음, `CONVOL00`이
+    `TEMPLATE`·`IMAGE`가 아님, `ref_`에 `SEEING` 없음, 그 영상 배경 계산 실패), `psf_refcat`은 차영상에서 `sci_<name>.fits.refcat`이 없는 경우도 뜻한다 —
+    이 버전 전 dia가 만든 차영상은 dia를 다시 돌리거나 science `.refcat`을 그 이름으로 복사해야 한다. 어느 PSF 실패든 개구 값은 행에 남는다.
+  - PSF 잡음비(`noise_ratio_psf`, 레시피 비공개 `_psf_noise_ratio`): 개구 `NOISE_RATIO_APER_k`의 PSF판. 같은 차영상의 무작위 빈 자리 최대
+    `n_empty_apertures`(기본 500)개(고정 시드, 적합 반경과 고리가 영상 안, 적합 반경 안에 무효 픽셀 없음 — 정확히 0은 정상, `host_img`가 있으면(`host_poisson=True`, `CONVOL00=TEMPLATE`) `conv_` 소스 자리 제외)에서
+    대상과 같은 설정으로 잰 PSF 플럭스 / 배경만의 오차(`10^(−0.4 UL5_PSF)/5`)의 4σ 클립 표준편차. 쓸 자리가 max(N/4, 10)(기본 125)개 미만이면 빈 칸, 비를 곱하지 않음.
+    **상관 잡음(재투영·convolve)은 이 경험적 비로만 반영하고, 디코릴레이션은 하지 않는다(별도 작업).** PSF 가중은 개구와 다른 공간 규모의 잡음을
+    모으므로 `noise_ratio_psf` ≠ 10″ `noise_ratio`일 수 있다.
+  - 검증(7DT11 T08635 m650 100 s 3장, TEMPLATE와 IMAGE(convim='i' 강제, science 3.0″ > reference 1.85″) DIA; ePSF poly3, 별 302–426):
+    실제 차영상 빈 자리 주입(3–100σ, 수준당 30, 레시피 ePSF)의 PSF 회수율(20·100σ, 세트 묶음) TEMPLATE 0.988/0.998, IMAGE 0.987/0.988(주입 위치와 적용 오프셋의
+    0.2–0.4 px 차이를 보정하면 1.00); 10″ 개구는 0.958–0.963(10″ EE; 같은 영상의 `ZP_APER_3 − ZP_PSF`와 TEMPLATE 세트마다 1–13 mmag 안). WCS를 1 px
+    밀면 적용 오프셋이 −1.00/−1.01 px 바뀌고 회수율은 같다(비 1.001).
+    `noise_ratio_psf`: 백색 잡음 1.00/1.04, 1 px 평활 상관 잡음 3.29/3.17(Gauss 이론 3.29/2.98), 비 적용 pull 0.99/0.94(미적용 2.9/2.7). 실제 차영상 TEMPLATE
+    1.14–1.22(10″ 1.19–1.33), IMAGE 0.91–0.97(10″ 0.79–0.85; sharpening 커널의 반상관 잡음으로 보인다), 비 적용 pull 0.98/0.97(미적용 1.11/0.93).
+    TEMPLATE 빈 하늘 대조점만 보면 비 적용 pull 0.91 — 비가 약 10 % 보수적이다(무작위 자리에 차감 잔차가 들어가기 때문으로 보인다). 빈 자리 깊이는 10″보다 0.65–0.75 mag 깊다. `ZP_PSF` `sci_` 대 `conv_` ±4 mmag.
+    호스트 위 AT 2026ajdg PSF − 10″(점광원 기대값 보정 뒤): TEMPLATE −0.06–+0.04 mag(CHI2_PSF 0.9–1.2), IMAGE −0.12–+0.01(CHI2_PSF 2.5–3.2) —
+    IMAGE에는 호스트 Poisson이 없어 호스트 위 오차가 과소일 수 있고, 강제한 sharpening 방향(science 시상 > reference)은 호스트 잔차가 남을 수 있다.
+    `convim`을 IMAGE로 강제하지 않는다(science 시상이 나쁘면 auto가 TEMPLATE을 고른다; 이 프레임들에서 3/3). auto가 고른 IMAGE(science가 더 선명,
+    smoothing 커널)는 시험하지 않았고, 거기서도 호스트 Poisson은 없으므로 호스트 위 대상은 `CHI2_PSF`·`MAGERR_PSF`를 확인한다.
+- dia: DIA 직후 science 영상 옆 `<img>.fits.refcat`(process_images/stack ZP 기준성)을 `sci_<name>.fits.refcat`로 복사한다(있던 것은 덮어씀; 원본이
+  없거나 복사가 실패하면(OSError) 경고 한 줄만 출력하고 계속). 차영상 폴더에 파일이 하나 늘 뿐 dia 요약·값은 그대로다.
+
 ## 0.12.0 (2026-11-23)
 기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: `psf_photometry`·`forced_photometry_psf`의 기본 `background='annulus'`, 새 인자 `bkg_radius_fwhm` 기본 None.
 ### 추가

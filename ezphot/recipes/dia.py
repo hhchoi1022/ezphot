@@ -8,7 +8,9 @@ dia: difference imaging of calibrated images (single frames or stacks) against a
 
 Hotpants picks its stamps itself, away from (ra, dec) and config['dia']['exclude_coords'] (radius
 exclude_radius_arcsec, default 10"); each difference image gets sub_<name>.fits.hotpants.json (hotpants command, used
-stamps, noise options) next to it.
+stamps, noise options) next to it. After the DIA the science image's <img>.fits.refcat (process_images/stack ZP
+stars) is copied to sci_<name>.fits.refcat next to it (overwritten; without it or when the copy fails a warning
+only), the reference stars of forced_photometry --psf on sub_<name>.
 
 Input is one or more summary CSVs of process_images or stack (success rows). One row per image:
 reference path, difference image, number of candidates/transients and, if ra/dec are given, the
@@ -29,6 +31,7 @@ CLI:
 from __future__ import annotations
 
 import argparse
+import shutil
 import time
 from pathlib import Path
 from typing import List, Union
@@ -197,6 +200,18 @@ def dia_image(target_img: ScienceImage,
         subtracted_img = subtract_imglist[0]
         candidate_catalog, transient_catalog = candidate_catalogs[0], transient_catalogs[0]
         row['subtracted'] = str(subtracted_img.path)
+        # The science image's ZP stars (sky positions) next to sci_<name>, its DIA copy: the reference stars of the
+        # ZP_PSF of forced_photometry --psf on sub_<name> (not sub_<name>.fits.refcat, which calibrate='reference_stars'
+        # on sub_ would read as the ZP stars of the difference image)
+        refcat, sub = Path(f'{target_img.path}.refcat'), Path(str(subtracted_img.path))
+        if refcat.exists():
+            try:
+                shutil.copyfile(refcat, sub.with_name('sci_' + sub.name[len('sub_'):] + '.refcat'))
+            except OSError as e:   # as without it: a warning, the DIA row goes on
+                print(f"[dia] could not copy {refcat.name} next to sci_ of {sub.name}: {type(e).__name__}: {e}",
+                      flush=True)
+        else:
+            print(f"[dia] no {refcat.name}: no sci_ reference stars for forced_photometry --psf on {sub.name}", flush=True)
         row['n_candidates'] = candidate_catalog.nsources if candidate_catalog is not None else 0
         row['n_transients'] = transient_catalog.nsources if transient_catalog is not None else 0
         row.update(_norm_qa(target_img, reference_img, subtracted_img))

@@ -346,8 +346,12 @@ an S/N, added to all positions (recipe default), or `'each'` per source;
 `<img>.fits.psf.cat` (0-based `X_IMAGE`/`Y_IMAGE`), and `calibrate_zp()` derives
 `ZP_PSF` from the image's reference stars with `photometric_calibration` on
 `MAG_PSF` without touching the header. The forced_photometry recipe runs it with
-the `forced_photometry_psf` config section (off by default; not for `sub_` images;
-default `model='poly'` of order 3 on the automatic tiling, `recenter='offset'`).
+the `forced_photometry_psf` config section (off by default;
+default `model='poly'` of order 3 on the automatic tiling, `recenter='offset'`); on a
+`sub_` image the ePSF, `ZP_PSF` and offset come from `sci_` (`CONVOL00` TEMPLATE) or
+`conv_` (IMAGE, `ref_` seeing in memory) with `sci_<name>.fits.refcat` (copied by dia),
+and the targets are fitted on `sub_` at fixed shifted positions with the aperture
+annulus radii, a PSF empty-position noise ratio and the `conv_` host Poisson term.
 The pre-0.10.0 class (SExtractor/photutils ePSF and PSFEx paths) is in git history.
 
 ### Photometric calibration
