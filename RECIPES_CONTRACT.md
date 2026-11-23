@@ -167,7 +167,10 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
   `recenter_iter`(반복 ePSF 중심 맞춤 회수)(없으면 build_epsf 기본: 1000·50·30·0),
   별 카탈로그 = photcal 섹션의 `catalog_type`/`catalog_version`) →
   `psf_photometry`(타겟 + `<img>.fits.refcat` 기준성 위치, 개구 측광과 같은 배경 맵·bkgrms를 뺀 뒤 섹션 `background`(기본 `'annulus'`: 차영상 forced와
-  같은 고리 5σ 클립 평균), `fit_radius_fwhm`(기본 2.5), `weighting`(기본 `'uniform'`), `recenter`(기본 `'offset'`: S/N ≥ `recenter_snr`(기본 50)인 소스(대개 기준성)의 PSF 위치
+  같은 고리 5σ 클립 평균; `'fit'` = 진폭과 상수 동시 적합, `'plane'` = 진폭과 평면(상수 + x + y, 소스 위치 기준) 동시 적합, `'none'`; 대상과 기준성은 늘 같은 모드),
+  `bkg_radius_fwhm`(`'fit'`·`'plane'`만, 기본 없음 = `fit_radius_fwhm`: 적합 픽셀 반경(FWHM 단위), PSF 배열 반경보다 크면 배열 밖 픽셀은 P = 0으로 배경만 제약;
+  은하 위 대상에서 평면으로 못 따라가는 은하 구조(핵·팔 등 곡률)는 PSF 플럭스로 들어가 편향되고 반경이 클수록 커진다 — 은하 위 대상은 `'fit'`, 필요하면
+  `bkg_radius_fwhm` 1.5–2.0; 크기는 CHANGELOG 0.12.0), `fit_radius_fwhm`(기본 2.5), `weighting`(기본 `'uniform'`), `recenter`(기본 `'offset'`: S/N ≥ `recenter_snr`(기본 50)인 소스(대개 기준성)의 PSF 위치
   맞춤으로 영상 전체의 부드러운 위치 오프셋(축마다 평면, MAD 3σ 클립 한 번 뒤 재맞춤; 10개 미만이면 중앙값, 3개 미만이면 0)을 구해 **모든 대상·기준성 위치에
   같이 더한다** — 기준성의 측정 위치(`.refcat` = 그 영상 카탈로그 위치)에 대한 PSF 중심의 부드러운 어긋남(중심 정의·좌표 왕복 차이)을 대상과 기준성에
   똑같이 적용하므로 소스마다 S/N 문턱을 넘나드는 계단이 없다; 목록 좌표로 준 대상의 WCS 자체 오차는 기준성 위치에도 들어 있어 보정되지 않는다;

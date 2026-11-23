@@ -88,7 +88,9 @@ FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_em
 # ePSF of the image (PSFPhotometry.build_epsf: grid N or (nx, ny) tiles, model 'grid' per tile or 'poly' polynomial of
 # order <= poly_order in the position; max_stars_total, snr_lower, snr_lower_fallback, recenter_iter may be added),
 # PSF amplitude fit (psf_photometry: background, fit radius fit_radius_fwhm x FWHM, weighting, recenter) and ZP_PSF from
-# the image's reference stars (calibrate_zp).
+# the image's reference stars (calibrate_zp). background 'annulus' (default) | 'fit' | 'plane' | 'none'; with 'fit' or
+# 'plane' bkg_radius_fwhm may be added (fit-pixel radius in FWHM, also beyond the PSF array); targets and reference
+# stars always share the mode.
 # Default: 'poly' of order 3, evaluated on the automatic ~512 px tiling (grid 1); order ladder of build_epsf: order 3
 # (>= 50 stars) needs a star in each of the 3 x 3 image zones, orders 2 (>= 30) and 1 (>= 15) in each of 2 x 2 zones,
 # else one median ePSF (grid 1; Moffat below 20 stars); fewer than 50 stars at peak S/N 50: selection repeated at 30.

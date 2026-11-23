@@ -337,8 +337,9 @@ the image, else the next lower order, else the single median ePSF
 at the array centre),
 `effective_psf()` convolves a PSF with a filter kernel (e.g. a decorrelation
 filter of a difference image), `psf_photometry()` fits the PSF amplitude at fixed
-positions (local annulus background by default, uniform or inverse-variance
-weights, a given variance plane or bkgrms + Poisson; optional `recenter`:
+positions (local annulus background by default, or a constant or plane fitted
+with the amplitude within the fit radius (or `bkg_radius_fwhm`); uniform or
+inverse-variance weights, a given variance plane or bkgrms + Poisson; optional `recenter`:
 `'offset'` one smooth image offset from the position fits of the sources above
 an S/N, added to all positions (recipe default), or `'each'` per source;
 `DX_PSF`/`DY_PSF`, `FLAG_PSF` bit 16) and writes

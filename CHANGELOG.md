@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.12.0 (2026-11-23)
+기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: `psf_photometry`·`forced_photometry_psf`의 기본 `background='annulus'`, 새 인자 `bkg_radius_fwhm` 기본 None.
+### 추가
+- `PSFPhotometry.psf_photometry(..., background='plane', bkg_radius_fwhm=None)`(`bkg_radius_fwhm`는 시그니처 끝; 은하 위 대상의 국소 배경): `background`에
+  `'plane'`이 늘었다 — 진폭 F와 평면 C + Cx·(x − x₀) + Cy·(y − y₀)(픽셀, (x₀, y₀) = 소스 위치)을 한 선형 최소제곱으로 함께 맞춘다. `BACKGROUND` = C(소스
+  위치의 배경값, `recenter='each'`면 맞춘 위치), `UL3_PSF`·`UL5_PSF`(배경 오차)는 배경 세 항을 포함한 공분산, `CHI2_PSF` 자유도에서 4개를 뺀다.
+  `recenter`(`'each'`, `'offset'`의 첫 단계) 위치 맞춤도 같은 평면 항을 함께 맞춘다. `host_img`(자체 고리 평균을 뺀 Poisson)·`noise_ratio`·`weighting` 규칙은 `'fit'`과 같다.
+  적합 영역 안 픽셀이 한 열이나 한 행뿐이면(평면을 정할 수 없음) `FLAG_PSF` 비트 8, 플럭스 NaN.
+  `bkg_radius_fwhm`(`'fit'`·`'plane'`에서만; 그 밖, 0 이하, NaN·inf면 `ValueError`): 적합 픽셀 반경(FWHM 단위)을 `fit_radius_fwhm` 대신 쓰고 PSF 배열 반경에서
+  자르지 않는다 — 상자를 넓히고 배열 밖 픽셀은 P = 0으로 배경만 제약한다(`NPIX_PSF`·`NMASK_PSF`·`FLAG_PSF` 비트 2·4와 recenter 위치 맞춤도 이 픽셀; 위치 이동 한도는
+  적합 반경 그대로). 메타 `FIT_RADIUS_PIX`는 실제 적합 픽셀 반경, `meta['comments']`의 `BACKGROUND_MODE` 줄에 `'plane'`이거나 `bkg_radius_fwhm`을 주면 `within <반경> px`가 붙는다.
+  **기존 동작은 그대로다**: `'annulus'`·`'none'`, `bkg_radius_fwhm=None`인 `'fit'`은 이전과 같은 연산이다(합성 시험에서 배열 139개·메타 같음).
+  - **`'plane'`과 `'fit'`은 거의 같다**: 소스를 중심으로 한 대칭 적합 영역에서는 x·y 항이 PSF·상수와 거의 직교해, 빠진 픽셀이 없으면 같은 반경의 `'plane'`과 `'fit'`의
+    플럭스·오차가 거의 같다(순수 기울기에서도 `'fit'`이 이미 편향이 없다). 평면이 다른 것은 영역이 한쪽으로 치우칠 때(마스크·무효 픽셀·영상 가장자리; 합성 반원
+    마스크 + 기울기에서 `'fit'` 0.22σ, `'plane'` 0)와 recenter 위치 맞춤이다 — 실제 영상에서는 아직 시험하지 않았다.
+  - **은하 위 대상**: 은하 빛 누설(점광원이 없는 자리에서 읽히는 PSF 플럭스)의 본체는 적합 영역 안의 곡률(핵·팔·봉우리)이다. 곡률이 아래로 휜 곳(봉우리 위, 핵·팽대부의
+    대략 변곡점 반경 안)에서는 밝게, 위로 휜 곳(그 밖의 측면, 팔 사이)에서는 어둡게 들어가고, 크기는 (배경 반경 / 은하 구조 크기)²에 비례한다. 그래서 배경을 PSF 가까이에서
+    맞출수록 작고, 평면 항은 이것을 줄이지 못한다.
+    크기(7DT 큰 은하 43개(REGALADE R1 ≥ 60″), 10타일 × 2필터 20장(코애드 14, 단일 6), 은하 위 4,080자리; 누설 F0를 그 영상 S/N 20 별 플럭스 F20 단위로;
+    |F0| > 0.2 F20인 자리 비율):
+
+    | 배경 | 0.1 R1 | 0.2 R1 | 국소 SB 20–21 | SB 21–22 | 빈 하늘 FLUXERR (annulus 대비) |
+    | --- | --- | --- | --- | --- | --- |
+    | `'annulus'`(기본) | 95 % | 61 % | 99 % | 72 % | 1 |
+    | `'fit'` / `'plane'` 2.5 FWHM(`fit_radius_fwhm`) | 38 % | 16 % | 47 % | 20 % | 1.08 |
+    | `'fit'`, `bkg_radius_fwhm=2.0` | 32 % | 10 % | 35 % | 16 % | 1.13 |
+    | `'fit'`, `bkg_radius_fwhm=1.5` | 23 % | 7 % | 26 % | 11 % | 1.25 |
+    | `'plane'` 4 / 5 FWHM | 58 / 66 % | 27 / 34 % | 66 / 71 % | 32 / 41 % | 1.03 / 1.02 |
+
+    0.35 R1 밖이나 국소 SB 22 mag/arcsec²보다 어두운 곳에서는 `'fit'`(1.5–2.5 FWHM)이 ≤ 5 %(annulus는 0.75 R1·23 mag/arcsec²부터 ≤ 10 %).
+    핵(0 R1)은 어느 모드에서도 F20의 2–5배가 남는다 — 차영상을 쓴다. 반경을 2.5 FWHM보다 키우면 빈 하늘 오차는 조금 줄지만 은하 위에서 불리하다.
+    작은 반경의 대가: 밝은 별(S/N > 50) 플럭스가 2.5 FWHM 대비 2.0에서 ±0.2 %, 1.5에서 ±0.6 %(프레임 중앙값; 별마다 산포 0.2–0.3 % / 0.5–1 %) 달라진다 — PSF 모형
+    오차가 좁은 배경 영역으로 샌다. 레시피는 대상과 기준성을 같은 모드로 재고 `ZP_PSF`로 보정하므로 공통 몫은 상쇄된다. 빈 하늘 주입 별의 반응은 모든 모드에서 1.003–1.006.
+    (SB는 메시 배경을 뺀 영상의 국소값, R1 ≥ 60″ 은하라 흔한 작은 호스트에서는 같은 r/R1에서 누설이 더 크다 — SB 경계를 쓴다.)
+  - forced_photometry 레시피는 `forced_photometry_psf` 섹션의 `background`·`bkg_radius_fwhm`을 그대로 `psf_photometry`로 넘긴다(대상·기준성 같은 모드);
+    레시피 기본은 `background='annulus'` 그대로다. 은하 위 대상에는 `background='fit'`(필요하면 `bkg_radius_fwhm` 1.5–2.0)을 설정으로 준다.
+
 ## 0.11.0 (2026-11-22)
 기본 설정의 레시피(process_images·stack·dia·forced_photometry)와 baseline 결과는 바뀌지 않는다: 레시피의 `annulus_width_arcsec` 기본값은 None이고
 `elliptical_photometry`는 레시피에서 부르지 않는다.

@@ -116,35 +116,41 @@ def _centroid(d: np.ndarray, x0: float, y0: float, sigma: float, n: int = 10):
     return x, y
 
 
-def _fit_shift(d: np.ndarray, p: np.ndarray, w: np.ndarray, dx: float, dy: float, fit_const: bool = False,
+def _fit_shift(d: np.ndarray, p: np.ndarray, w: np.ndarray, dx: float, dy: float, bkg: np.ndarray = None,
                limit: float = 1.0, max_iter: int = 20, tol: float = 1e-3, h: float = 0.05):
-    """Position of a point source by Gauss-Newton: d = F P(dx, dy) (+ C with fit_const), weighted least squares over
-    the pixels with weight w > 0. d, p, w are (n, n); P(dx, dy) is p shifted by (dy, dx) (scipy.ndimage.shift, order
-    3) and normalised to sum 1, as psf_photometry places the PSF, so (dx, dy) is the source offset from the stamp
-    centre n // 2. Starts at (dx, dy) with the linear F (and C); position derivatives by central differences of +-h
-    px. Returns the fitted (dx, dy), or None: singular system, not finite, F <= 0, a move of more than limit px from
-    the start, or no step below tol px in max_iter steps."""
+    """Position of a point source by Gauss-Newton: d = F P(dx, dy) (+ bkg @ c with bkg), weighted least squares over
+    the pixels with weight w > 0. d, w are (m, m), p is (n, n) with n <= m (zero-padded to m after the shift); bkg,
+    optional, (n_w, k) holds k background columns over the n_w pixels w > 0 in row-major order (e.g. 1, or 1, x, y).
+    P(dx, dy) is p shifted by (dy, dx)
+    (scipy.ndimage.shift, order 3) and normalised to sum 1, as psf_photometry places the PSF, so (dx, dy) is the source
+    offset from the stamp centre m // 2. Starts at (dx, dy) with the linear F (and c); position derivatives by central
+    differences of +-h px. Returns the fitted (dx, dy), or None: singular system, not finite, F <= 0, a move of more
+    than limit px from the start, or no step below tol px in max_iter steps."""
+    pad = (d.shape[0] - p.shape[0]) // 2
+
     def model(sx, sy):
         m = ndimage.shift(p, (sy, sx), order=3, mode='constant')
-        return m / m.sum()
+        m = m / m.sum()
+        return np.pad(m, pad) if pad else m
 
     g = w > 0
     W, D = w[g], d[g]
     x0, y0 = dx, dy
     try:
         P = model(dx, dy)[g]
-        X = np.column_stack([P, np.ones_like(P)]) if fit_const else P[:, None]
+        X = np.column_stack([P, bkg]) if bkg is not None else P[:, None]
         lin = np.linalg.solve(X.T @ (W[:, None] * X), X.T @ (W * D))
-        F, C = lin[0], (lin[1] if fit_const else 0.0)
+        F, c = lin[0], lin[1:]
         for _ in range(max_iter):
             P = model(dx, dy)[g]
             Px = (model(dx + h, dy)[g] - model(dx - h, dy)[g]) / (2 * h)
             Py = (model(dx, dy + h)[g] - model(dx, dy - h)[g]) / (2 * h)
-            J = np.column_stack([P, F * Px, F * Py] + ([np.ones_like(P)] if fit_const else []))
+            J = np.column_stack([P, F * Px, F * Py] + ([bkg] if bkg is not None else []))
+            C = bkg @ c if bkg is not None else 0.0
             step = np.linalg.solve(J.T @ (W[:, None] * J), J.T @ (W * (D - F * P - C)))
             F, dx, dy = F + step[0], dx + step[1], dy + step[2]
-            if fit_const:
-                C = C + step[3]
+            if bkg is not None:
+                c = c + step[3:]
             if not (np.all(np.isfinite(step)) and F > 0 and np.hypot(dx - x0, dy - y0) <= limit):
                 return None
             if np.hypot(step[1], step[2]) < tol:
@@ -819,23 +825,26 @@ class PSFPhotometry:
                        verbose: bool = True,
                        recenter: Union[bool, str] = False,
                        recenter_snr: float = 50.0,
-                       recenter_max_shift: float = 0.5):
+                       recenter_max_shift: float = 0.5,
+                       bkg_radius_fwhm: float = None):
         """
         Forced PSF photometry: at each fixed position, a linear least-squares fit of the PSF amplitude, i.e. the total
         flux of the PSF array (normalised to sum 1 after the sub-pixel shift).
 
         Per position (x, y): the PSF at (x, y) (tiles blended with tent weights), shifted by the sub-pixel offset from
         the nearest pixel (scipy.ndimage.shift, order 3) and normalised to sum 1 = P. Fit pixels: within
-        fit_radius_fwhm x FWHM (header seeing) of (x, y) and within the PSF array; pixels off the image, masked
-        (target_mask), invalid (not finite or nonzero with |value| < 1e-20; an exact 0 is valid; ADU-scale values
-        assumed) or without a positive finite weighting variance get weight 0.
-        Model d = F P (+ C with background='fit'), solved by the weighted normal
-        equations with w = 1 (weighting 'uniform': F = sum(P d) / sum(P^2), the PSF-weighted flux of a
+        fit_radius_fwhm x FWHM (header seeing) of (x, y) and within the PSF array (with background 'fit' or 'plane'
+        and bkg_radius_fwhm: within bkg_radius_fwhm x FWHM, also beyond the PSF array, where P = 0); pixels off the
+        image, masked (target_mask), invalid (not finite or nonzero with |value| < 1e-20; an exact 0 is valid;
+        ADU-scale values assumed) or without a positive finite weighting variance get weight 0.
+        Model d = F P (+ C with background='fit', + C + Cx (x - x0) + Cy (y - y0) with 'plane'), solved by the
+        weighted normal equations with w = 1 (weighting 'uniform': F = sum(P d) / sum(P^2), the PSF-weighted flux of a
         constant-variance fit; the variance only enters the errors and CHI2) or w = 1 / V_w ('inverse_variance').
         V_w leaves out the Poisson noise of the measured source itself (default variance): weights taken from the
         noisy data would down-weight pixels that fluctuate up and bias the flux low. Error from the per-pixel
         variance V:
-        Var(F) = sum(w^2 P^2 V) / (sum(w P^2))^2 (the general weighted least-squares covariance with C).
+        Var(F) = sum(w^2 P^2 V) / (sum(w P^2))^2 (the general weighted least-squares covariance with the background
+        terms).
         Negative fluxes are kept.
 
         recenter='offset': the positions of the sources at or above recenter_snr are fitted as with 'each' (below,
@@ -853,9 +862,10 @@ class PSFPhotometry:
         input positions are sky-catalog coordinates and so are those of the measured sources (input positions
         measured on this image, e.g. its own source catalog, already hold the WCS error, which then stays).
         recenter='each' (or True): a source with F / FLUXERR_PSF >= recenter_snr from the fit above also gets its
-        position fitted with the same PSF (Gauss-Newton on F, the sub-pixel offset (and C with 'fit'), same pixels
-        and weights, at most the fit radius away), and the fit above is redone at the fitted position (all columns
-        from it; the fit pixels stay those around the input position, the PSF tile blend that of the input position).
+        position fitted with the same PSF (Gauss-Newton on F, the sub-pixel offset (and the background terms of 'fit'
+        or 'plane'), same pixels and weights, at most the fit radius away), and the fit above is redone at the fitted
+        position (all columns from it; the fit pixels stay those around the input position, the PSF tile blend that
+        of the input position).
         X_IMAGE/Y_IMAGE and X_WORLD/Y_WORLD stay the input positions; DX_PSF, DY_PSF hold the fitted offset (px). A
         move of more than recenter_max_shift px keeps the fitted-position values and sets FLAG_PSF bit 16; a failed
         position fit keeps the input-position values, DX_PSF/DY_PSF NaN and bit 16. Sources below recenter_snr (or
@@ -866,6 +876,20 @@ class PSFPhotometry:
                 (the estimator of AperturePhotometry.circular_photometry with annulus_width_arcsec; here masked and
                 invalid pixels are left out of it), then F alone.
             'fit': F and a constant C together.
+            'plane': F and a plane C + Cx (x - x0) + Cy (y - y0) together ((x0, y0) the source position, pixels;
+                BACKGROUND = C, with recenter 'each' at the fitted position). Over fit pixels centred on the source
+                the x, y terms (odd about the source) are nearly orthogonal to the constant and to a near
+                point-symmetric P (even), so with no pixel left out 'plane' and 'fit' give almost the same flux and
+                error, also under a pure gradient; the plane matters where the fit pixels are lopsided (masked or
+                invalid pixels, the image edge) and for the position fits of recenter (a gradient pulls a fit with a
+                constant only).
+                On a galaxy ('fit' or 'plane'): the local level under the source is followed better than with the
+                annulus, but galaxy structure the model does not follow within the fit pixels (curvature: a nucleus,
+                a bulge or arm peaked at or near the source) is partly fitted as PSF flux and biases it: bright where
+                the light curves down (on a peak, within about the inflection radius of a nucleus or bulge), faint
+                where it curves up (outside it on the flank, between arms); the bias grows with the radius
+                (bkg_radius_fwhm), the noise falls with it. Beyond the PSF
+                array (bkg_radius_fwhm x FWHM > its radius) the source's own light, if any, goes into the background.
             'none': no local background. Without target_bkg the sky then stays in d and is not in the default
                 variance's Poisson term (which uses the fitted PSF model), only in bkgrms^2.
         Variance (ADU^2 per pixel):
@@ -910,9 +934,9 @@ class PSFPhotometry:
         host_img : ScienceImage or ReferenceImage, optional
             Default variance only: an image on the same grid and flux scale holding the light under the sources that
             target_img lacks (for a difference image the convolved reference); max(its pixel value minus its own
-            annulus mean (background 'annulus' and 'fit'), 0) / EGAIN is added to V and V_w.
+            annulus mean (background 'annulus', 'fit' and 'plane'), 0) / EGAIN is added to V and V_w.
         background : str, optional
-            'annulus' (default), 'fit' or 'none'.
+            'annulus' (default), 'fit', 'plane' or 'none'.
         annulus_radii_arcsec : tuple, optional
             (inner, outer) annulus radius in arcsec. Defaults to the difference-image annulus of the forced_photometry
             recipe with its default apertures: inner = (max(15", 3.5 seeing) + 1.5 seeing) / 2, outer = inner + 30".
@@ -936,6 +960,12 @@ class PSFPhotometry:
         recenter_max_shift : float, optional
             Fitted move (px) beyond which FLAG_PSF bit 16 is set. Defaults to 0.5.
             With 'offset' the applied offset is compared instead (an image-level warning on many rows, see above).
+        bkg_radius_fwhm : float, optional
+            Background 'fit' or 'plane' only (else ValueError): radius of the fit pixels in units of the FWHM, in place
+            of fit_radius_fwhm and not capped at the PSF array radius: the stamp is enlarged and the pixels beyond the
+            array (P = 0) constrain the background only. NPIX_PSF, NMASK_PSF, FLAG_PSF bits 2 and 4 and the position
+            fit of recenter use these pixels; the recenter move limit stays the fit radius. None (default):
+            fit_radius_fwhm (the same results as without it).
 
         Returns
         -------
@@ -948,13 +978,18 @@ class PSFPhotometry:
             source the PSF fits, values >~ 3 are worth a look (an empirical guide, not a flag): a blend, an extended
             source, a PSF mismatch or a position offset), NPIX_PSF (fit pixels used), NMASK_PSF (fit-radius pixels with
             weight 0), PSF_EE (sum of P over the fit pixels used), FLAG_PSF (bits: 1 Moffat fallback, 2 pixels with
-            weight 0, 4 image edge, 8 no fit: the values NaN, 16 recenter: moved > recenter_max_shift or position fit
+            weight 0, 4 image edge, 8 no fit: the values NaN ('plane': also when the used pixels span fewer than 2
+            columns or rows), 16 recenter: moved > recenter_max_shift or position fit
             failed; 'offset': applied offset > recenter_max_shift, an image-level warning on many rows at once, see
             above), with recenter also DX_PSF, DY_PSF (px).
             The table meta 'comments' (written as '#' lines) records the settings.
         """
-        if background not in ('annulus', 'fit', 'none'):
-            raise ValueError(f"background must be 'annulus', 'fit' or 'none', got {background!r}")
+        if background not in ('annulus', 'fit', 'plane', 'none'):
+            raise ValueError(f"background must be 'annulus', 'fit', 'plane' or 'none', got {background!r}")
+        if bkg_radius_fwhm is not None and not (background in ('fit', 'plane') and np.isfinite(bkg_radius_fwhm)
+                                                and bkg_radius_fwhm > 0):
+            raise ValueError(f"bkg_radius_fwhm must be finite, > 0 and is for background 'fit' or 'plane', got "
+                             f"{bkg_radius_fwhm!r} with {background!r}")
         if weighting not in ('uniform', 'inverse_variance'):
             raise ValueError(f"weighting must be 'uniform' or 'inverse_variance', got {weighting!r}")
         if unit not in ('pixel', 'coord'):
@@ -969,6 +1004,11 @@ class PSFPhotometry:
         R = psf.shape[-1] // 2
         fwhm, scale = self._fwhm_pixel(target_img)
         fit_radius = min(fit_radius_fwhm * fwhm, R)
+        # fit pixels within pix_radius; with bkg_radius_fwhm also beyond the PSF array (P = 0 there: background only),
+        # in a stamp of half-width Rb >= R holding every pixel within pix_radius of a position up to 0.5 px off centre
+        pix_radius = fit_radius if bkg_radius_fwhm is None else bkg_radius_fwhm * fwhm
+        Rb = max(R, int(np.floor(pix_radius + 0.5)))
+        pad = Rb - R
 
         # Data, invalid pixels (judged before any background subtraction) and mask
         raw = self.helper.to_native(target_img.data)
@@ -1023,7 +1063,7 @@ class PSFPhotometry:
                 target_bkgrms=target_bkgrms, target_mask=target_mask, variance=variance, noise_ratio=noise_ratio,
                 host_img=host_img, background=background, annulus_radii_arcsec=annulus_radii_arcsec,
                 fit_radius_fwhm=fit_radius_fwhm, weighting=weighting, save=False, verbose=False, recenter='each',
-                recenter_snr=recenter_snr).data
+                recenter_snr=recenter_snr, bkg_radius_fwhm=bkg_radius_fwhm).data
             off_x, off_y, n_off, n_meas, off_rms = _offset_model(x_pix, y_pix, np.asarray(measured['DX_PSF']),
                                                                  np.asarray(measured['DY_PSF']), raw.shape)
             if n_off == 0:
@@ -1040,7 +1080,7 @@ class PSFPhotometry:
         local = np.zeros(nsrc)
         host_local = np.zeros(nsrc)
         r_in = r_out = None
-        if background == 'annulus' or (host is not None and background == 'fit'):
+        if background == 'annulus' or (host is not None and background in ('fit', 'plane')):
             seeing = fwhm * scale
             if annulus_radii_arcsec is None:
                 r_in = (max(15.0, 3.5 * seeing) + 1.5 * seeing) / 2
@@ -1063,8 +1103,8 @@ class PSFPhotometry:
         npix_used = np.zeros(nsrc, dtype=int)
         nmask = np.zeros(nsrc, dtype=int)
         flags = np.zeros(nsrc, dtype=int)
-        n_par = 2 if background == 'fit' else 1
-        n_box = 2 * R + 1
+        n_par = {'fit': 2, 'plane': 4}.get(background, 1)
+        n_box = 2 * Rb + 1
         yy, xx = np.indices((n_box, n_box))
         fallback = None
         if psf_info is not None and 'source' in psf_info:
@@ -1073,9 +1113,10 @@ class PSFPhotometry:
             txc, tyc, _, _ = _tiles(raw.shape, (psf.shape[1], psf.shape[0]))
         dxy = np.full((2, nsrc), np.nan)   # recenter: fitted offset from the input position (px)
 
-        def flux_fit(P, D, W, Vw):
-            """Weighted linear fit of D = F P (+ C): theta, V, cov, cov_bkg, resid (LinAlgError when singular)."""
-            X = np.column_stack([P, np.ones_like(P)]) if background == 'fit' else P[:, None]
+        def flux_fit(P, D, W, Vw, B):
+            """Weighted linear fit of D = F P (+ B @ c, background columns B): theta, V, cov, cov_bkg, resid
+            (LinAlgError when singular)."""
+            X = np.column_stack([P, B]) if B is not None else P[:, None]
             Minv = np.linalg.inv(X.T @ (W[:, None] * X))
             theta = Minv @ (X.T @ (W * D))
             # Source Poisson from the fitted model: clipping the noisy data at 0 would bias V up for faint sources
@@ -1104,9 +1145,11 @@ class PSFPhotometry:
             p0 = p   # unshifted, for recenter
             p = ndimage.shift(p, (dy, dx), order=3, mode='constant')
             p = p / p.sum()
+            if pad:   # pixels beyond the PSF array: P = 0
+                p = np.pad(p, pad)
 
             # Stamp around (xi, yi); pixels off the image are invalid
-            x0, y0 = xi - R, yi - R
+            x0, y0 = xi - Rb, yi - Rb
             sx = slice(max(x0, 0), min(x0 + n_box, nx))
             sy = slice(max(y0, 0), min(y0 + n_box, ny))
             ix = slice(sx.start - x0, sx.stop - x0)
@@ -1126,7 +1169,7 @@ class PSFPhotometry:
                     hv = np.zeros((n_box, n_box))
                     hv[iy, ix] = host[sy, sx]
                     vw = vw + np.clip(hv - host_local[k], 0, None) / egain
-            footprint = np.hypot(xx - R - dx, yy - R - dy) <= fit_radius
+            footprint = np.hypot(xx - Rb - dx, yy - Rb - dy) <= pix_radius
             with np.errstate(invalid='ignore'):
                 good = footprint & ~b & np.isfinite(vw) & (vw > 0)
             nmask[k] = int((footprint & ~good).sum())
@@ -1135,7 +1178,9 @@ class PSFPhotometry:
             if (footprint & ~inside).any():
                 flags[k] |= FLAG_EDGE
             npix_used[k] = int(good.sum())
-            if npix_used[k] <= n_par or not np.isfinite(local[k]) or not np.isfinite(host_local[k]):
+            if (npix_used[k] <= n_par or not np.isfinite(local[k]) or not np.isfinite(host_local[k])
+                    or (background == 'plane' and (np.ptp(xx[good]) == 0 or np.ptp(yy[good]) == 0))):
+                # ('plane': pixels in one column or row make the x or y term a multiple of the constant)
                 flags[k] |= FLAG_FAILED
                 continue
 
@@ -1143,8 +1188,13 @@ class PSFPhotometry:
             D = d[good] - local[k]
             Vw = vw[good]
             W = np.ones_like(P) if weighting == 'uniform' else 1.0 / Vw
+            B = None   # background columns: 1 ('fit'); 1, x - x0, y - y0 ('plane', pixels from the source position)
+            if background == 'fit':
+                B = np.ones_like(P)[:, None]
+            elif background == 'plane':
+                B = np.column_stack([np.ones_like(P), (xx - Rb - dx)[good], (yy - Rb - dy)[good]])
             try:
-                theta, V, cov, cov_bkg, resid = flux_fit(P, D, W, Vw)
+                theta, V, cov, cov_bkg, resid = flux_fit(P, D, W, Vw, B)
             except np.linalg.LinAlgError:
                 flags[k] |= FLAG_FAILED
                 continue
@@ -1154,19 +1204,22 @@ class PSFPhotometry:
                 # position fit with the same PSF, pixels and weights; then the linear fit above at that position
                 w_fit = np.zeros((n_box, n_box))
                 w_fit[good] = W
-                fit = _fit_shift(d - local[k], p0, w_fit, dx, dy, fit_const=background == 'fit', limit=fit_radius)
+                fit = _fit_shift(d - local[k], p0, w_fit, dx, dy, bkg=B, limit=fit_radius)
                 if fit is not None:
                     p1 = ndimage.shift(p0, (fit[1], fit[0]), order=3, mode='constant')
-                    P1 = (p1 / p1.sum())[good]
+                    p1 = p1 / p1.sum()
+                    P1 = (np.pad(p1, pad) if pad else p1)[good]
+                    if background == 'plane':   # C at the fitted position
+                        B = B - np.array([0.0, fit[0] - dx, fit[1] - dy])
                     try:
-                        theta, V, cov, cov_bkg, resid = flux_fit(P1, D, W, Vw)
+                        theta, V, cov, cov_bkg, resid = flux_fit(P1, D, W, Vw, B)
                         P, dof = P1, dof - 2
                         dxy[:, k] = fit[0] - dx, fit[1] - dy
                     except np.linalg.LinAlgError:   # keep the input-position fit
                         fit = None
                 if fit is None or np.hypot(dxy[0, k], dxy[1, k]) > recenter_max_shift:
                     flags[k] |= FLAG_RECENTER
-            level = theta[1] if background == 'fit' else 0.0
+            level = theta[1] if n_par > 1 else 0.0
             cols['FLUX_PSF'][k] = theta[0]
             cols['FLUXERR_PSF'][k] = np.sqrt(cov[0, 0])
             cols['FLUXERR_BKG'][k] = np.sqrt(cov_bkg[0, 0])
@@ -1225,8 +1278,9 @@ class PSFPhotometry:
             'ezphot PSFPhotometry.psf_photometry: X_IMAGE/Y_IMAGE are 0-based pixel coordinates',
             f'PSF_SHAPE = {psf.shape}',
             f'PSF_SOURCE = {psf_source}',
-            f'FIT_RADIUS_PIX = {fit_radius:.3f}',
-            f'BACKGROUND_MODE = {background}' + (f' {r_in:.2f}-{r_out:.2f} arcsec' if background == 'annulus' else ''),
+            f'FIT_RADIUS_PIX = {pix_radius:.3f}',
+            f'BACKGROUND_MODE = {background}' + (f' {r_in:.2f}-{r_out:.2f} arcsec' if background == 'annulus' else '')
+            + (f' within {pix_radius:.3f} px' if background == 'plane' or bkg_radius_fwhm is not None else ''),
             f'WEIGHTING = {weighting}',
             'VARIANCE = ' + ('given' if variance is not None else
                              f'bkgrms^2 x {ratio2:.4f} + Poisson' + (' + host' if host is not None else '')),
