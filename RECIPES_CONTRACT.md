@@ -163,7 +163,7 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
 - PSF(0.10.0, `forced_photometry_psf` 섹션 = `defaults.FORCED_PHOTOMETRY_PSF`, **기본 꺼짐** `enabled=False`, CLI `--psf`): 켜면 개구 값을 다 구한 뒤
   `PSFPhotometry.build_epsf`(섹션 `grid`(N 또는 `(nx, ny)`; 기본 1 = `'poly'`에서는 약 512 px 자동 평가 격자)·
   `model`(기본 `'poly'` = 위치 다항식, 이상치 제거 없음; `'grid'`면 타일별 중앙값 — 타일별 중앙값 ePSF를 원하면 `grid`와 함께 `model='grid'`를 준다)·
-  `poly_order`(기본 3, 상한: 별이 5 × 계수 수(3차 50·2차 30·1차 15) 이상이고 영상 구역(3차 3×3, 2차·1차 2×2)마다 별이 있는 가장 높은 차수, 없으면
+  `poly_order`(기본 4(0.13.0; 이전 3), 상한: 별이 5 × 계수 수(4차 75·3차 50·2차 30·1차 15) 이상이고 영상 구역(4차·3차 3×3, 2차·1차 2×2)마다 별이 있는 가장 높은 차수, 없으면
   중앙값 ePSF 하나(별 20개 미만이면 Moffat))·
   `max_stars_total`·`snr_lower`(별 고르기 피크 S/N 하한)·`snr_lower_fallback`(그 별이 `poly_order` 차수의 별 수에 못 미치면 이 문턱으로 다시 고름)·
   `recenter_iter`(반복 ePSF 중심 맞춤 회수)(없으면 build_epsf 기본: 1000·50·30·0),
@@ -231,7 +231,7 @@ forced_image(target_img, ra, dec, calibrate='header', config=None, clear=True) -
 - 열(영상 × 타겟 한 행): `path`, `target`(ra/dec 안의 번호), `ra`, `dec`, `telname`, `filter`, `obsdate`, `exptime`, `calibrate`, `success`, `step`, `error`,
   `n_ref`(`reference_stars`의 ZP 기준성 수, `header`는 빈 칸), `bkg_source`·`bkgrms_source`(`sidecar` | `image` | `none` | 차영상 고리면 `annulus`),
   `catalog`(`.circ.cat` 경로), `MAGSKY_APER_3`, `MAGERR_APER_3`, `ZP_APER_3`, `ZPERR_APER_3`, `UL5SKY_APER_3`, `noise_ratio`, `host_source`
-  (뒤 둘은 차영상만, 그 밖은 빈 칸). PSF를 켰을 때만 그 뒤에 `psf_catalog`(쓴 `.psf.cat` 경로; PSF 단계가 실패한 행은 빈 칸), `psf_source`(`epsf` | `moffat`(별 20개 미만 폴백) | `mixed`(타일별로 섞임; `'poly'`에는 없음)), `psf_model`(영상마다 하나, 실제로 쓴 PSF 모형: `poly3` | `poly2` | `poly1` | `grid`(중앙값 ePSF; `model='poly'`의 차수 사다리가 끝까지 내려간 경우 포함) | `moffat`(모든 타일 Moffat); `.psf.cat`의 `PSF_SOURCE` 메타에도 다항식이면 `model poly order k`가 붙는다),
+  (뒤 둘은 차영상만, 그 밖은 빈 칸). PSF를 켰을 때만 그 뒤에 `psf_catalog`(쓴 `.psf.cat` 경로; PSF 단계가 실패한 행은 빈 칸), `psf_source`(`epsf` | `moffat`(별 20개 미만 폴백) | `mixed`(타일별로 섞임; `'poly'`에는 없음)), `psf_model`(영상마다 하나, 실제로 쓴 PSF 모형: `poly4` | `poly3` | `poly2` | `poly1` | `grid`(중앙값 ePSF; `model='poly'`의 차수 사다리가 끝까지 내려간 경우 포함) | `moffat`(모든 타일 Moffat); `.psf.cat`의 `PSF_SOURCE` 메타에도 다항식이면 `model poly order k`가 붙는다),
   `psf_nstars`(타일 중 가장 적은 ePSF 별 수 — 상자에 이웃 봉우리·뾰족점이 있는 별을 뺀 뒤; `model='poly'`는 적합에 쓴 별 수, 위 폴백이면 그 별 수), `n_ref_psf`(ZP_PSF 기준성 수), 타겟별 `MAGSKY_PSF`, `MAGERR_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL5SKY_PSF`,
   `CHI2_PSF`, `FLAG_PSF`, `DX_PSF`, `DY_PSF`(px; `recenter='offset'`이면 그 대상에 적용한 오프셋, `'each'`면 맞춘 이동으로 맞추지 않은 대상은 NaN; `recenter=False`면 빈 칸;
   차영상은 PSF 영상에서 잰 값)(4절 아래 `.psf.cat`), 0.12.1부터 그 뒤에 영상별 `psf_image`(`sci` | `conv`, 차영상의 PSF 영상)와 `noise_ratio_psf`(차영상 PSF 잡음비,

@@ -327,12 +327,12 @@ isolated, unsaturated Gaia stars of the image (stars whose box has a second
 peak, e.g. a neighbour, or with EGAIN a one-pixel spike above twice the mean
 of its 8 neighbours, e.g. a cosmic ray, are dropped; median of re-centred
 cut-outs, optionally per tile of an N x N or nx x ny grid, or with
-`model='poly'` a per-pixel polynomial (order 3 by default)
+`model='poly'` a per-pixel polynomial (order 3 by default in `build_epsf`; the forced_photometry recipe uses 4)
 in the position fitted to all stars of the whole image (no outlier rejection;
 per-star inverse-variance weights from an unweighted start, one refit) and
 evaluated at the tile centres; Moffat beta 3 fallback below 20 stars in a tile;
 for `'poly'` `poly_order` is the highest order: an order needs 5 x coefficients
-stars and a star in each of the 3 x 3 (order 3) or 2 x 2 (orders 2, 1) zones of
+stars and a star in each of the 3 x 3 (orders 3 and higher) or 2 x 2 (orders 2, 1) zones of
 the image, else the next lower order, else the single median ePSF
 (`info['psf_model']`); too few stars at `snr_lower` are re-selected at
 `snr_lower_fallback`; optional
@@ -351,7 +351,7 @@ fitted together over the union of fit circles, `NNEIGHBOR_PSF`, bit 32) and writ
 `ZP_PSF` from the image's reference stars with `photometric_calibration` on
 `MAG_PSF` without touching the header. The forced_photometry recipe runs it with
 the `forced_photometry_psf` config section (off by default;
-default `model='poly'` of order 3 on the automatic tiling, `recenter='offset'`); on a
+default `model='poly'` of order 4 on the automatic tiling, `recenter='offset'`); on a
 `sub_` image the ePSF, `ZP_PSF` and offset come from `sci_` (`CONVOL00` TEMPLATE) or
 `conv_` (IMAGE, `ref_` seeing in memory) with `sci_<name>.fits.refcat` (copied by dia),
 and the targets are fitted on `sub_` at fixed shifted positions with the aperture

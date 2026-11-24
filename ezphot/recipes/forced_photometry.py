@@ -28,7 +28,7 @@ bkg_source / bkgrms_source say which.
 
 PSF (config forced_photometry_psf, defaults.FORCED_PHOTOMETRY_PSF; off by default, CLI --psf): after the aperture
 values, PSFPhotometry.build_epsf (grid, model, poly_order, max_stars_total,
-snr_lower, snr_lower_fallback, recenter_iter; default model 'poly' of order <= 3 (order ladder) on the automatic tiling
+snr_lower, snr_lower_fallback, recenter_iter; default model 'poly' of order <= 4 (order ladder) on the automatic tiling
 of grid 1; stars of the photcal section's catalog)
 -> psf_photometry at (ra, dec) and the reference stars of <img>.fits.refcat (same background map/bkgrms as the
 aperture photometry, then the local annulus by default; fit_radius_fwhm, background, weighting, recenter (default
@@ -54,7 +54,7 @@ neighbor_extended_seeing x seeing (px): extended, not fitted, FLAG_PSF 32); with
 Writes <img>.fits.psf.cat (+ .info) next to the image only with a finite ZP_PSF (sub_: the targets, with DX_PSF/DY_PSF
 and FLAG_PSF bit 16 of the PSF image); the header and the aperture catalog
 do not change. Summary columns only then: psf_catalog, psf_source (epsf | moffat | mixed), psf_model (build_epsf
-info 'psf_model', one per image: poly3 | poly2 | poly1 | grid | moffat), psf_nstars (fewest ePSF
+info 'psf_model', one per image: poly4 | poly3 | poly2 | poly1 | grid | moffat), psf_nstars (fewest ePSF
 stars of a tile; model 'poly': stars of the fit, or with no usable polynomial order the usable stars of its
 grid-1 fallback), n_ref_psf, then
 per target MAGSKY_PSF, MAGERR_PSF, ZP_PSF, ZPERR_PSF, UL5SKY_PSF, CHI2_PSF, FLAG_PSF, DX_PSF, DY_PSF (px; recenter

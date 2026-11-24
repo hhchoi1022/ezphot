@@ -93,9 +93,10 @@ FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_em
 # the image's reference stars (calibrate_zp). background 'annulus' (default) | 'fit' | 'plane' | 'none'; with 'fit' or
 # 'plane' bkg_radius_fwhm may be added (fit-pixel radius in FWHM, also beyond the PSF array); targets and reference
 # stars always share the mode.
-# Default: 'poly' of order 3, evaluated on the automatic ~512 px tiling (grid 1); order ladder of build_epsf: order 3
-# (>= 50 stars) needs a star in each of the 3 x 3 image zones, orders 2 (>= 30) and 1 (>= 15) in each of 2 x 2 zones,
-# else one median ePSF (grid 1; Moffat below 20 stars); fewer than 50 stars at peak S/N 50: selection repeated at 30.
+# Default: 'poly' of order 4, evaluated on the automatic ~512 px tiling (grid 1); order ladder of build_epsf: orders 4
+# (>= 75 stars) and 3 (>= 50) need a star in each of the 3 x 3 image zones, orders 2 (>= 30) and 1 (>= 15) in each of
+# 2 x 2 zones, else one median ePSF (grid 1; Moffat below 20 stars); fewer than 75 stars at peak S/N 50: selection
+# repeated at 30.
 # recenter='offset': one smooth offset of the PSF centres from the measured positions of the reference stars
 # (.refcat: positions measured on the image; PSF position fits of the sources at S/N >= 50) - a difference of centre
 # definition or coordinate round trip - added to every target and reference-star position alike (no S/N step between
@@ -105,7 +106,7 @@ FORCED_PHOTOMETRY_SUB = dict(annulus_width_arcsec=60, annulus_errors=False, n_em
 # FLUX_AUTO > 0, brightest max_neighbors (default 6) within the fit radius + 2 FWHM but the nearest within 1 FWHM, the
 # target's own detection, and those within 0.5 FWHM, not separable); extended ones (FWHM_IMAGE >
 # neighbor_extended_seeing x the header seeing in pixels) are not fitted, only flagged (FLAG_PSF 32).
-FORCED_PHOTOMETRY_PSF = dict(enabled=False, grid=1, model='poly', poly_order=3, fit_radius_fwhm=2.5,
+FORCED_PHOTOMETRY_PSF = dict(enabled=False, grid=1, model='poly', poly_order=4, fit_radius_fwhm=2.5,
                              background='annulus', weighting='uniform', recenter='offset',
                              neighbors=False, neighbor_extended_seeing=1.5)
 
