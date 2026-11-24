@@ -173,6 +173,9 @@ paths.
 - Runtime config is distinct from the checked-in templates. Editing a packaged
   template does not update an already initialized `~/ezphot/config` tree until it
   is copied or regenerated.
+- Since 0.12.3, each `*.config` file is read once per process and cached; only
+  this process's own writes (`register_telescope`, `initialize`) clear the cache,
+  so a `.config` edited externally while a process runs is seen only after restart.
 
 ## Image object model
 

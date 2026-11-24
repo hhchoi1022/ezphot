@@ -3,8 +3,16 @@ from pathlib import Path
 import json
 from typing import Union
 import shutil
+import copy
 import numpy as np
 #%%
+# Parsed *.config files, keyed by absolute path; read once per process.
+# Cleared when this process writes config files; changes made by other processes need a restart.
+_CONFIG_CACHE = dict()
+
+def _clear_config_cache():
+    _CONFIG_CACHE.clear()
+
 class Configuration:
     def __init__(self,
                  telkey: str = None,
@@ -72,6 +80,7 @@ class Configuration:
         if copy_default:
             shutil.copytree(default_global_config_path, self.path_config_global, dirs_exist_ok=True)
             shutil.copytree(default_specific_config_path, self.path_config_specific, dirs_exist_ok=True)
+            _clear_config_cache()
         
         # Register all telescopes with paths correct for this machine
         for tel_key in self.available_telescope_keys:
@@ -145,13 +154,18 @@ class Configuration:
     def _load_configuration(self, configfiles):
         all_config = dict()
         for configfile in configfiles:
-            with open(configfile, 'r') as f:
-                config = json.load(f)
-                all_config.update(config)
+            key = Path(configfile).absolute()
+            cfg = _CONFIG_CACHE.get(key)
+            if cfg is None:
+                with open(configfile, 'r') as f:
+                    cfg = json.load(f)
+                _CONFIG_CACHE[key] = cfg
+            all_config.update(copy.deepcopy(cfg))
         return all_config
 
     def _make_configfile(self, dict_params: dict, filename: str, savepath: Union[str, Path]):
         filepath = Path(savepath) / filename
+        _clear_config_cache()
         with open(filepath, 'w') as f:
             json.dump(dict_params, f, indent=4)
         if not self._silent:
