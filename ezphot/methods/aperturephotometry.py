@@ -179,7 +179,8 @@ class AperturePhotometry:
         target_img : Union[ScienceImage, ReferenceImage, CalibrationImage]
             The target image to perform aperture photometry on.
         target_bkg : Optional[Background], optional
-            The background to subtract from the target image. Defaults to None.
+            The background to subtract from the target image. Defaults to None. If None, SExtractor's own background
+            (BACK_TYPE AUTO, mode-type) is used and a [CRITICAL] message is printed (unless sex_params sets BACK_TYPE MANUAL).
         target_bkgrms : Optional[Errormap], optional
             The background RMS to use for the aperture photometry. Defaults to None.
         detection_sigma : float, optional
@@ -273,6 +274,14 @@ class AperturePhotometry:
                 remove_subbkg = True
         else:
             target_img_sub = target_img
+            # No target_bkg: SExtractor estimates the background itself unless the caller set BACK_TYPE MANUAL
+            back_type = next((value for key, value in sex_params.items() if str(key).upper() == 'BACK_TYPE'),
+                             all_sexconfig.get('BACK_TYPE', 'AUTO'))
+            if str(back_type).strip().upper() != 'MANUAL':
+                print(f"[CRITICAL] sex_photometry {target_img.path.name}: target_bkg is None, so SExtractor's internal background (BACK_TYPE {back_type}) is used; "
+                      "it is a mode-type estimate (~2.5*median - 1.5*mean) that under-subtracts a photon-skewed sky and makes faint sources too bright (bias grows with aperture area).\n"
+                      "[CRITICAL] Pass target_bkg (e.g. ImageMethod.calculate_bkg, 5-sigma-clipped mean) or sex_params BACK_TYPE MANUAL; "
+                      "on a background-subtracted/difference image (sky ~0, symmetric noise) the effect is small.")
             
         # Background RMS
         remove_bkgrms = False

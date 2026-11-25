@@ -907,7 +907,8 @@ class ImageMethod:
         Parameters
         ----------
         target_bkg : Background
-            The background to subtract from the target image.
+            The background to subtract from the target image. If None, SExtractor's own background (BACK_TYPE AUTO,
+            mode-type) is used and a [CRITICAL] message is printed (unless sex_params sets BACK_TYPE MANUAL).
         target_bkgrms : Errormap
             The background RMS to use for the photometry.
         target_mask : Mask

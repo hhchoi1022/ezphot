@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.1 (2026-11-25)
+출력과 docstring만 바뀐다. 측광 수치·카탈로그·파일·시그니처·반환값은 그대로다.
+### 추가
+- `AperturePhotometry.sex_photometry` / `ImageMethod.photometry_sex`: `target_bkg=None`이고 실효 `BACK_TYPE`(`sex_params`의 값, 없으면 sexconfig 값)이
+  `MANUAL`이 아니면 호출마다 `[CRITICAL]`로 시작하는 두 줄을 `verbose`와 상관없이 출력한다. SExtractor 자체 배경(AUTO)은 최빈값형 추정
+  (≈ 2.5·median − 1.5·mean)이라 광자 통계로 치우친 하늘을 덜 빼서 어두운 소스를 밝게 만든다(구경 면적에 비례). 배경을 뺀 영상·차영상에서는 영향이 작다.
+  - 사용처 확인: `target_bkg`(예: `ImageMethod.calculate_bkg`, 5σ 클리핑 평균)를 넘기거나 `sex_params={'BACK_TYPE': 'MANUAL', ...}`이면 출력되지 않는다.
+  - `Subtract`(DIA)는 과학·기준 영상과 차영상 검출(양수·음수·역방향)에서 `target_bkg` 없이 부르므로, dia 레시피 로그에 영상당 약 5회
+    (줄로는 약 10줄; 기준 영상 후보·부분 영역이 여럿이면 그만큼 더) 이 메시지가 생긴다.
+    process_images·stack은 배경 맵을 넘기므로 해당 없다. 로그를 `[CRITICAL]`로 거르는 사용처는 확인이 필요하다.
+
 ## 0.13.0 (2026-11-24)
 기본 설정의 레시피와 baseline 결과는 바뀌지 않는다: `forced_photometry_psf`는 그대로 기본 꺼짐이다. PSF를 켠(`--psf`) forced_photometry 값만 바뀐다.
 ### 수치 변경
