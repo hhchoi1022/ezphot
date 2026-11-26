@@ -371,6 +371,12 @@ Reference-source selection uses magnitude, S/N, morphology, FWHM, flags, spatial
 region, and isolation constraints. Dynamic magnitude-range selection tries to
 find a stable unsaturated calibration interval.
 
+`zp_map` (default `'plane+r2+r4'`: u, v, r², r⁴; 0.13.2) fits a per-column 2-D ZP map on stars of the
+whole image (same cuts, no region cut; module helpers `_fit_zp_map`/`_eval_zp_map`)
+and appends `ZPPOS_<k>`/`MAGPOS_<k>` columns plus `ZPM2D_*` header keys; `ZP_*` and
+`MAGSKY_*` are unchanged. New column or header names must not start with `MAG_`,
+`MAGSKY_` or `ZP_` (column-prefix loops in this module, `ZP_*` shift in `stack.py`).
+
 ### Stack
 
 `Stack.prepare_images()` can perform, in order, background subtraction, zero-point

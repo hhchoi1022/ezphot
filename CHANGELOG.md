@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.13.2 (2026-11-26)
+기존 열·헤더 값과 레시피 요약은 바뀌지 않는다(`ZP_*`, `ZPERR_*`, `MAGSKY_*`, 색·등급 항, `SEEING` 등). 별로 ZP를 맞추는 카탈로그에 열 두 종류와
+헤더 키 `ZPM2D_*`가 **기본으로** 붙는다(호환 추가).
+### 추가
+- `PhotometricCalibration.photometric_calibration` / `ImageMethod.photometric_calibration(..., zp_map='plane+r2+r4', zp_map_min_stars=30)`(시그니처 끝):
+  측광 열 `MAG_<k>`마다 2D ZP 지도를 맞춰 카탈로그와 기준성 카탈로그(`.refcat`) **맨 뒤에** `ZPPOS_<k>`(mag, 더하는 위치 보정량)와
+  `MAGPOS_<k>` = `MAGSKY_<k>` + `ZPPOS_<k>`를 붙인다. 영상은 고치지 않는다.
+  - 지도용 별: ZP 기준성과 같은 품질 컷(최종 `mag_upper`·`classstar_lower` 포함)에서 영역 컷(`ra_deg`/`dec_deg`·`radius_arcsec`, `inner_fraction`)만 뺀
+    영상 전체의 별 → 기준 카탈로그와 매칭. ZP 기준성 선택과 `ZP_*`는 그대로다.
+  - 모형: r = (기준 등급 − `MAG_<k>`) − `ZP_<k>` = c0 + 위치 항 + k·색. u = (`X_IMAGE` − xc)/s, v = (`Y_IMAGE` − yc)/s(0-based 영상 중심,
+    s = max(NAXIS1, NAXIS2)/2). `'plane+r2+r4'`(기본) u, v, u²+v², (u²+v²)²; `'plane+r2'` u, v, u²+v²; `'plane'` u, v; `'quad'` u, v, u², v², uv; `None` 끔(새 열·헤더 키 없음, 0.13.1과 같은 산출물 — 코드상; 실행 확인은 0.13.1 트리 대비 켬 실행으로만).
+    색은 방해 변수(기준 카탈로그 g−r, 없으면 색 항 목록에서 가용한 첫 쌍; 색이 없는 별은 맞춤에서 뺌)이고 보정량에는 넣지 않는다.
+    가중 1/(`MAGERR_<k>`² + 0.01²), 3σ 반복 클립.
+  - `ZPPOS_<k>` = 위치 항만(u, v는 지도 별 범위로 clamp) − 그 열의 ZP 기준성(클립 뒤) 평균 → ZP 기준성에서 평균 0이라 `ZP_<k>`의 뜻은 그대로다.
+  - 후퇴: 클립 뒤 지도 별이 `zp_map_min_stars`개 미만이거나 맞춤이 특이하면 `ZPPOS_<k>` = 0, `MAGPOS_<k>` = `MAGSKY_<k>`, 헤더 모형 `const`.
+    `X_IMAGE`/`Y_IMAGE`가 없는 카탈로그는 열을 만들지 않는다(경고 한 줄). `zp_map`이 위 값이 아니면 `ValueError`.
+  - 헤더(`update_header=True`일 때, 다른 키 뒤에; 대부분 HIERARCH(`ZPM2D_XC`/`ZPM2D_YC`는 일반 키)): `ZPM2D_MODEL`, `ZPM2D_XC`/`ZPM2D_YC`/`ZPM2D_SCALE`, clamp 범위 `ZPM2D_UMIN`/`UMAX`/`VMIN`/`VMAX`,
+    `ZPM2D_COLOR`, `ZPM2D_NMIN`, 열마다 `ZPM2D_<k>_MODEL`·`_N`·`_C1`…`_Cn`(위치 항 계수, mag)·`_OFF`·`_RMS0`·`_RMS`(맞춘 별의 r / 지도+색 맞춤 잔차 표준편차 — 감소분에 색 항 몫 포함).
+    `ZPPOS_<k>` = Σ Cᵢ·항ᵢ(clamp된 u, v) − OFF. 반환 `update_kwargs`에도 같은 키가 들어간다.
+- 레시피: `defaults.PHOTCAL`에 `zp_map='plane+r2+r4'`, `zp_map_min_stars=30`. process_images·stack(`.cat`/`.refcat`), forced_photometry `reference_stars`
+  (`.circ.cat`/`.circ.refcat`), PSF를 켠 forced의 `ZP_PSF` 카탈로그(`.psf.cat`의 `ZPPOS_PSF`/`MAGPOS_PSF`)에 새 열이 생긴다.
+  끄기: `config={'photcal': {'zp_map': None}}`. 요약 CSV 열과 값, target_photometry·qa·visualize·dia는 그대로(새 열을 읽지 않는다).
+  - forced `reference_stars`와 `ZP_PSF`는 카탈로그에 있는 refcat 별(process_images의 영역 컷 안)로만 맞추므로 지도 범위가 영상 전체가 아니다(clamp).
+- 새 기본 `'plane+r2+r4'`의 근거(Calibration v13 별 표, 10″, 2,381장, S/N ≥ 50, 프레임당 별 중앙 126, 프레임마다 맞춤에 안 쓴 별로 교차검증;
+  `'plane+r2'` → `'plane+r2+r4'`): 가운데(r < 1500 px) 평균 −2.6 → −0.3 mmag(상수 ZP −4.5), 구석(r > 4750 px) 영상별 rms 11.5 → 6.2 mmag,
+  전체 별 흩어짐 18.82 → 18.95 mmag(상수 21.32). 맞춤 별을 60개로 줄이면 흩어짐 19.2 → 19.6이지만 가운데·구석은 여전히 나아진다.
+  3·4차 전체 다항식은 흩어짐 19.6·20.1로 과적합이다. 남는 것: 대칭이 아닌 몫이 바깥 고리에 약 4 mmag(사분면 비대칭 rms 6.6 대 잡음 5.0).
+  새 기본 재검증(격리 HOME, T05785 60장 / T10796 63장 / CALSPEC 40장): 레시피 요약이 baseline과 같고(차이 0), 후퇴(`const`) 0건.
+  10″(`APER_3`) 별 ZP 흩어짐 21.9 → 15.3 / 19.7 → 16.5 / 23.8 → 19.2 mmag(`'plane+r2'`일 때 16.2 / 16.7 / 19.9), 교차검증 15.7 / 17.0 / 19.9.
+  가운데(r < 1500 px, 맞춤 별 포함 영상별 평균) −7.2 → 0.8 / −2.7 → −1.9 / −5.7 → −0.3 mmag(`'plane+r2'` −1.7 / −2.1 / −4.0),
+  모서리(r > 4750 px 중앙값) −4.7 → −0.3 / 0.0 → −1.6 / −1.3 → −0.1 mmag(`'plane+r2'` −6.6 / −1.3 / −4.3).
+  맞춤에 안 쓴 별로 본 가운데 평균은 −4.2 → +3.9 / −1.4 → −1.6 / −2.7 → +3.6 mmag(`'plane+r2'` +1.2 / −1.7 / −0.6)로, T05785·CALSPEC에서 가운데를
+  3–4 mmag 과보정하는 경향이 있다(영상별 rms는 13.3 → 10.1 / 6.7 → 4.8 / 13.3 → 11.3 mmag로 줄어든다).
+  r² 계수(`C3`)와 r⁴ 계수(`C4`)는 상관이 약 −0.96이라 하나씩은 별 300개·잡음 10 mmag에서 약 6 mmag씩 흔들린다 — 두 계수를 합친 지도(평가값)로만 해석한다.
+  forced `reference_stars --psf` 2장: 대상 주변 별로 맞춘 `ZPPOS` 범위가 전체 영상 지도보다 좁고(−19…+34 / −9…+12 mmag), 이상 값 없음.
+- 개발 중 비교한 `'plane+r2'`의 검증(격리 HOME): T05785·T10796 process_images 산출(카탈로그 243, 헤더 123)에서 새 코드(켬)와 0.13.1의 기존 열(값·순서)과 헤더 키 값이 같고
+  (헤더 키 순서는 비교 안 함), 레시피 요약도 baseline과 같다. CALSPEC 40장·stack·forced는 켬으로만 실행했다. 10″(`APER_3`) 별 ZP 흩어짐
+  21.9 → 16.2 / 19.7 → 16.7 / 23.8 → 19.9 mmag(T05785 / T10796 / CALSPEC), 평면 기울기 제거; 교차검증(맞춤에 안 쓴 별)에서도 같은 크기.
+  후퇴(`const`) 0건, process_images 벽시간 +0.9 %(T05785) / 0 %(T10796).
+- 개발 중 비교한 `'plane+r2'`의 한계(`'plane+r2+r4'`를 기본으로 정한 이유):
+  - 반지름 방향 구조를 다 잡지 못한다. 가운데(r < 1500 px) 잔차는 데이터에 따라 약 −2~−5 mmag(V3 카탈로그 값, 맞춤 별 포함: T05785 −1.7, T10796 −2.1,
+    CALSPEC −4.0; Calibration v13 2,381장 교차검증 평균 −2.6, 상수 ZP −4.5).
+  - 모서리(r > 4750 px) 롤오프가 남는다. 데이터에 따라 다르다: V3(r > 4750 px 중앙값, T05785 −4.7 → −6.6, T10796 0.0 → −1.3, CALSPEC −1.3 → −4.3)에서는 `MAGPOS`가 `MAGSKY`보다 1–3 mmag 더 치우쳤고,
+    Calibration v13 교차검증 평균으로는 −8.2(상수 ZP) → −1.0으로 나아졌다.
+  - 3″·5″ 열(`APER`, `APER_1`)은 PSF에 따른 개구 손실이 위치마다 달라 일부만 보정된다(보정 뒤 흩어짐 30 mmag대).
+### 사용처 확인
+- 카탈로그 열 개수·순서로 읽는 코드: 새 열은 기존 열 **뒤에** 붙는다(기존 열의 순서·값은 같다). 열 이름을 접두어로 모으는 코드는
+  `ZPPOS_`/`MAGPOS_`가 `MAG_`·`MAGSKY_`·`ZP_` 접두어에 걸리지 않으니 그대로다.
+- 헤더 키 수가 늘어난다(`'plane+r2+r4'`, 측광 열 n개면 10 + 9n개). 헤더를 복사해 다른 격자로 옮기는 사본(예: stack의 scale·reproject 사본)에는 원래 격자의
+  `ZPM2D_*`가 따라간다 — 다른 격자에서 계수를 쓰지 않는다.
+- 헤더 방식 `apply_zp`(dia, forced `header`)와 `Subtract` 내부 재격자 photcal(`zp_map=None`)은 지도를 만들지 않는다.
+- `MAGPOS_<k>`는 photcal 때의 `MAGSKY_<k>` 기준으로 고정된 값이다. 이후 `apply_zp`·`apply_color_terms`·`apply_mag_terms`는 `MAGPOS_<k>`를 갱신하지 않으므로,
+  그 뒤에는 필요하면 `MAGSKY_<k>` + `ZPPOS_<k>`로 다시 계산한다.
+- `update_header`는 키를 지우지 않으므로 이전 실행의 `ZPM2D_*`가 헤더에 남을 수 있다(끔으로 재처리, 모형 변경 — 예: `quad` → `plane`이면 `_C4`/`_C5`가 남음).
+  열마다 `ZPM2D_<k>_MODEL`(공통 `ZPM2D_MODEL`)로 항 수를 판단한다. coadd 결과 헤더에서는 stack의 `ZP*` 키 제거로 `ZPM2D_*`가 지워지고 coadd photcal이 새로 쓴다.
+- 색 항: `K_COLOR_*`/`C_COLOR_*`는 이전처럼 `MAGSKY_*` 기준 잔차로 맞춘 값이라 위치 효과를 일부 흡수했을 수 있다. `MAGPOS_*`에 그대로 얹으면
+  어긋날 수 있다(필드마다 수 mmag/mag).
+
 ## 0.13.1 (2026-11-25)
 출력과 docstring만 바뀐다. 측광 수치·카탈로그·파일·시그니처·반환값은 그대로다.
 ### 추가

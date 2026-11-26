@@ -38,6 +38,11 @@ MAG_RANGE = {
     'm800': (10, 13.5), 'm825': (10, 13.5), 'm850': (10, 13.5), 'm875': (10, 13.5),
 }
 
+# zp_map: per magnitude column a 2-D ZP map from the reference stars of the whole image (same cuts as the ZP stars,
+# no region cut) -> catalog/refcat columns ZPPOS_<k> (mag, added; mean 0 over the ZP stars) and MAGPOS_<k> = MAGSKY_<k>
+# + ZPPOS_<k>, header ZPM2D_*. 'plane+r2+r4' (u, v, u^2 + v^2, (u^2 + v^2)^2) | 'plane+r2' | 'plane' | 'quad' |
+# None (off). Fewer than zp_map_min_stars map stars after clipping -> ZPPOS_<k> = 0 ('const'). MAGSKY_*, ZP_* and the
+# recipes' summary values are unchanged (they do not read the new columns).
 PHOTCAL = dict(catalog_type='GAIAXP_CORR_LAMOST', catalog_version='v1',
                max_distance_second=5, min_number_of_sources=10,
                calculate_color_terms=True, calculate_mag_terms=True,
@@ -50,7 +55,8 @@ PHOTCAL = dict(catalog_type='GAIAXP_CORR_LAMOST', catalog_version='v1',
                fwhm_key='FWHM_WORLD', ra_key='X_WORLD', dec_key='Y_WORLD',
                classstar_key='CLASS_STAR', elongation_key='ELONGATION',
                flag_key='FLAGS', maskflag_key='IMAFLAGS_ISO',
-               verbose=False, visualize=False, save=True, save_fig=True, save_refcat=True)
+               verbose=False, visualize=False, save=True, save_fig=True, save_refcat=True,
+               zp_map='plane+r2+r4', zp_map_min_stars=30)
 
 # Stacking (bridge AlertProcessor.stacking + stack_prepare/stack). Images are grouped per night.
 STACK_GROUP = dict(by_filter=True, by_exptime=False, by_objname=False, by_telname=False,

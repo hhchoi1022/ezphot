@@ -290,6 +290,26 @@ qa(summary, zperr_max=0.1, nref_min=10, seeing_max=5.0, depth_min=None, color_ma
 - 구멍마다의 열: `MAG_APER_k`·`MAGERR_APER_k`·`FLUX_APER_k`·`FLUXERR_APER_k`·`NPIX_APER_k`(기기 등급, ZP 전), `ZP_APER_k`·`ZPERR_APER_k`,
   `MAGSKY_APER_k`(= MAG + ZP), `UL3SKY_APER_k`·`UL5SKY_APER_k`(3σ·5σ 한계 등급). forced 카탈로그에는 `SKYSIG_APER_k`(구멍 안 배경 잡음 ADU),
   `UL3_APER_k`·`UL5_APER_k`(ZP 전 한계 등급)도 있고, `UL5SKY_APER_k` = `UL5_APER_k` + ZP다(두 `calibrate` 방식 모두).
+- 위치 ZP 열(0.13.2, photcal `zp_map`, 기본 `'plane+r2+r4'`): 별로 ZP를 맞추는 photcal(process_images·stack의 `.cat`/`.refcat`, forced `reference_stars`의
+  `.circ.cat`/`.circ.refcat`, PSF `ZP_PSF`를 맞춘 카탈로그; 차영상 `sub_`의 대상 값은 제외)은 ZP를 구한 등급 열 `MAG_<k>`마다 카탈로그 맨 뒤에 `ZPPOS_<k>`(mag, 더하는 위치 보정량)와
+  `MAGPOS_<k>` = `MAGSKY_<k>` + `ZPPOS_<k>`를 붙인다. **`MAGSKY_*`·`ZP_*`·`ZPERR_*`와 요약 열은 그대로**이고, 레시피(target_photometry·qa·dia·visualize)는
+  새 열을 읽지 않는다.
+  - 지도: 영상 전체의 기준성(ZP 기준성과 같은 컷, 영역 컷 없음; forced `reference_stars`·PSF는 카탈로그에 있는 refcat 별뿐이라 process_images의 영역 안)으로
+    r = (기준 등급 − `MAG_<k>`) − `ZP_<k>`를 c0 + 위치 항 + k·색(g−r, 방해 변수, 보정에 쓰지 않음)으로 맞춘다. u = (`X_IMAGE` − xc)/s, v = (`Y_IMAGE` − yc)/s
+    (0-based 영상 중심, s = max(NAXIS1, NAXIS2)/2); `'plane+r2+r4'` = u, v, u²+v², (u²+v²)², `'plane+r2'` = u, v, u²+v², `'plane'` = u, v, `'quad'` = u, v, u², v², uv. 가중 1/(`MAGERR_<k>`² + 0.01²), 3σ 반복 클립.
+  - `ZPPOS_<k>`는 위치 항만(u, v는 지도 별 범위로 clamp)에서 그 열의 ZP 기준성(클립 뒤) 평균을 뺀 값이라 ZP 기준성에서 평균 0이다.
+  - 후퇴: 클립 뒤 별이 `zp_map_min_stars`(기본 30)개 미만이거나 맞춤이 특이하면 `ZPPOS_<k>` = 0(모형 `const`), 열은 그대로 생긴다.
+    `X_IMAGE`/`Y_IMAGE`가 없는 카탈로그는 열을 만들지 않는다(경고 한 줄).
+  - 헤더(process_images·stack처럼 헤더를 쓰는 호출만): `ZPM2D_MODEL`, `ZPM2D_XC`/`_YC`/`_SCALE`, clamp 범위 `ZPM2D_UMIN`/`_UMAX`/`_VMIN`/`_VMAX`, `ZPM2D_COLOR`,
+    `ZPM2D_NMIN`, 열마다 `ZPM2D_<k>_MODEL`, `_N`(맞춘 별 수), `_C1`…(위치 항 계수, mag, 위 항 순서), `_OFF`(뺀 평균), `_RMS0`/`_RMS`(맞춘 별의 r / 지도+색 맞춤 잔차 표준편차, 색 항 포함).
+    `ZPPOS_<k>` = Σ Cᵢ·항ᵢ(clamp된 u, v) − OFF.
+  - `MAGPOS_<k>`는 photcal 때의 `MAGSKY_<k>` 기준으로 고정된다. 이후 `apply_zp`·`apply_color_terms`·`apply_mag_terms`는 `MAGPOS_<k>`를 갱신하지 않으므로
+    필요하면 `MAGSKY_<k>` + `ZPPOS_<k>`로 다시 계산한다.
+  - 한계: 기본 `'plane+r2+r4'`는 Calibration v13 교차검증(10″, 2,381장)에서 가운데(r < 1500 px) 평균 −0.3 mmag, 구석(r > 4750 px) 영상별 rms 6.2 mmag를
+    남기고(`'plane+r2'`: −2.6, 11.5), 대칭이 아닌 몫이 바깥 고리에 약 4 mmag 남는다. 레시피 데이터 재검증 수치는 CHANGELOG 0.13.2.
+    3″·5″(`APER`, `APER_1`)는 개구 손실 때문에 일부만 보정한다.
+    `K_COLOR_*`는 `MAGSKY_*` 기준으로 맞춘 값이라 `MAGPOS_*`에 그대로 얹으면 어긋날 수 있다(CHANGELOG 0.13.2).
+  - 끄기: config `{'photcal': {'zp_map': None}}`(새 열·헤더 키 없음 — 코드상; 실행 확인은 0.13.1 트리 대비 켬 실행으로만). 헤더 방식 `apply_zp`(dia, forced `header`)와 DIA 내부 재격자 photcal은 지도를 만들지 않는다.
 - forced 오차·한계 등급의 정의(ADU, 구멍 k마다). 기본(고리 없음, 또는 고리를 플럭스에만 쓰는 차영상):
   - `SKYSIG_APER_k` = r_k × √(Σ_구멍 bkgrms²), `UL5_APER_k` = −2.5 log10(5 `SKYSIG_APER_k`), `UL3_APER_k`는 3σ.
   - `FLUXERR_APER_k`² = r_k² Σ bkgrms² + Σ max(영상, 0)/EGAIN(구멍 안 소스 Poisson, `calc_total_error`) + H_k, `MAGERR_APER_k` = 1.0857 `FLUXERR`/`FLUX`.
@@ -330,7 +350,7 @@ qa(summary, zperr_max=0.1, nref_min=10, seeing_max=5.0, depth_min=None, color_ma
 | --- | --- |
 | 파일 | `<img>.fits.psf.cat`(+ `.info`), forced_photometry에서는 원본 FITS와 같은 폴더. `PSFPhotometry.psf_photometry`를 직접 부르면 그 영상의 `savedir`(설정하지 않으면 config 아카이브 배치) |
 | 형식 | `.circ.cat`과 같은 ASCII 표, 맨 위 `#` 줄(표 meta `comments`)에 설정(PSF 크기·출처, 적합 반경, 배경 방식, 가중, 분산 모형, ZP_PSF 출처·`NREF_PSF`) |
-| 컬럼 | `X_IMAGE`/`Y_IMAGE`(**0-based**), `X_WORLD`/`Y_WORLD`(deg), `FLUX_PSF`/`FLUXERR_PSF`(ADU, PSF 배열 합 = 1로 정규화한 진폭 = 배열 안 총 플럭스), `MAG_PSF`/`MAGERR_PSF`(기기 등급, `FLUX_PSF` > 0일 때만), `UL3_PSF`/`UL5_PSF`, `BACKGROUND`(픽셀당 뺀/맞춘 국소 배경), `CHI2_PSF`(reduced), `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`(쓴 픽셀의 PSF 합), `FLAG_PSF`(비트 1 Moffat 폴백, 2 마스크·무효 픽셀, 4 영상 가장자리, 8 적합 없음 → 값 NaN, 16 `recenter`: `'offset'`이면 적용한 오프셋 > `recenter_max_shift`(기본 0.5 px) — 맞춤이 나쁘다는 뜻이 아닌 장 단위 경고로, 오프셋이 영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로 `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다; `'each'`면 이동 > `recenter_max_shift`이거나 위치 맞춤 실패; 이웃을 켰을 때만 32 맞추지 않은 확장 이웃), 이웃을 켰을 때만 `NMASK_PSF` 뒤에 `NNEIGHBOR_PSF`(함께 맞춘 이웃 수; 이때 `NPIX_PSF`는 합집합 적합 픽셀, 메타 `NEIGHBORS = …` 줄), `recenter`일 때만 `DX_PSF`·`DY_PSF`(px; `'offset'`은 적용한 오프셋으로 모든 행에 값, `'each'`는 맞춘 위치 − 입력 위치로 맞추지 않은 소스 NaN; `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 값은 옮긴·맞춘 위치 것; 메타 `RECENTER = offset: …` 줄에 오프셋 계수·쓴 소스 수·잔차 rms), 보정 뒤 `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF` |
+| 컬럼 | `X_IMAGE`/`Y_IMAGE`(**0-based**), `X_WORLD`/`Y_WORLD`(deg), `FLUX_PSF`/`FLUXERR_PSF`(ADU, PSF 배열 합 = 1로 정규화한 진폭 = 배열 안 총 플럭스), `MAG_PSF`/`MAGERR_PSF`(기기 등급, `FLUX_PSF` > 0일 때만), `UL3_PSF`/`UL5_PSF`, `BACKGROUND`(픽셀당 뺀/맞춘 국소 배경), `CHI2_PSF`(reduced), `NPIX_PSF`, `NMASK_PSF`, `PSF_EE`(쓴 픽셀의 PSF 합), `FLAG_PSF`(비트 1 Moffat 폴백, 2 마스크·무효 픽셀, 4 영상 가장자리, 8 적합 없음 → 값 NaN, 16 `recenter`: `'offset'`이면 적용한 오프셋 > `recenter_max_shift`(기본 0.5 px) — 맞춤이 나쁘다는 뜻이 아닌 장 단위 경고로, 오프셋이 영상 하나의 모형이라 한 장에서 많은 행에 함께 서므로 `FLAG_PSF == 0`으로만 거르면 그 장의 소스를 대량으로 잃을 수 있다; `'each'`면 이동 > `recenter_max_shift`이거나 위치 맞춤 실패; 이웃을 켰을 때만 32 맞추지 않은 확장 이웃), 이웃을 켰을 때만 `NMASK_PSF` 뒤에 `NNEIGHBOR_PSF`(함께 맞춘 이웃 수; 이때 `NPIX_PSF`는 합집합 적합 픽셀, 메타 `NEIGHBORS = …` 줄), `recenter`일 때만 `DX_PSF`·`DY_PSF`(px; `'offset'`은 적용한 오프셋으로 모든 행에 값, `'each'`는 맞춘 위치 − 입력 위치로 맞추지 않은 소스 NaN; `X_IMAGE`/`Y_IMAGE`·`X_WORLD`/`Y_WORLD`는 입력 위치 그대로이고 값은 옮긴·맞춘 위치 것; 메타 `RECENTER = offset: …` 줄에 오프셋 계수·쓴 소스 수·잔차 rms), 보정 뒤 `MAGSKY_PSF`, `ZP_PSF`, `ZPERR_PSF`, `UL3SKY_PSF`, `UL5SKY_PSF`, 맨 뒤에 `ZPPOS_PSF`·`MAGPOS_PSF`(3절 위치 ZP 열, 0.13.2; 차영상 `sub_<name>.fits.psf.cat`에는 없음) |
 | 값 | `FLUXERR_PSF`는 기본 분산 r²·bkgrms² + max(F·P, 0)/EGAIN(+ host)로 구한다. 소스 Poisson은 적합한 PSF 모형으로 계산하고 잘린 데이터를 쓰지 않으므로, 개구의 `calc_total_error`식 소스 항과 정의가 다르다(어두운 소스에서는 이 소스 항 때문에 개구 오차가 더 크다). 음수 플럭스를 그대로 둔다(등급은 NaN). 센티널 없음. `ZP_PSF`는 `ZP_APER_k`와 다른 값이다(PSF 진폭은 배열 안 총 플럭스): `MAGSKY_PSF`와 `MAGSKY_APER_3`를 섞지 않는다. `MAGERR_PSF`에 ZP 오차는 없다. `CHI2_PSF`는 PSF가 맞는 점광원이면 약 1이고 ≳ 3이면 확인해 볼 만하다(겹친 소스·퍼진 소스·PSF 불일치·위치 어긋남; 경험값이고 플래그가 아니다) |
 | 행 | 타겟, 그 뒤 기준성(차영상 `sub_<name>.fits.psf.cat`은 타겟만, 2절 forced_photometry 차영상 PSF). `.circ.cat`처럼 행 순서는 계약이 아니다 — 좌표로 매칭 |
 

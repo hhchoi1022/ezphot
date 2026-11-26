@@ -528,7 +528,8 @@ class Subtract:
                 verbose = verbose,
                 visualize = visualize,
                 save_fig = False,
-                save_refcat = False
+                save_refcat = False,
+                zp_map = None   # regridded image: no 2-D ZP map
                 )
         except:
             update_kwargs = dict(SEEING = (np.median(reprojected_target_catalog.data['FWHM_IMAGE']) * np.mean(reprojected_target_img.pixelscale),''))
@@ -648,7 +649,8 @@ class Subtract:
                     verbose = verbose,
                     visualize = visualize,
                     save_fig = False,
-                    save_refcat = False
+                    save_refcat = False,
+                    zp_map = None   # regridded image: no 2-D ZP map
                     )         
             except:
                 update_kwargs = dict(SEEING = (np.median(reference_catalog.data['FWHM_IMAGE']) * np.mean(reprojected_reference_img.pixelscale),''))

@@ -1174,7 +1174,9 @@ class ImageMethod:
                                 visualize: bool = True,
                                 save_fig: bool = False,
                                 save_refcat: bool = True,
-                                save_image: bool = True
+                                save_image: bool = True,
+                                zp_map: str = 'plane+r2+r4',
+                                zp_map_min_stars: int = 30
                                 ):
         
         from ezphot.methods import PhotometricCalibration
@@ -1225,7 +1227,9 @@ class ImageMethod:
             visualize = visualize,
             save_fig = save_fig,
             save_refcat = save_refcat,
-            save_image = save_image)
+            save_image = save_image,
+            zp_map = zp_map,
+            zp_map_min_stars = zp_map_min_stars)
         
         return result
     

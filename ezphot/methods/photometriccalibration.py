@@ -21,6 +21,73 @@ from ezphot.skycatalog import SkyCatalogUtility
 from ezphot.utils import *
 #%%
 
+# 2-D ZP map of photometric_calibration (zp_map): position terms in u = (X - xc) / s, v = (Y - yc) / s
+_ZP_MAP_TERMS = {'plane': ('u', 'v'), 'plane+r2': ('u', 'v', 'u2+v2'), 'plane+r2+r4': ('u', 'v', 'u2+v2', 'r4'),
+                 'quad': ('u', 'v', 'u2', 'v2', 'uv')}
+
+
+def _zp_map_terms(u, v, model):
+    """Design columns (N, n_terms) of the position terms of a zp_map model, in _ZP_MAP_TERMS order."""
+    u, v = np.asarray(u, dtype=float), np.asarray(v, dtype=float)
+    columns = {'u': u, 'v': v, 'u2+v2': u**2 + v**2, 'r4': (u**2 + v**2)**2, 'u2': u**2, 'v2': v**2, 'uv': u * v}
+    return np.column_stack([columns[t] for t in _ZP_MAP_TERMS[model]])
+
+
+def _fit_zp_map(u, v, r, w, color=None, model='plane+r2+r4', min_stars=30, sigma=3.0, maxiters=5):
+    """
+    Weighted least-squares fit of ZP residuals r = c0 + position terms of `model` [+ k * color].
+
+    Stars with a non-finite u, v, r, w (or color, when given) are left out. Start: sigma-clip of r about its
+    median (the ZP rule); then fit, keep |fit residual| <= sigma * std(residuals of the fitted stars), refit,
+    until the star set stops changing (at most maxiters refits). Fewer than min_stars stars or a rank-deficient
+    design -> model 'const' with zero position coefficients.
+
+    Returns dict(model, coef = position-term coefficients (mag; c0 and k left out), n = stars of the final fit,
+    rms0 = std of r, rms = std of the fit residuals, both over those n stars; 'const': rms = rms0).
+    """
+    u, v, r, w = (np.asarray(a, dtype=float) for a in (u, v, r, w))
+    ok = np.isfinite(u) & np.isfinite(v) & np.isfinite(r) & np.isfinite(w) & (w > 0)
+    columns = [np.ones(len(r)), _zp_map_terms(u, v, model)]
+    if color is not None:
+        color = np.asarray(color, dtype=float)
+        ok &= np.isfinite(color)
+        columns.append(color)
+    design = np.column_stack(columns)
+    mask = ok.copy()
+    if ok.any():
+        clipped = SigmaClip(sigma=sigma, maxiters=maxiters)(np.ma.masked_invalid(np.where(ok, r, np.nan)))
+        mask &= ~np.ma.getmaskarray(clipped)
+    coef = None
+    for i in range(maxiters + 1):
+        if mask.sum() < min_stars:
+            coef = None
+            break
+        sw = np.sqrt(w[mask])
+        solution, _, rank, _ = np.linalg.lstsq(design[mask] * sw[:, None], r[mask] * sw, rcond=None)
+        if rank < design.shape[1]:
+            coef = None
+            break
+        coef = solution
+        resid = r - design @ coef
+        new_mask = ok & (np.abs(resid) <= sigma * np.std(resid[mask]))
+        if i == maxiters or np.array_equal(new_mask, mask):
+            break
+        mask = new_mask
+    n = int(mask.sum())
+    rms0 = float(np.std(r[mask])) if n > 0 else 0.0
+    n_terms = len(_ZP_MAP_TERMS[model])
+    if coef is None:
+        return dict(model='const', coef=np.zeros(n_terms), n=n, rms0=rms0, rms=rms0)
+    return dict(model=model, coef=coef[1:1 + n_terms], n=n, rms0=rms0, rms=float(np.std(resid[mask])))
+
+
+def _eval_zp_map(u, v, coef, model, urange, vrange):
+    """Position part of a zp_map model at (u, v), each clamped to its (min, max) range (NaN stays NaN)."""
+    u = np.clip(np.asarray(u, dtype=float), *urange)
+    v = np.clip(np.asarray(v, dtype=float), *vrange)
+    return _zp_map_terms(u, v, model) @ np.asarray(coef, dtype=float)
+
+
 class PhotometricCalibration:
     """
     Method class to perform photometric calibration of astronomical images.
@@ -109,7 +176,11 @@ class PhotometricCalibration:
                                 visualize: bool = True,
                                 save_fig: bool = False,
                                 save_refcat: bool = True,
-                                save_image: bool = True):
+                                save_image: bool = True,
+
+                                # 2-D ZP map (catalog columns only)
+                                zp_map: str = 'plane+r2+r4',
+                                zp_map_min_stars: int = 30):
 
         """
         Perform photometric calibration of astronomical images.
@@ -184,7 +255,28 @@ class PhotometricCalibration:
         save_image : bool, optional
             Whether to write the target image (FITS and .info) to its savepath at the end, as before (default).
             False leaves the files untouched; with update_header=True the header is then updated in memory only.
-            
+        zp_map : str or None, optional
+            Position-dependent ZP per magnitude column, as extra catalog columns ('plane+r2+r4' default,
+            'plane+r2', 'plane', 'quad'; None: off, no extra columns or header keys). Stars: select_stars with the
+            same cuts as the ZP stars but without the region cut (whole image), matched to the reference catalog.
+            Per MAG_<k>, the residual r = (reference mag - MAG_<k>) - ZP_<k> is fitted (_fit_zp_map: weights
+            1/(MAGERR_<k>^2 + 0.01^2), 3-sigma iterative clipping) with c0 + position terms in
+            u = (X_IMAGE - xc) / s, v = (Y_IMAGE - yc) / s ((xc, yc) = image centre, 0-based;
+            s = max(NAXIS1, NAXIS2) / 2): 'plane' u, v; 'plane+r2' u, v, u^2 + v^2; 'plane+r2+r4' u, v, u^2 + v^2,
+            (u^2 + v^2)^2; 'quad' u, v, u^2, v^2, uv; plus k * colour (g - r of the reference catalog, else the first
+            available pair of the colour-term list; stars without it are left out) as a nuisance term. ZPPOS_<k> = position
+            terms only, with u, v clamped to the range of the map stars, minus their mean over the ZP stars of
+            MAG_<k> (so ZP_<k> keeps its meaning); MAGPOS_<k> = MAGSKY_<k> + ZPPOS_<k>. Both columns are appended
+            to the catalog and to the reference catalog; ZP_*, MAGSKY_* and the other columns and header keys are
+            unchanged. Fewer than zp_map_min_stars stars after clipping, or a singular fit: ZPPOS_<k> = 0
+            (model 'const'). Header (update_kwargs; HIERARCH except ZPM2D_XC/YC): ZPM2D_MODEL, ZPM2D_XC, ZPM2D_YC, ZPM2D_SCALE,
+            ZPM2D_UMIN/UMAX/VMIN/VMAX (clamp range), ZPM2D_COLOR, ZPM2D_NMIN, and per column ZPM2D_<k>_MODEL,
+            _N (stars fitted), _C1.._Cn (position-term coefficients, mag), _OFF (subtracted mean), _RMS0 / _RMS
+            (std of r / of the map + colour fit residuals over the fitted stars); ZPPOS_<k> = sum(C_i * term_i) - OFF.
+            A catalog without X_IMAGE/Y_IMAGE gets no map (one warning).
+        zp_map_min_stars : int, optional
+            Minimum number of map stars (after clipping) for a zp_map fit; fewer -> ZPPOS_<k> = 0.
+
         Returns
         -------
         target_img: ScienceImage or ReferenceImage or CalibrationImage
@@ -196,6 +288,8 @@ class PhotometricCalibration:
         update_kwargs: dict
             The dictionary of updated keywords.
         """
+        if zp_map is not None and zp_map not in _ZP_MAP_TERMS:
+            raise ValueError(f"zp_map must be one of {list(_ZP_MAP_TERMS)} or None, got {zp_map!r}")
         update_kwargs = dict()
         catalogs = self.catalogutils.get_catalogs(
             ra = target_img.ra,
@@ -308,6 +402,7 @@ class PhotometricCalibration:
 
         # Filter out reference sources
         for i in range(5):
+            selection_mag_max, selection_classstar_lower = mag_max, classstar_lower   # for the zp_map stars
             filtered_catalog, _, target_seeing = self.select_stars(
                 target_catalog = target_catalog,
                 mag_lower = mag_min,
@@ -357,6 +452,80 @@ class PhotometricCalibration:
                 self.helper.print(f"[WARN] No enough sources found. Increasing mag_max to {mag_max}, classstar_lower to {classstar_lower}", verbose)
             else:
                 break
+
+        # 2-D ZP map stars: the cuts of the last ZP-star selection above, but over the whole image (no region cut)
+        if zp_map is not None and not {'X_IMAGE', 'Y_IMAGE'} <= set(target_catalog.data.colnames):
+            self.helper.print(f"[WARN] zp_map: no X_IMAGE/Y_IMAGE in the catalog, no ZPPOS_*/MAGPOS_* columns", verbose)
+            zp_map = None
+        if zp_map is not None:
+            map_catalog, _, _ = self.select_stars(
+                target_catalog = target_catalog,
+                mag_lower = mag_min,
+                mag_upper = selection_mag_max,
+                snr_lower = snr_lower,
+                snr_upper = snr_upper,
+                classstar_lower = selection_classstar_lower,
+                elongation_upper = elongation_upper,
+                elongation_sigma = elongation_sigma,
+                fwhm_lower_arcsec = fwhm_lower_arcsec,
+                fwhm_upper_arcsec = fwhm_upper_arcsec,
+                fwhm_sigma = fwhm_sigma,
+                flag_upper = flag_upper,
+                maskflag_upper = maskflag_upper,
+                ra_deg = None,
+                dec_deg = None,
+                radius_arcsec = None,
+                inner_fraction = 1.0,   # percentile 100 of the distances: keeps every source
+                isolation_radius_arcsec = isolation_radius_arcsec,
+                satdist_lower = satdist_lower,
+
+                save = False,
+                verbose = False,
+                visualize = False,
+                save_fig = False,
+
+                magnitude_key = magnitude_sky_key,
+                magnitudeerr_key = magnitudeerr_key,
+                fwhm_key = fwhm_key,
+                ra_key = ra_key,
+                dec_key = dec_key,
+                classstar_key = classstar_key,
+                elongation_key = elongation_key,
+                flag_key = flag_key,
+                maskflag_key = maskflag_key,
+                )
+            map_data = map_catalog.data
+            map_obj_indices, map_ref_indices, _ = self.helper.cross_match(
+                SkyCoord(map_data[ra_key], map_data[dec_key], unit='deg'),
+                SkyCoord(all_references['ra'], all_references['dec'], unit='deg'),
+                max_distance_second = max_distance_second)
+            map_obj = map_data[map_obj_indices]
+            map_ref = all_references[map_ref_indices]
+
+            def _values(table, key):
+                return np.ma.filled(np.ma.asarray(table[key], dtype=float), np.nan)
+
+            map_xc, map_yc = target_img.center['x'], target_img.center['y']
+            map_scale = max(target_img.naxis1, target_img.naxis2) / 2
+            map_u = (_values(map_obj, 'X_IMAGE') - map_xc) / map_scale
+            map_v = (_values(map_obj, 'Y_IMAGE') - map_yc) / map_scale
+            matched_u = (_values(matched_obj, 'X_IMAGE') - map_xc) / map_scale   # ZP stars (refcat)
+            matched_v = (_values(matched_obj, 'Y_IMAGE') - map_yc) / map_scale
+            map_urange, map_vrange = (0.0, 0.0), (0.0, 0.0)   # no map star: every column falls back to 'const'
+            if np.isfinite(map_u).any() and np.isfinite(map_v).any():
+                map_urange = (float(np.nanmin(map_u)), float(np.nanmax(map_u)))
+                map_vrange = (float(np.nanmin(map_v)), float(np.nanmax(map_v)))
+            # Colour as a nuisance term: g-r, else the first available pair of the colour-term list
+            map_color, map_color_name = None, 'none'
+            for f1, f2 in [('g', 'r'), ('g', 'i'), ('r', 'i'), ('B', 'V'), ('V', 'R'), ('R', 'I')] + \
+                          [(target_img.filter, f) for f in ['g', 'r', 'i', 'B', 'V', 'R', 'I']]:
+                if f1 != f2 and f'{f1}_mag' in map_ref.colnames and f'{f2}_mag' in map_ref.colnames:
+                    map_color = _values(map_ref, f'{f1}_mag') - _values(map_ref, f'{f2}_mag')
+                    map_color_name = f'{f1}-{f2}'
+                    break
+            self.helper.print(f"[INFO] zp_map {zp_map}: {len(map_obj)} map stars over the whole image "
+                              f"({len(matched_obj)} ZP stars), colour {map_color_name}", verbose)
+            zp_map_columns = dict()
 
         # Update the target image header
         if np.isfinite(target_seeing):
@@ -449,6 +618,23 @@ class PhotometricCalibration:
                         ul = zp_median - 2.5 * np.log10(n_sigma * bkg_noise)
                         target_catalog_data[ul_key] = ul
                         matched_obj[ul_key] = ul
+
+            # 2-D ZP map of this column (its columns and header keys are added after this loop, at the end).
+            # Weights: magnitude error plus a 0.01 mag floor (reference-catalog error and star-to-star scatter),
+            # so that the brightest stars do not dominate the fit.
+            if zp_map is not None:
+                map_r = _values(map_ref, mag_key_ref) - _values(map_obj, mag_key) - float(zp_median)
+                if magerr_key in map_obj.colnames:
+                    map_w = 1 / (_values(map_obj, magerr_key)**2 + 0.01**2)
+                else:
+                    map_w = np.ones(len(map_obj))
+                map_fit = _fit_zp_map(map_u, map_v, map_r, map_w, color = map_color, model = zp_map,
+                                      min_stars = zp_map_min_stars)
+                # Mean of the map over the ZP stars of this column: subtracted, so ZP_<k> keeps its meaning
+                map_offset = _eval_zp_map(matched_u[zp_cleaned_indices], matched_v[zp_cleaned_indices],
+                                          map_fit['coef'], zp_map, map_urange, map_vrange)
+                map_offset = float(np.nanmean(map_offset)) if np.isfinite(map_offset).any() else 0.0
+                zp_map_columns[mag_key] = (map_fit, map_offset)
 
             # When calculate_color_terms
             if calculate_color_terms:
@@ -563,6 +749,38 @@ class PhotometricCalibration:
                 zp_maps[mag_key] = Z
                 zp_errs[mag_key] = zp_err
                 zp_extent = [x.min(), x.max(), y.min(), y.max()]
+
+        # 2-D ZP map: ZPPOS_<k> (mag, added) and MAGPOS_<k> = MAGSKY_<k> + ZPPOS_<k> at the end of the catalog and
+        # refcat; header keys after the others. ZPPOS_<k> = sum(C_i * term_i(u, v)) - OFF, u, v clamped.
+        if zp_map is not None:
+            update_kwargs['ZPM2D_MODEL'] = (zp_map, "2D ZP map model (ZPPOS_*)")
+            update_kwargs['ZPM2D_XC'] = (float(map_xc), "map centre x (0-based px)")
+            update_kwargs['ZPM2D_YC'] = (float(map_yc), "map centre y (0-based px)")
+            update_kwargs['ZPM2D_SCALE'] = (float(map_scale), "map scale s (px)")
+            update_kwargs['ZPM2D_UMIN'] = (map_urange[0], "clamp min u=(X-XC)/SCALE")
+            update_kwargs['ZPM2D_UMAX'] = (map_urange[1], "clamp max u")
+            update_kwargs['ZPM2D_VMIN'] = (map_vrange[0], "clamp min v=(Y-YC)/SCALE")
+            update_kwargs['ZPM2D_VMAX'] = (map_vrange[1], "clamp max v")
+            update_kwargs['ZPM2D_COLOR'] = (map_color_name, "nuisance colour term")
+            update_kwargs['ZPM2D_NMIN'] = (int(zp_map_min_stars), "min stars for a map fit")
+            catalog_u = (_values(target_catalog_data, 'X_IMAGE') - map_xc) / map_scale
+            catalog_v = (_values(target_catalog_data, 'Y_IMAGE') - map_yc) / map_scale
+            for map_mag_key, (map_fit, map_offset) in zp_map_columns.items():
+                suffix = map_mag_key[len('MAG_'):]
+                map_sky_key = map_mag_key.replace('MAG_', 'MAGSKY_')
+                for table, u_, v_ in ((target_catalog_data, catalog_u, catalog_v), (matched_obj, matched_u, matched_v)):
+                    zppos = _eval_zp_map(u_, v_, map_fit['coef'], zp_map, map_urange, map_vrange) - map_offset
+                    table[f'ZPPOS_{suffix}'] = zppos
+                    table[f'MAGPOS_{suffix}'] = table[map_sky_key] + zppos
+                update_kwargs[f'ZPM2D_{suffix}_MODEL'] = (map_fit['model'], f"{map_mag_key} map model")
+                update_kwargs[f'ZPM2D_{suffix}_N'] = (map_fit['n'], f"{map_mag_key} map stars")
+                for j, (term, c) in enumerate(zip(_ZP_MAP_TERMS[zp_map], map_fit['coef'])):
+                    update_kwargs[f'ZPM2D_{suffix}_C{j + 1}'] = (float(c), f"{map_mag_key} coef of {term}")
+                update_kwargs[f'ZPM2D_{suffix}_OFF'] = (map_offset, f"{map_mag_key} mean at ZP stars")
+                update_kwargs[f'ZPM2D_{suffix}_RMS0'] = (map_fit['rms0'], "rms of r")
+                update_kwargs[f'ZPM2D_{suffix}_RMS'] = (map_fit['rms'], "rms after map+colour fit")
+                self.helper.print(f"[INFO] zp_map {map_mag_key}: {map_fit['model']}, {map_fit['n']} stars, "
+                                  f"rms {map_fit['rms0']:.4f} -> {map_fit['rms']:.4f}", verbose)
 
         # Visualization for 2D ZP map
         if (visualize or save_fig) and 'zp_maps' in locals():
