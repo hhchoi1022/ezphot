@@ -2076,14 +2076,44 @@ class PhotometryHelper(Configuration):
                     )
                     sex_params['PARAMETERS_NAME'] = str(tmp_param)
                     
+            # SExtractor keeps file names in 256-byte buffers and aborts (SIGABRT, "buffer overflow detected") on longer ones.
+            # A file path longer than 200 bytes is passed as a short name in tmpdir (the cwd): an input as a symlink with its
+            # file name (numbered prefix on a name clash), the catalog written there and moved to its path after success.
+            # Shorter paths are passed unchanged, and sex_params keeps the original paths.
+            short_names = dict()  # long path -> name in tmpdir
+            tmp_outputs = dict()  # name in tmpdir -> original output path
+            def shorten_path(value, output = False):
+                paths = [str(value)] if output else str(value).split(',')  # SExtractor splits input lists at commas
+                for i, path in enumerate(paths):
+                    if len(os.fsencode(path)) <= 200:
+                        continue
+                    if path not in short_names:
+                        name = Path(path).name
+                        if Path(path).parent != tmpdir:  # sex.param written above is already in tmpdir
+                            n = 0
+                            while os.path.lexists(tmpdir / name) or name in short_names.values():
+                                n += 1
+                                name = f'{n}_{Path(path).name}'
+                            if output:
+                                tmp_outputs[name] = path
+                            else:
+                                os.symlink(path, tmpdir / name)
+                        short_names[path] = name
+                    paths[i] = short_names[path]
+                return ','.join(paths)
+
             command = [
                 'source-extractor',
-                str(target_path),
+                shorten_path(target_path),
                 '-c',
-                str(sex_configfile)
+                shorten_path(sex_configfile)
             ]
 
             for key, value in sex_params.items():
+                if key in ('WEIGHT_IMAGE', 'FLAG_IMAGE', 'PARAMETERS_NAME'):
+                    value = shorten_path(value)
+                elif key == 'CATALOG_NAME':
+                    value = shorten_path(value, output = True)
                 command.extend([f'-{key}', str(value)])
             
             command_str = ' '.join(command)
@@ -2092,6 +2122,9 @@ class PhotometryHelper(Configuration):
             
             # Run the SExtractor command using subprocess.run
             result = self.run_command(command, cwd = tmpdir, timeout = 900)
+            for name, path in tmp_outputs.items():
+                if (tmpdir / name).exists():
+                    shutil.move(str(tmpdir / name), path)
             stderr = result.stderr
 
             # Pattern to match background and RMS

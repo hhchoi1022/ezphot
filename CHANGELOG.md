@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.13.3 (2026-11-26)
+시그니처·반환값·카탈로그 열·출력 파일 이름과 위치는 그대로다. 기본 설정에서 예전에 성공하던 프레임의 결과도 그대로다.
+예전에 실패하던 프레임 중 일부가 이제 처리되어 결과가 생긴다. 기본이 아닌 `dynamic_mag_range=True`에 그림을 켠 실행은 성공하던 프레임도 바뀔 수 있다(아래).
+### 수정
+- `photometric_calibration`: `save_fig=True` 또는 `visualize=True`일 때 seeing·ZP·ZP 오차가 NaN이면
+  `ValueError: Axis limits cannot be NaN or Inf`로 실패하던 것을 고쳤다.
+  - 고친 곳은 `select_stars`의 seeing 축(선택 뒤 별이 0개이거나 FWHM 열이 없을 때)과 `determine_reference_mag_range`의 ZP·ZP 오차 축이다.
+  - 이제 값이 유한할 때만 그 축 범위를 정하고, 그림은 그대로 저장한다. 계산과 반환값은 바뀌지 않는다.
+  - 결과가 바뀌는 프레임: 그림을 켜고 실패하던 프레임은 `photometric_calibration`의 재시도(`mag_max` +0.5, `classstar_lower` −0.1, 최대 5회)가
+    끝까지 돌아, 그림을 끈 실행과 같은 ZP·기준성으로 처리된다. 그림을 켠 실행과 끈 실행의 결과가 같아진다.
+  - **수치 변경**(기본이 아닌 옵션) `dynamic_mag_range=True`(기본 False)에 그림을 켠 경우: `determine_reference_mag_range`의 시도(bin 폭 × 클리핑 9가지) 중 ZP가 NaN인 시도는
+    예전에는 그림 단계의 예외로 버려졌다. 이제는 그림을 끈 실행처럼 평가되어, 범위 조건을 통과하면 선택될 수 있다
+    (그러면 거친 ZP가 NaN이 된다). 이 옵션을 쓰는 사용처는 그림을 끈 실행과 같은 결과가 되는지 확인한다.
+    영향 크기: 측정하지 않음. 기본 설정(레시피·DIA)과 baseline에는 해당 없음.
+- `PhotometryHelper.run_sextractor`: 명령줄의 파일 경로가 길면(SExtractor 2.28에서 약 256바이트 이상) SExtractor가
+  `buffer overflow detected`로 중단(exit −6)하던 것을 고쳤다.
+  - 200바이트를 넘는 경로만 호출마다 고유한 임시 디렉터리(실행 cwd) 안의 짧은 이름으로 넘긴다.
+    - 대상: 위치 인자 영상, `-c`, `WEIGHT_IMAGE`, `FLAG_IMAGE`, `PARAMETERS_NAME`, `CATALOG_NAME`. 쉼표로 나열한 경로는 하나씩 본다.
+    - 입력은 원래 파일 이름의 심볼릭 링크로 넘긴다. 이름이 겹치면 `1_` 같은 번호를 앞에 붙인다.
+    - 카탈로그는 임시 디렉터리에 쓰고, 성공하면 원래 경로로 옮긴다.
+  - 같은 함수를 쓰는 `run_scamp`·`run_psfex`의 SExtractor 단계도 함께 고쳐진다.
+  - 경로가 200바이트 이하면 명령은 0.13.2와 똑같다. 긴 경로에서는 로그의 `RUN COMMAND` 줄만 짧은 이름으로 바뀐다.
+  - 긴 카탈로그 경로에서 SExtractor가 실패하면 그 경로에 아무것도 쓰지 않는다.
+    0.13.2까지는 그 경로에 0바이트 `.cat`이 남았고, 같은 이름의 기존 카탈로그가 있으면 0바이트로 덮였다
+    (합성 시험과 0.13.0 실제 사례 LDS749B m375w로 확인). 지금은 기존 파일이 그대로 남는다.
+    짧은 경로는 예전과 같다(실패하면 0바이트 `.cat`이 남을 수 있다).
+  - 사용처 확인: 경로가 길어 실패하던 프레임(긴 격리·작업 디렉터리 등)이 이제 처리된다.
+    0바이트 `.cat`이 있는지로 실패를 판단하던 사용처는 예외(`ExternalToolError`)로 판단해야 한다.
+  - SCAMP·SWarp·hotpants·solve-field 본체는 바꾸지 않았다. 같은 길이 한계가 있는지는 확인하지 않았다.
+
 ## 0.13.2 (2026-11-26)
 기존 열·헤더 값과 레시피 요약은 바뀌지 않는다(`ZP_*`, `ZPERR_*`, `MAGSKY_*`, 색·등급 항, `SEEING` 등). 별로 ZP를 맞추는 카탈로그에 열 두 종류와
 헤더 키 `ZPM2D_*`가 **기본으로** 붙는다(호환 추가).

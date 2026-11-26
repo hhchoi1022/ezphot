@@ -1896,7 +1896,8 @@ class PhotometricCalibration:
         
         if visualize or save_fig:
             plt.legend()
-            plt.ylim(seeing - 2, seeing + 10)
+            if np.isfinite(seeing):  # NaN when no star is left; the plot is still saved
+                plt.ylim(seeing - 2, seeing + 10)
             valid_mag = target_catalog_data[magnitude_key][~np.isnan(target_catalog_data[magnitude_key])]
             median_mag = np.median(valid_mag) if len(valid_mag) > 0 else 0
             
@@ -2087,7 +2088,8 @@ class PhotometricCalibration:
             ax1.axvline(mag_min, color='red', ls='--', label=f"mag_min={mag_min:.2f}")
             ax1.axvline(mag_max, color='blue', ls='--', label=f"mag_max={mag_max:.2f}")
             ax1.set_ylabel("Zeropoint")
-            ax1.set_ylim(zp - 2, zp + 1)
+            if np.isfinite(zp):
+                ax1.set_ylim(zp - 2, zp + 1)
             ax1.legend()
             ax1.invert_xaxis()
 
@@ -2098,7 +2100,8 @@ class PhotometricCalibration:
             ax2.axvline(mag_max, color='blue', ls='--')
             ax2.set_xlabel("Magnitude")
             ax2.set_ylabel("ZP Error")
-            ax2.set_ylim(zp_err-0.1, zp_err+ 0.2)
+            if np.isfinite(zp_err):
+                ax2.set_ylim(zp_err-0.1, zp_err+ 0.2)
             ax2.legend()
 
             if save_fig:
