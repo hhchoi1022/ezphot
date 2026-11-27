@@ -20,7 +20,8 @@ PHOTOMETRY = dict(detection_sigma=1.5, aperture_diameter_arcsec=[3, 5, 7, 10, 15
                   aperture_diameter_seeing=[2.5, 3.5],
                   annulus_width_arcsec=None,   # SExtractor LOCAL background disabled (mode bias); bridge also null since 2026-10-24
                   saturation_level=60000, kron_factor=2.5,
-                  verbose=False, visualize=False, save=True, save_fig=True)
+                  # save_fig off: with visualize=False its only figure is subbkg_<img>.subbkg.png, deleted with subbkg_<img>*
+                  verbose=False, visualize=False, save=True, save_fig=False)
 
 # Reference-star magnitude range per filter (mag_lower, mag_upper); default for others.
 MAG_RANGE_DEFAULT = (11.5, 15)

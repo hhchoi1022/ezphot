@@ -12,7 +12,6 @@ import functools
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union, Optional, Tuple
-import portalocker
 import uuid
 import tempfile
 
@@ -2006,15 +2005,10 @@ class PhotometryHelper(Configuration):
             Create a process-safe temporary SExtractor parameter file
             """
             base_param_file = Path(base_param_file)
-            try:
-                with portalocker.Lock(base_param_file, mode='r', timeout=30):
-                    with open(base_param_file, 'r') as f:
-                        lines = f.readlines()
-            except (portalocker.exceptions.LockException, OSError):
-                # NFS mounts without flock support (e.g. host wfm) raise EBADF here.
-                # The base param file is only read, so an unlocked read is safe.
-                with open(base_param_file, 'r') as f:
-                    lines = f.readlines()
+            # Read without a lock: ezphot never writes the base param file while running (only Configuration.initialize
+            # copies it), and the per-run copy goes to tmp_param_file. A flock on NFS (e.g. host wfm) waited 30 s and failed.
+            with open(base_param_file, 'r') as f:
+                lines = f.readlines()
 
             new_lines = []
             for line in lines:
@@ -2060,7 +2054,7 @@ class PhotometryHelper(Configuration):
                 for file in Path(self.sexpath).glob(f'*{ext}'):
                     shutil.copy(file, tmpdir)
                     
-            # modify parameter file with lock (Must be multiprocess safe)
+            # write the modified parameter file in this run's tmpdir (multiprocess safe; the base file is only read)
             if not 'PARAMETERS_NAME' in sex_params.keys():
                 tmp_param_file = tmpdir / 'sex.param'
                 if 'PHOT_APERTURES' in sex_params.keys():

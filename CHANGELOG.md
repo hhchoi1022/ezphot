@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.13.5 (2026-11-27)
+(속도.) 기본 설정에서는 시그니처·반환값·카탈로그 열·헤더·레시피 요약·남는 산출물 파일·측광 수치가 그대로다.
+공개 기본값 하나(`recipes.defaults.PHOTOMETRY['save_fig']`)가 바뀐다(아래, 호환).
+측정(0.13.4, 7DT 100초 프레임 1장, `process_images --n-proc 1`, 그림 포함, flock을 지원하지 않는 NFS 호스트): 175 s 중 아래 락 대기 약 90 s, `.subbkg.png` 약 4 s.
+변경 후(같은 프레임·호스트): 그림 포함 175 s → 80 s, `--no-figures` 160 s → 65 s. `.fits`·`.cat`·`.refcat`·마스크·배경 파일은 바이트 단위로 같고 요약 CSV도 같다.
+### 수정
+- `PhotometryHelper.run_sextractor`: 개구 수를 맞춘 임시 `sex.param`을 만들 때 기본 param 파일(`SEX_DIR/sex.param`)을 `portalocker` 락 없이 읽는다.
+  flock을 지원하지 않는 NFS에서는 락이 30 s 재시도 뒤 실패하고 나서야 락 없이 읽었으므로(0.4.17부터; 그 전에는 30 s 뒤 측광 실패) 이 파일을 읽는 SExtractor 실행마다 30 s를 기다렸다
+  (process_images 1장 = seeing 추정 1회 + 본측광 2회 = 약 90 s). 실행 중 ezphot은 이 파일을 쓰지 않고
+  (`Configuration.initialize`의 설정 복사뿐이며 그것도 락을 잡지 않았다), 같은 함수가 바로 앞에서 이 파일을 락 없이 임시 폴더로 복사하고 있었다.
+  읽는 내용과 임시 param 파일은 같다. `photometryhelper`는 더 이상 `portalocker`를 import하지 않는다(`requirements.txt`의 `portalocker`는 그대로).
+- `recipes.defaults.PHOTOMETRY`: `save_fig` 기본 `True` → `False`(process_images와, process_image를 쓰는 stack의 `photometry` 섹션).
+  `visualize=False`(기본)에서 이 값이 만드는 그림은 `subbkg_<img>.subbkg.png` 하나뿐이고 측광 끝에 `subbkg_<img>*`와 함께 늘 지워졌다(갤러리 미사용). 이제 그리지 않는다.
+  `config={'photometry': {'save_fig': True}}`로 예전처럼 그릴 수 있다. `photometry` 섹션에 `visualize=True`를 준 호출은 카탈로그 그림 `<img>.fits.cat.png`도
+  `save_fig=True`일 때만 저장된다. photcal(1차 포함)·sourcemask·bkgmap·bkgrms 그림은 그대로다. `--no-figures` 설명에서 photometry subbkg 그림을 뺐다.
+
 ## 0.13.4 (2026-11-27)
 (내부, 그림만.) 카탈로그·헤더·`update_kwargs`·반환값·인자·레시피 요약은 바뀌지 않는다. 바뀌는 것은 `zp_map`을 켠(기본) photcal의 `.zp_2d.png` 내용과 갤러리 표시뿐이다.
 ### 수정

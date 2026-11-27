@@ -24,7 +24,7 @@ CLI (images are found with DataBrowser('scidata') unless --paths is given):
     --dark-fallback : with --preprocess, pick the nearest master group from darks of any exposure; in its nearest night
     with a dark not shorter than the frame, use the frame's exposure, else the shortest longer one (scaled by EXPTIME);
     see Preprocess.get_masterframe.
-    --no-figures : skip process_images' own diagnostic PNGs (sourcemask, bkgmap, bkgrms, the photometry subbkg,
+    --no-figures : skip process_images' own diagnostic PNGs (sourcemask, bkgmap, bkgrms,
     photcal refcat/zp_mag/zp_color/zp_2d) for speed. Measured values are unchanged. The visualize gallery's
     background and ZP Calibration cells are empty unless PNGs from an earlier run remain (they are not deleted);
     those old figures are then shown and may not match the current ZP.
