@@ -43,7 +43,8 @@ def _fit_zp_map(u, v, r, w, color=None, model='plane+r2+r4', min_stars=30, sigma
     design -> model 'const' with zero position coefficients.
 
     Returns dict(model, coef = position-term coefficients (mag; c0 and k left out), n = stars of the final fit,
-    rms0 = std of r, rms = std of the fit residuals, both over those n stars; 'const': rms = rms0).
+    rms0 = std of r, rms = std of the fit residuals, both over those n stars; 'const': rms = rms0;
+    mask = bool array over the input rows, True for those n stars).
     """
     u, v, r, w = (np.asarray(a, dtype=float) for a in (u, v, r, w))
     ok = np.isfinite(u) & np.isfinite(v) & np.isfinite(r) & np.isfinite(w) & (w > 0)
@@ -77,8 +78,8 @@ def _fit_zp_map(u, v, r, w, color=None, model='plane+r2+r4', min_stars=30, sigma
     rms0 = float(np.std(r[mask])) if n > 0 else 0.0
     n_terms = len(_ZP_MAP_TERMS[model])
     if coef is None:
-        return dict(model='const', coef=np.zeros(n_terms), n=n, rms0=rms0, rms=rms0)
-    return dict(model=model, coef=coef[1:1 + n_terms], n=n, rms0=rms0, rms=float(np.std(resid[mask])))
+        return dict(model='const', coef=np.zeros(n_terms), n=n, rms0=rms0, rms=rms0, mask=mask)
+    return dict(model=model, coef=coef[1:1 + n_terms], n=n, rms0=rms0, rms=float(np.std(resid[mask])), mask=mask)
 
 
 def _eval_zp_map(u, v, coef, model, urange, vrange):
@@ -86,6 +87,94 @@ def _eval_zp_map(u, v, coef, model, urange, vrange):
     u = np.clip(np.asarray(u, dtype=float), *urange)
     v = np.clip(np.asarray(v, dtype=float), *vrange)
     return _zp_map_terms(u, v, model) @ np.asarray(coef, dtype=float)
+
+
+def _plot_zp_map(columns, residuals, u, v, model, urange, vrange, xc, yc, scale, naxis1, naxis2,
+                 title='', savepath=None, show=False, log=print):
+    """
+    Figure of the zp_map correction (mmag), one row per column of columns = {mag_key: (map_fit, map_offset)}:
+    left, the map stars' residual r = residuals[mag_key] (mag, rows of u, v) before the map; middle, ZPPOS =
+    _eval_zp_map - OFF over the whole image (0..naxis-1 px), contours, clamp range dashed; right, r - ZPPOS of the
+    star. Filled points: stars of the final fit (map_fit['mask']), grey x: the other stars with a finite r. Both
+    residual panels minus their median over the fitted stars. Colour range per row: symmetric, 98th percentile of
+    |before| over the fitted stars (at least 5 mmag), the same in the three panels. Reads its inputs only; a failure is one warning (log),
+    the figure is closed in any case.
+    """
+    if not columns:
+        return
+    fig = None
+    try:
+        u, v = np.asarray(u, dtype=float), np.asarray(v, dtype=float)
+        x, y = u * scale + xc, v * scale + yc
+        pos_ok = np.isfinite(x) & np.isfinite(y)
+        nx = 200
+        ny = max(2, int(round(nx * naxis2 / naxis1)))
+        gx, gy = np.meshgrid(np.linspace(0, naxis1 - 1, nx), np.linspace(0, naxis2 - 1, ny))
+        gu, gv = (gx - xc) / scale, (gy - yc) / scale
+        box_x = np.array([urange[0], urange[1], urange[1], urange[0], urange[0]]) * scale + xc   # clamp range (px)
+        box_y = np.array([vrange[0], vrange[0], vrange[1], vrange[1], vrange[0]]) * scale + yc
+        extent = (-0.5, naxis1 - 0.5, -0.5, naxis2 - 0.5)
+        cmap = plt.cm.RdBu_r
+        row_height = 4.0 * min(max(naxis2 / naxis1, 0.3), 3.0) + 1.0
+        fig, axes = plt.subplots(len(columns), 3, figsize=(13.5, row_height * len(columns)), squeeze=False,
+                                 constrained_layout=True)
+
+        def robust_std(a):
+            return 1.4826 * float(np.median(np.abs(a - np.median(a)))) if a.size else np.nan
+
+        for row, (mag_key, (map_fit, map_offset)) in zip(axes, columns.items()):
+            fitted = np.asarray(map_fit['mask'], dtype=bool)
+            r0 = np.asarray(residuals[mag_key], dtype=float) * 1000
+            used = fitted & pos_ok & np.isfinite(r0)
+            other = ~fitted & pos_ok & np.isfinite(r0)
+            zppos = (_eval_zp_map(u, v, map_fit['coef'], model, urange, vrange) - map_offset) * 1000
+            before = r0 - (np.median(r0[used]) if used.any() else 0.0)
+            after = r0 - zppos
+            after = after - (np.median(after[used]) if used.any() else 0.0)
+            shown = np.abs(before[used])   # fitted stars only: clipped outliers would wash out the colour scale
+            vlim = max(5.0, float(np.percentile(shown, 98))) if shown.size else 5.0
+            norm = mcolors.Normalize(vmin=-vlim, vmax=vlim)
+            Z = (_eval_zp_map(gu.ravel(), gv.ravel(), map_fit['coef'], model, urange, vrange)
+                 - map_offset).reshape(gx.shape) * 1000
+
+            ax0, ax1, ax2 = row
+            for ax, value in ((ax0, before), (ax2, after)):
+                if other.any():
+                    ax.scatter(x[other], y[other], marker='x', s=10, c='0.6', linewidths=0.6)
+                if used.any():
+                    ax.scatter(x[used], y[used], c=value[used], cmap=cmap, norm=norm, s=10, edgecolors='k',
+                               linewidths=0.2)
+            im = ax1.imshow(Z, origin='lower', extent=extent, cmap=cmap, norm=norm, interpolation='nearest')
+            if np.ptp(Z) > 0:
+                contours = ax1.contour(gx, gy, Z, levels=8, colors='k', linewidths=0.5)
+                ax1.clabel(contours, fmt='%+.1f', fontsize=6)
+            ax1.plot(box_x, box_y, 'k--', lw=0.8)
+            for ax in row:
+                ax.plot(xc, yc, '+', color='k', ms=8, mew=1)
+                ax.set_xlim(extent[:2])
+                ax.set_ylim(extent[2:])
+                ax.set_aspect('equal')
+                ax.set_xlabel('X_IMAGE (px)', fontsize=9)
+                ax.set_ylabel('Y_IMAGE (px)', fontsize=9)
+                ax.tick_params(labelsize=8)
+            fit_model = map_fit['model'] if map_fit['model'] != 'const' else f'const (fallback, no {model} map)'
+            ax0.set_title(f'before: robust σ {robust_std(before[used]):.1f} mmag', fontsize=9)
+            ax1.set_title(f"{mag_key}  {fit_model}  N={map_fit['n']}  "
+                          f"RMS {map_fit['rms0'] * 1000:.1f}→{map_fit['rms'] * 1000:.1f} mmag", fontsize=9)
+            ax2.set_title(f'after (− ZPPOS): robust σ {robust_std(after[used]):.1f} mmag', fontsize=9)
+            fig.colorbar(im, ax=list(row), shrink=0.9, pad=0.01, label='mmag')
+
+        fig.suptitle(f'{title}\nresidual = ref − MAG − ZP, minus the median of the fitted stars; filled: fitted stars, '
+                     f'grey x: not fitted; middle: ZPPOS, dashed: clamp range; +: image centre', fontsize=10)
+        if savepath is not None:
+            fig.savefig(savepath, dpi=150)
+        if show:
+            plt.show()
+    except Exception as e:
+        log(f"[WARN] zp_map figure failed: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
 
 
 class PhotometricCalibration:
@@ -273,7 +362,9 @@ class PhotometricCalibration:
             ZPM2D_UMIN/UMAX/VMIN/VMAX (clamp range), ZPM2D_COLOR, ZPM2D_NMIN, and per column ZPM2D_<k>_MODEL,
             _N (stars fitted), _C1.._Cn (position-term coefficients, mag), _OFF (subtracted mean), _RMS0 / _RMS
             (std of r / of the map + colour fit residuals over the fitted stars); ZPPOS_<k> = sum(C_i * term_i) - OFF.
-            A catalog without X_IMAGE/Y_IMAGE gets no map (one warning).
+            A catalog without X_IMAGE/Y_IMAGE gets no map (one warning). With visualize / save_fig, the
+            .zp_2d.png figure shows this map (per column: residual before, ZPPOS over the image, residual after,
+            mmag) in place of the Polynomial2D fit of the ZP stars drawn with zp_map=None.
         zp_map_min_stars : int, optional
             Minimum number of map stars (after clipping) for a zp_map fit; fewer -> ZPPOS_<k> = 0.
 
@@ -526,6 +617,7 @@ class PhotometricCalibration:
             self.helper.print(f"[INFO] zp_map {zp_map}: {len(map_obj)} map stars over the whole image "
                               f"({len(matched_obj)} ZP stars), colour {map_color_name}", verbose)
             zp_map_columns = dict()
+            zp_map_residuals = dict()   # map_r per column, for the figure only
 
         # Update the target image header
         if np.isfinite(target_seeing):
@@ -635,6 +727,8 @@ class PhotometricCalibration:
                                           map_fit['coef'], zp_map, map_urange, map_vrange)
                 map_offset = float(np.nanmean(map_offset)) if np.isfinite(map_offset).any() else 0.0
                 zp_map_columns[mag_key] = (map_fit, map_offset)
+                if visualize or save_fig:
+                    zp_map_residuals[mag_key] = map_r
 
             # When calculate_color_terms
             if calculate_color_terms:
@@ -721,8 +815,8 @@ class PhotometricCalibration:
                 except Exception as e:
                     self.helper.print(f"[WARN] [{mag_key}] Magnitude term fit failed: {e}", verbose)
 
-            # Save spatial variation of the zeropoint (density map)
-            if visualize or save_fig:
+            # Save spatial variation of the zeropoint (density map); with zp_map, the figure of the map instead
+            if (visualize or save_fig) and zp_map is None:
                 if 'zp_maps' not in locals():
                     zp_maps = {}
                     zp_errs = {}
@@ -781,6 +875,13 @@ class PhotometricCalibration:
                 update_kwargs[f'ZPM2D_{suffix}_RMS'] = (map_fit['rms'], "rms after map+colour fit")
                 self.helper.print(f"[INFO] zp_map {map_mag_key}: {map_fit['model']}, {map_fit['n']} stars, "
                                   f"rms {map_fit['rms0']:.4f} -> {map_fit['rms']:.4f}", verbose)
+            # Figure of the map (.zp_2d.png, in place of the Polynomial2D figure below): reads the values above only
+            if visualize or save_fig:
+                _plot_zp_map(zp_map_columns, zp_map_residuals, map_u, map_v, zp_map, map_urange, map_vrange,
+                             map_xc, map_yc, map_scale, target_img.naxis1, target_img.naxis2,
+                             title = f'2D ZP map {zp_map} ({target_img.filter}, colour {map_color_name})',
+                             savepath = target_catalog.path.with_suffix('.zp_2d.png') if save_fig else None,
+                             show = visualize, log = lambda message: self.helper.print(message, True))   # always: a failed figure is otherwise silent
 
         # Visualization for 2D ZP map
         if (visualize or save_fig) and 'zp_maps' in locals():

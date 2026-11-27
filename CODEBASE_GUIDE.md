@@ -376,6 +376,8 @@ whole image (same cuts, no region cut; module helpers `_fit_zp_map`/`_eval_zp_ma
 and appends `ZPPOS_<k>`/`MAGPOS_<k>` columns plus `ZPM2D_*` header keys; `ZP_*` and
 `MAGSKY_*` are unchanged. New column or header names must not start with `MAG_`,
 `MAGSKY_` or `ZP_` (column-prefix loops in this module, `ZP_*` shift in `stack.py`).
+With `zp_map` on, the `.zp_2d.png` figure is drawn by `_plot_zp_map` (before / map / after per column, read-only,
+failures only warn); with `zp_map=None` it is the older Polynomial2D fit of the ZP stars.
 
 ### Stack
 

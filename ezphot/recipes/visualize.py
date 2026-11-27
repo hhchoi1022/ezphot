@@ -830,7 +830,7 @@ CAPTIONS = {
     '.refcat.png': 'ZP 계산에 쓴 기준성 선택',
     '.zp_mag.png': 'ZP vs 기준성 등급',
     '.zp_color.png': 'ZP vs 색',
-    '.zp_2d.png': 'ZP 공간 분포',
+    '.zp_2d.png': '2D ZP 지도',
     'run_trends.png': f'{ZP_KEY}, SEEING, UL5SKY (10″) 시간 추이',
     'lightcurve.png': f'{MAGSKY_KEY} 광도곡선 — 채운 원: 이번 summary의 이미지, 빈 원: 디스크의 다른 카탈로그',
     'dia.png': f'science · reference · convolved(차영상 헤더 CONVOL00: reference 또는 science) · 차영상(0 중심 대칭), 한 변 약 '
@@ -858,7 +858,7 @@ def _figure(outdir: Path, name: str, prefix: str = '', reuse: bool = False) -> d
         except Exception:
             pass
     with Image.open(outdir / name) as im:
-        im.thumbnail((1400, 1400))
+        im.thumbnail((1400, 6000 if name.endswith('.zp_2d.png') else 1400))   # .zp_2d.png (full width): rows stacked
         bg = Image.new('RGB', im.size, 'white')
         bg.paste(im, mask=im.getchannel('A') if im.mode == 'RGBA' else None)
         buf = io.BytesIO()                          # one write, without the existence checks of save(<path>)
@@ -931,6 +931,7 @@ figure{margin:0}figure.wide{grid-column:1/-1;max-width:1400px}figure img{width:1
 .mid figure:nth-child(odd) img{object-position:100% 50%}.mid figure:nth-child(even) img{object-position:0 50%}   /* 2 columns: figures meet in the middle */
 .mid figure:nth-child(odd) .cap{text-align:right}
 .fit.zp{max-width:1000px;margin:0 auto}.fit.zp figure img{max-height:none;aspect-ratio:4/3}.zp .cap{text-align:center}   /* ZP: 2x2 of equal 4:3 boxes as wide as the cell (grid <= 1000 px, centred), no one-screen height limit */
+.fit.zp figure.full{grid-column:1/-1}.fit.zp figure.full img{aspect-ratio:auto}   /* .zp_2d.png: a row of its own, the grid's width, own aspect */
 .lcgrid{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,1fr);gap:14px;align-items:start}   /* LC / SED: coordinate + image | plot */
 .lcl .cap:not(.bad),.lcl #cmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lcl #cmsg{flex:1 1 100%;min-width:0}   /* one line each; whole text in title */
 .lcl #cmsg:empty{display:none}
@@ -949,7 +950,7 @@ const LCT=!!(D.lcdata||D.srcs||D.dia&&D.dia.pts.length);   // light-curve / SED 
 const TABS=[['overview','개요'],...D.stages.map(s=>[s,D.labels[s]]),...(LCT?[['lc','광도곡선'],['sed','SED']]:[])];
 let tab='overview',idx=0;
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function fig(f){return `<figure${f.wide?' class="wide"':''}><img loading="lazy" src="${f.thumb}" data-full="${f.src}" alt="">${f.caption?`<p class="cap" title="${esc(f.caption)}">${esc(f.caption)}</p>`:''}</figure>`}
+function fig(f){const c=f.src.endsWith('.zp_2d.png')?'full':f.wide?'wide':'';return `<figure${c?` class="${c}"`:''}><img loading="lazy" src="${f.thumb}" data-full="${f.src}" alt="">${f.caption?`<p class="cap" title="${esc(f.caption)}">${esc(f.caption)}</p>`:''}</figure>`}
 function card(t,figs){return `<div class="card"><h2>${esc(t)}</h2><div class="grid">${figs.map(fig).join('')}</div></div>`}
 function overview(){
   const head=D.cols.map(c=>`<th>${esc(c[1])}</th>`).join('');
